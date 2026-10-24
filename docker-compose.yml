@@ -1,0 +1,21 @@
+services:
+  postgres:                         # service name; also its hostname for other containers
+    image: postgres:16              # official image, major version pinned
+    restart: unless-stopped         # restarts after crashes or a Docker restart, unless you stopped it
+    environment:                    # read by the image on first start to create user, password, db
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data              # named volume: data survives container restarts
+      - ./db/init:/docker-entrypoint-initdb.d:ro     # schema scripts, run once on an empty volume
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"      # your machine's localhost only, not your network
+    healthcheck:                    # "healthy" once Postgres accepts connections
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:                           # declares the named volume
