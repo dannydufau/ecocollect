@@ -32,3 +32,13 @@ docker compose up -d postgres
 Add new scripts as `002_...sql`, `003_...sql`; they run in filename order. (A migration tool can replace this later if the schema needs to change without wiping data.)
 
 If a script fails, the error is in `docker compose logs postgres`.
+
+## Running scripts against the database (e.g. the seed)
+
+Scripts run on your machine need `DATABASE_URL` set, using the password from your `.env`:
+
+```bash
+export DATABASE_URL=postgres://ecocollect:<your POSTGRES_PASSWORD>@localhost:5432/ecocollect
+```
+
+Replace `<your POSTGRES_PASSWORD>` with the value in your `.env`. If you changed `POSTGRES_PORT`, use that port instead of `5432`.
