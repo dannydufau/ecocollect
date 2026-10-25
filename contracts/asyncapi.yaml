@@ -1,0 +1,272 @@
+asyncapi: 3.0.0
+info:
+  title: EcoCollect events (Oct 28)
+  version: 0.1.0
+  description: |
+    The two messages in the Oct 28 flow:
+
+    1. **RequestCreated**: the pickup service tells the notification service, through
+       RabbitMQ, that a resident created a request.
+    2. **SseNotification**: the notification service tells the browser, over the open
+       `GET /api/events` stream, that there is something new.
+
+    This one file describes the services on both sides of each message, so every operation
+    says which service does it. The REST calls are in [openapi.yaml](./openapi.yaml)
+    and the flow around all of this is in [README.md](./README.md).
+
+    **No street address ever appears in an event or an SSE message.**
+
+servers:
+  rabbitmq:
+    host: localhost:5672
+    protocol: amqp
+    description: RabbitMQ broker, local development. Not reachable from outside.
+  gateway:
+    host: localhost
+    protocol: https
+    description: Caddy. The only publicly exposed service.
+
+channels:
+  requestCreated:
+    address: request.created
+    title: Routing key request.created
+    description: Published to the exchange below, one message per created request.
+    servers:
+      - $ref: '#/servers/rabbitmq'
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: ecocollect.events
+          type: topic
+          durable: true
+          autoDelete: false
+          vhost: /
+    messages:
+      requestCreated:
+        $ref: '#/components/messages/RequestCreated'
+
+  requestEventsQueue:
+    address: notification.request-events
+    title: Queue notification.request-events
+    description: Bound to the exchange with `request.*`. A durable queue only survives a restart if its messages are persistent too.
+    servers:
+      - $ref: '#/servers/rabbitmq'
+    bindings:
+      amqp:
+        is: queue
+        queue:
+          name: notification.request-events
+          durable: true
+          exclusive: false
+          autoDelete: false
+          vhost: /
+    messages:
+      requestCreated:
+        $ref: '#/components/messages/RequestCreated'
+
+  notificationStream:
+    address: /api/events
+    title: Server-Sent Events stream
+    description: Opened once after login by `EventSource` with the session cookie.
+    servers:
+      - $ref: '#/servers/gateway'
+    messages:
+      notification:
+        $ref: '#/components/messages/SseNotification'
+
+operations:
+  publishRequestCreated:
+    action: send
+    channel:
+      $ref: '#/channels/requestCreated'
+    title: Pickup service publishes RequestCreated
+    summary: One event per created request, so a 3-category submission sends 3.
+    description: |
+      Sent by the outbox publisher in the pickup service. The event is saved in the
+      same database transaction as the request, so it is never lost. A background loop
+      publishes it with **publisher confirms on**, and marks the outbox row as sent
+      only after RabbitMQ confirms.
+    bindings:
+      amqp:
+        deliveryMode: 2
+    messages:
+      - $ref: '#/channels/requestCreated/messages/requestCreated'
+
+  receiveRequestCreated:
+    action: receive
+    channel:
+      $ref: '#/channels/requestEventsQueue'
+    title: Notification service consumes RequestCreated
+    description: |
+      Uses **manual ack**, sent only after the database work has committed, so an
+      unacked message is delivered again. The event id makes a repeat harmless: the
+      service saves it in `processed_events` and skips events it has already seen.
+      One notification is created for the resident (`REQUEST_CREATED`) and one for each
+      uid in `matchedVolunteerUids` (`NEW_MATCHING_REQUEST`). The recipients come
+      straight from the event, there is no matching in this service.
+    bindings:
+      amqp:
+        ack: true
+    messages:
+      - $ref: '#/channels/requestEventsQueue/messages/requestCreated'
+
+  pushNotification:
+    action: send
+    channel:
+      $ref: '#/channels/notificationStream'
+    title: Notification service pushes a notification over SSE
+    description: |
+      After the notification rows are saved, one `notification` message is written to
+      every open connection of that recipient, so several tabs all get it. A recipient with
+      no open connection gets nothing now. Roughly every 25 seconds the server also sends a
+      comment line, `: ping`, to keep the connection open and to find dead connections.
+    messages:
+      - $ref: '#/channels/notificationStream/messages/notification'
+
+components:
+  messages:
+    RequestCreated:
+      name: RequestCreated
+      title: A resident created a pickup request
+      contentType: application/json
+      description: |
+        AMQP properties: `messageId` is the `eventId`, `contentType` is `application/json`,
+        and the message is persistent (`deliveryMode` 2).
+      correlationId:
+        location: $message.payload#/eventId
+      payload:
+        $ref: '#/components/schemas/RequestCreatedPayload'
+      examples:
+        - name: Two laptops with two matched volunteers
+          payload:
+            eventId: 6f1c9c2e-3b0e-4f0f-9d57-2c2f6a1d8e11
+            type: RequestCreated
+            version: 1
+            occurredAt: '2026-10-28T16:15:00Z'
+            data:
+              requestId: r_123
+              residentUid: firebaseUid_abc
+              categoryId: laptops
+              categoryName: Computers/Laptops
+              quantity: 2
+              estimatedWeightKg: 5.0
+              postalCode: T2P1J9
+              windows:
+                - date: '2026-10-30'
+                  startHour: 14
+              expiresAt: '2026-11-27T16:15:00Z'
+              matchedVolunteerUids: [firebaseUid_v1, firebaseUid_v2]
+
+    SseNotification:
+      name: notification
+      title: A notification for the signed-in user
+      contentType: application/json
+      description: |
+        Sent as a Server-Sent Event. On the wire it is three lines and a blank line:
+
+        ```
+        event: notification
+        id: <notificationId>
+        data: <the payload as one line of JSON>
+        ```
+
+        The message is only a signal. The frontend refetches from the REST API to get fresh data:
+        always the notifications, and for `NEW_MATCHING_REQUEST` the available requests,
+        for `REQUEST_CREATED` the resident's own requests.
+      payload:
+        $ref: '#/components/schemas/SseNotificationPayload'
+      examples:
+        - name: A volunteer is told about a new request
+          payload:
+            notificationId: n_789
+            type: NEW_MATCHING_REQUEST
+            requestId: r_123
+            title: New pickup near you
+            body: 2 x Computers/Laptops in T2P1J9
+            createdAt: '2026-10-28T16:15:02Z'
+
+  schemas:
+    RequestCreatedPayload:
+      type: object
+      required: [eventId, type, version, occurredAt, data]
+      properties:
+        eventId:
+          type: string
+          format: uuid
+          description: Unique per event. Used to skip an event that was delivered twice.
+        type:
+          type: string
+          const: RequestCreated
+        version:
+          type: integer
+          const: 1
+        occurredAt:
+          $ref: ./schemas/common.yaml#/Timestamp
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - requestId
+            - residentUid
+            - categoryId
+            - categoryName
+            - quantity
+            - estimatedWeightKg
+            - postalCode
+            - windows
+            - expiresAt
+            - matchedVolunteerUids
+          properties:
+            requestId:
+              type: string
+            residentUid:
+              type: string
+              description: Firebase uid of the resident.
+            categoryId:
+              type: string
+            categoryName:
+              type: string
+            quantity:
+              type: integer
+              minimum: 1
+            estimatedWeightKg:
+              type: number
+            postalCode:
+              $ref: ./schemas/common.yaml#/PostalCode
+            windows:
+              type: array
+              items:
+                $ref: ./schemas/common.yaml#/PickupWindow
+            expiresAt:
+              $ref: ./schemas/common.yaml#/Timestamp
+            matchedVolunteerUids:
+              type: array
+              description: >
+                Volunteers whose saved postal codes include this request's postal code, without the
+                resident. A snapshot taken when the request was created, so later preference changes
+                do not affect it. It can be empty.
+              items:
+                type: string
+
+    SseNotificationPayload:
+      type: object
+      required: [notificationId, type, requestId, title, body, createdAt]
+      properties:
+        notificationId:
+          type: string
+        type:
+          type: string
+          enum: [REQUEST_CREATED, NEW_MATCHING_REQUEST]
+          description: >
+            `REQUEST_CREATED` is the confirmation to the resident.
+            `NEW_MATCHING_REQUEST` is the alert to a volunteer.
+        requestId:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+          description: Never contains the street address.
+        createdAt:
+          $ref: ./schemas/common.yaml#/Timestamp
