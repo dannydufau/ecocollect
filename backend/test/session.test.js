@@ -76,6 +76,21 @@ test('POST /api/session returns 500 when Firebase fails for another reason', asy
   assert.strictEqual(res.status, 500);
 });
 
+test('POST /api/session returns 500 when Firebase itself reports an internal error', async (t) => {
+  t.mock.method(console, 'error', () => {});
+  const auth = {
+    createSessionCookie: async () => {
+      throw Object.assign(new Error('firebase is down'), { code: 'auth/internal-error' });
+    },
+  };
+  const server = await startServer(auth);
+  t.after(server.close);
+
+  const res = await postSession(server, { idToken: 'good-token' });
+
+  assert.strictEqual(res.status, 500);
+});
+
 test('DELETE /api/session clears the cookie', async (t) => {
   const server = await startServer(fakeAuth());
   t.after(server.close);

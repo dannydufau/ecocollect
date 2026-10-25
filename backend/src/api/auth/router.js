@@ -7,10 +7,20 @@ const SESSION_MS = 5 * 24 * 60 * 60 * 1000; // 5 days, Firebase allows 5 minutes
 // Authorization header, so this cookie is how the SSE connection proves who it is.
 const COOKIE_OPTIONS = { httpOnly: true, secure: true, sameSite: 'lax' };
 
-// Firebase puts an "auth/..." code on errors caused by the token itself. Anything
-// else (network, bad config) is our problem, so the caller shouldn't see a 401.
+// Firebase puts an "auth/..." code on errors caused by the token itself, but a few
+// of those codes mean Firebase or our own setup is broken, not that the caller did
+// something wrong. Those (and anything without an auth code) should not be a 401.
+const SERVER_FAULTS = new Set([
+  'auth/internal-error',
+  'auth/insufficient-permission',
+  'auth/project-not-found',
+  'auth/invalid-session-cookie-duration',
+]);
+
 function sendAuthError(res, err) {
-  if (err.code?.startsWith('auth/')) return res.sendStatus(401);
+  if (String(err.code).startsWith('auth/') && !SERVER_FAULTS.has(err.code)) {
+    return res.sendStatus(401);
+  }
   console.error('Unexpected auth error:', err);
   res.sendStatus(500);
 }
