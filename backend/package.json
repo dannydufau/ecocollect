@@ -4,6 +4,9 @@
   "private": true,
   "description": "EcoCollect API server (request service)",
   "main": "src/api/server.js",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "start": "node src/api/server.js",
     "test": "node --test test/*.test.js"
