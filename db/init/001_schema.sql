@@ -5,7 +5,9 @@ CREATE TABLE profiles (
     uid            TEXT PRIMARY KEY,                -- Firebase uid
     first_name     TEXT NOT NULL,
     last_name      TEXT NOT NULL,
-    display_name   TEXT NOT NULL,                   -- public name
+    public_name    TEXT NOT NULL,                   -- name shown publicly
+    username       TEXT NOT NULL UNIQUE,
+    email          TEXT NOT NULL UNIQUE,
     date_of_birth  DATE NOT NULL,
     roles          TEXT[] NOT NULL,                 -- mirrors the Firebase roles claim
     street         TEXT NOT NULL,
@@ -14,21 +16,24 @@ CREATE TABLE profiles (
     fsa            CHAR(3) GENERATED ALWAYS AS (substring(postal_code FROM 1 FOR 3)) STORED,
     created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT profiles_roles_valid
-        CHECK (cardinality(roles) > 0 AND roles <@ ARRAY['resident', 'volunteer']),
+        CHECK (cardinality(roles) BETWEEN 1 AND 2 AND roles <@ ARRAY['resident', 'volunteer']
+               AND roles <> ARRAY['resident','resident'] AND roles <> ARRAY['volunteer','volunteer']),
     CONSTRAINT profiles_postal_code_format
-        CHECK (postal_code ~ '^[A-Z][0-9][A-Z][0-9][A-Z][0-9]$'),
+        CHECK (postal_code ~ '^T[0-9][A-Z][0-9][A-Z][0-9]$'),
     CONSTRAINT profiles_adult
         CHECK (date_of_birth <= CURRENT_DATE - INTERVAL '18 years')
 );
 
 CREATE INDEX profiles_fsa_idx ON profiles (fsa);
 
--- VOLUNTEER.Preferred_Pickup_Area (multi-valued). At most 3 per volunteer, enforced by the application.
+-- VOLUNTEER preferred postal codes: at most three distinct full Calgary postal codes.
 CREATE TABLE volunteer_preferred_postal_codes (
     uid          TEXT NOT NULL REFERENCES profiles (uid) ON DELETE CASCADE,
     postal_code  CHAR(6) NOT NULL
-        CHECK (postal_code ~ '^[A-Z][0-9][A-Z][0-9][A-Z][0-9]$'),
-    PRIMARY KEY (uid, postal_code)
+        CHECK (postal_code ~ '^T[0-9][A-Z][0-9][A-Z][0-9]$'),
+    preference_slot SMALLINT NOT NULL CHECK (preference_slot BETWEEN 1 AND 3),
+    PRIMARY KEY (uid, postal_code),
+    UNIQUE (uid, preference_slot)
 );
 
 -- TERMS_DOCUMENT and the account acceptance relationship.
@@ -51,7 +56,8 @@ CREATE TABLE terms_acceptance (
 CREATE TABLE categories (
     category_id         TEXT PRIMARY KEY,           -- e.g. 'laptops'
     name                TEXT NOT NULL,              -- e.g. 'Computers/Laptops'
-    standard_weight_kg  NUMERIC(6,2) NOT NULL CHECK (standard_weight_kg > 0)
+    standard_weight_kg  NUMERIC(6,2) NOT NULL CHECK (standard_weight_kg > 0),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 -- RECYCLING_FACILITY and the categories it accepts (ACCEPTS, many-to-many).
@@ -61,7 +67,7 @@ CREATE TABLE recycling_facility (
     street       TEXT NOT NULL,
     city         TEXT NOT NULL DEFAULT 'Calgary',
     postal_code  CHAR(6) NOT NULL
-        CHECK (postal_code ~ '^[A-Z][0-9][A-Z][0-9][A-Z][0-9]$')
+        CHECK (postal_code ~ '^T[0-9][A-Z][0-9][A-Z][0-9]$')
 );
 
 CREATE TABLE recycling_facility_category (
@@ -76,21 +82,50 @@ CREATE TABLE pickup_request (
     resident_uid          TEXT NOT NULL REFERENCES profiles (uid),
     category_id           TEXT NOT NULL REFERENCES categories (category_id),
     quantity              INTEGER NOT NULL CHECK (quantity > 0),
-    estimated_weight_kg   NUMERIC(8,2) NOT NULL CHECK (estimated_weight_kg >= 0),
+    estimated_weight_kg   NUMERIC(8,2) NOT NULL CHECK (estimated_weight_kg > 0),
     item_description      TEXT,
     photo_url             TEXT,
     pickup_street         TEXT NOT NULL,
     pickup_city           TEXT NOT NULL DEFAULT 'Calgary',
     pickup_postal_code    CHAR(6) NOT NULL
-        CHECK (pickup_postal_code ~ '^[A-Z][0-9][A-Z][0-9][A-Z][0-9]$'),
+        CHECK (pickup_postal_code ~ '^T[0-9][A-Z][0-9][A-Z][0-9]$'),
     pickup_instructions   TEXT,
     notes                 TEXT,
     safety_acknowledged   BOOLEAN NOT NULL CHECK (safety_acknowledged),
     status                TEXT NOT NULL DEFAULT 'Open'
         CHECK (status IN ('Open', 'Assigned', 'Collected', 'Delivered', 'Cancelled', 'Expired')),
     created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
-    expires_at            TIMESTAMPTZ NOT NULL DEFAULT now() + INTERVAL '30 days'
+    expires_at            TIMESTAMPTZ NOT NULL DEFAULT now() + INTERVAL '30 days',
+    CONSTRAINT pickup_request_original_expiry CHECK (expires_at = created_at + INTERVAL '30 days'),
+    CONSTRAINT pickup_request_other_description CHECK (category_id <> 'other-electronics' OR NULLIF(BTRIM(item_description), '') IS NOT NULL)
 );
+
+
+-- Estimate weight from the seeded category; never trust a weight supplied by the client.
+-- Preserve the original 30-day expiry when requests are edited or reopened.
+CREATE FUNCTION set_pickup_request_calculations() RETURNS trigger AS $$
+DECLARE
+    unit_weight NUMERIC(6,2);
+BEGIN
+    SELECT standard_weight_kg INTO unit_weight
+    FROM categories WHERE category_id = NEW.category_id;
+    IF unit_weight IS NULL THEN
+        RAISE EXCEPTION 'Category does not have a standard weight: %', NEW.category_id;
+    END IF;
+    NEW.estimated_weight_kg := NEW.quantity * unit_weight;
+    IF TG_OP = 'INSERT' THEN
+        NEW.expires_at := NEW.created_at + INTERVAL '30 days';
+    ELSE
+        NEW.created_at := OLD.created_at;
+        NEW.expires_at := OLD.expires_at;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER pickup_request_calculations_trg
+    BEFORE INSERT OR UPDATE ON pickup_request
+    FOR EACH ROW EXECUTE FUNCTION set_pickup_request_calculations();
 
 CREATE INDEX pickup_request_resident_idx ON pickup_request (resident_uid, created_at DESC);
 CREATE INDEX pickup_request_open_idx ON pickup_request (created_at DESC) WHERE status = 'Open';
@@ -159,6 +194,7 @@ CREATE TRIGGER assignment_no_self_accept_trg
 CREATE TABLE delivery (
     delivery_id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     assignment_id              UUID NOT NULL UNIQUE REFERENCES assignment (assignment_id),
+    request_id                 UUID NOT NULL UNIQUE REFERENCES pickup_request (request_id),
     facility_id                BIGINT NOT NULL REFERENCES recycling_facility (facility_id),
     delivered_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
     at_facility_confirmed      BOOLEAN NOT NULL CHECK (at_facility_confirmed),
@@ -166,7 +202,24 @@ CREATE TABLE delivery (
     evidence_photo             TEXT
 );
 
--- POINTS_AWARD: from a delivery (resident and volunteer) or from an eligible cancelled assignment (volunteer only).
+
+-- Match each delivery to the request attached to its assignment.
+CREATE FUNCTION match_delivery_request() RETURNS trigger AS $$
+DECLARE assigned_request UUID;
+BEGIN
+    SELECT request_id INTO assigned_request FROM assignment WHERE assignment_id = NEW.assignment_id;
+    IF assigned_request IS NULL THEN RAISE EXCEPTION 'Assignment not found'; END IF;
+    NEW.request_id := assigned_request;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER match_delivery_request_trg
+    BEFORE INSERT OR UPDATE OF assignment_id ON delivery
+    FOR EACH ROW EXECUTE FUNCTION match_delivery_request();
+
+-- POINTS_AWARD: delivery points or volunteer compensation for a Resident cancellation
+-- on the Calgary-local pickup day. The application must verify eligibility;
+-- cancellation points amount has not yet been agreed.
 CREATE TABLE points_award (
     award_id       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     recipient_uid  TEXT NOT NULL REFERENCES profiles (uid),
@@ -199,7 +252,8 @@ CREATE TABLE notifications (
     title            TEXT NOT NULL,
     body             TEXT NOT NULL,
     is_read          BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    event_id         UUID
 );
 
 CREATE INDEX notifications_recipient_idx ON notifications (recipient_uid, created_at DESC);
@@ -208,9 +262,10 @@ CREATE INDEX notifications_recipient_idx ON notifications (recipient_uid, create
 CREATE TABLE outbox (
     event_id      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     event_type    TEXT NOT NULL,
+    event_version INTEGER NOT NULL DEFAULT 1 CHECK (event_version >= 1),
     routing_key   TEXT NOT NULL,
     aggregate_id  UUID NOT NULL,
-    payload       JSONB NOT NULL,
+    payload       JSONB NOT NULL CHECK (jsonb_typeof(payload) = 'object'),
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
     published_at  TIMESTAMPTZ
 );
@@ -222,12 +277,6 @@ CREATE TABLE processed_events (
     processed_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE push_subscriptions (
-    endpoint    TEXT PRIMARY KEY,
-    uid         TEXT NOT NULL REFERENCES profiles (uid) ON DELETE CASCADE,
-    p256dh      TEXT NOT NULL,
-    auth        TEXT NOT NULL,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+-- Browser push subscriptions omitted: the project uses in-app notifications only.
 
 COMMIT;
