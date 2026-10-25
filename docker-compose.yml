@@ -1,3 +1,4 @@
+name: ecocollect
 services:
   postgres:                         # service name; also its hostname for other containers
     image: postgres:16              # official image, major version pinned
