@@ -82,26 +82,29 @@ async function seedDatabase(pool) {
     for (const u of users) {
       await client.query(
         `INSERT INTO profiles
-           (uid, first_name, last_name, display_name, date_of_birth, roles, street, city, postal_code)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, 'Calgary', $8)
+           (uid, first_name, last_name, public_name, username, email, date_of_birth, roles, street, city, postal_code)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Calgary', $10)
          ON CONFLICT (uid) DO UPDATE
          SET first_name = EXCLUDED.first_name,
              last_name = EXCLUDED.last_name,
-             display_name = EXCLUDED.display_name,
+             public_name = EXCLUDED.public_name,
+             username = EXCLUDED.username,
+             email = EXCLUDED.email,
              date_of_birth = EXCLUDED.date_of_birth,
              roles = EXCLUDED.roles,
              street = EXCLUDED.street,
              city = EXCLUDED.city,
              postal_code = EXCLUDED.postal_code`,
-        [u.uid, u.firstName, u.lastName, u.displayName, u.dateOfBirth, u.roles, u.street,
+        [u.uid, u.firstName, u.lastName, u.displayName,
+         u.email.split('@')[0], u.email, u.dateOfBirth, u.roles, u.street,
          normalizePostalCode(u.postalCode)]
       );
 
       await client.query('DELETE FROM volunteer_preferred_postal_codes WHERE uid = $1', [u.uid]);
-      for (const code of u.preferredPostalCodes || []) {
+      for (const [slotIndex, code] of (u.preferredPostalCodes || []).entries()) {
         await client.query(
-          'INSERT INTO volunteer_preferred_postal_codes (uid, postal_code) VALUES ($1, $2)',
-          [u.uid, normalizePostalCode(code)]
+          'INSERT INTO volunteer_preferred_postal_codes (uid, postal_code, preference_slot) VALUES ($1, $2, $3)',
+          [u.uid, normalizePostalCode(code), slotIndex + 1]
         );
       }
       console.log('  saved    ' + u.uid);
