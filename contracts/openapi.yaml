@@ -1,0 +1,350 @@
+openapi: 3.1.0
+info:
+  title: EcoCollect public API (Oct 28)
+  version: 0.1.0
+  description: |
+    Everything the frontend calls, through the gateway (Caddy) on one origin.
+    Only what the Oct 28 demo needs is here. The flow, conventions and the
+    internal pieces are in [README.md](./README.md), and the events are in
+    [asyncapi.yaml](./asyncapi.yaml).
+
+    **Auth.** Calls send `Authorization: Bearer <Firebase ID token>`. The one
+    exception is `GET /api/events`: `EventSource` can't set headers, so it uses the
+    session cookie from `POST /api/session` instead.
+
+    **Users.** The gateway checks the token and tells the services who is calling.
+    Roles come from the Firebase custom claim `roles`, so `403` means the caller
+    has the wrong role for that call.
+
+    **Never in a response:** the pickup street address.
+
+servers:
+  - url: https://localhost
+    description: Caddy in local development
+
+tags:
+  - name: Session
+    description: Turns a login into the cookie that SSE needs, and ends it.
+  - name: Requests
+    description: Creating pickup requests and reading them.
+  - name: Events
+    description: The live stream that tells the frontend when to refetch.
+
+paths:
+  /api/session:
+    post:
+      tags: [Session]
+      operationId: createSession
+      summary: Swap an ID token for a session cookie
+      description: |
+        Exists only for SSE. The ID token goes in the body, and Firebase checks it
+        while creating the cookie. Call it once right after login.
+        Caddy routes this without the auth check, because there is no session yet.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [idToken]
+              properties:
+                idToken:
+                  type: string
+                  description: Firebase ID token from `getIdToken()`.
+      responses:
+        '204':
+          description: Session created. The cookie lasts 5 days.
+          headers:
+            Set-Cookie:
+              description: '`session=...; HttpOnly; Secure; SameSite=Lax`. JavaScript can not read it.'
+              schema:
+                type: string
+        '400':
+          description: The body is not valid JSON.
+        '401':
+          description: The token is missing, invalid or stale.
+    delete:
+      tags: [Session]
+      operationId: deleteSession
+      summary: End the session
+      description: Call on logout, before Firebase `signOut`. The cookie is cleared even if there was none.
+      security: []
+      responses:
+        '204':
+          description: Cookie cleared.
+
+  /api/requests:
+    post:
+      tags: [Requests]
+      operationId: createRequests
+      summary: Create pickup requests (resident)
+      description: |
+        Creates **one request per item** (one per category), all in one transaction,
+        so either all of them exist or none do. The pickup address comes from the
+        resident's saved profile, never from the body. Each created request starts
+        a `RequestCreated` event, see [asyncapi.yaml](./asyncapi.yaml).
+
+        Estimated weight is `quantity x standard weight of the category`, worked out
+        by the backend. Photos are not part of Oct 28.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRequests'
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [requests]
+                properties:
+                  requests:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CreatedRequest'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/WrongRole'
+    get:
+      tags: [Requests]
+      operationId: listRequests
+      summary: List requests, as a resident or as a volunteer
+      description: |
+        One endpoint with two views, newest first. This is the call that actually
+        refreshes the screen: an SSE message only tells the frontend something changed.
+
+        | `view` | Who | Returns |
+        |---|---|---|
+        | `mine` | resident | the caller's own requests. `status` is optional. |
+        | `available` | volunteer | open requests that can still be picked up. `postalCodes` is optional. |
+
+        `available` means status Open, `expiresAt` in the future, and at least one
+        window that has not started yet (Calgary time). It never includes the street.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: view
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [mine, available]
+        - name: status
+          in: query
+          required: false
+          description: Only with `view=mine`. It is rejected with `view=available`.
+          schema:
+            $ref: ./schemas/common.yaml#/RequestStatus
+        - name: postalCodes
+          in: query
+          required: false
+          description: |
+            Only with `view=available`. Full six character codes, comma separated, at most 10,
+            for example `T2P1J9,T3A0B1`. Spaces and lowercase are fixed before matching.
+            Leave it out to get every available request.
+          schema:
+            type: string
+            example: T2P1J9,T3A0B1
+      responses:
+        '200':
+          description: The list for the chosen view.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    title: view=mine
+                    items:
+                      $ref: '#/components/schemas/MyRequest'
+                  - type: array
+                    title: view=available
+                    items:
+                      $ref: '#/components/schemas/AvailableRequest'
+        '400':
+          description: Missing or unknown `view`, a filter that does not belong to the view, or invalid or too many postal codes.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: '`view=mine` needs the resident role and `view=available` needs the volunteer role.'
+
+  /api/events:
+    get:
+      tags: [Events]
+      operationId: openEventStream
+      summary: Live notifications (Server-Sent Events)
+      description: |
+        Open once after login with `new EventSource('/api/events', { withCredentials: true })`
+        and keep it open. The cookie is checked once, when the connection opens.
+        `EventSource` reconnects by itself if it drops.
+
+        Each message is `event: notification`, with the notification as its data. The message
+        format is in [asyncapi.yaml](./asyncapi.yaml) (`SseNotification`). A comment line
+        `: ping` arrives about every 25 seconds to keep the connection open, and `EventSource` ignores it.
+
+        Caddy streams this route straight through and must not compress it.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: The stream.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+              example: |
+                event: notification
+                id: n_789
+                data: {"notificationId":"n_789","type":"NEW_MATCHING_REQUEST","requestId":"r_123","title":"New pickup near you","body":"2 x Computers/Laptops in T2P1J9","createdAt":"2026-10-28T16:15:02Z"}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Firebase ID token (JWT, about 1 hour)
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: session
+      description: Firebase session cookie from `POST /api/session`.
+
+  responses:
+    ValidationError:
+      description: |
+        The body is invalid. The message says what is wrong. Rules: at least one item;
+        1 to 3 windows with different dates; every window starts in the future and before
+        `expiresAt`; `safetyAcknowledged` must be `true`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: No valid token or session.
+    WrongRole:
+      description: Signed in, but not as a resident.
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          example: safetyAcknowledged must be true
+
+    CreateRequests:
+      type: object
+      required: [items, windows, safetyAcknowledged]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          description: One request is created for each item.
+          items:
+            type: object
+            required: [categoryId, quantity]
+            properties:
+              categoryId:
+                type: string
+                description: Id of an item category, for example `laptops`. The frontend keeps a fixed list.
+                example: laptops
+              quantity:
+                type: integer
+                minimum: 1
+                example: 2
+              description:
+                type: string
+        windows:
+          type: array
+          minItems: 1
+          maxItems: 3
+          description: >
+            When the resident can be home. Every date must be different, and every
+            window must start in the future and before `expiresAt` (30 days after creation).
+          items:
+            $ref: ./schemas/common.yaml#/PickupWindow
+        notes:
+          type: string
+        safetyAcknowledged:
+          type: boolean
+          const: true
+
+    CreatedRequest:
+      type: object
+      required: [requestId, categoryId, quantity, estimatedWeightKg, status, createdAt, expiresAt]
+      properties:
+        requestId:
+          type: string
+        categoryId:
+          type: string
+        quantity:
+          type: integer
+        estimatedWeightKg:
+          type: number
+        status:
+          type: string
+          const: Open
+        createdAt:
+          $ref: ./schemas/common.yaml#/Timestamp
+        expiresAt:
+          description: Created time plus 30 days. It only matters while the request is Open.
+          $ref: ./schemas/common.yaml#/Timestamp
+
+    MyRequest:
+      type: object
+      required: [requestId, category, quantity, estimatedWeightKg, status, createdAt, expiresAt]
+      properties:
+        requestId:
+          type: string
+        category:
+          type: string
+          description: Category name.
+          example: Computers/Laptops
+        quantity:
+          type: integer
+        estimatedWeightKg:
+          type: number
+        status:
+          $ref: ./schemas/common.yaml#/RequestStatus
+        createdAt:
+          $ref: ./schemas/common.yaml#/Timestamp
+        expiresAt:
+          $ref: ./schemas/common.yaml#/Timestamp
+
+    AvailableRequest:
+      type: object
+      description: What a volunteer sees. There is no street address and no resident name.
+      required: [requestId, category, quantity, estimatedWeightKg, postalCode, windows, expiresAt]
+      properties:
+        requestId:
+          type: string
+        category:
+          type: string
+          example: Computers/Laptops
+        quantity:
+          type: integer
+        estimatedWeightKg:
+          type: number
+        postalCode:
+          $ref: ./schemas/common.yaml#/PostalCode
+        windows:
+          type: array
+          items:
+            $ref: ./schemas/common.yaml#/PickupWindow
+        expiresAt:
+          $ref: ./schemas/common.yaml#/Timestamp
