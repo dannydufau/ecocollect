@@ -1,0 +1,15 @@
+{
+  "name": "ecocollect-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "EcoCollect API server (request service)",
+  "main": "src/api/server.js",
+  "scripts": {
+    "start": "node src/api/server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "express": "^5.3.0",
+    "firebase-admin": "^14.5.0"
+  }
+}
