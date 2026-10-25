@@ -1,6 +1,8 @@
 # Database
 
-Postgres 16 in Docker Compose. Schema lives in `db/init/` and is applied automatically the first time the database volume is created.
+Postgres 16 in Docker Compose. SQL files in `db/init/` are applied automatically, in filename order, the first time the database volume is created.
+
+The schema is defined in ticket #12; `db/init/001_schema.sql` is the file it goes in.
 
 ## Run
 
@@ -13,7 +15,9 @@ docker compose ps           # postgres should show "healthy"
 ## Inspect
 
 ```bash
-docker compose exec postgres psql -U ecocollect -d ecocollect -c '\dt'
+docker compose exec postgres psql -U ecocollect -d ecocollect
+\dt                         -- list tables
+\q                          -- quit
 ```
 
 ## Change the schema
@@ -27,14 +31,4 @@ docker compose up -d postgres
 
 Add new scripts as `002_...sql`, `003_...sql`; they run in filename order. (A migration tool can replace this later if the schema needs to change without wiping data.)
 
-## Tables (Oct 28)
-
-| Table | Written by | Purpose |
-|---|---|---|
-| `profiles` | seed script | Users keyed by Firebase uid: roles, address, postal code, `fsa` (generated from postal code) |
-| `categories` | seed script | Category ids (must match the shared `CategoryId` list) and standard weights |
-| `pickup_request` | request service | One request per category; stores the computed estimated weight |
-| `pickup_window` | request service | 1–3 one-hour windows per request, distinct dates, Calgary local time |
-| `outbox` | request service | `RequestCreated` events; the relay sets `published_at` after RabbitMQ confirms |
-
-Postal codes are stored normalized (`T2P1J9`: uppercase, no space). The application normalizes input before inserting.
+If a script fails, the error is in `docker compose logs postgres`.
