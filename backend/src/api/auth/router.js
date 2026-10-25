@@ -15,6 +15,16 @@ function sendAuthError(res, err) {
   res.sendStatus(500);
 }
 
+const COOKIE_PATTERN = new RegExp(`(?:^|;\\s*)${COOKIE_NAME}=([^;]+)`);
+
+function readBearerToken(req) {
+  return /^Bearer (.+)$/i.exec(req.headers.authorization ?? '')?.[1];
+}
+
+function readSessionCookie(req) {
+  return COOKIE_PATTERN.exec(req.headers.cookie ?? '')?.[1];
+}
+
 function createAuthRouter(auth) {
   const router = express.Router();
 
@@ -36,6 +46,27 @@ function createAuthRouter(auth) {
   router.delete('/api/session', (req, res) => {
     res.clearCookie(COOKIE_NAME, COOKIE_OPTIONS);
     res.sendStatus(204);
+  });
+
+  // Caddy's forward_auth calls this before every /api/* request. A 200 lets the
+  // request through, with the identity copied onto it from the headers below.
+  router.get('/verify', async (req, res) => {
+    const token = readBearerToken(req);
+    const cookie = token ? undefined : readSessionCookie(req);
+    if (!token && !cookie) return res.sendStatus(401);
+
+    try {
+      // The `true` makes Firebase also reject revoked tokens and disabled users.
+      // It costs a network call, but without it a stolen token works until it expires.
+      const user = token
+        ? await auth.verifyIdToken(token, true)
+        : await auth.verifySessionCookie(cookie, true);
+
+      res.set({ 'X-User-Id': user.uid, 'X-User-Roles': (user.roles ?? []).join(',') });
+      res.sendStatus(200);
+    } catch (err) {
+      sendAuthError(res, err);
+    }
   });
 
   return router;
