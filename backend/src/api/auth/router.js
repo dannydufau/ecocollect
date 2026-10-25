@@ -1,6 +1,7 @@
 const express = require('express');
 
 const COOKIE_NAME = 'session';
+const COOKIE_PATTERN = new RegExp(`(?:^|;\\s*)${COOKIE_NAME}=([^;]+)`);
 const SESSION_MS = 5 * 24 * 60 * 60 * 1000; // 5 days, Firebase allows 5 minutes up to 14 days
 
 // HttpOnly keeps JavaScript away from the cookie. EventSource can't send an
@@ -24,8 +25,6 @@ function sendAuthError(res, err) {
   console.error('Unexpected auth error:', err);
   res.sendStatus(500);
 }
-
-const COOKIE_PATTERN = new RegExp(`(?:^|;\\s*)${COOKIE_NAME}=([^;]+)`);
 
 function readBearerToken(req) {
   return /^Bearer (.+)$/i.exec(req.headers.authorization ?? '')?.[1];
@@ -89,4 +88,4 @@ function createAuthRouter(auth) {
   return router;
 }
 
-module.exports = { createAuthRouter, COOKIE_NAME };
+module.exports = { createAuthRouter };
