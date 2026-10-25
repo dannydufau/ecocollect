@@ -79,6 +79,13 @@ function createAuthRouter(auth) {
     }
   });
 
+  // A body that isn't valid JSON would otherwise get Express's default error page,
+  // which includes a stack trace outside production.
+  router.use((err, req, res, next) => {
+    if (err.type === 'entity.parse.failed') return res.sendStatus(400);
+    next(err);
+  });
+
   return router;
 }
 

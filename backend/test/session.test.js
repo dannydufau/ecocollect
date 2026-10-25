@@ -65,6 +65,20 @@ test('POST /api/session returns 401 when the token is missing', async (t) => {
   assert.strictEqual(auth.calls.length, 0);
 });
 
+test('POST /api/session returns 400 for a body that is not valid JSON', async (t) => {
+  const server = await startServer(fakeAuth());
+  t.after(server.close);
+
+  const res = await fetch(server.url('/api/session'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{ not json',
+  });
+
+  assert.strictEqual(res.status, 400);
+  assert.doesNotMatch(await res.text(), /at .*node_modules/);
+});
+
 test('POST /api/session returns 500 when Firebase fails for another reason', async (t) => {
   t.mock.method(console, 'error', () => {});
   const auth = { createSessionCookie: async () => { throw new Error('network down'); } };
