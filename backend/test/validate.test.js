@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { parseCreate } = require('../src/api/requests/validate');
+const { parseCreate, parseList } = require('../src/api/requests/validate');
 
 // Wednesday Oct 28, 10:15 in Calgary.
 const now = new Date('2026-10-28T16:15:00Z');
@@ -80,4 +80,43 @@ test('notes must be text, and safety has to be acknowledged', () => {
   rejects(body({ safetyAcknowledged: false }), /safetyAcknowledged/);
   rejects(body({ safetyAcknowledged: 'true' }), /safetyAcknowledged/);
   rejects({ items: body().items, windows: body().windows }, /safetyAcknowledged/);
+});
+
+const listRejects = (query, pattern) => assert.match(parseList(query).error, pattern);
+
+test('list: view is required and is mine or available', () => {
+  listRejects({}, /view/);
+  listRejects({ view: 'all' }, /view/);
+  listRejects({ view: ['mine', 'available'] }, /view/);
+  assert.deepStrictEqual(parseList({ view: 'mine' }), { view: 'mine', status: undefined });
+  assert.deepStrictEqual(parseList({ view: 'available' }), { view: 'available' });
+});
+
+test('list: status is for mine only, and has to be a real status', () => {
+  assert.strictEqual(parseList({ view: 'mine', status: 'Collected' }).status, 'Collected');
+  listRejects({ view: 'mine', status: 'Done' }, /status must be one of/);
+  listRejects({ view: 'mine', status: 'open' }, /status must be one of/);
+  listRejects({ view: 'available', status: 'Open' }, /view=mine/);
+});
+
+test('list: postal codes are for available only', () => {
+  listRejects({ view: 'mine', postalCodes: 'T2P1J9' }, /view=available/);
+});
+
+test('list: postal codes are tidied up before matching', () => {
+  assert.deepStrictEqual(parseList({ view: 'available', postalCodes: 'T2P1J9' }).postalCodes, ['T2P1J9']);
+  assert.deepStrictEqual(parseList({ view: 'available', postalCodes: ' t2p 1j9 ,T3A0B1' }).postalCodes, ['T2P1J9', 'T3A0B1']);
+});
+
+test('list: bad postal codes are rejected', () => {
+  for (const postalCodes of ['T2P', 'M5V3L9', 'T2P1J9,', '', 'T2P1J9,,T3A0B1']) {
+    listRejects({ view: 'available', postalCodes }, /postal code/);
+  }
+  listRejects({ view: 'available', postalCodes: ['T2P1J9', 'T3A0B1'] }, /comma separated/);
+});
+
+test('list: ten postal codes are fine, eleven are not', () => {
+  const codes = (n) => Array.from({ length: n }, (_, i) => `T2P1J${i}`).join(',');
+  assert.strictEqual(parseList({ view: 'available', postalCodes: codes(10) }).postalCodes.length, 10);
+  listRejects({ view: 'available', postalCodes: codes(11) }, /at most 10/);
 });

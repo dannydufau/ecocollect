@@ -49,4 +49,30 @@ function parseCreate(body, now = new Date()) {
   return { items, windows, notes };
 }
 
-module.exports = { parseCreate };
+const STATUSES = ['Open', 'Assigned', 'Collected', 'Delivered', 'Cancelled', 'Expired'];
+
+function parsePostalCodes(text) {
+  if (typeof text !== 'string') return { error: 'postalCodes must be one comma separated value' };
+  const codes = text.split(',').map((c) => c.replace(/\s+/g, '').toUpperCase());
+  if (codes.length > 10) return { error: 'ask for at most 10 postal codes' };
+  const bad = codes.find((c) => !/^T\d[A-Z]\d[A-Z]\d$/.test(c));
+  if (bad !== undefined) return { error: `"${bad}" is not a full Calgary postal code` };
+  return { postalCodes: codes };
+}
+
+// Returns { error } or { view, status, postalCodes }, where the filter that does not apply is left out.
+function parseList(query) {
+  const { view, status, postalCodes } = query;
+  if (view !== 'mine' && view !== 'available') return { error: 'view must be mine or available' };
+  if (view === 'mine') {
+    if (postalCodes !== undefined) return { error: 'postalCodes only works with view=available' };
+    if (status !== undefined && !STATUSES.includes(status)) return { error: `status must be one of ${STATUSES.join(', ')}` };
+    return { view, status };
+  }
+  if (status !== undefined) return { error: 'status only works with view=mine' };
+  if (postalCodes === undefined) return { view };
+  const parsed = parsePostalCodes(postalCodes);
+  return parsed.error ? parsed : { view, postalCodes: parsed.postalCodes };
+}
+
+module.exports = { parseCreate, parseList };
