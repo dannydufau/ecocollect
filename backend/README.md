@@ -13,6 +13,18 @@ Verifies Firebase users for the gateway. It lives in the API server for now and 
 `POST /api/session` is routed without `forward_auth` (there is no session yet). `/verify` is internal and must not be exposed publicly.
 A `500` means Firebase or our setup failed (network, bad config), not that the token was bad. A body that isn't valid JSON gets a `400`.
 
+## Request service (`src/api/requests/`, `src/messaging/`)
+
+Creates and lists pickup requests, following [contracts/](../contracts/). It trusts the `X-User-Id` and `X-User-Roles` headers, which only the gateway can set.
+
+| Route | What it does |
+|---|---|
+| `POST /api/requests` | Resident only. One request per item, all in one transaction, with the address taken from the resident's profile. Each request also writes a `RequestCreated` row to the `outbox` table. `201`, or `400` with `{ "error": "..." }`. |
+| `GET /api/requests?view=mine` | Resident only. Their own requests, newest first. Optional `status`. |
+| `GET /api/requests?view=available` | Volunteer only. Open requests with a window still ahead, never the street. Optional `postalCodes`. |
+
+The outbox publisher runs in the same process. Every second it sends unsent outbox rows to the `ecocollect.events` topic exchange (routing key `request.created`, persistent, waits for the broker's confirm) and marks a row sent only after that. If RabbitMQ is down it logs the error and tries again, and the events wait in the database. It creates the exchange itself if it is missing.
+
 ## Run it
 
 ```bash
@@ -27,6 +39,8 @@ Save the Firebase admin key as `secrets/firebase-admin.json` in the repo root (k
 |---|---|
 | `GOOGLE_APPLICATION_CREDENTIALS` | Path to the Firebase service-account key. Defaults to `secrets/firebase-admin.json`. Never commit it. |
 | `FIREBASE_AUTH_EMULATOR_HOST` | Set (e.g. `127.0.0.1:9099`) to use the Auth emulator instead of the key. |
+| `DATABASE_URL` | Postgres connection string, for example `postgres://ecocollect:change_me@localhost:5432/ecocollect`. Needs the tables from `db/init`. |
+| `RABBITMQ_URL` | For example `amqp://ecocollect:change-me@localhost:5672`. |
 | `PORT` | Defaults to `3001`. |
 | `NODE_ENV` | Set to `production` when deployed. Otherwise Express puts stack traces in error responses (e.g. a body that is too large). `npm start` does not set it. |
 
@@ -36,4 +50,10 @@ Save the Firebase admin key as `secrets/firebase-admin.json` in the repo root (k
 npm test
 ```
 
-Firebase is faked in the tests, so they need no credentials or network.
+Firebase is faked in the tests, so they need no credentials or network. The database tests are skipped unless `TEST_DATABASE_URL` points at a Postgres with the schema loaded:
+
+```bash
+TEST_DATABASE_URL=postgres://ecocollect:change_me@localhost:5432/ecocollect npm test
+```
+
+Use a scratch database for that, not the demo one: the outbox tests mark every unsent event as sent. They add their own users with random postal codes and remove them afterwards.
