@@ -18,7 +18,7 @@ PASS=0; FAIL=0
 expect_status() {   # name, expected, then any curl args
   local name=$1 expected=$2; shift 2
   local got
-  got=$(curl -sk -o /dev/null -w '%{http_code}' "$@")
+  got=$(curl -sk -o /dev/null -w '%{http_code}' "$@" || true)
   if [[ $got == "$expected" ]]; then PASS=$((PASS+1)); echo "ok   $name"
   else FAIL=$((FAIL+1)); echo "FAIL $name (expected $expected, got $got)"; fi
 }

@@ -54,7 +54,7 @@ localhost {
 	}
 
 	handle {
-		reverse_proxy frontend
+		reverse_proxy frontend:3000
 	}
 
 	handle_errors {

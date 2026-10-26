@@ -16,7 +16,7 @@ services:
 
   frontend:
     image: traefik/whoami
-    command: ["-name", "frontend"]
+    command: ["-name", "frontend", "-port", "3000"]
     networks: [internal]
 
   auth:
