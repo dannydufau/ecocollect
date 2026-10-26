@@ -53,3 +53,9 @@ test('the Deferred section keeps the plan for stored notifications', () => {
   assert.match(deferredText, /processed_events/, 'repeat handling comes back with storage');
   assert.match(deferredText, /notifications table|stored notifications/i);
 });
+
+test('no shared queue is named anywhere, each notification instance has its own', () => {
+  for (const file of ['README.md', 'asyncapi.yaml']) {
+    assert.doesNotMatch(read(file), /notification\.request-events/, `${file} still names the shared queue`);
+  }
+});

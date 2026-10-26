@@ -78,10 +78,17 @@ test('the RabbitMQ setup matches the README', () => {
     [exchange.name, exchange.type, exchange.durable],
     ['ecocollect.events', 'topic', true],
   );
-  const queue = asyncapi.channels.requestEventsQueue.bindings.amqp.queue;
-  assert.deepEqual([queue.name, queue.durable], ['notification.request-events', true]);
+  assert.equal(asyncapi.channels.requestEventsQueue.address, null, 'the broker names the queue');
   assert.equal(asyncapi.operations.publishRequestCreated.bindings.amqp.deliveryMode, 2, 'persistent');
   assert.equal(asyncapi.operations.receiveRequestCreated.bindings.amqp.ack, true, 'manual ack');
+});
+
+test('every notification instance gets its own queue, so no instance misses a signal', () => {
+  const queue = asyncapi.channels.requestEventsQueue.bindings.amqp.queue;
+  assert.equal(queue.exclusive, true, 'only the instance that made it can use it');
+  assert.equal(queue.autoDelete, true, 'gone when the instance goes');
+  assert.equal(queue.durable, false);
+  assert.ok(!queue.name, 'a fixed name would make instances share one queue');
 });
 
 test('the publisher sends, the notification service receives, and nobody listens to themselves', () => {

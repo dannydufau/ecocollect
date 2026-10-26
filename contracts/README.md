@@ -140,10 +140,10 @@ The message is described in [asyncapi.yaml](./asyncapi.yaml). The setup:
 |---|---|
 | Exchange | `ecocollect.events`, type `topic`, durable |
 | Routing key | `request.created` |
-| Queue | `notification.request-events`, durable, bound with `request.*` |
-| Message | `messageId` is the `eventId`, `application/json`, **persistent**. A durable queue holding non-persistent messages comes back empty after a restart, so both are needed. |
+| Queue | One per notification instance, declared by that instance at startup: exclusive, auto-delete, not durable, named by the broker, bound with `request.*`. Every instance gets every event. A shared queue would give each event to only one instance, which may not hold the user's SSE connection. |
+| Message | `messageId` is the `eventId`, `application/json`, **persistent**. The notification queues don't keep messages across a restart, but a consumer that needs them to survive (stored notifications, email) can add a durable queue without any change here. |
 | Publisher | Publisher confirms on. The outbox row is marked sent only after the confirm. |
-| Consumer | Manual ack after the SSE signals are written. Unacked messages are delivered again. |
+| Consumer | Manual ack after the SSE signals are written. Events published while no notification instance is running are dropped, which is fine for signals. |
 | Granularity | One event per created request |
 
 ## Notification service
@@ -152,9 +152,10 @@ A small stateless service with no database for Oct 28. It turns each `RequestCre
 
 | # | Step | Notes |
 |---|---|---|
-| N1 | Read the recipients from the event | The resident is `data.residentUid` and the volunteers are `data.matchedVolunteerUids`. There is no matching and no lookup here. |
-| N2 | Write to the SSE connections | `NEW_MATCHING_REQUEST` to every open connection of each matched volunteer, and `REQUEST_CREATED` to every open connection of the resident. The service keeps a `userId` to connections list in memory. No matched volunteers means only the resident gets a signal. About every 25 seconds the server sends `: ping`, which `EventSource` ignores, to keep proxies from closing the connection and to drop dead ones. |
-| N3 | Ack | After the writes. A repeated delivery sends the signal again, which only costs an extra refetch, so there is no check for repeated events. |
+| N1 | Subscribe | At startup, declare this instance's own queue and bind it to `ecocollect.events` with `request.*`. |
+| N2 | Read the recipients from the event | The resident is `data.residentUid` and the volunteers are `data.matchedVolunteerUids`. There is no matching and no lookup here. |
+| N3 | Write to the SSE connections | `NEW_MATCHING_REQUEST` to every open connection of each matched volunteer, and `REQUEST_CREATED` to every open connection of the resident. The service keeps a `userId` to connections list in memory. No matched volunteers means only the resident gets a signal. About every 25 seconds the server sends `: ping`, which `EventSource` ignores, to keep proxies from closing the connection and to drop dead ones. |
+| N4 | Ack | After the writes. A repeated delivery sends the signal again, which only costs an extra refetch, so there is no check for repeated events. |
 
 ## Frontend reactions
 

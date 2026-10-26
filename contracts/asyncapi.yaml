@@ -47,19 +47,25 @@ channels:
         $ref: '#/components/messages/RequestCreated'
 
   requestEventsQueue:
-    address: notification.request-events
-    title: Queue notification.request-events
-    description: Bound to the exchange with `request.*`. A durable queue only survives a restart if its messages are persistent too.
+    address: null
+    title: The queue of one notification instance
+    description: |
+      Every notification instance declares its own queue when it starts and binds it to the
+      exchange with `request.*`, so every instance receives every event. The SSE connections
+      live in the memory of one instance, so a queue shared between instances would hand an
+      event to an instance that may not hold the user's connection, and the signal would be
+      lost without anyone noticing. The queue is exclusive, auto-delete and not durable, and
+      the broker picks its name. Events published while no instance is running are dropped,
+      which is fine for a signal.
     servers:
       - $ref: '#/servers/rabbitmq'
     bindings:
       amqp:
         is: queue
         queue:
-          name: notification.request-events
-          durable: true
-          exclusive: false
-          autoDelete: false
+          durable: false
+          exclusive: true
+          autoDelete: true
           vhost: /
     messages:
       requestCreated:
@@ -99,7 +105,7 @@ operations:
       $ref: '#/channels/requestEventsQueue'
     title: Notification service consumes RequestCreated
     description: |
-      The notification service has no database for Oct 28. For each event it sends a
+      The notification service has no database for Oct 28. Each instance reads its own queue. For each event it sends a
       `REQUEST_CREATED` signal to the resident (`data.residentUid`) and a
       `NEW_MATCHING_REQUEST` signal to each uid in `matchedVolunteerUids`, and then
       acknowledges the message (**manual ack**, so an unacked message is delivered again).
