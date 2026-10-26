@@ -69,6 +69,7 @@ sequenceDiagram
 - Timestamps are ISO 8601 in UTC with a `Z` (`2026-10-28T16:15:00Z`) and stored as `timestamptz`. The frontend converts to Calgary time only for display.
 - The exception is a pickup window: a Calgary date plus a start hour (`{ "date": "2026-10-30", "startHour": 14 }` is 14:00 to 15:00 Calgary time), with no time zone, because it is a local hour and not an instant.
 - Roles live in Firebase custom claims: `{ roles: ["resident"] | ["volunteer"] | ["resident","volunteer"] }`.
+- Events change carefully. Consumers ignore fields they don't know, so adding a field is safe and keeps `version: 1`. Removing a field or changing what one means gets a new `version`.
 - A **signal** is the live "refetch now" ping sent over SSE, and it is never saved. A **notification** would be a stored inbox record, which is deferred.
 - **No street address ever appears in an event, an SSE message or a volunteer's list.**
 - Each service writes only its own tables.

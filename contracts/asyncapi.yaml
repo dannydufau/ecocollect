@@ -202,7 +202,7 @@ components:
         eventId:
           type: string
           format: uuid
-          description: Unique per event. Used to skip an event that was delivered twice.
+          description: Unique per event. It is also the AMQP `messageId`.
         type:
           type: string
           const: RequestCreated
@@ -213,7 +213,9 @@ components:
           $ref: ./schemas/common.yaml#/Timestamp
         data:
           type: object
-          additionalProperties: false
+          description: >
+            Consumers ignore fields they don't know, so adding a field is not a breaking change.
+            There is never a street address in here.
           required:
             - requestId
             - residentUid

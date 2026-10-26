@@ -17,11 +17,17 @@ test('RequestCreated: no matched volunteers is fine, the list just has to be the
   assert.ok(!valid({ ...event(), data: rest }));
 });
 
-test('RequestCreated: a street address can not travel in the event', () => {
+test('RequestCreated: no street address is part of the event', () => {
+  const declared = Object.keys(asyncapi.components.schemas.RequestCreatedPayload.properties.data.properties);
+  for (const key of declared) assert.doesNotMatch(key, /street|address|city|residentName|fullName/i, `${key} could carry an address`);
+  // The producer sends exactly what is declared, so the example is the list a producer test can compare to.
+  assert.deepEqual(Object.keys(event().data).sort(), [...declared].sort());
+});
+
+test('RequestCreated: a consumer ignores fields it does not know, so adding one is not breaking', () => {
   const valid = validator(asyncapi, 'RequestCreatedPayload');
-  for (const leak of ['street', 'address', 'pickupStreet', 'city', 'residentName']) {
-    assert.ok(!valid(withData({ [leak]: '1 Secret St' })), `${leak} must be rejected`);
-  }
+  assert.ok(valid(withData({ priority: 'high' })), 'a new field must not make an old consumer reject the event');
+  assert.ok(valid({ ...event(), traceId: 'abc' }));
 });
 
 test('RequestCreated: the envelope has to be right', () => {

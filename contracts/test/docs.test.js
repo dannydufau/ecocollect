@@ -72,3 +72,8 @@ test('the outbox only promises delivery to RabbitMQ, what happens after that is 
   assert.doesNotMatch(read('asyncapi.yaml'), /so it is never lost\./);
   assert.match(read('README.md'), /never lost before it reaches RabbitMQ/);
 });
+
+test('the README says how events may change: new fields are fine, breaking changes need a new version', () => {
+  assert.match(read('README.md'), /ignore (the )?fields they don't know/i);
+  assert.match(read('README.md'), /new `version`/);
+});
