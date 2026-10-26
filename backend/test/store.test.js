@@ -68,6 +68,18 @@ test('creating requests', { skip }, async (t) => {
     assert.ok(!JSON.stringify(event).includes('Secret'), 'no street address in the event');
   });
 
+  await t.test('the event has exactly the fields the contract declares, nothing more (no street)', async () => {
+    const [made] = await store.createRequests({ uid: fx.resident.uid, items: [{ categoryId: 'laptops', quantity: 1 }], windows });
+    const { rows } = await pool.query('SELECT payload FROM outbox WHERE aggregate_id = $1', [made.requestId]);
+    const event = rows[0].payload;
+    // Consumers ignore unknown fields, so this is where the guarantee lives: the producer sends only these.
+    assert.deepStrictEqual(Object.keys(event).sort(), ['data', 'eventId', 'occurredAt', 'type', 'version']);
+    assert.deepStrictEqual(Object.keys(event.data).sort(), [
+      'categoryId', 'categoryName', 'estimatedWeightKg', 'expiresAt', 'matchedVolunteerUids',
+      'postalCode', 'quantity', 'requestId', 'residentUid', 'windows',
+    ]);
+  });
+
   await t.test('the event lists the volunteers who saved that area, not the resident', async () => {
     const [made] = await store.createRequests({ uid: fx.both.uid, items: [{ categoryId: 'laptops', quantity: 1 }], windows });
     const { rows } = await pool.query('SELECT payload FROM outbox WHERE aggregate_id = $1', [made.requestId]);
