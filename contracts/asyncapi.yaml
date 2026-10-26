@@ -145,7 +145,7 @@ components:
             version: 1
             occurredAt: '2026-10-28T16:15:00Z'
             data:
-              requestId: r_123
+              requestId: 0b7e3f2a-6d1c-4a52-9a43-6a1f5e0f1c11
               residentUid: firebaseUid_abc
               categoryId: laptops
               categoryName: Computers/Laptops
@@ -179,9 +179,9 @@ components:
       examples:
         - name: A volunteer is told about a new request
           payload:
-            notificationId: n_789
+            notificationId: 5d2a9c41-83be-4f0e-b6a7-1c9e2f7d3a58
             type: NEW_MATCHING_REQUEST
-            requestId: r_123
+            requestId: 0b7e3f2a-6d1c-4a52-9a43-6a1f5e0f1c11
             title: New pickup near you
             body: 2 x Computers/Laptops in T2P1J9
             createdAt: '2026-10-28T16:15:02Z'
@@ -220,6 +220,7 @@ components:
           properties:
             requestId:
               type: string
+              format: uuid
             residentUid:
               type: string
               description: Firebase uid of the resident.
@@ -259,6 +260,7 @@ components:
       properties:
         notificationId:
           type: string
+          format: uuid
         type:
           type: string
           enum: [REQUEST_CREATED, NEW_MATCHING_REQUEST]
@@ -267,6 +269,7 @@ components:
             `NEW_MATCHING_REQUEST` is the alert to a volunteer.
         requestId:
           type: string
+          format: uuid
         title:
           type: string
         body:

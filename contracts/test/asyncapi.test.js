@@ -46,6 +46,7 @@ test('RequestCreated: the data has to be right', () => {
     'four windows': withData({ windows: Array.from({ length: 4 }, (_, i) => ({ date: `2026-11-0${i + 1}`, startHour: 9 })) }),
     'window hour 24': withData({ windows: [{ date: '2026-10-30', startHour: 24 }] }),
     'expiry with offset': withData({ expiresAt: '2026-11-27T09:15:00-07:00' }),
+    'request id not a uuid': withData({ requestId: 'r_123' }),
     'volunteers as text': withData({ matchedVolunteerUids: 'firebaseUid_v1' }),
     'no resident': withData({ residentUid: undefined }),
   };
@@ -63,6 +64,7 @@ test('SSE notification: only the two Oct 28 types, and no street', () => {
   assert.ok(!valid({ ...note(), type: 'REQUEST_ACCEPTED' }), 'a type from after Oct 28');
   assert.ok(!valid({ ...note(), type: undefined }));
   assert.ok(!valid({ ...note(), body: undefined }));
+  assert.ok(!valid({ ...note(), notificationId: 'n_789' }), 'ids are uuids in the database');
   assert.ok(!valid({ ...note(), createdAt: '2026-10-28T10:15:02-06:00' }));
   for (const leak of ['street', 'address', 'residentUid']) {
     assert.ok(!valid({ ...note(), [leak]: 'x' }), `${leak} must be rejected`);

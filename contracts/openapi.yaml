@@ -212,8 +212,8 @@ paths:
                 type: string
               example: |
                 event: notification
-                id: n_789
-                data: {"notificationId":"n_789","type":"NEW_MATCHING_REQUEST","requestId":"r_123","title":"New pickup near you","body":"2 x Computers/Laptops in T2P1J9","createdAt":"2026-10-28T16:15:02Z"}
+                id: 5d2a9c41-83be-4f0e-b6a7-1c9e2f7d3a58
+                data: {"notificationId":"5d2a9c41-83be-4f0e-b6a7-1c9e2f7d3a58","type":"NEW_MATCHING_REQUEST","requestId":"0b7e3f2a-6d1c-4a52-9a43-6a1f5e0f1c11","title":"New pickup near you","body":"2 x Computers/Laptops in T2P1J9","createdAt":"2026-10-28T16:15:02Z"}
         '401':
           $ref: '#/components/responses/Unauthorized'
 
@@ -306,6 +306,7 @@ components:
       properties:
         requestId:
           type: string
+          format: uuid
         categoryId:
           type: string
         quantity:
@@ -328,6 +329,7 @@ components:
       properties:
         requestId:
           type: string
+          format: uuid
         category:
           type: string
           description: Category name.
@@ -351,6 +353,7 @@ components:
       properties:
         requestId:
           type: string
+          format: uuid
         category:
           type: string
           example: Computers/Laptops

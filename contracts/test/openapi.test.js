@@ -101,6 +101,7 @@ test('create request: the 201 body lists what was created and is always Open', (
   assert.ok(valid({ requests: [one] }));
   assert.ok(!valid({ requests: [{ ...one, status: 'Assigned' }] }));
   assert.ok(!valid({ requests: [{ ...one, expiresAt: undefined }] }));
+  assert.ok(!valid({ requests: [{ ...one, requestId: 'r_123' }] }), 'ids are uuids in the database');
   assert.ok(!valid({}));
 });
 
