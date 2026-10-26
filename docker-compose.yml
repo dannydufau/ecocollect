@@ -23,8 +23,8 @@ services:
     hostname: rabbitmq
     restart: unless-stopped
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-ecocollect}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?copy .env.example to .env first}
     volumes:
       - rabbitmqdata:/var/lib/rabbitmq
     ports:
@@ -39,4 +39,3 @@ services:
 volumes:
   pgdata:                           # declares the named volume
   rabbitmqdata:
-  
