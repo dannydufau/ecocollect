@@ -177,3 +177,13 @@ test('session: the token comes in the body and the cookie comes back', () => {
   for (const status of ['400', '401']) assert.ok(post.responses[status], `POST /api/session has no ${status}`);
   assert.ok(openapi.paths['/api/session'].delete.responses['204']);
 });
+
+test('create request: "other electronics" needs a description, because the database insists', () => {
+  const valid = validator(openapi, 'CreateRequests');
+  const other = (extra) => body({ items: [{ categoryId: 'other-electronics', quantity: 1, ...extra }] });
+  assert.ok(valid(other({ description: 'Old label printer' })));
+  assert.ok(!valid(other({})), 'no description');
+  assert.ok(!valid(other({ description: '' })), 'empty description');
+  assert.ok(!valid(other({ description: '   ' })), 'blank description');
+  assert.ok(valid(body()), 'other categories still do not need one');
+});
