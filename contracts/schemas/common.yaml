@@ -21,13 +21,14 @@ PickupWindow:
 
 PostalCode:
   type: string
-  description: Full six character Calgary postal code, uppercase, no space.
-  pattern: '^[A-Z][0-9][A-Z][0-9][A-Z][0-9]$'
+  description: Full six character Calgary postal code, uppercase, no space. Calgary codes start with T, which is also what the database accepts.
+  pattern: '^T[0-9][A-Z][0-9][A-Z][0-9]$'
   example: T2P1J9
 
 Timestamp:
   type: string
   format: date-time
+  pattern: 'Z$'
   description: ISO 8601 in UTC with a Z suffix. The frontend converts to Calgary time for display only.
   example: '2026-10-28T16:15:00Z'
 

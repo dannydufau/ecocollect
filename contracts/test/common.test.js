@@ -35,3 +35,19 @@ test('RequestStatus is exactly the six states in the database', () => {
   ]);
   rejects('RequestStatus', ['open', 'OPEN', 'Done', '', null]);
 });
+
+test('Timestamp is UTC with a Z, as the conventions say', () => {
+  accepts('Timestamp', ['2026-10-28T16:15:00Z', '2026-10-28T16:15:00.250Z']);
+  rejects('Timestamp', [
+    '2026-10-28',
+    '2026-10-28T16:15:00',
+    '2026-10-28T10:15:00-06:00',
+    '2026-10-28T16:15:00+00:00',
+    1793204100,
+  ]);
+});
+
+test('PostalCode is a full Calgary code: uppercase, no space, starts with T', () => {
+  accepts('PostalCode', ['T2P1J9', 'T3A0B1', 'T2E5A8']);
+  rejects('PostalCode', ['t2p1j9', 'T2P 1J9', 'T2P1J', 'T2P1J99', 'T2P', 'M5V3L9', '2TP1J9', 'TTPPJ9']);
+});
