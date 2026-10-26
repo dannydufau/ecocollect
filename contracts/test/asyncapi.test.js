@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { asyncapi, validator } = require('./helpers');
 
 const event = () => structuredClone(asyncapi.components.messages.RequestCreated.examples[0].payload);
-const note = () => structuredClone(asyncapi.components.messages.SseNotification.examples[0].payload);
+const note = () => structuredClone(asyncapi.components.messages.SseSignal.examples[0].payload);
 const withData = (change) => ({ ...event(), data: { ...event().data, ...change } });
 
 test('the RequestCreated example is a valid event', () => {
@@ -54,13 +54,13 @@ test('RequestCreated: the data has to be right', () => {
 });
 
 test('the SSE example is a valid signal, for both types', () => {
-  const valid = validator(asyncapi, 'SseNotificationPayload');
+  const valid = validator(asyncapi, 'SseSignalPayload');
   assert.ok(valid(note()));
   assert.ok(valid({ ...note(), type: 'REQUEST_CREATED' }));
 });
 
 test('SSE signal: only a type and a request id, nothing stored and nothing private', () => {
-  const valid = validator(asyncapi, 'SseNotificationPayload');
+  const valid = validator(asyncapi, 'SseSignalPayload');
   assert.ok(!valid({ ...note(), type: 'REQUEST_ACCEPTED' }), 'a type from after Oct 28');
   assert.ok(!valid({ ...note(), type: undefined }));
   assert.ok(!valid({ ...note(), requestId: undefined }));
@@ -88,7 +88,7 @@ test('the publisher sends, the notification service receives, and nobody listens
   const ops = asyncapi.operations;
   assert.equal(ops.publishRequestCreated.action, 'send');
   assert.equal(ops.receiveRequestCreated.action, 'receive');
-  assert.equal(ops.pushNotification.action, 'send');
+  assert.equal(ops.pushSignal.action, 'send');
 });
 
 test('every operation points at a channel and a message that exist', () => {

@@ -7,7 +7,7 @@ info:
 
     1. **RequestCreated**: the pickup service tells the notification service, through
        RabbitMQ, that a resident created a request.
-    2. **SseNotification**: the notification service tells the browser, over the open
+    2. **SseSignal**: the notification service tells the browser, over the open
        `GET /api/events` stream, that there is something new.
 
     This one file describes the services on both sides of each message, so every operation
@@ -65,15 +65,15 @@ channels:
       requestCreated:
         $ref: '#/components/messages/RequestCreated'
 
-  notificationStream:
+  signalStream:
     address: /api/events
     title: Server-Sent Events stream
     description: Opened once after login by `EventSource` with the session cookie.
     servers:
       - $ref: '#/servers/gateway'
     messages:
-      notification:
-        $ref: '#/components/messages/SseNotification'
+      signal:
+        $ref: '#/components/messages/SseSignal'
 
 operations:
   publishRequestCreated:
@@ -111,18 +111,18 @@ operations:
     messages:
       - $ref: '#/channels/requestEventsQueue/messages/requestCreated'
 
-  pushNotification:
+  pushSignal:
     action: send
     channel:
-      $ref: '#/channels/notificationStream'
-    title: Notification service pushes a notification over SSE
+      $ref: '#/channels/signalStream'
+    title: Notification service pushes a signal over SSE
     description: |
-      One `notification` message is written to every open connection of each recipient, so
+      One `signal` message is written to every open connection of each recipient, so
       several tabs all get it. A recipient with no open connection gets nothing and catches
       up with `GET /api/requests` on their next page load. Roughly every 25 seconds the server also sends a
       comment line, `: ping`, to keep the connection open and to find dead connections.
     messages:
-      - $ref: '#/channels/notificationStream/messages/notification'
+      - $ref: '#/channels/signalStream/messages/signal'
 
 components:
   messages:
@@ -158,15 +158,15 @@ components:
               expiresAt: '2026-11-27T16:15:00Z'
               matchedVolunteerUids: [firebaseUid_v1, firebaseUid_v2]
 
-    SseNotification:
-      name: notification
+    SseSignal:
+      name: signal
       title: A signal for the signed-in user
       contentType: application/json
       description: |
         Sent as a Server-Sent Event. On the wire it is two lines and a blank line:
 
         ```
-        event: notification
+        event: signal
         data: <the payload as one line of JSON>
         ```
 
@@ -175,10 +175,10 @@ components:
 
         The message is only a signal. The frontend refetches from the REST API to get fresh data:
         the available requests for `NEW_MATCHING_REQUEST`, and the resident's own requests
-        for `REQUEST_CREATED`. There is no notifications list to refetch for Oct 28.
+        for `REQUEST_CREATED`. There is no stored inbox to refetch for Oct 28.
         Someone who was offline gets nothing and catches up on their next page load.
       payload:
-        $ref: '#/components/schemas/SseNotificationPayload'
+        $ref: '#/components/schemas/SseSignalPayload'
       examples:
         - name: A volunteer is told about a new request
           payload:
@@ -252,7 +252,7 @@ components:
               items:
                 type: string
 
-    SseNotificationPayload:
+    SseSignalPayload:
       type: object
       additionalProperties: false
       required: [type, requestId]

@@ -7,7 +7,7 @@ The messages themselves are written as specs, so this page only covers the flow 
 | File | What is in it |
 |---|---|
 | [openapi.yaml](./openapi.yaml) | The public API through the gateway: sessions, requests, the event stream |
-| [asyncapi.yaml](./asyncapi.yaml) | The `RequestCreated` event on RabbitMQ and the SSE notification message |
+| [asyncapi.yaml](./asyncapi.yaml) | The `RequestCreated` event on RabbitMQ and the SSE signal message |
 | [schemas/common.yaml](./schemas/common.yaml) | Definitions both specs share (pickup window, postal code, timestamp, status) |
 
 Everything not needed for this flow is in [Deferred](#deferred) at the bottom.
@@ -69,6 +69,7 @@ sequenceDiagram
 - Timestamps are ISO 8601 in UTC with a `Z` (`2026-10-28T16:15:00Z`) and stored as `timestamptz`. The frontend converts to Calgary time only for display.
 - The exception is a pickup window: a Calgary date plus a start hour (`{ "date": "2026-10-30", "startHour": 14 }` is 14:00 to 15:00 Calgary time), with no time zone, because it is a local hour and not an instant.
 - Roles live in Firebase custom claims: `{ roles: ["resident"] | ["volunteer"] | ["resident","volunteer"] }`.
+- A **signal** is the live "refetch now" ping sent over SSE, and it is never saved. A **notification** would be a stored inbox record, which is deferred.
 - **No street address ever appears in an event, an SSE message or a volunteer's list.**
 - Each service writes only its own tables.
 - Caddy is the gateway and the only publicly exposed service. It serves the Next.js frontend and `/api/*` on one origin. Auth is the only backend component that talks to Firebase.
@@ -161,7 +162,7 @@ A small stateless service with no database for Oct 28. It turns each `RequestCre
 |---|---|---|
 | R1 | Login succeeds | `POST /api/session`, then open `EventSource('/api/events', { withCredentials: true })` |
 | R2 | `POST /api/requests` succeeds | Refetch `["requests","mine"]` |
-| R3 | SSE `notification` | `NEW_MATCHING_REQUEST` refetches `["requests","available"]`. `REQUEST_CREATED` refetches `["requests","mine"]`. The message is only a signal and the data always comes from the REST API. |
+| R3 | SSE `signal` | `NEW_MATCHING_REQUEST` refetches `["requests","available"]`. `REQUEST_CREATED` refetches `["requests","mine"]`. The message is only a signal and the data always comes from the REST API. |
 | R4 | SSE drops | `EventSource` reconnects by itself. While it is down, refetch the visible lists every 30 seconds. |
 | R5 | A volunteer opens "available" | Call `GET /api/requests?view=available` with no `postalCodes`, to show everything |
 
