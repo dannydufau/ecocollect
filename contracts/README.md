@@ -82,7 +82,7 @@ The seed script creates the Firebase users and their database rows in one run, s
 | F3 | `getIdToken()` | Called before each API request. The SDK refreshes the token by itself. |
 | F4 | `signOut` | First call `DELETE /api/session`, then `signOut` |
 
-The frontend keeps a fixed list of item categories. The ids must match the seeded categories.
+The frontend keeps a fixed list of item categories. The ids must match the seeded categories, which the seed script creates as: `laptops`, `desktops`, `monitors`, `tvs`, `phones`, `tablets`, `printers`, `small-appliances`, `cables-chargers`, `other-electronics`. The last one needs an item description, because the database requires it.
 
 ## Gateway (Caddy)
 
@@ -157,7 +157,7 @@ The message is described in [asyncapi.yaml](./asyncapi.yaml). The setup:
 ## Open points for the team
 
 - **Who gets notified.** The event carries `matchedVolunteerUids`, so only volunteers in the request's area are notified. The thread also said there is no profile call for Oct 28, so the list shows every available request. If the demo should notify all volunteers, the pickup service should put them all in `matchedVolunteerUids`. Please confirm.
-- **Category ids.** The frontend list and the seeded categories must use the same ids.
+- **Category ids.** The frontend list and the seeded categories must use the same ids (listed under Frontend and Firebase). If the seed script changes them, this list and the frontend need the same change.
 - **Where the ID token goes.** `POST /api/session` takes it in the JSON body as `{ "idToken": "..." }`. It is not read from a header.
 
 ## Deferred
