@@ -1,12 +1,8 @@
 import type { NextConfig } from "next";
 
+const gatewayUrl = process.env.GATEWAY_URL ?? "http://localhost:8080";
+
 const nextConfig: NextConfig = {
-  /* config options here */
-  experimental: {
-    agentFeedback: true,
-  },
-  cacheComponents: true,
-  partialPrefetching: true,
   turbopack: {
     rules: {
       "*.css": {
@@ -14,6 +10,14 @@ const nextConfig: NextConfig = {
         as: "*.css",
       },
     },
+  },
+  async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination: `${gatewayUrl}/api/:path*`,
+      },
+    ];
   },
 };
 
