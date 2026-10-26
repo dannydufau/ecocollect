@@ -59,3 +59,10 @@ test('no shared queue is named anywhere, each notification instance has its own'
     assert.doesNotMatch(read(file), /notification\.request-events/, `${file} still names the shared queue`);
   }
 });
+
+test('every file says the frontend refetches when the stream opens, that is how missed signals are recovered', () => {
+  for (const file of ['README.md', 'asyncapi.yaml', 'openapi.yaml']) {
+    assert.match(read(file), /onopen/, `${file} should mention refetching in onopen`);
+  }
+  assert.doesNotMatch(read('README.md'), /every 30 seconds/, 'no polling while the stream is down');
+});

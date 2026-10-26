@@ -124,8 +124,9 @@ operations:
     title: Notification service pushes a signal over SSE
     description: |
       One `signal` message is written to every open connection of each recipient, so
-      several tabs all get it. A recipient with no open connection gets nothing and catches
-      up with `GET /api/requests` on their next page load. Roughly every 25 seconds the server also sends a
+      several tabs all get it. A recipient with no open connection gets nothing. The frontend
+      refetches whenever the stream opens (`EventSource` `onopen`), the first time and after every reconnect,
+      so a missed signal costs nothing. Roughly every 25 seconds the server also sends a
       comment line, `: ping`, to keep the connection open and to find dead connections.
     messages:
       - $ref: '#/channels/signalStream/messages/signal'
@@ -182,7 +183,7 @@ components:
         The message is only a signal. The frontend refetches from the REST API to get fresh data:
         the available requests for `NEW_MATCHING_REQUEST`, and the resident's own requests
         for `REQUEST_CREATED`. There is no stored inbox to refetch for Oct 28.
-        Someone who was offline gets nothing and catches up on their next page load.
+        A signal missed while disconnected is not replayed. The frontend refetches in `onopen` instead.
       payload:
         $ref: '#/components/schemas/SseSignalPayload'
       examples:

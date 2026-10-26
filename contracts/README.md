@@ -60,7 +60,7 @@ sequenceDiagram
 2. **Session.** It calls `POST /api/session` once, then opens the SSE stream. This is the only reason sessions exist: `EventSource` can't send an `Authorization` header, but browsers send cookies by themselves.
 3. **Create.** A resident posts the request. Caddy checks the token first, then the pickup service saves one request per category and one outbox row for each, all in one transaction.
 4. **Publish.** A loop in the pickup service sends the outbox rows to RabbitMQ and marks them sent only after RabbitMQ confirms.
-5. **Notify.** The notification service has no database. It writes an SSE signal to each open connection of the resident and of every matched volunteer, then acknowledges the message. Anyone offline gets nothing and catches up with `GET /api/requests` on their next page load.
+5. **Notify.** The notification service has no database. It writes an SSE signal to each open connection of the resident and of every matched volunteer, then acknowledges the message. Anyone offline gets nothing. They catch up because the frontend refetches every time the stream opens.
 6. **Refresh.** The SSE message is only a signal. The frontend refetches `GET /api/requests` to show the real data.
 
 ## Conventions
@@ -164,7 +164,7 @@ A small stateless service with no database for Oct 28. It turns each `RequestCre
 | R1 | Login succeeds | `POST /api/session`, then open `EventSource('/api/events', { withCredentials: true })` |
 | R2 | `POST /api/requests` succeeds | Refetch `["requests","mine"]` |
 | R3 | SSE `signal` | `NEW_MATCHING_REQUEST` refetches `["requests","available"]`. `REQUEST_CREATED` refetches `["requests","mine"]`. The message is only a signal and the data always comes from the REST API. |
-| R4 | SSE drops | `EventSource` reconnects by itself. While it is down, refetch the visible lists every 30 seconds. |
+| R4 | The stream opens (`onopen`), the first time or after a reconnect | Refetch the lists on screen. This is the whole recovery plan: missed signals are not replayed, and `EventSource` reconnects by itself. |
 | R5 | A volunteer opens "available" | Call `GET /api/requests?view=available` with no `postalCodes`, to show everything |
 
 ## Open points for the team
