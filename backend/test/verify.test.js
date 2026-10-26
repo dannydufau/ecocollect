@@ -102,7 +102,7 @@ test('a user without a roles claim gets an empty roles header', async (t) => {
 });
 
 test('returns 500 when Firebase fails for another reason', async (t) => {
-  t.mock.method(console, 'error', () => {});
+  t.mock.method(console, 'error', () => { });
   const auth = { verifyIdToken: async () => { throw new Error('network down'); } };
   const server = await startServer(auth);
   t.after(server.close);
@@ -110,4 +110,21 @@ test('returns 500 when Firebase fails for another reason', async (t) => {
   const res = await verify(server, { Authorization: 'Bearer good-token' });
 
   assert.strictEqual(res.status, 500);
+});
+
+test('returns 500 for a Firebase auth error that is not about the token', async (t) => {
+  const logged = t.mock.method(console, 'error', () => { });
+  // e.g. a bad service-account key: our setup is broken, not the caller's token
+  const auth = {
+    verifyIdToken: async () => {
+      throw Object.assign(new Error('bad key'), { code: 'auth/invalid-credential' });
+    },
+  };
+  const server = await startServer(auth);
+  t.after(server.close);
+
+  const res = await verify(server, { Authorization: 'Bearer good-token' });
+
+  assert.strictEqual(res.status, 500);
+  assert.strictEqual(logged.mock.callCount(), 1);
 });

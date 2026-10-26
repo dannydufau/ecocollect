@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { initializeApp, cert } = require('firebase-admin/app');
+const { initializeApp, cert, getApps } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
 
 // Same default location as the seed script (the secrets/ folder is git-ignored).
@@ -17,6 +17,7 @@ function readKey() {
 
 // Same two modes as the seed script: the local emulator, or a real service-account key.
 function getFirebaseAuth() {
+  if (getApps().length) return getAuth(); // already set up by an earlier call
   if (process.env.FIREBASE_AUTH_EMULATOR_HOST) {
     // The Admin SDK sees this env var and talks to the emulator on its own.
     initializeApp({ projectId: process.env.GCLOUD_PROJECT || 'demo-ecocollect' });

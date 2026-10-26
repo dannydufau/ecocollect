@@ -8,18 +8,20 @@ const SESSION_MS = 5 * 24 * 60 * 60 * 1000; // 5 days, Firebase allows 5 minutes
 // Authorization header, so this cookie is how the SSE connection proves who it is.
 const COOKIE_OPTIONS = { httpOnly: true, secure: true, sameSite: 'lax' };
 
-// Firebase puts an "auth/..." code on errors caused by the token itself, but a few
-// of those codes mean Firebase or our own setup is broken, not that the caller did
-// something wrong. Those (and anything without an auth code) should not be a 401.
-const SERVER_FAULTS = new Set([
-  'auth/internal-error',
-  'auth/insufficient-permission',
-  'auth/project-not-found',
-  'auth/invalid-session-cookie-duration',
+// Errors caused by the token itself. Anything else means Firebase or our setup failed.
+const TOKEN_PROBLEMS = new Set([
+  'auth/argument-error',          // malformed token or bad signature
+  'auth/invalid-id-token',        // createSessionCookie rejected the ID token
+  'auth/id-token-expired',
+  'auth/id-token-revoked',
+  'auth/session-cookie-expired',
+  'auth/session-cookie-revoked',
+  'auth/user-disabled',
+  'auth/user-not-found',          // user deleted (checkRevoked looks the user up)
 ]);
 
 function sendAuthError(res, err) {
-  if (String(err.code).startsWith('auth/') && !SERVER_FAULTS.has(err.code)) {
+  if (TOKEN_PROBLEMS.has(err.code)) {
     return res.sendStatus(401);
   }
   console.error('Unexpected auth error:', err);
@@ -52,8 +54,21 @@ function createAuthRouter(auth) {
     }
   });
 
-  router.delete('/api/session', (req, res) => {
+  router.delete('/api/session', async (req, res) => {
     res.clearCookie(COOKIE_NAME, COOKIE_OPTIONS);
+
+    // Clearing the cookie only makes this browser forget it. Revoking makes any copy
+    // of it stop working too, but signs the user out on every device.
+    const cookie = readSessionCookie(req);
+    if (cookie) {
+      try {
+        const user = await auth.verifySessionCookie(cookie);
+        await auth.revokeRefreshTokens(user.uid);
+      } catch (err) {
+        // A bad or expired cookie has nothing left to revoke.
+        if (!TOKEN_PROBLEMS.has(err.code)) console.error('Could not revoke session:', err);
+      }
+    }
     res.sendStatus(204);
   });
 
@@ -71,7 +86,7 @@ function createAuthRouter(auth) {
         ? await auth.verifyIdToken(token, true)
         : await auth.verifySessionCookie(cookie, true);
 
-      res.set({ 'X-User-Id': user.uid, 'X-User-Roles': (user.roles ?? []).join(',') });
+      res.set({ 'X-User-Id': user.uid, 'X-User-Roles': [].concat(user.roles ?? []).join(',') });
       res.sendStatus(200);
     } catch (err) {
       sendAuthError(res, err);
