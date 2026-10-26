@@ -59,7 +59,7 @@ sequenceDiagram
 1. **Login.** The browser signs in with the Firebase client SDK and reads the roles from the token.
 2. **Session.** It calls `POST /api/session` once, then opens the SSE stream. This is the only reason sessions exist: `EventSource` can't send an `Authorization` header, but browsers send cookies by themselves.
 3. **Create.** A resident posts the request. Caddy checks the token first, then the pickup service saves one request per category and one outbox row for each, all in one transaction.
-4. **Publish.** A loop in the pickup service sends the outbox rows to RabbitMQ and marks them sent only after RabbitMQ confirms.
+4. **Publish.** A loop in the pickup service sends the outbox rows to RabbitMQ and marks them sent only after RabbitMQ confirms. An event is never lost before it reaches RabbitMQ. After that each consumer decides what it needs.
 5. **Notify.** The notification service has no database. It writes an SSE signal to each open connection of the resident and of every matched volunteer, then acknowledges the message. Anyone offline gets nothing. They catch up because the frontend refetches every time the stream opens.
 6. **Refresh.** The SSE message is only a signal. The frontend refetches `GET /api/requests` to show the real data.
 

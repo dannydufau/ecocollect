@@ -90,9 +90,11 @@ operations:
     summary: One event per created request, so a 3-category submission sends 3.
     description: |
       Sent by the outbox publisher in the pickup service. The event is saved in the
-      same database transaction as the request, so it is never lost. A background loop
-      publishes it with **publisher confirms on**, and marks the outbox row as sent
-      only after RabbitMQ confirms.
+      same database transaction as the request, so it is never lost before it reaches RabbitMQ.
+      A background loop publishes it with **publisher confirms on**, and marks the outbox row as
+      sent only after RabbitMQ confirms. After that it is up to each consumer: an event that
+      arrives while no notification instance is running is dropped, which is fine for a signal,
+      and a consumer that needs more (stored notifications, email) must keep its own queue.
     bindings:
       amqp:
         deliveryMode: 2

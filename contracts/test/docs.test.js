@@ -66,3 +66,9 @@ test('every file says the frontend refetches when the stream opens, that is how 
   }
   assert.doesNotMatch(read('README.md'), /every 30 seconds/, 'no polling while the stream is down');
 });
+
+test('the outbox only promises delivery to RabbitMQ, what happens after that is up to each consumer', () => {
+  assert.match(read('asyncapi.yaml'), /never lost before it reaches RabbitMQ/);
+  assert.doesNotMatch(read('asyncapi.yaml'), /so it is never lost\./);
+  assert.match(read('README.md'), /never lost before it reaches RabbitMQ/);
+});
