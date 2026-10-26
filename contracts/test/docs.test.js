@@ -47,3 +47,9 @@ test('the notification service has no database for Oct 28', () => {
   assert.doesNotMatch(read('asyncapi.yaml'), stored, 'asyncapi.yaml');
   assert.doesNotMatch(read('openapi.yaml'), stored, 'openapi.yaml');
 });
+
+test('the Deferred section keeps the plan for stored notifications', () => {
+  const [, deferredText] = read('README.md').split('## Deferred');
+  assert.match(deferredText, /processed_events/, 'repeat handling comes back with storage');
+  assert.match(deferredText, /notifications table|stored notifications/i);
+});

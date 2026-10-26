@@ -180,9 +180,9 @@ Not part of Oct 28:
 | Browser push notifications | VAPID keys, `POST` and `DELETE /api/push/subscriptions`, the service worker, the "Enable notifications" button, and `web-push` sending in the notification service |
 | `GET /api/categories` | The frontend keeps a fixed list |
 | `GET /api/profile` | Used to build the default postal code filter for volunteers |
-| `GET /api/notifications` | Loads notifications missed while offline. No read or unread yet. |
+| `GET /api/notifications` | Loads notifications missed while offline. Needs stored notifications: a notifications table in the notification service, plus a `processed_events` table so a repeated event is skipped. The SSE message would then carry a `notificationId` and an `id` line. No read or unread yet. |
 | Mark as read | `PATCH /api/notifications/:id/read` and an `isRead` field, with an SSE `notification-read` event so other tabs stay in step |
 | Request expiry | A scheduler marks Open requests Expired when `expiresAt` passes and publishes `RequestExpired` |
 | Registration | Replaces manual claims and seeded profiles |
 | Photos | Upload on request creation |
-| Notification retention | Notifications are kept forever for now. Later, clean up old notifications and old `processed_events` rows. |
+| Notification retention | Nothing is stored for Oct 28. Once notifications are stored, clean up old notifications and old `processed_events` rows. |
