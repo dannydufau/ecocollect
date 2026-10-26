@@ -48,10 +48,13 @@ test('the notification service has no database for Oct 28', () => {
   assert.doesNotMatch(read('openapi.yaml'), stored, 'openapi.yaml');
 });
 
-test('the Deferred section keeps the plan for stored notifications', () => {
-  const [, deferredText] = read('README.md').split('## Deferred');
-  assert.match(deferredText, /processed_events/, 'repeat handling comes back with storage');
-  assert.match(deferredText, /notifications table|stored notifications/i);
+test('stored notifications are one deferred line, not a plan, and processed_events is gone', () => {
+  const readme = read('README.md');
+  const [, deferredText] = readme.split('## Deferred');
+  assert.match(deferredText, /\/api\/notifications/);
+  assert.match(deferredText, /only if we decide/i);
+  assert.doesNotMatch(readme, /processed_events/, 'nothing needs to skip repeated events');
+  assert.doesNotMatch(readme, /notification retention/i);
 });
 
 test('no shared queue is named anywhere, each notification instance has its own', () => {
