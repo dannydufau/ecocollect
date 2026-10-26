@@ -117,7 +117,44 @@ function createStore(pool) {
     });
   }
 
-  return { createRequests };
+  async function listMine(uid, status) {
+    const { rows } = await pool.query(
+      `SELECT r.request_id AS "requestId", c.name AS category, r.quantity,
+              r.estimated_weight_kg::float8 AS "estimatedWeightKg", r.status,
+              r.created_at AS "createdAt", r.expires_at AS "expiresAt"
+       FROM pickup_request r JOIN categories c USING (category_id)
+       WHERE r.resident_uid = $1 AND ($2::text IS NULL OR r.status = $2)
+       ORDER BY r.created_at DESC, r.request_id`,
+      [uid, status ?? null],
+    );
+    return rows;
+  }
+
+  // Open, not expired, and still a window ahead. Only the windows that have not started are shown.
+  // The street is never selected, so it can't leak by accident.
+  async function listAvailable(postalCodes) {
+    const { rows } = await pool.query(
+      `SELECT r.request_id AS "requestId", c.name AS category, r.quantity,
+              r.estimated_weight_kg::float8 AS "estimatedWeightKg",
+              r.pickup_postal_code AS "postalCode", ahead.windows, r.expires_at AS "expiresAt"
+       FROM pickup_request r
+       JOIN categories c USING (category_id)
+       CROSS JOIN LATERAL (
+         SELECT json_agg(json_build_object('date', to_char(w.window_date, 'YYYY-MM-DD'), 'startHour', w.start_hour)
+                         ORDER BY w.window_date) AS windows
+         FROM pickup_window w
+         WHERE w.request_id = r.request_id AND w.is_active
+           AND (w.window_date + make_interval(hours => w.start_hour)) AT TIME ZONE 'America/Edmonton' > now()
+       ) ahead
+       WHERE r.status = 'Open' AND r.expires_at > now() AND ahead.windows IS NOT NULL
+         AND ($1::text[] IS NULL OR r.pickup_postal_code = ANY($1))
+       ORDER BY r.created_at DESC, r.request_id`,
+      [postalCodes ?? null],
+    );
+    return rows;
+  }
+
+  return { createRequests, listMine, listAvailable };
 }
 
 module.exports = { createStore, RequestError };

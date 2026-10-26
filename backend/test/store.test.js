@@ -102,3 +102,81 @@ test('creating requests', { skip }, async (t) => {
     assert.strictEqual(after.rows[0].n, before.rows[0].n);
   });
 });
+
+test('listing requests', { skip }, async (t) => {
+  const pool = openPool();
+  const fx = await addFixtures(pool);
+  const store = createStore(pool);
+  const laptop = { categoryId: 'laptops', quantity: 2 };
+  const make = (uid, windows) => store.createRequests({ uid, items: [laptop], windows }).then(([r]) => r.requestId);
+  const future = [{ date: '2030-01-15', startHour: 14 }];
+  const inYear = (y) => [{ date: `${y}-01-15`, startHour: 14 }];
+  t.after(async () => {
+    await removeFixtures(pool, fx.uids);
+    await pool.end();
+  });
+
+  const first = await make(fx.resident.uid, future);
+  const second = await make(fx.resident.uid, [{ date: '2030-01-15', startHour: 9 }, { date: '2030-01-16', startHour: 9 }]);
+  const other = await make(fx.both.uid, future);
+  // Windows in the past can't be created through the API, so write one straight in.
+  const stale = await make(fx.resident.uid, future);
+  await pool.query("UPDATE pickup_window SET window_date = '2020-01-01' WHERE request_id = $1", [stale]);
+
+  await t.test('mine: newest first, only the caller\'s, in the contract\'s shape', async () => {
+    const list = await store.listMine(fx.resident.uid);
+    assert.deepStrictEqual(list.map((r) => r.requestId), [stale, second, first]);
+    assert.ok(!list.some((r) => r.requestId === other));
+    assert.deepStrictEqual(Object.keys(list[0]).sort(), [
+      'category', 'createdAt', 'estimatedWeightKg', 'expiresAt', 'quantity', 'requestId', 'status',
+    ]);
+    assert.strictEqual(list[0].category, 'Computers/Laptops');
+    assert.strictEqual(list[0].estimatedWeightKg, 5);
+  });
+
+  await t.test('mine: can be filtered by status', async () => {
+    await pool.query("UPDATE pickup_request SET status = 'Cancelled' WHERE request_id = $1", [first]);
+    assert.deepStrictEqual((await store.listMine(fx.resident.uid, 'Cancelled')).map((r) => r.requestId), [first]);
+    assert.strictEqual((await store.listMine(fx.resident.uid, 'Open')).length, 2);
+    assert.deepStrictEqual(await store.listMine(fx.resident.uid, 'Delivered'), []);
+    await pool.query("UPDATE pickup_request SET status = 'Open' WHERE request_id = $1", [first]);
+  });
+
+  await t.test('mine: someone with no requests gets an empty list', async () => {
+    assert.deepStrictEqual(await store.listMine(fx.near.uid), []);
+  });
+
+  const mineOnly = (list, uids) => list.filter((r) => uids.includes(r.requestId));
+
+  await t.test('available: open requests with a window still ahead, and no street', async () => {
+    const list = mineOnly(await store.listAvailable(), [first, second, other, stale]);
+    assert.deepStrictEqual(list.map((r) => r.requestId).sort(), [first, second, other].sort());
+    const one = list.find((r) => r.requestId === first);
+    assert.deepStrictEqual(Object.keys(one).sort(), [
+      'category', 'estimatedWeightKg', 'expiresAt', 'postalCode', 'quantity', 'requestId', 'windows',
+    ]);
+    assert.deepStrictEqual(one.windows, [{ date: '2030-01-15', startHour: 14 }]);
+    assert.strictEqual(one.postalCode, 'T2P1J9');
+    assert.ok(!JSON.stringify(list).includes('Secret'));
+  });
+
+  await t.test('available: a window that already started is not shown', async () => {
+    await pool.query("UPDATE pickup_window SET window_date = '2020-01-01' WHERE request_id = $1 AND window_no = 1", [second]);
+    const two = (await store.listAvailable()).find((r) => r.requestId === second);
+    assert.deepStrictEqual(two.windows, [{ date: '2030-01-16', startHour: 9 }]);
+  });
+
+  await t.test('available: requests that are not Open, or whose windows were replaced, are left out', async () => {
+    await pool.query("UPDATE pickup_request SET status = 'Assigned' WHERE request_id = $1", [first]);
+    await pool.query("UPDATE pickup_window SET is_active = FALSE WHERE request_id = $1", [other]);
+    const ids = mineOnly(await store.listAvailable(), [first, second, other]).map((r) => r.requestId);
+    assert.deepStrictEqual(ids, [second]);
+  });
+
+  await t.test('available: postal code filter', async () => {
+    const ids = (list) => mineOnly(list, [first, second, other]).map((r) => r.requestId);
+    assert.deepStrictEqual(ids(await store.listAvailable(['T2P1J9'])), [second]);
+    assert.deepStrictEqual(ids(await store.listAvailable(['T3A0B1'])), []);
+    assert.deepStrictEqual(ids(await store.listAvailable(['T3A0B1', 'T2P1J9'])), [second]);
+  });
+});
