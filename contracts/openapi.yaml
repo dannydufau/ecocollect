@@ -16,6 +16,10 @@ info:
     Roles come from the Firebase custom claim `roles`, so `403` means the caller
     has the wrong role for that call.
 
+    **Errors.** `401` means the credentials were missing or rejected. `500` from the
+    auth check means Firebase or the server's setup failed, which is not the user's
+    fault, so the frontend should not log them out.
+
     **Never in a response:** the pickup street address.
 
 servers:
@@ -64,6 +68,8 @@ paths:
           description: The body is not valid JSON.
         '401':
           description: The token is missing, invalid or stale.
+        '500':
+          description: Firebase or the server's own setup failed. The token was not at fault, so do not log the user out.
     delete:
       tags: [Session]
       operationId: deleteSession

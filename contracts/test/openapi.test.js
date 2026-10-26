@@ -187,3 +187,8 @@ test('create request: "other electronics" needs a description, because the datab
   assert.ok(!valid(other({ description: '   ' })), 'blank description');
   assert.ok(valid(body()), 'other categories still do not need one');
 });
+
+test('session: a Firebase failure is a 500, not a 401, so the frontend does not log the user out', () => {
+  assert.ok(openapi.paths['/api/session'].post.responses['500']);
+  assert.match(openapi.info.description, /500/);
+});
