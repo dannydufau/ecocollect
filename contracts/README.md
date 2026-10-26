@@ -50,8 +50,7 @@ sequenceDiagram
     P-->>B: 201
     P->>MQ: RequestCreated (from the outbox)
     MQ->>N: RequestCreated
-    N->>DB: save notifications (skip repeated events)
-    N-->>B: SSE notification
+    N-->>B: SSE signal to the resident and the matched volunteers
     B->>C: GET /api/requests?view=...
     C->>P: list
     P-->>B: fresh data
@@ -61,7 +60,7 @@ sequenceDiagram
 2. **Session.** It calls `POST /api/session` once, then opens the SSE stream. This is the only reason sessions exist: `EventSource` can't send an `Authorization` header, but browsers send cookies by themselves.
 3. **Create.** A resident posts the request. Caddy checks the token first, then the pickup service saves one request per category and one outbox row for each, all in one transaction.
 4. **Publish.** A loop in the pickup service sends the outbox rows to RabbitMQ and marks them sent only after RabbitMQ confirms.
-5. **Notify.** The notification service saves a notification for the resident and for every matched volunteer, acknowledges the message, and writes an SSE message to each open connection of those users.
+5. **Notify.** The notification service has no database. It writes an SSE signal to each open connection of the resident and of every matched volunteer, then acknowledges the message. Anyone offline gets nothing and catches up with `GET /api/requests` on their next page load.
 6. **Refresh.** The SSE message is only a signal. The frontend refetches `GET /api/requests` to show the real data.
 
 ## Conventions
@@ -143,16 +142,18 @@ The message is described in [asyncapi.yaml](./asyncapi.yaml). The setup:
 | Queue | `notification.request-events`, durable, bound with `request.*` |
 | Message | `messageId` is the `eventId`, `application/json`, **persistent**. A durable queue holding non-persistent messages comes back empty after a restart, so both are needed. |
 | Publisher | Publisher confirms on. The outbox row is marked sent only after the confirm. |
-| Consumer | Manual ack after the database work commits. Unacked messages are delivered again. |
+| Consumer | Manual ack after the SSE signals are written. Unacked messages are delivered again. |
 | Granularity | One event per created request |
 
 ## Notification service
 
+A small stateless service with no database for Oct 28. It turns each `RequestCreated` event into SSE signals for the users who are online.
+
 | # | Step | Notes |
 |---|---|---|
-| N1 | Insert the `eventId` into `processed_events` | If it is already there, skip. This makes a redelivered event harmless. |
-| N2 | Insert the notifications in the same transaction as N1 | One for the resident (`REQUEST_CREATED`) and one per uid in `matchedVolunteerUids` (`NEW_MATCHING_REQUEST`). No matched volunteers means only the resident's row. Ack after commit. |
-| N3 | Write to the SSE connections | One `notification` message per saved row, to every open connection of that recipient. The service keeps a `userId` to connections list. A recipient with no open connection gets nothing now. About every 25 seconds the server sends `: ping`, which `EventSource` ignores, to keep proxies from closing the connection and to drop dead ones. |
+| N1 | Read the recipients from the event | The resident is `data.residentUid` and the volunteers are `data.matchedVolunteerUids`. There is no matching and no lookup here. |
+| N2 | Write to the SSE connections | `NEW_MATCHING_REQUEST` to every open connection of each matched volunteer, and `REQUEST_CREATED` to every open connection of the resident. The service keeps a `userId` to connections list in memory. No matched volunteers means only the resident gets a signal. About every 25 seconds the server sends `: ping`, which `EventSource` ignores, to keep proxies from closing the connection and to drop dead ones. |
+| N3 | Ack | After the writes. A repeated delivery sends the signal again, which only costs an extra refetch, so there is no check for repeated events. |
 
 ## Frontend reactions
 

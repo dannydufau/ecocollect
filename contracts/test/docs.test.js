@@ -39,3 +39,11 @@ test('deferred endpoints only show up in the Deferred section', () => {
 test('nothing in the contracts talks about who or what wrote it', () => {
   for (const file of files) assert.doesNotMatch(read(file), /claude|anthropic|generated (by|with)|\bAI\b/i, file);
 });
+
+test('the notification service has no database for Oct 28', () => {
+  const [flow] = read('README.md').split('## Deferred');
+  const stored = /processed_events|notification rows|saves? (a |the )?notifications?|database work/i;
+  assert.doesNotMatch(flow, stored, 'README flow');
+  assert.doesNotMatch(read('asyncapi.yaml'), stored, 'asyncapi.yaml');
+  assert.doesNotMatch(read('openapi.yaml'), stored, 'openapi.yaml');
+});

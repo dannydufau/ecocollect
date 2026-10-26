@@ -99,12 +99,12 @@ operations:
       $ref: '#/channels/requestEventsQueue'
     title: Notification service consumes RequestCreated
     description: |
-      Uses **manual ack**, sent only after the database work has committed, so an
-      unacked message is delivered again. The event id makes a repeat harmless: the
-      service saves it in `processed_events` and skips events it has already seen.
-      One notification is created for the resident (`REQUEST_CREATED`) and one for each
-      uid in `matchedVolunteerUids` (`NEW_MATCHING_REQUEST`). The recipients come
-      straight from the event, there is no matching in this service.
+      The notification service has no database for Oct 28. For each event it sends a
+      `REQUEST_CREATED` signal to the resident (`data.residentUid`) and a
+      `NEW_MATCHING_REQUEST` signal to each uid in `matchedVolunteerUids`, and then
+      acknowledges the message (**manual ack**, so an unacked message is delivered again).
+      The recipients come straight from the event, there is no matching in this service.
+      A repeated delivery sends the signal again, which only costs an extra refetch.
     bindings:
       amqp:
         ack: true
@@ -117,9 +117,9 @@ operations:
       $ref: '#/channels/notificationStream'
     title: Notification service pushes a notification over SSE
     description: |
-      After the notification rows are saved, one `notification` message is written to
-      every open connection of that recipient, so several tabs all get it. A recipient with
-      no open connection gets nothing now. Roughly every 25 seconds the server also sends a
+      One `notification` message is written to every open connection of each recipient, so
+      several tabs all get it. A recipient with no open connection gets nothing and catches
+      up with `GET /api/requests` on their next page load. Roughly every 25 seconds the server also sends a
       comment line, `: ping`, to keep the connection open and to find dead connections.
     messages:
       - $ref: '#/channels/notificationStream/messages/notification'
