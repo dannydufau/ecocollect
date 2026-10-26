@@ -167,7 +167,7 @@ A small stateless service with no database for Oct 28. It turns each `RequestCre
 
 ## Open points for the team
 
-- **Who gets notified.** The event carries `matchedVolunteerUids`, so only volunteers in the request's area are notified. The thread also said there is no profile call for Oct 28, so the list shows every available request. If the demo should notify all volunteers, the pickup service should put them all in `matchedVolunteerUids`. Please confirm.
+- **Who gets notified.** The event carries `matchedVolunteerUids`, and issue #25 sends to exactly those uids, so only volunteers in the request's area are notified. The thread also said there is no profile call for Oct 28, so the list shows every available request. If the demo should notify all volunteers, the pickup service should put them all in `matchedVolunteerUids`. Please confirm.
 - **Category ids.** The frontend list and the seeded categories must use the same ids (listed under Frontend and Firebase). If the seed script changes them, this list and the frontend need the same change.
 - **Where the ID token goes.** `POST /api/session` takes it in the JSON body as `{ "idToken": "..." }`. It is not read from a header.
 
