@@ -232,10 +232,13 @@ components:
               minimum: 1
             estimatedWeightKg:
               type: number
+              exclusiveMinimum: 0
             postalCode:
               $ref: ./schemas/common.yaml#/PostalCode
             windows:
               type: array
+              minItems: 1
+              maxItems: 3
               items:
                 $ref: ./schemas/common.yaml#/PickupWindow
             expiresAt:
@@ -251,6 +254,7 @@ components:
 
     SseNotificationPayload:
       type: object
+      additionalProperties: false
       required: [notificationId, type, requestId, title, body, createdAt]
       properties:
         notificationId:
