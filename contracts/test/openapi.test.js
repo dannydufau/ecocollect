@@ -131,6 +131,24 @@ test('list requests: a resident sees their own requests', () => {
   assert.ok(!valid([{ ...mine, createdAt: undefined }]));
 });
 
+test('list requests: a volunteer sees the area and the windows but never the street', () => {
+  const valid = inline(openapi, responseBody('get', '/api/requests', '200'));
+  const open = {
+    requestId: '0b7e3f2a-6d1c-4a52-9a43-6a1f5e0f1c11',
+    category: 'Computers/Laptops',
+    quantity: 2,
+    estimatedWeightKg: 5,
+    postalCode: 'T2P1J9',
+    windows: [window],
+    expiresAt: expires,
+  };
+  assert.ok(valid([open]));
+  for (const leak of ['street', 'address', 'residentUid', 'residentName']) {
+    assert.ok(!valid([{ ...open, [leak]: 'x' }]), `${leak} must not be allowed in the volunteer list`);
+  }
+  assert.ok(!valid([{ ...open, postalCode: 'T2P' }]), 'only the full postal code');
+});
+
 test('list requests: the filters belong to their own view', () => {
   const params = Object.fromEntries(openapi.paths['/api/requests'].get.parameters.map((p) => [p.name, p]));
   assert.match(params.status.description, /view=mine/);

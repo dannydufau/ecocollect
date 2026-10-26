@@ -307,6 +307,7 @@ components:
 
     MyRequest:
       type: object
+      additionalProperties: false
       required: [requestId, category, quantity, estimatedWeightKg, status, createdAt, expiresAt]
       properties:
         requestId:
@@ -328,7 +329,8 @@ components:
 
     AvailableRequest:
       type: object
-      description: What a volunteer sees. There is no street address and no resident name.
+      description: What a volunteer sees. There is no street address and no resident name, and no other field can be added.
+      additionalProperties: false
       required: [requestId, category, quantity, estimatedWeightKg, postalCode, windows, expiresAt]
       properties:
         requestId:
