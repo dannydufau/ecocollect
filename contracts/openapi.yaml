@@ -196,7 +196,7 @@ paths:
         and keep it open. The cookie is checked once, when the connection opens.
         `EventSource` reconnects by itself if it drops.
 
-        Each message is `event: notification`, with the notification as its data. The message
+        Each message is `event: notification`, with a small signal as its data: the type and the request id. The message
         format is in [asyncapi.yaml](./asyncapi.yaml) (`SseNotification`). A comment line
         `: ping` arrives about every 25 seconds to keep the connection open, and `EventSource` ignores it.
 
@@ -212,8 +212,7 @@ paths:
                 type: string
               example: |
                 event: notification
-                id: 5d2a9c41-83be-4f0e-b6a7-1c9e2f7d3a58
-                data: {"notificationId":"5d2a9c41-83be-4f0e-b6a7-1c9e2f7d3a58","type":"NEW_MATCHING_REQUEST","requestId":"0b7e3f2a-6d1c-4a52-9a43-6a1f5e0f1c11","title":"New pickup near you","body":"2 x Computers/Laptops in T2P1J9","createdAt":"2026-10-28T16:15:02Z"}
+                data: {"type":"NEW_MATCHING_REQUEST","requestId":"0b7e3f2a-6d1c-4a52-9a43-6a1f5e0f1c11"}
         '401':
           $ref: '#/components/responses/Unauthorized'
 

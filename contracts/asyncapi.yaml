@@ -160,31 +160,30 @@ components:
 
     SseNotification:
       name: notification
-      title: A notification for the signed-in user
+      title: A signal for the signed-in user
       contentType: application/json
       description: |
-        Sent as a Server-Sent Event. On the wire it is three lines and a blank line:
+        Sent as a Server-Sent Event. On the wire it is two lines and a blank line:
 
         ```
         event: notification
-        id: <notificationId>
         data: <the payload as one line of JSON>
         ```
+
+        There is no `id` line, because nothing is stored: a connection that drops does not
+        get the messages it missed.
 
         The message is only a signal. The frontend refetches from the REST API to get fresh data:
         the available requests for `NEW_MATCHING_REQUEST`, and the resident's own requests
         for `REQUEST_CREATED`. There is no notifications list to refetch for Oct 28.
+        Someone who was offline gets nothing and catches up on their next page load.
       payload:
         $ref: '#/components/schemas/SseNotificationPayload'
       examples:
         - name: A volunteer is told about a new request
           payload:
-            notificationId: 5d2a9c41-83be-4f0e-b6a7-1c9e2f7d3a58
             type: NEW_MATCHING_REQUEST
             requestId: 0b7e3f2a-6d1c-4a52-9a43-6a1f5e0f1c11
-            title: New pickup near you
-            body: 2 x Computers/Laptops in T2P1J9
-            createdAt: '2026-10-28T16:15:02Z'
 
   schemas:
     RequestCreatedPayload:
@@ -256,11 +255,8 @@ components:
     SseNotificationPayload:
       type: object
       additionalProperties: false
-      required: [notificationId, type, requestId, title, body, createdAt]
+      required: [type, requestId]
       properties:
-        notificationId:
-          type: string
-          format: uuid
         type:
           type: string
           enum: [REQUEST_CREATED, NEW_MATCHING_REQUEST]
@@ -270,10 +266,4 @@ components:
         requestId:
           type: string
           format: uuid
-        title:
-          type: string
-        body:
-          type: string
-          description: Never contains the street address.
-        createdAt:
-          $ref: ./schemas/common.yaml#/Timestamp
+          description: The request to refetch. Nothing else about it is sent, so there is no street address.

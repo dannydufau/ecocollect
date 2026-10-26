@@ -162,13 +162,12 @@ test('both roles are told apart: wrong role is a 403', () => {
   assert.ok(openapi.paths['/api/requests'].get.responses['403']);
 });
 
-test('the example on the event stream is a notification the other spec accepts', () => {
+test('the example on the event stream is a signal the other spec accepts', () => {
   const example = openapi.paths['/api/events'].get.responses['200'].content['text/event-stream'].example;
   const lines = Object.fromEntries(example.trim().split('\n').map((l) => [l.slice(0, l.indexOf(':')), l.slice(l.indexOf(':') + 2)]));
   assert.equal(lines.event, 'notification');
-  const payload = JSON.parse(lines.data);
-  assert.equal(lines.id, payload.notificationId, 'the SSE id is the notification id');
-  assert.ok(validator(asyncapi, 'SseNotificationPayload')(payload));
+  assert.deepEqual(Object.keys(lines), ['event', 'data'], 'nothing is stored, so there is no id line');
+  assert.ok(validator(asyncapi, 'SseNotificationPayload')(JSON.parse(lines.data)));
 });
 
 test('session: the token comes in the body and the cookie comes back', () => {

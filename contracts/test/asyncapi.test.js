@@ -53,21 +53,21 @@ test('RequestCreated: the data has to be right', () => {
   for (const [name, value] of Object.entries(bad)) assert.ok(!valid(value), `should reject: ${name}`);
 });
 
-test('the SSE example is a valid notification, for both types', () => {
+test('the SSE example is a valid signal, for both types', () => {
   const valid = validator(asyncapi, 'SseNotificationPayload');
   assert.ok(valid(note()));
   assert.ok(valid({ ...note(), type: 'REQUEST_CREATED' }));
 });
 
-test('SSE notification: only the two Oct 28 types, and no street', () => {
+test('SSE signal: only a type and a request id, nothing stored and nothing private', () => {
   const valid = validator(asyncapi, 'SseNotificationPayload');
   assert.ok(!valid({ ...note(), type: 'REQUEST_ACCEPTED' }), 'a type from after Oct 28');
   assert.ok(!valid({ ...note(), type: undefined }));
-  assert.ok(!valid({ ...note(), body: undefined }));
-  assert.ok(!valid({ ...note(), notificationId: 'n_789' }), 'ids are uuids in the database');
-  assert.ok(!valid({ ...note(), createdAt: '2026-10-28T10:15:02-06:00' }));
-  for (const leak of ['street', 'address', 'residentUid']) {
-    assert.ok(!valid({ ...note(), [leak]: 'x' }), `${leak} must be rejected`);
+  assert.ok(!valid({ ...note(), requestId: undefined }));
+  assert.ok(!valid({ ...note(), requestId: 'r_123' }), 'ids are uuids in the database');
+  // No database in the notification service, so no stored notification fields either.
+  for (const extra of ['notificationId', 'title', 'body', 'createdAt', 'street', 'address', 'residentUid']) {
+    assert.ok(!valid({ ...note(), [extra]: 'x' }), `${extra} must be rejected`);
   }
 });
 
