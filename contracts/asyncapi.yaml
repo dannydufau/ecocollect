@@ -172,8 +172,8 @@ components:
         ```
 
         The message is only a signal. The frontend refetches from the REST API to get fresh data:
-        always the notifications, and for `NEW_MATCHING_REQUEST` the available requests,
-        for `REQUEST_CREATED` the resident's own requests.
+        the available requests for `NEW_MATCHING_REQUEST`, and the resident's own requests
+        for `REQUEST_CREATED`. There is no notifications list to refetch for Oct 28.
       payload:
         $ref: '#/components/schemas/SseNotificationPayload'
       examples:
