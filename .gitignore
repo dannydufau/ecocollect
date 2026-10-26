@@ -1,3 +1,5 @@
+# for history plugin
+.history
 # Secrets
 .env
 .env.*
