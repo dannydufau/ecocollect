@@ -12,6 +12,16 @@ The messages themselves are written as specs, so this page only covers the flow 
 
 Everything not needed for this flow is in [Deferred](#deferred) at the bottom.
 
+## Checking the specs
+
+```bash
+npm install
+npm test        # examples, rules and docs agree with each other
+npm run lint    # Redocly for OpenAPI, AsyncAPI CLI for AsyncAPI
+```
+
+If you change a spec, `npm test` tells you what else has to change with it.
+
 ## The flow
 
 ```mermaid
