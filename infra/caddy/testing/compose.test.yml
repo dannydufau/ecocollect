@@ -1,0 +1,32 @@
+networks:
+  internal:
+    internal: true
+  public: {}
+
+services:
+  pickup:
+    image: traefik/whoami
+    command: ["-name", "pickup"]
+    networks: [internal]
+
+  notification:
+    image: traefik/whoami
+    command: ["-name", "notification"]
+    networks: [internal]
+
+  frontend:
+    image: traefik/whoami
+    command: ["-name", "frontend"]
+    networks: [internal]
+
+  auth:
+    image: caddy:2
+    networks: [internal]
+    volumes:
+      - ./auth-stub.Caddyfile:/etc/caddy/Caddyfile:ro
+  gateway:
+    image: caddy:2
+    ports: ["3030:443"]
+    networks: [internal, public]
+    volumes:
+      - ../Caddyfile:/etc/caddy/Caddyfile:ro
