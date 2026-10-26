@@ -33,7 +33,7 @@ test('creating requests', { skip }, async (t) => {
     );
     assert.strictEqual(rows.rowCount, 2);
     assert.strictEqual(rows.rows[0].pickup_street, '1 Secret St SW', 'the address comes from the profile');
-    assert.strictEqual(rows.rows[0].pickup_postal_code, 'T2P1J9');
+    assert.strictEqual(rows.rows[0].pickup_postal_code, fx.here);
     assert.strictEqual(rows.rows[0].notes, 'Back door');
 
     const saved = await pool.query(
@@ -63,7 +63,7 @@ test('creating requests', { skip }, async (t) => {
     assert.strictEqual(event.data.residentUid, fx.resident.uid);
     assert.strictEqual(event.data.categoryName, 'Computers/Laptops');
     assert.strictEqual(event.data.estimatedWeightKg, 7.5);
-    assert.strictEqual(event.data.postalCode, 'T2P1J9');
+    assert.strictEqual(event.data.postalCode, fx.here);
     assert.deepStrictEqual(event.data.windows, windows);
     assert.ok(!JSON.stringify(event).includes('Secret'), 'no street address in the event');
   });
@@ -156,7 +156,7 @@ test('listing requests', { skip }, async (t) => {
       'category', 'estimatedWeightKg', 'expiresAt', 'postalCode', 'quantity', 'requestId', 'windows',
     ]);
     assert.deepStrictEqual(one.windows, [{ date: '2030-01-15', startHour: 14 }]);
-    assert.strictEqual(one.postalCode, 'T2P1J9');
+    assert.strictEqual(one.postalCode, fx.here);
     assert.ok(!JSON.stringify(list).includes('Secret'));
   });
 
@@ -175,8 +175,8 @@ test('listing requests', { skip }, async (t) => {
 
   await t.test('available: postal code filter', async () => {
     const ids = (list) => mineOnly(list, [first, second, other]).map((r) => r.requestId);
-    assert.deepStrictEqual(ids(await store.listAvailable(['T2P1J9'])), [second]);
-    assert.deepStrictEqual(ids(await store.listAvailable(['T3A0B1'])), []);
-    assert.deepStrictEqual(ids(await store.listAvailable(['T3A0B1', 'T2P1J9'])), [second]);
+    assert.deepStrictEqual(ids(await store.listAvailable([fx.here])), [second]);
+    assert.deepStrictEqual(ids(await store.listAvailable([fx.far])), []);
+    assert.deepStrictEqual(ids(await store.listAvailable([fx.far, fx.here])), [second]);
   });
 });
