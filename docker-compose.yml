@@ -1,0 +1,41 @@
+name: ecocollect
+services:
+  postgres:                         # service name; also its hostname for other containers
+    image: postgres:16              # official image, major version pinned
+    restart: unless-stopped         # restarts after crashes or a Docker restart, unless you stopped it
+    environment:                    # read by the image on first start to create user, password, db
+      POSTGRES_USER: ${POSTGRES_USER:-ecocollect}                                    # default if not set
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?copy .env.example to .env first}       # required, no default
+      POSTGRES_DB: ${POSTGRES_DB:-ecocollect}                                        # default if not set
+    volumes:
+      - pgdata:/var/lib/postgresql/data              # named volume: data survives container restarts
+      - ./db/init:/docker-entrypoint-initdb.d:ro     # schema scripts, run once on an empty volume
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"      # your machine's localhost only, not your network
+    healthcheck:                    # "healthy" once Postgres accepts connections
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:4-management
+    hostname: rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-ecocollect}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?copy .env.example to .env first}
+    volumes:
+      - rabbitmqdata:/var/lib/rabbitmq
+    ports:
+      - "127.0.0.1:${RABBITMQ_PORT:-5672}:5672"
+      - "127.0.0.1:${RABBITMQ_MGMT_PORT:-15672}:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:                           # declares the named volume
+  rabbitmqdata:

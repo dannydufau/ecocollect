@@ -1,0 +1,6 @@
+services:
+  notification:
+    image: busybox
+    command: ["sh", "/sse-stub-script.sh"]
+    volumes:
+      - ./sse-stub-script.sh:/sse-stub-script.sh:ro
