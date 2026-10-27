@@ -240,25 +240,8 @@ CREATE TABLE points_award (
 
 CREATE INDEX points_award_recipient_idx ON points_award (recipient_uid);
 
--- NOTIFICATION: received by one account, concerns one request.
-CREATE TABLE notifications (
-    notification_id  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    recipient_uid    TEXT NOT NULL REFERENCES profiles (uid),
-    request_id       UUID NOT NULL REFERENCES pickup_request (request_id) ON DELETE CASCADE,
-    type             TEXT NOT NULL CHECK (type IN (
-        'REQUEST_CREATED', 'NEW_MATCHING_REQUEST', 'REQUEST_ACCEPTED', 'REQUEST_CANCELLED',
-        'ASSIGNMENT_CANCELLED', 'MISSED_PICKUP_REPORTED', 'COLLECTION_CONFIRMED',
-        'DELIVERY_RECORDED', 'REQUEST_EXPIRED')),
-    title            TEXT NOT NULL,
-    body             TEXT NOT NULL,
-    is_read          BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
-    event_id         UUID
-);
-
-CREATE INDEX notifications_recipient_idx ON notifications (recipient_uid, created_at DESC);
-
--- Messaging infrastructure.
+-- Messaging infrastructure. The notification service has no database for Oct 28, so
+-- there are no notification tables here.
 CREATE TABLE outbox (
     event_id      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     event_type    TEXT NOT NULL,
@@ -271,11 +254,6 @@ CREATE TABLE outbox (
 );
 
 CREATE INDEX outbox_unpublished_idx ON outbox (created_at) WHERE published_at IS NULL;
-
-CREATE TABLE processed_events (
-    event_id      UUID PRIMARY KEY,
-    processed_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
 
 -- Browser push subscriptions omitted: the project uses in-app notifications only.
 
