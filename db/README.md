@@ -2,7 +2,7 @@
 
 Postgres 16 in Docker Compose. SQL files in `db/init/` are applied automatically, in filename order, the first time the database volume is created.
 
-The schema is in `db/init/001_schema.sql` (ticket #12).
+The October 28 schema is in `db/init/001_schema.sql` (ticket #12). Future-only tables were moved to `db/future/002_future_schema.sql` and are **not** automatically executed; the team should decide when to apply them later.
 
 ## Run
 
