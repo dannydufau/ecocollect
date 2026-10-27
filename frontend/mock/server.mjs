@@ -133,15 +133,15 @@ function signal(uid, type, requestId) {
   }
 }
 
-// Volunteers whose preferred postal codes include the request's code (contract 6.2).
-// Volunteers who are not in PROFILES (not seeded) get every request.
+// Volunteers whose preferred postal codes include the request's code (contract 6.2), like the real service.
+// Volunteers who are not in PROFILES (not seeded) get nothing, unless MOCK_NOTIFY_ALL=1 for quick manual tests.
 function matchedVolunteers(postalCode, residentUid) {
   const uids = [];
   for (const [uid, conns] of connections) {
     if (uid === residentUid) continue;
     const isVolunteer = [...conns].some((c) => c.roles.includes("volunteer"));
     const preferred = PROFILES[uid]?.preferred;
-    if (isVolunteer && (!preferred || preferred.includes(postalCode))) uids.push(uid);
+    if (isVolunteer && (preferred ? preferred.includes(postalCode) : process.env.MOCK_NOTIFY_ALL === "1")) uids.push(uid);
   }
   return uids;
 }
@@ -258,7 +258,9 @@ async function handle(req, res) {
             .reverse()
             .map((r) => ({
               requestId: r.requestId, category: CATEGORIES[r.categoryId].name, quantity: r.quantity,
-              estimatedWeightKg: r.estimatedWeightKg, postalCode: r.postalCode, windows: r.windows, expiresAt: r.expiresAt,
+              estimatedWeightKg: r.estimatedWeightKg, postalCode: r.postalCode,
+              windows: r.windows.filter((w) => calgaryInstant(w.date, w.startHour) > now), // like the real list: only windows still ahead
+              expiresAt: r.expiresAt,
             })),
         );
       }

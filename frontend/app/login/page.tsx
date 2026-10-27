@@ -32,13 +32,16 @@ export default function LoginPage() {
     const [password, setPassword] = useState("");
     const [error, setError] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
+    // Set when login worked but the session cookie did not, so the user decides whether to go on.
+    const [continueTo, setContinueTo] = useState<string | null>(null);
 
     // Already signed in (for example after a page reload): skip the form.
+    // Not while we are signing in: the submit handler sets up the session first and then navigates.
     useEffect(() => {
-        if (!loading && user && roles.length > 0) {
+        if (!loading && !submitting && !continueTo && user && roles.length > 0) {
             router.replace(homeFor(roles));
         }
-    }, [loading, user, roles, router]);
+    }, [loading, submitting, continueTo, user, roles, router]);
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -55,8 +58,10 @@ export default function LoginPage() {
             try {
                 await startSession();
             } catch (err) {
-                // Login still works without the cookie; only live notifications need it.
+                // The app works without the cookie, but live updates (SSE) do not. Say so instead of failing silently.
                 console.warn("Could not start the session", err);
+                setContinueTo(homeFor(userRoles));
+                return;
             }
             router.replace(homeFor(userRoles));
         } catch (err) {
@@ -69,6 +74,16 @@ export default function LoginPage() {
     return (
         <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-6 p-8">
             <h1 className="text-2xl font-semibold">EcoCollect login</h1>
+            {continueTo && (
+                <div role="alert" className="flex flex-col gap-3 text-sm">
+                    <p className="text-red-600">
+                        You are signed in, but live updates could not start. New requests will only show up when you reload the page.
+                    </p>
+                    <button onClick={() => router.replace(continueTo)} className="self-start rounded border px-3 py-2">
+                        Continue anyway
+                    </button>
+                </div>
+            )}
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                 <label className="flex flex-col gap-1">
                     Email
