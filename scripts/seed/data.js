@@ -1,4 +1,5 @@
-const PASSWORD = 'Demo1234!';
+// Demo only: these users live in the real Firebase project, so delete them after the course demo.
+const PASSWORD = process.env.DEMO_PASSWORD || 'Demo1234!';
 
 const users = [
   // Residents
