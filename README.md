@@ -18,7 +18,7 @@
    docker compose up --build
    ```
 
-4. Open <https://localhost>. Caddy makes its own certificate, so the browser warns the first time. Accept it once, or trust Caddy's local root certificate (`docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt .`).
+4. Open <https://localhost>. Caddy makes its own certificate, so the browser warns the first time. Accept it once, or trust Caddy's local root certificate: copy it out with `docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt ~/caddy-root.crt` and add it to your system's trusted certificates.
 
 | Service | What it is | Reach it at |
 |---|---|---|
@@ -30,7 +30,7 @@
 
 **On a Mac with the repo in iCloud Drive** (the Desktop or Documents folder with "Optimize Mac Storage"): macOS can swap files for cloud placeholders, and containers then fail to read them with `resource deadlock avoided` (the backend can't read the Firebase key, Caddy can't read the Caddyfile). Keep the repo outside those folders, or open the files on your Mac first so they download (`cat secrets/firebase-admin.json infra/caddy/Caddyfile db/init/*.sql > /dev/null`).
 
-Not in Compose yet: the notification service (issue #25), so `/api/events` answers 502 and there are no live updates; and the seed script that creates the demo users.
+Not in Compose yet: the notification service (issue #25), so there are no live updates (`/api/events` answers 401 until you are signed in, then 502); and the seed script that creates the demo users.
 
 ## Run one part on your machine
 
