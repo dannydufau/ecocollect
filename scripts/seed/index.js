@@ -1,37 +1,10 @@
 const fs = require('fs');
 const path = require('path');
-const { initializeApp, cert } = require('firebase-admin/app');
-const { getAuth } = require('firebase-admin/auth');
-const { Pool } = require('pg');
-const { PASSWORD, users, categories } = require('./data');
+const { users, categories } = require('./data');
+const { getSettings, normalizePostalCode, checkData } = require('./settings');
 
-const keyPath =
-  process.env.GOOGLE_APPLICATION_CREDENTIALS ||
-  path.join(__dirname, '../../secrets/firebase-admin.json');
-const databaseUrl =
-  process.env.DATABASE_URL || 'postgres://ecocollect:change_me@localhost:5432/ecocollect';
-
-function normalizePostalCode(code) {
-  return code.replace(/\s+/g, '').toUpperCase();
-}
-
-function checkData() {
-  const uids = new Set();
-  for (const u of users) {
-    if (uids.has(u.uid)) throw new Error('Duplicate uid in data.js: ' + u.uid);
-    uids.add(u.uid);
-    if (!/^[A-Z]\d[A-Z]\d[A-Z]\d$/.test(normalizePostalCode(u.postalCode))) {
-      throw new Error('Bad postal code for ' + u.uid + ': ' + u.postalCode);
-    }
-    const preferred = u.preferredPostalCodes || [];
-    if (preferred.length > 3) throw new Error(u.uid + ' has more than 3 preferred postal codes');
-    if (preferred.length > 0 && !u.roles.includes('volunteer')) {
-      throw new Error(u.uid + ' has preferred postal codes but is not a volunteer');
-    }
-  }
-}
-
-function initFirebase() {
+function initFirebase(keyPath) {
+  const { initializeApp, cert } = require('firebase-admin/app');
   if (process.env.FIREBASE_AUTH_EMULATOR_HOST) {
     initializeApp({ projectId: process.env.GCLOUD_PROJECT || 'demo-ecocollect' });
     console.log('Firebase: EMULATOR at ' + process.env.FIREBASE_AUTH_EMULATOR_HOST);
@@ -42,7 +15,8 @@ function initFirebase() {
   }
 }
 
-async function seedFirebase() {
+async function seedFirebase(password) {
+  const { getAuth } = require('firebase-admin/auth');
   const auth = getAuth();
   for (const u of users) {
     let exists = true;
@@ -53,7 +27,7 @@ async function seedFirebase() {
       else throw err;
     }
 
-    const props = { email: u.email, password: PASSWORD, displayName: u.displayName };
+    const props = { email: u.email, password, displayName: u.displayName };
     if (exists) {
       await auth.updateUser(u.uid, props);
     } else {
@@ -121,6 +95,7 @@ async function seedDatabase(pool) {
 
 // Every Firebase user must have exactly one profile row with the same uid and the same roles.
 async function verify(pool) {
+  const { getAuth } = require('firebase-admin/auth');
   const auth = getAuth();
   const problems = [];
   for (const u of users) {
@@ -137,12 +112,14 @@ async function verify(pool) {
 }
 
 async function main() {
-  checkData();
-  initFirebase();
-  const pool = new Pool({ connectionString: databaseUrl });
+  checkData(users, categories);
+  const settings = getSettings();
+  initFirebase(settings.keyPath);
+  const { Pool } = require('pg');
+  const pool = new Pool({ connectionString: settings.databaseUrl });
   try {
     console.log('\n1. Firebase users');
-    await seedFirebase();
+    await seedFirebase(settings.demoPassword);
     console.log('\n2. Database rows');
     await seedDatabase(pool);
     console.log('\n3. Check');
@@ -161,4 +138,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { seedDatabase, normalizePostalCode };
+module.exports = { seedDatabase, normalizePostalCode, verify };

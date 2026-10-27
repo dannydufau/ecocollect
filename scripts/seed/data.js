@@ -1,5 +1,4 @@
-// Demo only: these users live in the real Firebase project, so delete them after the course demo.
-const PASSWORD = process.env.DEMO_PASSWORD || 'Demo1234!';
+// Demo only. Use the emulator when possible; remove real Firebase demo accounts after the course.
 
 const users = [
   // Residents
@@ -7,7 +6,7 @@ const users = [
   { uid: 'demo-resident-2', email: 'rosa@demo.ecocollect.test', firstName: 'Rosa', lastName: 'Resident', displayName: 'Rosa R.', dateOfBirth: '1992-07-22', roles: ['resident'], street: '2210 17 Ave SW', postalCode: 'T3A0B1' },
   { uid: 'demo-resident-3', email: 'ravi@demo.ecocollect.test', firstName: 'Ravi', lastName: 'Resident', displayName: 'Ravi R.', dateOfBirth: '1990-11-05', roles: ['resident'], street: '845 4 St NW', postalCode: 'T2Y3K5' },
   { uid: 'demo-resident-4', email: 'rena@demo.ecocollect.test', firstName: 'Rena', lastName: 'Resident', displayName: 'Rena R.', dateOfBirth: '1998-01-30', roles: ['resident'], street: '310 12 Ave NE', postalCode: 'T2N1N4' },
-  { uid: 'demo-resident-5', email: 'rory@demo.ecocollect.test', firstName: 'Rory', lastName: 'Resident', displayName: 'Rory R.', dateOfBirth: '1988-09-18', roles: ['resident'], street: '57 Country Hills Rd NW', postalCode: 'T3K2L7' },
+  { uid: 'demo-resident-5', email: 'rory@demo.ecocollect.test', firstName: 'Rory', lastName: 'Resident', displayName: 'Rory R.', dateOfBirth: '1988-09-18', roles: ['resident', 'volunteer'], preferredPostalCodes: [], street: '57 Country Hills Rd NW', postalCode: 'T3K2L7' },
   // Volunteers (preferredPostalCodes = areas they want to see requests from)
   { uid: 'demo-volunteer-1', email: 'vera@demo.ecocollect.test', firstName: 'Vera', lastName: 'Volunteer', displayName: 'Vera V.', dateOfBirth: '1996-05-09', roles: ['volunteer'], street: '120 9 Ave SW', postalCode: 'T2P1J9', preferredPostalCodes: ['T2P1J9'] },
   { uid: 'demo-volunteer-2', email: 'victor@demo.ecocollect.test', firstName: 'Victor', lastName: 'Volunteer', displayName: 'Victor V.', dateOfBirth: '1993-12-02', roles: ['volunteer'], street: '2240 17 Ave SW', postalCode: 'T3A0B1', preferredPostalCodes: ['T3A0B1'] },
@@ -29,4 +28,4 @@ const categories = [
   { id: 'other-electronics', name: 'Other Electronics', standardWeightKg: 1.0 },
 ];
 
-module.exports = { PASSWORD, users, categories };
+module.exports = { users, categories };
