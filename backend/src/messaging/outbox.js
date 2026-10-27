@@ -1,6 +1,7 @@
 const amqp = require('amqplib');
 
 const EXCHANGE = 'ecocollect.events';
+const CONFIRM_TIMEOUT_MS = 5000;
 
 // Takes one unsent event, hands it to `send`, and marks it sent only if `send` worked.
 // The row stays locked until then, so two publishers never take the same event.
@@ -30,13 +31,17 @@ async function publishNext(pool, send) {
 }
 
 // Resolves once the broker has confirmed it has the message, and rejects if it refuses.
-function sendConfirmed(channel) {
+// RabbitMQ stops confirming when it is low on disk or memory, so without a timeout the
+// publisher would hang here and say nothing. A timeout makes it a normal error: roll back, log, retry.
+function sendConfirmed(channel, timeoutMs = CONFIRM_TIMEOUT_MS) {
   return (row) =>
     new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('RabbitMQ did not confirm in time')), timeoutMs);
       const options = { persistent: true, contentType: 'application/json', messageId: row.event_id };
-      channel.publish(EXCHANGE, row.routing_key, Buffer.from(JSON.stringify(row.payload)), options, (err) =>
-        err ? reject(err) : resolve(),
-      );
+      channel.publish(EXCHANGE, row.routing_key, Buffer.from(JSON.stringify(row.payload)), options, (err) => {
+        clearTimeout(timer);
+        err ? reject(err) : resolve();
+      });
     });
 }
 

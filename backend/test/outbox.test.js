@@ -37,6 +37,11 @@ test('sending to the broker', async (t) => {
   await t.test('a message the broker refuses is an error', async () => {
     await assert.rejects(sendConfirmed(fakeChannel({ refuse: true }))(row), /nacked/);
   });
+
+  await t.test('a broker that never confirms is an error after the timeout, not a hang', async () => {
+    const silent = { publish: () => true };
+    await assert.rejects(sendConfirmed(silent, 20)(row), /did not confirm/);
+  });
 });
 
 test('the outbox', { skip }, async (t) => {
