@@ -9,7 +9,7 @@ const keyPath =
   process.env.GOOGLE_APPLICATION_CREDENTIALS ||
   path.join(__dirname, '../../secrets/firebase-admin.json');
 const databaseUrl =
-  process.env.DATABASE_URL || 'postgres://ecocollect:pw@localhost:5432/ecocollect';
+  process.env.DATABASE_URL || 'postgres://ecocollect:change_me@localhost:5432/ecocollect';
 
 function normalizePostalCode(code) {
   return code.replace(/\s+/g, '').toUpperCase();

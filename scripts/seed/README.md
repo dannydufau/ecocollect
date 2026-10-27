@@ -35,7 +35,8 @@ It is safe to run again and again. Existing users are updated, existing rows are
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `DATABASE_URL` | `postgres://ecocollect:pw@localhost:5432/ecocollect` | Postgres connection |
+| `DATABASE_URL` | `postgres://ecocollect:change_me@localhost:5432/ecocollect` | Postgres connection. The seed does not read `.env`, so if you changed `POSTGRES_PASSWORD`, export `DATABASE_URL` with your password first (see `db/README.md`). |
+| `DEMO_PASSWORD` | `Demo1234!` | Password of every demo user. Demo only, delete the users after the course demo. |
 | `GOOGLE_APPLICATION_CREDENTIALS` | `secrets/firebase-admin.json` | Firebase key file |
 | `FIREBASE_AUTH_EMULATOR_HOST` | not set | If set (for example `127.0.0.1:9099`), the script uses the Firebase emulator instead of the real project |
 
