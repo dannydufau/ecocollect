@@ -1,7 +1,11 @@
+# for history plugin
+.history
 # Secrets
 .env
 .env.*
 !.env.example
+secrets/*
+!secrets/README.md
 *-firebase-adminsdk-*.json
 serviceAccountKey.json
 
@@ -10,10 +14,8 @@ node_modules/
 
 # Build output
 .next/
-out/
 dist/
 build/
-secrets/
 
 # Logs and test output
 *.log

@@ -1,6 +1,8 @@
 # Database
 
-Postgres 16 in Docker Compose. Schema lives in `db/init/` and is applied automatically the first time the database volume is created.
+Postgres 16 in Docker Compose. SQL files in `db/init/` are applied automatically, in filename order, the first time the database volume is created.
+
+The schema is in `db/init/001_schema.sql` (ticket #12).
 
 ## Run
 
@@ -13,7 +15,9 @@ docker compose ps           # postgres should show "healthy"
 ## Inspect
 
 ```bash
-docker compose exec postgres psql -U ecocollect -d ecocollect -c '\dt'
+docker compose exec postgres psql -U ecocollect -d ecocollect
+\dt                         -- list tables
+\q                          -- quit
 ```
 
 ## Change the schema
@@ -27,14 +31,30 @@ docker compose up -d postgres
 
 Add new scripts as `002_...sql`, `003_...sql`; they run in filename order. (A migration tool can replace this later if the schema needs to change without wiping data.)
 
-## Tables (Oct 28)
+If a script fails, the error is in `docker compose logs postgres`.
+
+## Running scripts against the database (e.g. the seed)
+
+Scripts run on your machine need `DATABASE_URL` set, using the password from your `.env`:
+
+```bash
+export DATABASE_URL=postgres://ecocollect:<your POSTGRES_PASSWORD>@localhost:5432/ecocollect
+```
+
+Replace `<your POSTGRES_PASSWORD>` with the value in your `.env`. If you changed `POSTGRES_PORT`, use that port instead of `5432`.
+
+## Tables for Oct 28
 
 | Table | Written by | Purpose |
 |---|---|---|
 | `profiles` | seed script | Users keyed by Firebase uid: roles, address, postal code, `fsa` (generated from postal code) |
-| `categories` | seed script | Category ids (must match the shared `CategoryId` list) and standard weights |
-| `pickup_request` | request service | One request per category; stores the computed estimated weight |
-| `pickup_window` | request service | 1–3 one-hour windows per request, distinct dates, Calgary local time |
-| `outbox` | request service | `RequestCreated` events; the relay sets `published_at` after RabbitMQ confirms |
+| `volunteer_preferred_postal_codes` | seed script | Up to 3 postal codes per volunteer, used to match new requests |
+| `categories` | seed script | Category ids (must match the shared category list) and standard weights |
+| `pickup_request` | request service | One request per category; stores the computed estimated weight and the 30-day expiry |
+| `pickup_window` | request service | 1-3 one-hour windows per request, distinct dates, Calgary local time |
+| `status_change` | request service | History of each request's status |
+| `outbox` | request service | `RequestCreated` events; the publisher sets `published_at` after RabbitMQ confirms |
+
+The notification service has no database for Oct 28, so there is no notifications table.
 
 Postal codes are stored normalized (`T2P1J9`: uppercase, no space). The application normalizes input before inserting.
