@@ -18,7 +18,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
-            const roles = user ? await getRoles(user) : [];
+            // If reading the token fails (network), treat the user as having no role instead of loading forever.
+            const roles = user ? await getRoles(user).catch(() => []) : [];
             setState({ user, roles, loading: false });
         });
         return unsubscribe;
