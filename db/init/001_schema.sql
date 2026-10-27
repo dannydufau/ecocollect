@@ -1,5 +1,6 @@
 BEGIN;
 
+-- Oct 28 RequestCreated flow only. 
 -- ACCOUNT (with RESIDENT / VOLUNTEER roles). One row per Firebase user.
 CREATE TABLE profiles (
     uid            TEXT PRIMARY KEY,                -- Firebase uid
@@ -36,44 +37,12 @@ CREATE TABLE volunteer_preferred_postal_codes (
     UNIQUE (uid, preference_slot)
 );
 
--- TERMS_DOCUMENT and the account acceptance relationship.
-CREATE TABLE terms_document (
-    terms_id         BIGSERIAL PRIMARY KEY,
-    title            TEXT NOT NULL,
-    version          TEXT NOT NULL,
-    applies_to_role  TEXT NOT NULL CHECK (applies_to_role IN ('resident', 'volunteer')),
-    UNIQUE (applies_to_role, version)
-);
-
-CREATE TABLE terms_acceptance (
-    uid          TEXT NOT NULL REFERENCES profiles (uid) ON DELETE CASCADE,
-    terms_id     BIGINT NOT NULL REFERENCES terms_document (terms_id),
-    accepted_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-    PRIMARY KEY (uid, terms_id)
-);
-
 -- ITEM_CATEGORY
 CREATE TABLE categories (
     category_id         TEXT PRIMARY KEY,           -- e.g. 'laptops'
     name                TEXT NOT NULL,              -- e.g. 'Computers/Laptops'
     standard_weight_kg  NUMERIC(6,2) NOT NULL CHECK (standard_weight_kg > 0),
     is_active BOOLEAN NOT NULL DEFAULT TRUE
-);
-
--- RECYCLING_FACILITY and the categories it accepts (ACCEPTS, many-to-many).
-CREATE TABLE recycling_facility (
-    facility_id  BIGSERIAL PRIMARY KEY,
-    name         TEXT NOT NULL,
-    street       TEXT NOT NULL,
-    city         TEXT NOT NULL DEFAULT 'Calgary',
-    postal_code  CHAR(6) NOT NULL
-        CHECK (postal_code ~ '^T[0-9][A-Z][0-9][A-Z][0-9]$')
-);
-
-CREATE TABLE recycling_facility_category (
-    facility_id  BIGINT NOT NULL REFERENCES recycling_facility (facility_id) ON DELETE CASCADE,
-    category_id  TEXT NOT NULL REFERENCES categories (category_id),
-    PRIMARY KEY (facility_id, category_id)
 );
 
 -- PICKUP_REQUEST: one category per request, owned by one resident.
@@ -154,91 +123,6 @@ CREATE TABLE status_change (
     changed_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (request_id, change_no)
 );
-
--- ASSIGNMENT: a volunteer's commitment to one request and one of its windows.
-CREATE TABLE assignment (
-    assignment_id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    request_id                   UUID NOT NULL REFERENCES pickup_request (request_id),
-    volunteer_uid                TEXT NOT NULL REFERENCES profiles (uid),
-    window_no                    SMALLINT NOT NULL,
-    accepted_at                  TIMESTAMPTZ NOT NULL DEFAULT now(),
-    volunteer_safety_acknowledged BOOLEAN NOT NULL CHECK (volunteer_safety_acknowledged),
-    collected_at                 TIMESTAMPTZ,
-    ended_at                     TIMESTAMPTZ,
-    end_reason                   TEXT
-        CHECK (end_reason IN ('VolunteerCancelled', 'ResidentCancelled', 'MissedPickup')),
-    FOREIGN KEY (request_id, window_no) REFERENCES pickup_window (request_id, window_no),
-    CONSTRAINT assignment_end_pair CHECK ((ended_at IS NULL) = (end_reason IS NULL)),
-    CONSTRAINT assignment_not_collected_and_ended CHECK (collected_at IS NULL OR ended_at IS NULL)
-);
-
--- At most one active assignment per request.
-CREATE UNIQUE INDEX assignment_one_active_uq ON assignment (request_id) WHERE ended_at IS NULL;
-CREATE INDEX assignment_volunteer_idx ON assignment (volunteer_uid, accepted_at DESC);
-
--- A volunteer cannot accept their own request.
-CREATE FUNCTION assignment_no_self_accept() RETURNS trigger AS $$
-BEGIN
-    IF NEW.volunteer_uid = (SELECT resident_uid FROM pickup_request WHERE request_id = NEW.request_id) THEN
-        RAISE EXCEPTION 'A volunteer cannot accept their own pickup request';
-    END IF;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER assignment_no_self_accept_trg
-    BEFORE INSERT ON assignment
-    FOR EACH ROW EXECUTE FUNCTION assignment_no_self_accept();
-
--- DELIVERY: one per assignment, made to one recycling facility.
-CREATE TABLE delivery (
-    delivery_id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    assignment_id              UUID NOT NULL UNIQUE REFERENCES assignment (assignment_id),
-    request_id                 UUID NOT NULL UNIQUE REFERENCES pickup_request (request_id),
-    facility_id                BIGINT NOT NULL REFERENCES recycling_facility (facility_id),
-    delivered_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
-    at_facility_confirmed      BOOLEAN NOT NULL CHECK (at_facility_confirmed),
-    items_accepted_confirmed   BOOLEAN NOT NULL CHECK (items_accepted_confirmed),
-    evidence_photo             TEXT
-);
-
-
--- Match each delivery to the request attached to its assignment.
-CREATE FUNCTION match_delivery_request() RETURNS trigger AS $$
-DECLARE assigned_request UUID;
-BEGIN
-    SELECT request_id INTO assigned_request FROM assignment WHERE assignment_id = NEW.assignment_id;
-    IF assigned_request IS NULL THEN RAISE EXCEPTION 'Assignment not found'; END IF;
-    NEW.request_id := assigned_request;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-CREATE TRIGGER match_delivery_request_trg
-    BEFORE INSERT OR UPDATE OF assignment_id ON delivery
-    FOR EACH ROW EXECUTE FUNCTION match_delivery_request();
-
--- POINTS_AWARD: delivery points or volunteer compensation for a Resident cancellation
--- on the Calgary-local pickup day. The application must verify eligibility;
--- cancellation points amount has not yet been agreed.
-CREATE TABLE points_award (
-    award_id       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    recipient_uid  TEXT NOT NULL REFERENCES profiles (uid),
-    role           TEXT NOT NULL CHECK (role IN ('resident', 'volunteer')),
-    reason         TEXT NOT NULL CHECK (reason IN ('Delivery', 'EligibleCancellation')),
-    points         NUMERIC(12,4) NOT NULL CHECK (points >= 0),
-    delivery_id    UUID REFERENCES delivery (delivery_id),
-    assignment_id  UUID REFERENCES assignment (assignment_id),
-    awarded_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT points_award_one_source CHECK (
-        (reason = 'Delivery' AND delivery_id IS NOT NULL AND assignment_id IS NULL)
-        OR (reason = 'EligibleCancellation' AND assignment_id IS NOT NULL AND delivery_id IS NULL)
-    ),
-    CONSTRAINT points_award_cancellation_volunteer_only CHECK (reason = 'Delivery' OR role = 'volunteer'),
-    UNIQUE (delivery_id, role),
-    UNIQUE (assignment_id, role)
-);
-
-CREATE INDEX points_award_recipient_idx ON points_award (recipient_uid);
 
 -- Messaging infrastructure. The notification service has no database for Oct 28, so
 -- there are no notification tables here.
