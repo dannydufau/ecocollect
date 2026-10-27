@@ -174,3 +174,101 @@ test('stop() closes the connection and prevents reconnects', async () => {
 test('requires a URL', () => {
   assert.throws(() => startSubscriber({ url: '', log: quietLog }), /RABBITMQ_URL/);
 });
+
+// --- handler validation (startup) -----------------------------------------
+
+test('rejects a handler for an event not in topology.events', () => {
+  assert.throws(
+    () => startSubscriber({
+      url: 'amqp://test',
+      log: quietLog,
+      handlers: { RequestCreatd: () => {} }, // typo
+    }),
+    /No event 'RequestCreatd' in topology\.events/,
+  );
+});
+
+test('rejects a handler that is not a function', () => {
+  assert.throws(
+    () => startSubscriber({
+      url: 'amqp://test',
+      log: quietLog,
+      handlers: { RequestCreated: 'oops' },
+    }),
+    /Handler for 'RequestCreated' must be a function/,
+  );
+});
+
+// --- dispatch ---------------------------------------------------------------
+
+function message(body, routingKey = 'request.created') {
+  const content = Buffer.from(typeof body === 'string' ? body : JSON.stringify(body));
+  return { content, fields: { routingKey, deliveryTag: 1 }, properties: {} };
+}
+
+async function startedWith(handlers, extra = {}) {
+  const connector = fakeConnector();
+  const sub = start(connector, { handlers, ...extra });
+  await waitFor(() => connector.connections[0] && consumed(connector.connections[0]));
+  return { sub, ch: connector.connections[0].channel };
+}
+
+const settled = (ch, msg) =>
+  ch.calls.find(([name, m]) => (name === 'ack' || name === 'nack') && m === msg);
+
+test('dispatches by envelope.type and acks when the handler returns', async () => {
+  const seen = [];
+  const { sub, ch } = await startedWith({ RequestCreated: (env) => { seen.push(env); } });
+
+  const msg = message({ type: 'RequestCreated', data: { requestId: 'r-1' } });
+  ch.deliver(msg);
+  await waitFor(() => settled(ch, msg));
+
+  assert.equal(seen.length, 1);
+  assert.equal(seen[0].data.requestId, 'r-1');
+  assert.deepEqual(settled(ch, msg), ['ack', msg]);
+  await sub.stop();
+});
+
+test('nacks without requeue when the handler throws', async () => {
+  const { sub, ch } = await startedWith({
+    RequestCreated: () => { throw new Error('boom'); },
+  });
+
+  const msg = message({ type: 'RequestCreated', data: {} });
+  ch.deliver(msg);
+  await waitFor(() => settled(ch, msg));
+
+  assert.deepEqual(settled(ch, msg), ['nack', msg, false, false]);
+  await sub.stop();
+});
+
+test('acks and skips unparseable JSON and unknown types', async () => {
+  const { sub, ch } = await startedWith({ RequestCreated: () => {} });
+
+  const bad = message('{not json');
+  const unknown = message({ type: 'RequestAccepted', data: {} }, 'request.accepted');
+  ch.deliver(bad);
+  ch.deliver(unknown);
+  await waitFor(() => settled(ch, bad) && settled(ch, unknown));
+
+  assert.equal(settled(ch, bad)[0], 'ack');
+  assert.equal(settled(ch, unknown)[0], 'ack');
+  await sub.stop();
+});
+
+test('a type naming an Object.prototype method is skipped, not called', async () => {
+  const debug = [];
+  const log = { ...quietLog, debug: (line) => debug.push(line) };
+  const { sub, ch } = await startedWith({ RequestCreated: () => {} }, { log });
+
+  // With a plain-object lookup, handlers['constructor'] finds Object() and
+  // "handles" the message. It must take the no-handler path instead.
+  const msg = message({ type: 'constructor', data: {} });
+  ch.deliver(msg);
+  await waitFor(() => settled(ch, msg));
+
+  assert.equal(settled(ch, msg)[0], 'ack');
+  assert.ok(debug.some((line) => line.includes('no handler for constructor')));
+  await sub.stop();
+});

@@ -9,7 +9,7 @@
 // refresh signals.
 
 const amqp = require('amqplib');
-const { exchange } = require('./topology');
+const { exchange, events } = require('./topology');
 
 const BINDING_KEY = 'request.*';
 const DEFAULT_RETRY_MS = 5000;
@@ -20,7 +20,8 @@ const DEFAULT_PREFETCH = 20;
  *
  * @param {object}   opts
  * @param {string}   [opts.url]       AMQP URL (defaults to RABBITMQ_URL)
- * @param {object}   opts.handlers    { [eventType]: (envelope, fields) => void|Promise }
+ * @param {object}   opts.handlers    { [eventType]: (envelope, fields) => void|Promise };
+ *                                    keys must be event names from topology.events
  * @param {Function} [opts.connect]   (url) => Promise<connection>; tests pass a fake
  * @param {object}   [opts.log]       console-like logger
  * @param {number}   [opts.retryMs]   reconnect delay
@@ -36,6 +37,7 @@ function startSubscriber({
   prefetch = DEFAULT_PREFETCH,
 } = {}) {
   if (!url) throw new Error('RABBITMQ_URL is not set');
+  const handlerByType = buildHandlerMap(handlers);
 
   let current = null;  // the AMQP connection in use right now, or null
   let timer = null;    // pending reconnect, so we never schedule two
@@ -112,7 +114,7 @@ function startSubscriber({
     }
 
     const type = eventTypeOf(envelope);
-    const handler = handlers[type];
+    const handler = handlerByType.get(type);
     if (!handler) {
       // Tolerant reader: other request.* events are not ours to handle.
       log.debug?.(`[subscriber] no handler for ${type} (${msg.fields.routingKey}); skipping`);
@@ -154,6 +156,30 @@ function startSubscriber({
 
   connect();
   return { stop };
+}
+
+// Fail fast on startup: a misspelled event name would otherwise just never
+// fire. A Map (not the plain object) also means a message whose type is
+// "constructor" or "toString" can't reach an inherited Object method.
+function buildHandlerMap(handlers) {
+  const map = new Map();
+  for (const [type, fn] of Object.entries(handlers)) {
+    // is this type in events?
+    if (!Object.hasOwn(events, type)) {
+      throw new Error(
+        `No event '${type}' in topology.events (known: ${Object.keys(events).join(', ')})`,
+      );
+    }
+    
+    // is it callable?
+    if (typeof fn !== 'function') {
+      throw new TypeError(`Handler for '${type}' must be a function`);
+    }
+    
+    // store it
+    map.set(type, fn);
+  }
+  return map;
 }
 
 // Envelope field that names the event. Adjust if asyncapi.yaml uses another name.
