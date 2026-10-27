@@ -28,6 +28,8 @@
 | `postgres` | The database. Tables in `db/init` are created on the first start only, see [db/README.md](./db/README.md). | `localhost:5432` |
 | `rabbitmq` | The message broker | management UI <http://localhost:15672> |
 
+**On a Mac with the repo in iCloud Drive** (the Desktop or Documents folder with "Optimize Mac Storage"): macOS can swap files for cloud placeholders, and containers then fail to read them with `resource deadlock avoided` (the backend can't read the Firebase key, Caddy can't read the Caddyfile). Keep the repo outside those folders, or open the files on your Mac first so they download (`cat secrets/firebase-admin.json infra/caddy/Caddyfile db/init/*.sql > /dev/null`).
+
 Not in Compose yet: the notification service (issue #25), so `/api/events` answers 502 and there are no live updates; and the seed script that creates the demo users.
 
 ## Run one part on your machine
