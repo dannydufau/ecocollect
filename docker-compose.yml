@@ -18,5 +18,24 @@ services:
       timeout: 3s
       retries: 10
 
+  rabbitmq:
+    image: rabbitmq:4-management
+    hostname: rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-ecocollect}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?copy .env.example to .env first}
+    volumes:
+      - rabbitmqdata:/var/lib/rabbitmq
+    ports:
+      - "127.0.0.1:${RABBITMQ_PORT:-5672}:5672"
+      - "127.0.0.1:${RABBITMQ_MGMT_PORT:-15672}:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
 volumes:
   pgdata:                           # declares the named volume
+  rabbitmqdata:
