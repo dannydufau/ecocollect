@@ -82,6 +82,8 @@ test('the frontend gets every NEXT_PUBLIC_ value as a build arg, in Compose and 
   const wanted = [...read('frontend/.env.example').matchAll(/^(NEXT_PUBLIC_\w+)=/gm)].map((m) => m[1]).sort();
   assert.ok(wanted.length >= 6);
   assert.deepStrictEqual(Object.keys(compose.services.frontend.build.args).sort(), wanted);
+  const inRootEnv = [...read('.env.example').matchAll(/^(NEXT_PUBLIC_\w+)=/gm)].map((m) => m[1]).sort();
+  assert.deepStrictEqual(inRootEnv, wanted, 'the root .env.example should list them for Compose');
   const declared = [...read('frontend/Dockerfile').matchAll(/^ARG (NEXT_PUBLIC_\w+)/gm)].map((m) => m[1]).sort();
   assert.deepStrictEqual(declared, wanted);
 });
