@@ -1,0 +1,64 @@
+:80 {
+	@get-request-verify {
+		method GET
+		path /verify
+	}
+
+	@cookie-post {
+		method POST
+	}
+
+	@good-resident header Authorization "Bearer good-resident"
+	@good-volunteer header Authorization "Bearer good-volunteer"
+	@good-cookie-resident header_regexp Cookie "session=good-resident"
+	@good-cookie-volunteer header_regexp Cookie "session=good-volunteer"
+
+	handle @get-request-verify {
+		handle @good-resident {
+			header X-User-Id "resident-id-1"
+			header X-User-Roles "resident"
+			respond 200
+		}
+
+		handle @good-cookie-resident {
+			header X-User-Id "resident-id-1"
+			header X-User-Roles "resident"
+			respond 200
+		}
+
+		handle @good-volunteer {
+			header X-User-Id "volunteer-id-1"
+			header X-User-Roles "volunteer"
+			respond 200
+		}
+
+		handle @good-cookie-volunteer {
+			header X-User-Id "volunteer-id-1"
+			header X-User-Roles "volunteer"
+			respond 200
+		}
+
+		handle {
+			error "Unauthorized" 401
+		}
+	}
+
+	handle /api/session {
+		handle @cookie-post {
+			header Set-Cookie "session=good-resident; Path=/; SameSite=Lax"
+			respond 204
+		}
+		handle {
+			respond 204
+		}
+	}
+
+	handle {
+		error "Unauthorized" 401
+	}
+
+	handle_errors {
+		header Content-Type application/json
+		respond `{"status": {err.status_code}, "error": "{err.message}"}`
+	}
+}
