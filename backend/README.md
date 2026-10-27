@@ -39,7 +39,7 @@ Save the Firebase admin key as `secrets/firebase-admin.json` in the repo root (k
 |---|---|
 | `GOOGLE_APPLICATION_CREDENTIALS` | Path to the Firebase service-account key. Defaults to `secrets/firebase-admin.json`. Never commit it. |
 | `FIREBASE_AUTH_EMULATOR_HOST` | Set (e.g. `127.0.0.1:9099`) to use the Auth emulator instead of the key. |
-| `DATABASE_URL` | Postgres connection string, for example `postgres://ecocollect:change_me@localhost:5432/ecocollect`. Needs the tables from `db/init`. |
+| `DATABASE_URL` | Postgres connection string. `.env.example` has a working local value, and `RABBITMQ_URL` comes with the RabbitMQ setup in the same file. Needs the tables from `db/init`. |
 | `RABBITMQ_URL` | For example `amqp://ecocollect:change-me@localhost:5672`. |
 | `PORT` | Defaults to `3001`. |
 | `NODE_ENV` | Set to `production` when deployed. Otherwise Express puts stack traces in error responses (e.g. a body that is too large). `npm start` does not set it. |
