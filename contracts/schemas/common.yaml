@@ -1,0 +1,37 @@
+# Definitions used by both openapi.yaml and asyncapi.yaml, so the REST API and the
+# events can't drift apart. Point at them with ./schemas/common.yaml#/Name
+
+PickupWindow:
+  type: object
+  description: >
+    A one hour slot, given as a Calgary calendar date plus the hour it starts.
+    There is no time zone because it describes a local hour, not an instant.
+  required: [date, startHour]
+  properties:
+    date:
+      type: string
+      format: date
+      example: '2026-10-30'
+    startHour:
+      type: integer
+      minimum: 0
+      maximum: 23
+      description: 14 means 14:00 to 15:00 Calgary time.
+      example: 14
+
+PostalCode:
+  type: string
+  description: Full six character Calgary postal code, uppercase, no space. Calgary codes start with T, which is also what the database accepts.
+  pattern: '^T[0-9][A-Z][0-9][A-Z][0-9]$'
+  example: T2P1J9
+
+Timestamp:
+  type: string
+  format: date-time
+  pattern: 'Z$'
+  description: ISO 8601 in UTC with a Z suffix. The frontend converts to Calgary time for display only.
+  example: '2026-10-28T16:15:00Z'
+
+RequestStatus:
+  type: string
+  enum: [Open, Assigned, Collected, Delivered, Cancelled, Expired]

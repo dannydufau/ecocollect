@@ -1,0 +1,66 @@
+{
+	# Uncomment this debug line when needed
+	# debug
+}
+
+(strip-headers-add-request-id) {
+	request_header -X-User-*
+	request_header X-Request-Id {http.request.uuid}
+}
+
+(verify-auth) {
+	forward_auth auth {
+		uri /verify
+		copy_headers {
+			X-User-Id
+			X-User-Roles
+		}
+	}
+}
+
+localhost {
+	@verify-path path /verify
+
+	# strip any headers, that would be used internally by the services
+	import strip-headers-add-request-id
+
+	handle /api/* {
+		# to configure cookies
+		handle /api/session {
+			reverse_proxy auth
+		}
+
+		@pickup-paths path /api/categories /api/categories/* /api/requests /api/requests/* /api/profile /api/profile/*
+
+		handle @pickup-paths {
+			import verify-auth
+			reverse_proxy pickup
+		}
+
+		@notification-paths path /api/events /api/notifications /api/notifications/* /api/push/subscriptions
+
+		handle @notification-paths {
+			import verify-auth
+			reverse_proxy notification
+		}
+
+		handle {
+			error "Not found" 404
+		}
+	}
+
+	handle @verify-path {
+		error "Not found" 404
+	}
+
+	handle {
+		reverse_proxy frontend:3000
+	}
+
+	handle_errors {
+		handle /api/* {
+			header Content-Type application/json
+			respond `{"status": {err.status_code}, "error": "{err.message}"}`
+		}
+	}
+}
