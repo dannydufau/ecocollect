@@ -9,7 +9,8 @@
   },
   "scripts": {
     "start": "node src/api/server.js",
-    "test": "node --test --test-concurrency=1 test/*.test.js"
+    "test": "node --test --test-concurrency=1 test/*.test.js",
+    "test:integration": "bash scripts/test-integration.sh"
   },
   "dependencies": {
     "amqplib": "^2.2.0",
