@@ -65,6 +65,26 @@ services:
       timeout: 3s
       retries: 10
 
+  notification:                     # SSE live updates (issue #25): RabbitMQ events in, /api/events streams out
+    build:
+      context: ./backend            # same image as the backend, started with a different entry point
+    command: ["node", "src/notification/index.js"]
+    restart: unless-stopped
+    environment:
+      PORT: "80"                    # Caddy proxies to notification without a port, which means 80
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-ecocollect}:${RABBITMQ_PASSWORD:?copy .env.example to .env first}@rabbitmq:5672
+                                    # no DATABASE_URL and no Firebase key: it needs neither
+    sysctls:
+      net.ipv4.ip_unprivileged_port_start: 0   # the container runs as a normal user, which may then use port 80
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:                    # /api/events answers 401 without X-User-Id, so a 401 means it is up
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:80/api/events').then((r) => process.exit(r.status === 401 ? 0 : 1), () => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   frontend:
     build:
       context: ./frontend
@@ -92,7 +112,8 @@ services:
         condition: service_healthy
       frontend:
         condition: service_started
-    # No notification service yet (issue #25): until it exists, Caddy answers 502 for /api/events.
+    # Not waiting on notification on purpose: if it is down, only live updates stop
+    # (Caddy answers 502 for /api/events) and the rest of the app keeps working.
 
 volumes:
   pgdata:                           # declares the named volume
