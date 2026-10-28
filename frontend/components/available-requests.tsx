@@ -16,6 +16,8 @@ export default function AvailableRequests() {
     const { data, isPending, isError, error, refetch, isFetching } = useQuery({
         queryKey: availableRequestsKey,
         queryFn: fetchAvailableRequests,
+        retry: (count, err) =>
+            !(err instanceof ApiError && (err.status === 401 || err.status === 403)) && count < 3,
     });
 
     return (
