@@ -87,3 +87,12 @@ test('every file says the server writes a ready line as soon as the stream is se
   }
   assert.match(read('asyncapi.yaml'), /registered/, 'the connection has to be registered before the ready line, or a signal can slip through');
 });
+
+test('in the flow diagram, auth checks every call that goes on to the pickup or notification service', () => {
+  const diagram = read('README.md').match(/```mermaid\n([\s\S]*?)```/)[1].split('\n').map((l) => l.trim());
+  const proxied = diagram.map((line, i) => [line, i]).filter(([line]) => /^C->>[PN]:/.test(line));
+  assert.ok(proxied.length >= 3, 'expected the stream, the create call and the list call');
+  for (const [line, i] of proxied) {
+    assert.match(diagram[i - 1], /^A-->>C: 200/, `no auth reply before "${line}"`);
+  }
+});

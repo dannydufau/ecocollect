@@ -53,6 +53,8 @@ sequenceDiagram
     MQ->>N: RequestCreated
     N-->>B: SSE signal to the resident and the matched volunteers
     B->>C: GET /api/requests?view=...
+    C->>A: GET /verify
+    A-->>C: 200 + X-User-Id, X-User-Roles
     C->>P: list
     P-->>B: fresh data
 ```
