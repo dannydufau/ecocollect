@@ -36,10 +36,13 @@ export async function startSession(): Promise<void> {
 }
 
 export async function logout(): Promise<void> {
+    await signOut(auth);
+}
+
+export async function cleanupSession(): Promise<void> {
     try {
         await api.delete("/api/session");
     } catch (err) {
         console.warn("Could not clear the session cookie", err);
     }
-    await signOut(auth);
 }

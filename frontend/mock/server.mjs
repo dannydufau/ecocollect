@@ -168,7 +168,7 @@ async function handle(req, res) {
   if (route === "GET /api/events") {
     const user = userFromCookie(req);
     if (!user) return send(res, 401, { status: 401, error: "Unauthorized" });
-    res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" });
+    res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache, no-transform", Connection: "keep-alive" });
     res.write(": connected\n\n");
     const conn = { res, roles: user.roles };
     if (!connections.has(user.uid)) connections.set(user.uid, new Set());
