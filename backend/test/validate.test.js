@@ -66,8 +66,10 @@ test('windows must start in the future, by Calgary time', () => {
 });
 
 test('windows must start before the request expires, 30 days after creation', () => {
-  assert.strictEqual(parseCreate(body({ windows: [{ date: '2026-11-27', startHour: 9 }] }), now).error, undefined);
-  rejects(body({ windows: [{ date: '2026-11-27', startHour: 10 }] }), /expire/);
+  // The cutoff is 9:15 on Nov 27 in Calgary. These hours are far enough from it to give the same answer
+  // whether or not Calgary goes back to winter time, which depends on the timezone data in Node.
+  assert.strictEqual(parseCreate(body({ windows: [{ date: '2026-11-27', startHour: 8 }] }), now).error, undefined);
+  rejects(body({ windows: [{ date: '2026-11-27', startHour: 12 }] }), /expire/);
   rejects(body({ windows: [{ date: '2026-12-31', startHour: 9 }] }), /expire/);
 });
 
