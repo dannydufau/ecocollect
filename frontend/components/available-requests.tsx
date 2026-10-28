@@ -2,8 +2,9 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { ApiError } from "@/lib/api";
-import { formatCalgary, formatWindow } from "@/lib/calgary-time";
-import { availableRequestsKey, fetchAvailableRequests } from "@/lib/requests";
+import { queryKeys } from "@/lib/query-keys";
+import { fetchAvailableRequests } from "@/lib/requests";
+import { formatTimestamp, formatWindow } from "@/lib/time";
 
 function errorMessage(error: unknown): string {
     if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
@@ -14,10 +15,8 @@ function errorMessage(error: unknown): string {
 
 export default function AvailableRequests() {
     const { data, isPending, isError, error, refetch, isFetching } = useQuery({
-        queryKey: availableRequestsKey,
+        queryKey: queryKeys.availableRequests,
         queryFn: fetchAvailableRequests,
-        retry: (count, err) =>
-            !(err instanceof ApiError && (err.status === 401 || err.status === 403)) && count < 3,
     });
 
     return (
@@ -57,10 +56,10 @@ export default function AvailableRequests() {
                             <p className="mt-2 text-sm font-medium">Pickup times (Calgary)</p>
                             <ul className="list-inside list-disc text-sm">
                                 {r.windows.map((w) => (
-                                    <li key={`${w.date}-${w.startHour}`}>{formatWindow(w.date, w.startHour)}</li>
+                                    <li key={`${w.date}-${w.startHour}`}>{formatWindow(w)}</li>
                                 ))}
                             </ul>
-                            <p className="mt-2 text-sm opacity-80">Expires {formatCalgary(r.expiresAt)}</p>
+                            <p className="mt-2 text-sm opacity-80">Expires {formatTimestamp(r.expiresAt)}</p>
                         </li>
                     ))}
                 </ul>
