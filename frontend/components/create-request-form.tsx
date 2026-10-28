@@ -15,6 +15,8 @@ const EMPTY_ITEM: ItemRow = { categoryId: "", quantity: "1", description: "" };
 const EMPTY_WINDOW: WindowRow = { date: "", startHour: "" };
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
 const MAX_WINDOWS = 3;
+// The requirements only say "a required checkbox" (#20), so this wording still has to be confirmed by the team.
+const SAFETY_TEXT = "I confirm the items are safe to handle (no leaking batteries or broken screens).";
 const EXPIRY_DAYS = 30;
 
 // Checks the same rules as the backend (contract 3.4), so most mistakes never leave the browser.
@@ -224,7 +226,7 @@ export default function CreateRequestForm() {
 
             <label className="flex items-start gap-2">
                 <input type="checkbox" checked={safety} onChange={(e) => setSafety(e.target.checked)} className="mt-1" />
-                I confirm the items are safe to handle (no leaking batteries or broken screens).
+                {SAFETY_TEXT}
             </label>
 
             {formError && (
