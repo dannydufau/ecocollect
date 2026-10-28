@@ -5,16 +5,16 @@ info:
   description: |
     The two messages in the Oct 28 flow:
 
-    1. **RequestCreated**: the pickup service tells the notification service, through
+    1. RequestCreated: the pickup service tells the notification service, through
        RabbitMQ, that a resident created a request.
-    2. **SseSignal**: the notification service tells the browser, over the open
+    2. SseSignal: the notification service tells the browser, over the open
        `GET /api/events` stream, that there is something new.
 
     This one file describes the services on both sides of each message, so every operation
     says which service does it. The REST calls are in [openapi.yaml](./openapi.yaml)
     and the flow around all of this is in [README.md](./README.md).
 
-    **No street address ever appears in an event or an SSE message.**
+    No street address ever appears in an event or an SSE message.
 
 servers:
   rabbitmq:
@@ -91,7 +91,7 @@ operations:
     description: |
       Sent by the outbox publisher in the pickup service. The event is saved in the
       same database transaction as the request, so it is never lost before it reaches RabbitMQ.
-      A background loop publishes it with **publisher confirms on**, and marks the outbox row as
+      A background loop publishes it with publisher confirms on, and marks the outbox row as
       sent only after RabbitMQ confirms. After that it is up to each consumer: an event that
       arrives while no notification instance is running is dropped, which is fine for a signal,
       and a consumer that needs more (stored notifications, email) must keep its own queue.
@@ -110,7 +110,7 @@ operations:
       The notification service has no database for Oct 28. Each instance reads its own queue. For each event it sends a
       `REQUEST_CREATED` signal to the resident (`data.residentUid`) and a
       `NEW_MATCHING_REQUEST` signal to each uid in `matchedVolunteerUids`, and then
-      acknowledges the message (**manual ack**, so an unacked message is delivered again).
+      acknowledges the message (manual ack, so an unacked message is delivered again).
       The recipients come straight from the event, there is no matching in this service.
       A repeated delivery sends the signal again, which only costs an extra refetch.
     bindings:

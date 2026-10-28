@@ -8,19 +8,19 @@ info:
     internal pieces are in [README.md](./README.md), and the events are in
     [asyncapi.yaml](./asyncapi.yaml).
 
-    **Auth.** Calls send `Authorization: Bearer <Firebase ID token>`. The one
-    exception is `GET /api/events`: `EventSource` can't set headers, so it uses the
-    session cookie from `POST /api/session` instead.
+    Calls send `Authorization: Bearer <Firebase ID token>`. The one exception is
+    `GET /api/events`: `EventSource` can't set headers, so it uses the session cookie
+    from `POST /api/session` instead.
 
-    **Users.** The gateway checks the token and tells the services who is calling.
-    Roles come from the Firebase custom claim `roles`, so `403` means the caller
-    has the wrong role for that call.
+    The gateway checks the token and tells the services who is calling. Roles come
+    from the Firebase custom claim `roles`, so a `403` means the caller has the wrong
+    role for that call.
 
-    **Errors.** `401` means the credentials were missing or rejected. `500` from the
-    auth check means Firebase or the server's setup failed, which is not the user's
-    fault, so the frontend should not log them out.
+    A `401` means the credentials were missing or rejected. A `500` from the auth check
+    means Firebase or the server's setup failed, which isn't the user's fault, so the
+    frontend shouldn't log them out.
 
-    **Never in a response:** the pickup street address.
+    The pickup street address is never in a response.
 
 servers:
   - url: https://localhost
@@ -86,7 +86,7 @@ paths:
       operationId: createRequests
       summary: Create pickup requests (resident)
       description: |
-        Creates **one request per item** (one per category), all in one transaction,
+        Creates one request per item (one per category), all in one transaction,
         so either all of them exist or none do. The pickup address comes from the
         resident's saved profile, never from the body. Each created request starts
         a `RequestCreated` event, see [asyncapi.yaml](./asyncapi.yaml).
