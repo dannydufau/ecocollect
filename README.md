@@ -35,8 +35,9 @@ Everyone shares one Firebase project, so the demo users there are shared too. `.
 | `seed` | The seed script tests |
 | `frontend` | Lint and a production build |
 | `gateway` | The Caddy tests in `infra/caddy/testing` |
+| `smoke` | Checks the app that is running: the gateway rules, a request created through the backend, its event reaching RabbitMQ, and a volunteer seeing it. It removes its test request afterwards. It needs `./eco up` first, and in the full run it only joins when the app is up. |
 
-`./eco test quick` skips the lint, the frontend build and the gateway test. You can also name suites, for example `./eco test backend seed`. Each suite's full output is saved in `.eco/logs/`, and a failing suite prints the end of its log.
+`./eco test quick` skips the lint, the frontend build, the gateway test and the smoke test. You can also name suites, for example `./eco test backend seed`. Each suite's full output is saved in `.eco/logs/`, and a failing suite prints the end of its log.
 
 ## Doing it by hand
 
