@@ -10,7 +10,7 @@ const express = require('express');
 
 // gatewayUser is gateway auth (trusts X-User-Id from Caddy), not request logic.
 // It lives in api/requests/ only because the request service needed it first.
-// TODO(danny): move to a shared src/gateway/user.js and import from both services.
+// TODO(#1): move to a shared src/gateway/user.js and import from both services.
 const { gatewayUser } = require('../api/requests/user');
 
 const DEFAULT_HEARTBEAT_MS = 25000;

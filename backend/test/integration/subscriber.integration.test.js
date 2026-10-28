@@ -82,7 +82,7 @@ async function publish(type, data) {
   const envelope = {
     type,
     version: 1,
-    id: randomUUID(),
+    eventId: randomUUID(),
     occurredAt: new Date().toISOString(),
     data,
   };

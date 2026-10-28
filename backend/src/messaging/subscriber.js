@@ -165,19 +165,14 @@ function startSubscriber({
 function buildHandlerMap(handlers) {
   const map = new Map();
   for (const [type, fn] of Object.entries(handlers)) {
-    // is this type in events?
     if (!Object.hasOwn(events, type)) {
       throw new Error(
         `No event '${type}' in topology.events (known: ${Object.keys(events).join(', ')})`,
       );
     }
-    
-    // is it callable?
     if (typeof fn !== 'function') {
       throw new TypeError(`Handler for '${type}' must be a function`);
     }
-    
-    // store it
     map.set(type, fn);
   }
   return map;

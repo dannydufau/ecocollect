@@ -2,7 +2,7 @@
   "name": "ecocollect-backend",
   "version": "1.0.0",
   "private": true,
-  "description": "EcoCollect API server (request service)",
+  "description": "EcoCollect backend: API server (auth, requests) and notification service",
   "main": "src/api/server.js",
   "engines": {
     "node": ">=22"

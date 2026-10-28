@@ -8,8 +8,8 @@
 // Then in the management UI (http://localhost:15672):
 //   Exchanges -> ecocollect.events -> Publish message
 //   Routing key: request.created
-//   Payload:
-//     {"type":"RequestCreated","version":1,"data":{"requestId":"0b7e3f2a-6d1c-4a52-9a43-6a1f5e0f1c11","residentUid":"r1","matchedVolunteerUids":["v1","v2"]}}
+//   Payload (shaped like contracts/asyncapi.yaml):
+//     {"eventId":"6f1c9c2e-3b0e-4f0f-9d57-2c2f6a1d8e11","type":"RequestCreated","version":1,"occurredAt":"2026-10-28T16:15:00Z","data":{"requestId":"0b7e3f2a-6d1c-4a52-9a43-6a1f5e0f1c11","residentUid":"firebaseUid_abc","matchedVolunteerUids":["firebaseUid_v1","firebaseUid_v2"]}}
 
 const { startSubscriber } = require('../src/messaging/subscriber');
 
