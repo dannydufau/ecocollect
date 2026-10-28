@@ -28,12 +28,20 @@ export function calgaryToday(): string {
 }
 
 // "Oct 28, 2026, 10:15 a.m." in Calgary time, from a UTC timestamp.
+// A value that isn't a real date is shown as it came, so one bad row can't break the whole list.
 export function formatTimestamp(iso: string): string {
-    return new Intl.DateTimeFormat("en-CA", { timeZone: TZ, dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));
+    const parsed = new Date(iso);
+    if (Number.isNaN(parsed.getTime())) {
+        return iso;
+    }
+    return new Intl.DateTimeFormat("en-CA", { timeZone: TZ, dateStyle: "medium", timeStyle: "short" }).format(parsed);
 }
 
-// "Fri, Oct 30, 14:00 to 15:00"
+// "Fri, Oct 30, 14:00 to 15:00". A date that isn't real is shown as it came, like formatTimestamp.
 export function formatWindow(window: PickupWindow): string {
+    if (Number.isNaN(new Date(`${window.date}T12:00:00Z`).getTime())) {
+        return window.date;
+    }
     const day = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, weekday: "short", month: "short", day: "numeric" }).format(
         calgaryInstant(window.date, window.startHour),
     );
