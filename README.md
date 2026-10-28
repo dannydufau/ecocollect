@@ -1,6 +1,46 @@
 # EcoCollect
 
-## Run everything with Docker
+## Quick start
+
+You need Docker (Docker Desktop, or Colima) and your own Firebase Admin key saved as `secrets/firebase-admin.json` (see [secrets/README.md](./secrets/README.md)). Then:
+
+```bash
+./eco up
+```
+
+The first time, it creates `.env` with random passwords, asks for the Firebase web API key (Firebase console, Project settings, General, Your apps), builds and starts everything, and loads the demo users into your local database. That takes about 5 minutes. After that it takes a few seconds, and it never changes an `.env` that already exists.
+
+| Command | What it does |
+|---|---|
+| `./eco up` | Set everything up and start it. Safe to run again. |
+| `./eco down` | Stop everything, keep the data. |
+| `./eco reset` | Delete the local data (database and RabbitMQ) and start clean. It keeps your `.env` and your key. |
+| `./eco wipe-env` | Delete `.env` too, for a completely fresh start. It asks first. |
+| `./eco status` | What is running, plus a quick check through the gateway. |
+| `./eco logs [service]` | Follow the logs. |
+| `./eco seed-firebase` | Write the demo users into the shared Firebase project. See the warning below. |
+| `./eco test [quick] [suite...]` | Run the tests. See below. |
+
+Everyone shares one Firebase project, so the demo users there are shared too. `./eco up` only fills your local database. `./eco seed-firebase` sets the password of all ten demo users in the real project to the `DEMO_PASSWORD` in your `.env`, so use the team's value and ask before running it.
+
+### Tests
+
+`./eco test` runs every suite, each in its own container (Node 22 and Postgres 16), so the results don't depend on what is installed on your machine, and nothing is written to your checkout. It takes about 3 minutes.
+
+| Suite | What it runs |
+|---|---|
+| `eco` | The tests of the `eco` script itself |
+| `contracts` | The contract tests, and the OpenAPI and AsyncAPI lint |
+| `backend` | All backend tests, including the database ones, against a throwaway Postgres with our schema |
+| `seed` | The seed script tests |
+| `frontend` | Lint and a production build |
+| `gateway` | The Caddy tests in `infra/caddy/testing` |
+
+`./eco test quick` skips the lint, the frontend build and the gateway test. You can also name suites, for example `./eco test backend seed`. Each suite's full output is saved in `.eco/logs/`, and a failing suite prints the end of its log.
+
+## Doing it by hand
+
+This is what `./eco up` does for you, in case you want to run the steps yourself.
 
 1. Copy the env file and fill it in:
 
