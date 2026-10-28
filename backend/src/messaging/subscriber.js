@@ -122,6 +122,7 @@ function startSubscriber({
       return;
     }
 
+    // Only checks if handler returns an ack or throws nack
     Promise.resolve()
       .then(() => handler(envelope, msg.fields))
       .then(
