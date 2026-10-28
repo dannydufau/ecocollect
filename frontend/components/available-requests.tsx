@@ -24,6 +24,7 @@ export default function AvailableRequests() {
         <section className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
                 <h2 className="text-xl font-semibold">Available requests</h2>
+                {/* Temporary: remove this button once the SSE hook (#19) refreshes the list. */}
                 <button
                     onClick={() => refetch()}
                     disabled={isFetching}
