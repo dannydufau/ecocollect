@@ -5,10 +5,11 @@ Seeds ten Firebase accounts and the matching PostgreSQL rows. Five accounts have
 ## Setup
 
 1. At the repository root, copy .env.example to .env. Set your own POSTGRES_PASSWORD and make sure the same password is used in DATABASE_URL. The database username, name, and host port must also match your Docker setup. When using the Firebase Auth Emulator, DEMO_PASSWORD is optional because the seed script uses a local default. For real Firebase, set DEMO_PASSWORD in your private .env file. Never commit .env.
-2. Start Postgres with `docker compose up -d postgres` and check `docker compose ps`.
-3. Run `cd scripts/seed`, then `npm ci` and `npm test`.
-4. Prefer the Firebase Auth Emulator (`FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099`). For a **real** Firebase project, put your private admin key at `secrets/firebase-admin.json` or configure `GOOGLE_APPLICATION_CREDENTIALS`. Never commit or share this key.
-5. Run `npm run seed` from `scripts/seed`.
+Note: POSTGRES_PASSWORD is only applied when PostgreSQL initializes a new database volume. If you change it in .env after the database has already been created, PostgreSQL will continue using the old password. Update the existing PostgreSQL user's password to match .env instead of deleting the Docker volume.
+3. Start Postgres with `docker compose up -d postgres` and check `docker compose ps`.
+4. Run `cd scripts/seed`, then `npm ci` and `npm test`.
+5. Prefer the Firebase Auth Emulator (`FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099`). For a **real** Firebase project, put your private admin key at `secrets/firebase-admin.json` or configure `GOOGLE_APPLICATION_CREDENTIALS`. Never commit or share this key.
+6. Run `npm run seed` from `scripts/seed`.
 
 ## Configuration
 
