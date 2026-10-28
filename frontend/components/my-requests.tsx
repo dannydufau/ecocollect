@@ -2,7 +2,9 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { ApiError } from "@/lib/api";
-import { fetchMyRequests, formatCreated, myRequestsKey } from "@/lib/my-requests";
+import { fetchMyRequests } from "@/lib/my-requests";
+import { queryKeys } from "@/lib/query-keys";
+import { formatTimestamp } from "@/lib/time";
 
 function errorMessage(error: unknown): string {
     if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
@@ -13,10 +15,8 @@ function errorMessage(error: unknown): string {
 
 export default function MyRequests() {
     const { data, isPending, isError, error, refetch, isFetching } = useQuery({
-        queryKey: myRequestsKey,
+        queryKey: queryKeys.myRequests,
         queryFn: fetchMyRequests,
-        retry: (count, err) =>
-            !(err instanceof ApiError && (err.status === 401 || err.status === 403)) && count < 3,
     });
 
     return (
@@ -52,7 +52,7 @@ export default function MyRequests() {
                                 </p>
                                 <span className="rounded border px-2 py-0.5 text-xs">{r.status}</span>
                             </div>
-                            <p className="mt-2 text-sm opacity-80">Created {formatCreated(r.createdAt)} (Calgary time)</p>
+                            <p className="mt-2 text-sm opacity-80">Created {formatTimestamp(r.createdAt)} (Calgary time)</p>
                         </li>
                     ))}
                 </ul>
