@@ -64,6 +64,23 @@ before=$(cat .env)
 ensure_env_file
 check "an existing .env is never touched" test "$(cat .env)" = "$before"
 
+# --- the Firebase web API key ------------------------------------------------
+
+fresh_checkout
+cp .env.example .env
+NEXT_PUBLIC_FIREBASE_API_KEY=from-the-environment ensure_firebase_web_config </dev/null
+check "a key from the environment is saved to .env" test "$(env_get NEXT_PUBLIC_FIREBASE_API_KEY)" = "from-the-environment"
+
+fresh_checkout
+cp .env.example .env
+env_set NEXT_PUBLIC_FIREBASE_API_KEY from-the-file
+NEXT_PUBLIC_FIREBASE_API_KEY=from-the-environment ensure_firebase_web_config </dev/null
+check "a key already in .env wins over the environment" test "$(env_get NEXT_PUBLIC_FIREBASE_API_KEY)" = "from-the-file"
+
+fresh_checkout
+cp .env.example .env
+check "no key and no terminal to ask in is an error" bash -c "source '$REPO/eco'; cd '$WORK'; unset NEXT_PUBLIC_FIREBASE_API_KEY; ! (ensure_firebase_web_config) </dev/null"
+
 # --- checking .env -----------------------------------------------------------
 
 fresh_checkout
