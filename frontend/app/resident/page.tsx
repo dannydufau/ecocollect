@@ -1,5 +1,6 @@
-import LogoutButton from "@/components/logout-button";
 import CreateRequestForm from "@/components/create-request-form";
+import LogoutButton from "@/components/logout-button";
+import MyRequests from "@/components/my-requests";
 
 export default function ResidentPage() {
     return (
@@ -9,6 +10,7 @@ export default function ResidentPage() {
                 <LogoutButton />
             </div>
             <CreateRequestForm />
+            <MyRequests />
         </main>
     );
 }
