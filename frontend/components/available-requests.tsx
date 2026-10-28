@@ -1,13 +1,13 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ApiError } from "@/lib/api";
+import { isAuthError } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { fetchAvailableRequests } from "@/lib/requests";
 import { formatTimestamp, formatWindow } from "@/lib/time";
 
 function errorMessage(error: unknown): string {
-    if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+    if (isAuthError(error)) {
         return "You are not allowed to see this list. Please log in again as a volunteer.";
     }
     return "We could not load the requests. Please try again.";
