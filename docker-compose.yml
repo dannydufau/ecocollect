@@ -36,6 +36,70 @@ services:
       timeout: 5s
       retries: 10
 
+  backend:                          # auth and the request service, one process (see backend/README.md)
+    build:
+      context: ./backend
+    restart: unless-stopped
+    environment:
+      PORT: "80"                    # Caddy proxies to auth and pickup without a port, which means 80
+      DATABASE_URL: postgres://${POSTGRES_USER:-ecocollect}:${POSTGRES_PASSWORD:?copy .env.example to .env first}@postgres:5432/${POSTGRES_DB:-ecocollect}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-ecocollect}:${RABBITMQ_PASSWORD:?copy .env.example to .env first}@rabbitmq:5672
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/firebase-admin.json
+    secrets:
+      - firebase-admin.json
+    sysctls:
+      net.ipv4.ip_unprivileged_port_start: 0   # the container runs as a normal user, which may then use port 80
+    networks:
+      default:
+        aliases:                    # the names Caddy looks for, both are this one container
+          - auth
+          - pickup
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:                    # /verify answers 401 without credentials, so a 401 means it is up
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:80/verify').then((r) => process.exit(r.status === 401 ? 0 : 1), () => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  frontend:
+    build:
+      context: ./frontend
+      args:                         # public Firebase web config, baked into the browser code at build time
+        NEXT_PUBLIC_FIREBASE_API_KEY: ${NEXT_PUBLIC_FIREBASE_API_KEY:?add the Firebase web config to .env, see .env.example}
+        NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN:-ecocollect-uofc.firebaseapp.com}
+        NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${NEXT_PUBLIC_FIREBASE_PROJECT_ID:-ecocollect-uofc}
+        NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET:-}
+        NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID:-}
+        NEXT_PUBLIC_FIREBASE_APP_ID: ${NEXT_PUBLIC_FIREBASE_APP_ID:-}
+    restart: unless-stopped
+
+  caddy:                            # the gateway, the only way in: https://localhost
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:80:80"           # only redirects to https
+      - "127.0.0.1:443:443"
+    volumes:
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data            # keeps Caddy's local certificate authority, so you trust it in the browser only once
+      - caddy_config:/config
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+    # No notification service yet (issue #25): until it exists, Caddy answers 502 for /api/events.
+
 volumes:
   pgdata:                           # declares the named volume
   rabbitmqdata:
+  caddy_data:
+  caddy_config:
+
+secrets:
+  firebase-admin.json:              # mounted in the backend at /run/secrets/firebase-admin.json
+    file: ./secrets/firebase-admin.json
