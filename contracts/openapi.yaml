@@ -194,7 +194,8 @@ paths:
       description: |
         Open once after login with `new EventSource('/api/events', { withCredentials: true })`
         and keep it open. The cookie is checked once, when the connection opens.
-        `EventSource` reconnects by itself if it drops. Refetch the lists on screen in the `onopen` handler:
+        `EventSource` reconnects by itself if it drops. As soon as the stream is set up, the server
+        writes a `: ready` comment line, so `onopen` fires right away and not after the first ping. Refetch the lists on screen in the `onopen` handler:
         it runs on the first connection and on every reconnect, which is how a missed signal is recovered.
 
         Each message is `event: signal`, with a small signal as its data: the type and the request id. The message
@@ -212,6 +213,8 @@ paths:
               schema:
                 type: string
               example: |
+                : ready
+
                 event: signal
                 data: {"type":"NEW_MATCHING_REQUEST","requestId":"0b7e3f2a-6d1c-4a52-9a43-6a1f5e0f1c11"}
         '401':

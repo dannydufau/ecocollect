@@ -74,7 +74,9 @@ channels:
   signalStream:
     address: /api/events
     title: Server-Sent Events stream
-    description: Opened once after login by `EventSource` with the session cookie.
+    description: |
+      Opened once after login by `EventSource` with the session cookie. The first thing the
+      server writes on a new stream is a `: ready` comment line.
     servers:
       - $ref: '#/servers/gateway'
     messages:
@@ -125,6 +127,12 @@ operations:
       $ref: '#/channels/signalStream'
     title: Notification service pushes a signal over SSE
     description: |
+      When a connection opens, the service registers it first and then writes `: ready` right away.
+      A comment line is ignored by `EventSource`, but writing it flushes the headers, so `onopen` fires
+      at once and not after the first ping. The order matters: by the time the frontend refetches in
+      `onopen`, the connection is already registered and can receive signals, so none can slip
+      through in between.
+
       One `signal` message is written to every open connection of each recipient, so
       several tabs all get it. A recipient with no open connection gets nothing. The frontend
       refetches whenever the stream opens (`EventSource` `onopen`), the first time and after every reconnect,
@@ -172,7 +180,8 @@ components:
       title: A signal for the signed-in user
       contentType: application/json
       description: |
-        Sent as a Server-Sent Event. On the wire it is two lines and a blank line:
+        Sent as a Server-Sent Event, after the `: ready` line that every stream starts with. On the
+        wire it is two lines and a blank line:
 
         ```
         event: signal

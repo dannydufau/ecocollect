@@ -162,9 +162,11 @@ test('both roles are told apart: wrong role is a 403', () => {
   assert.ok(openapi.paths['/api/requests'].get.responses['403']);
 });
 
-test('the example on the event stream is a signal the other spec accepts', () => {
+test('the example on the event stream starts with the ready line, then a signal the other spec accepts', () => {
   const example = openapi.paths['/api/events'].get.responses['200'].content['text/event-stream'].example;
-  const lines = Object.fromEntries(example.trim().split('\n').map((l) => [l.slice(0, l.indexOf(':')), l.slice(l.indexOf(':') + 2)]));
+  const [ready, signal] = example.trim().split('\n\n');
+  assert.equal(ready, ': ready', 'the first thing on the wire, so the browser opens the stream right away');
+  const lines = Object.fromEntries(signal.split('\n').map((l) => [l.slice(0, l.indexOf(':')), l.slice(l.indexOf(':') + 2)]));
   assert.equal(lines.event, 'signal');
   assert.deepEqual(Object.keys(lines), ['event', 'data'], 'nothing is stored, so there is no id line');
   assert.ok(validator(asyncapi, 'SseSignalPayload')(JSON.parse(lines.data)));

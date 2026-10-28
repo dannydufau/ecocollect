@@ -80,3 +80,10 @@ test('the README says how events may change: new fields are fine, breaking chang
   assert.match(read('README.md'), /ignore (the )?fields they don't know/i);
   assert.match(read('README.md'), /new `version`/);
 });
+
+test('every file says the server writes a ready line as soon as the stream is set up', () => {
+  for (const file of ['README.md', 'asyncapi.yaml', 'openapi.yaml']) {
+    assert.match(read(file), /: ready/, `${file} should mention the ready line`);
+  }
+  assert.match(read('asyncapi.yaml'), /registered/, 'the connection has to be registered before the ready line, or a signal can slip through');
+});

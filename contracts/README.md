@@ -41,6 +41,7 @@ sequenceDiagram
     C->>A: GET /verify
     A-->>C: 200 + X-User-Id, X-User-Roles
     C->>N: open stream
+    N-->>B: ready line, the stream is live
 
     B->>C: POST /api/requests (Bearer token)
     C->>A: GET /verify
@@ -57,7 +58,7 @@ sequenceDiagram
 ```
 
 1. The browser signs in with the Firebase client SDK and reads the roles from the token.
-2. It calls `POST /api/session` once, then opens the SSE stream. Sessions only exist because `EventSource` can't send an `Authorization` header, but browsers send cookies on their own.
+2. It calls `POST /api/session` once, then opens the SSE stream. Sessions only exist because `EventSource` can't send an `Authorization` header, but browsers send cookies on their own. As soon as the stream is set up, the notification service registers the connection and writes a `: ready` line, so the browser's `onopen` fires right away.
 3. The resident posts the request. Caddy checks the token, then the pickup service saves one request per category plus an outbox row for each, all in one transaction.
 4. A loop in the pickup service sends the outbox rows to RabbitMQ and marks them sent once RabbitMQ confirms. An event is never lost before it reaches RabbitMQ. After that, each consumer decides what it needs.
 5. The notification service has no database. It writes an SSE signal to every open connection of the resident and of each matched volunteer, then acks the message. Someone who's offline gets nothing, and catches up because the frontend refetches every time the stream opens.
@@ -98,7 +99,7 @@ The frontend keeps a fixed list of item categories, and the ids have to match th
 - On a `200`, it copies `X-User-Id` and `X-User-Roles` (comma separated, empty if none) onto the original request. Any other status, like `401`, goes straight back to the browser and the request goes no further.
 - It adds an `X-Request-Id` for tracing in the logs.
 - `/api/session` goes to auth with no `forward_auth`, `/api/requests` goes to the pickup service, `/api/events` goes to the notification service, and everything else goes to the frontend.
-- `/api/events` goes through `forward_auth` like the rest, but Caddy has to stream `text/event-stream` straight back and keep that route out of any compression rule.
+- `/api/events` goes through `forward_auth` like the rest, but Caddy has to stream `text/event-stream` straight back, without buffering or compression, so the `: ready` line reaches the browser right away.
 - Caddy makes its own certificates (a local one for `localhost`), which the `Secure` session cookie needs.
 - The backend services are only reachable on the internal network, and they trust `X-User-*` without asking Firebase again.
 
@@ -142,6 +143,7 @@ A small stateless service with no database for Oct 28. It turns each `RequestCre
 
 - At startup it declares its own queue and binds it to `ecocollect.events` with `request.*`.
 - For each event it reads the recipients from the event itself: `data.residentUid` and `data.matchedVolunteerUids`. There's no matching and no lookup.
+- When a stream opens, it registers the connection first and then writes `: ready` straight away. That flushes the headers, so `onopen` fires at once instead of after the first ping, and the refetch that follows can't miss a signal.
 - It writes `NEW_MATCHING_REQUEST` to every open connection of each matched volunteer, and `REQUEST_CREATED` to every open connection of the resident. It keeps a `userId` to connections list in memory. With no matched volunteers, only the resident gets a signal. About every 25 seconds it sends `: ping`, which `EventSource` ignores, to keep proxies from closing the connection and to spot dead ones.
 - Then it acks. A repeated delivery sends the signal again, which only costs an extra refetch, so there's no check for repeats.
 
@@ -150,7 +152,7 @@ A small stateless service with no database for Oct 28. It turns each `RequestCre
 - After login: `POST /api/session`, then open `EventSource('/api/events', { withCredentials: true })`.
 - After `POST /api/requests` succeeds: refetch `["requests","mine"]`.
 - On an SSE `signal`: `NEW_MATCHING_REQUEST` refetches `["requests","available"]` and `REQUEST_CREATED` refetches `["requests","mine"]`. The message is only a signal, and the data always comes from the REST API.
-- Whenever the stream opens (`onopen`), the first time or after a reconnect: refetch the lists on screen. That's the whole recovery plan. Missed signals aren't replayed, and `EventSource` reconnects by itself.
+- Whenever the stream opens (`onopen`), the first time or after a reconnect: refetch the lists on screen. The server writes `: ready` right away, so this happens as soon as the stream is up. That's the whole recovery plan. Missed signals aren't replayed, and `EventSource` reconnects by itself.
 - When a volunteer opens "available": call `GET /api/requests?view=available` with no `postalCodes`, to show everything.
 
 ## Open points for the team
