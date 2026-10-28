@@ -25,12 +25,13 @@
 | `caddy` | The gateway, the only way in. Checks the login, routes `/api/*`, serves the frontend. | <https://localhost> |
 | `frontend` | The Next.js app | through Caddy |
 | `backend` | Auth and the request service in one process. It answers to the names `auth` and `pickup`, which are the ones in the [Caddyfile](./infra/caddy/Caddyfile). | through Caddy |
+| `notification` | Live updates: turns RabbitMQ events into signals on `/api/events`. Same image as the backend, started with `src/notification/index.js`. | through Caddy |
 | `postgres` | The database. Tables in `db/init` are created on the first start only, see [db/README.md](./db/README.md). | `localhost:5432` |
 | `rabbitmq` | The message broker | management UI <http://localhost:15672> |
 
 If your copy of the repo is in iCloud Drive (the Desktop or Documents folder with "Optimize Mac Storage" on), macOS can swap files for cloud placeholders, and the containers then fail to read them with `resource deadlock avoided`. The backend can't read the Firebase key and Caddy can't read the Caddyfile. Keep the repo outside those folders, or open the files on your Mac first so they download: `cat secrets/firebase-admin.json infra/caddy/Caddyfile db/init/*.sql > /dev/null`.
 
-Two things aren't in Compose yet. The notification service (issue #25) isn't built, so there are no live updates (`/api/events` answers 401 until you're signed in, then 502). And the seed script that creates the demo users is still run by hand, see [scripts/seed/README.md](./scripts/seed/README.md).
+The seed script that creates the demo users isn't in Compose yet, it's still run by hand, see [scripts/seed/README.md](./scripts/seed/README.md).
 
 ## Run one part on your machine
 
