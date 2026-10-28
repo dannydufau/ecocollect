@@ -40,7 +40,7 @@ function requestCreated(envelope) {
   }
 
   // Tolerate a missing list, and send each volunteer one signal even if the
-  // event lists them twice.  NOTE: Set keeps only first occurence - no dup signals
+  // event lists them twice.  NOTE: Set keeps only first occurrence - no dup signals
   const volunteers = new Set(Array.isArray(data.matchedVolunteerUids) ? data.matchedVolunteerUids : []);
   for (const uid of volunteers) {
     if (uid) out.push({ uid, signal: signal(SIGNAL.NEW_MATCHING_REQUEST, requestId) });
