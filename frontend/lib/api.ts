@@ -10,6 +10,17 @@ export class ApiError extends Error {
     }
 }
 
+// A 401 or 403 means the login or the role is wrong. Asking again won't fix it.
+export function isAuthError(err: unknown): boolean {
+    return err instanceof ApiError && (err.status === 401 || err.status === 403);
+}
+
+// Any 4xx means our request was wrong, so asking again won't help. Except 408 (timed out) and 429 (slow down),
+// which usually work on the next try.
+export function isClientError(err: unknown): boolean {
+    return err instanceof ApiError && err.status >= 400 && err.status < 500 && err.status !== 408 && err.status !== 429;
+}
+
 async function getToken(): Promise<string | null> {
     await auth.authStateReady();
     const user = auth.currentUser;
