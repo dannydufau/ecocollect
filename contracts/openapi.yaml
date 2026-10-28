@@ -194,11 +194,13 @@ paths:
       description: |
         Open once after login with `new EventSource('/api/events', { withCredentials: true })`
         and keep it open. The cookie is checked once, when the connection opens.
-        `EventSource` reconnects by itself if it drops. Refetch the lists on screen in the `onopen` handler:
-        it runs on the first connection and on every reconnect, which is how a missed signal is recovered.
+        `EventSource` reconnects by itself if it drops. As soon as the stream is set up, the server
+        writes a `ready` event (`event: ready`, `data: {}`), so `onopen` fires right away and not after the
+        first ping. Refetch the lists on screen in the `onopen` handler: it runs on the first connection
+        and on every reconnect, which is how a missed signal is recovered.
 
-        Each message is `event: signal`, with a small signal as its data: the type and the request id. The message
-        format is in [asyncapi.yaml](./asyncapi.yaml) (`SseSignal`). A comment line
+        After that, each message is `event: signal`, with a small signal as its data: the type and the request id.
+        The message formats are in [asyncapi.yaml](./asyncapi.yaml) (`SseReady` and `SseSignal`). A comment line
         `: ping` arrives about every 25 seconds to keep the connection open, and `EventSource` ignores it.
 
         Caddy streams this route straight through and must not compress it.
@@ -212,6 +214,9 @@ paths:
               schema:
                 type: string
               example: |
+                event: ready
+                data: {}
+
                 event: signal
                 data: {"type":"NEW_MATCHING_REQUEST","requestId":"0b7e3f2a-6d1c-4a52-9a43-6a1f5e0f1c11"}
         '401':
