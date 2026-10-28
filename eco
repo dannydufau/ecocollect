@@ -325,6 +325,99 @@ suite_frontend() {
 
 suite_gateway() { bash infra/caddy/testing/test.sh; }
 
+stack_is_up() { [ -n "$(docker ps -q --filter label=com.docker.compose.project=ecocollect)" ]; }
+
+# Checks the app that is running right now, as far as it goes without a real Firebase login: the gateway
+# rules, then a request created through the backend, its event leaving the outbox and reaching RabbitMQ.
+# The request it creates is removed again at the end.
+suite_smoke() {
+  stack_is_up || {
+    echo "The stack is not running. Start it with ./eco up first."
+    return 1
+  }
+  SMOKE_FAILED=""
+  local service status code out id mgmt user password
+
+  for service in postgres rabbitmq backend; do
+    status=$(docker inspect --format '{{.State.Health.Status}}' "$($COMPOSE ps -q $service)" 2>/dev/null || true)
+    [ -n "$status" ] || status=missing
+    smoke_check "$service is healthy" healthy "$status"
+  done
+
+  code() { curl -sk -o /dev/null -w '%{http_code}' "$@" || true; }
+  smoke_check "gateway serves /login" 200 "$(code "$SITE/login")"
+  smoke_check "http redirects to https" 308 "$(code http://localhost/)"
+  smoke_check "/api/requests without a login is refused" 401 "$(code "$SITE/api/requests?view=mine")"
+  smoke_check "/api/events without a login is refused" 401 "$(code "$SITE/api/events")"
+  smoke_check "/verify is not reachable from outside" 404 "$(code "$SITE/verify")"
+  smoke_check "faked X-User headers do not get in" 401 "$(code -H 'X-User-Id: demo-resident-1' -H 'X-User-Roles: resident' "$SITE/api/requests?view=mine")"
+
+  # Straight to the backend with the headers the gateway would add, because a login needs the real Firebase.
+  out=$($COMPOSE exec -T backend node -e '
+    const day = new Date(Date.now() + 3 * 864e5).toISOString().slice(0, 10);
+    const call = (path, options) => fetch("http://127.0.0.1:80" + path, options);
+    const as = (uid, roles) => ({ "X-User-Id": uid, "X-User-Roles": roles, "Content-Type": "application/json" });
+    (async () => {
+      const made = await call("/api/requests", { method: "POST", headers: as("demo-resident-1", "resident"),
+        body: JSON.stringify({ items: [{ categoryId: "laptops", quantity: 1 }], windows: [{ date: day, startHour: 14 }], notes: "eco smoke test", safetyAcknowledged: true }) });
+      const body = await made.json();
+      const id = body.requests && body.requests[0].requestId;
+      const mine = await (await call("/api/requests?view=mine", { headers: as("demo-resident-1", "resident") })).json();
+      const availableResponse = await call("/api/requests?view=available", { headers: as("demo-volunteer-1", "volunteer") });
+      const available = await availableResponse.json();
+      const wrongRole = await call("/api/requests?view=available", { headers: as("demo-resident-1", "resident") });
+      console.log("created=" + made.status);
+      console.log("id=" + id);
+      console.log("mine=" + mine.some((r) => r.requestId === id));
+      console.log("available=" + available.some((r) => r.requestId === id));
+      console.log("nostreet=" + !/street/i.test(JSON.stringify(available)));
+      console.log("wrongrole=" + wrongRole.status);
+    })().catch((e) => console.log("error=" + e.message));
+  ' 2>&1 || true)
+  smoke_field() { printf '%s\n' "$out" | sed -n "s/^$1=//p" | head -n 1; }
+  id=$(smoke_field id)
+  smoke_check "a resident can create a request" 201 "$(smoke_field created)"
+  smoke_check "the resident sees it in their own list" true "$(smoke_field mine)"
+  smoke_check "the matching volunteer sees it in the available list" true "$(smoke_field available)"
+  smoke_check "no street address in the volunteer list" true "$(smoke_field nostreet)"
+  smoke_check "a resident cannot read the volunteer list" 403 "$(smoke_field wrongrole)"
+
+  if printf '%s' "$id" | grep -Eq '^[0-9a-f-]{36}$'; then
+    local sent=0 seen="" i
+    for i in $(seq 1 15); do
+      sent=$($COMPOSE exec -T postgres sh -c "psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -Atc \"select count(*) from outbox where aggregate_id = '$id' and published_at is not null\"" 2>/dev/null || echo 0)
+      [ "$sent" = 1 ] && break
+      sleep 1
+    done
+    smoke_check "the event leaves the outbox once RabbitMQ confirms" 1 "$sent"
+
+    mgmt=$(env_get RABBITMQ_MGMT_PORT)
+    user=$(env_get RABBITMQ_USER)
+    password=$(env_get RABBITMQ_PASSWORD)
+    for i in $(seq 1 15); do
+      seen=$(curl -s -u "$user:$password" "http://localhost:$mgmt/api/exchanges/%2F/ecocollect.events" | sed -n 's/.*"publish_in":\([0-9]*\).*/\1/p' | head -n 1)
+      [ -n "$seen" ] && [ "$seen" -ge 1 ] && break
+      sleep 1
+    done
+    smoke_check "RabbitMQ has the exchange and saw the event" yes "$([ -n "$seen" ] && [ "$seen" -ge 1 ] && echo yes || echo no)"
+
+    $COMPOSE exec -T postgres sh -c "psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -qc \"delete from outbox where aggregate_id = '$id'; delete from pickup_request where request_id = '$id'\"" >/dev/null 2>&1 || echo "note: could not remove the test request $id"
+  else
+    smoke_check "the request got an id" "a uuid" "${id:-nothing} (output: $out)"
+  fi
+
+  [ -z "$SMOKE_FAILED" ]
+}
+
+smoke_check() { # name, wanted, got
+  if [ "$2" = "$3" ]; then
+    echo "ok   $1"
+  else
+    echo "FAIL $1 (wanted $2, got $3)"
+    SMOKE_FAILED=1
+  fi
+}
+
 run_suite() {
   local name=$1 started=$SECONDS log="$LOGS/$1.log"
   printf '%-10s ' "$name"
@@ -345,12 +438,14 @@ cmd_test() {
   for arg in "$@"; do
     case $arg in
       quick) QUICK=1 ;;
-      eco | contracts | backend | seed | frontend | gateway) suites="$suites $arg" ;;
-      *) die "Unknown test suite '$arg'. Suites: eco contracts backend seed frontend gateway. Or 'quick' to skip the slow ones." ;;
+      eco | contracts | backend | seed | frontend | gateway | smoke) suites="$suites $arg" ;;
+      *) die "Unknown test suite '$arg'. Suites: eco contracts backend seed frontend gateway smoke. Or 'quick' to skip the slow ones." ;;
     esac
   done
   if [ -z "$suites" ]; then
     if [ "${QUICK:-}" = 1 ]; then suites="eco contracts backend seed"; else suites="eco contracts backend seed frontend gateway"; fi
+    # The smoke test needs the app running, so it only joins the full run when it is.
+    if stack_is_up; then suites="$suites smoke"; else say "(smoke test skipped: the app is not running, start it with ./eco up)"; fi
   fi
   step "Running:$suites"
   FAILED=""
@@ -375,8 +470,9 @@ cmd_help() {
 ./eco logs [service]  follow the logs
 ./eco seed-firebase   write the demo users into the shared Firebase project (asks first)
 ./eco test [quick] [suite...]
-                      run the test suites: eco contracts backend seed frontend gateway
-                      'quick' skips lint, the frontend build and the gateway test
+                      run the test suites: eco contracts backend seed frontend gateway smoke
+                      'quick' skips lint, the frontend build and the gateway test.
+                      'smoke' checks the running app, so it needs ./eco up first.
 EOF
 }
 
