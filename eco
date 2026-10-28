@@ -1,0 +1,502 @@
+#!/usr/bin/env bash
+# eco: set up, run and test the whole EcoCollect stack with one command.
+#
+#   ./eco up      set everything up (the first run creates .env) and start it
+#   ./eco test    run every test suite, each in its own container
+#
+# More in ./eco help. All it needs is Docker.
+
+set -o errexit -o nounset -o pipefail
+
+COMPOSE="docker compose"
+SITE="https://localhost"
+LOGS=".eco/logs"
+
+say() { printf '%s\n' "$*"; }
+step() { printf '\n==> %s\n' "$*"; }
+warn() { printf 'warning: %s\n' "$*" >&2; }
+die() {
+  printf 'error: %s\n' "$*" >&2
+  exit 1
+}
+
+# --- .env --------------------------------------------------------------------
+
+random_word() {
+  # `|| true`: head closes the pipe early, which makes tr report a harmless failure.
+  LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 20 || true
+}
+
+env_get() { # key: the last value in .env, or nothing
+  grep -E "^$1=" .env 2>/dev/null | tail -n 1 | cut -d= -f2- || true
+}
+
+env_set() { # key value: change the line, or add it at the end
+  local tmp
+  tmp=$(mktemp)
+  awk -v key="$1" -v value="$2" '
+    BEGIN { FS = OFS = "=" }
+    $1 == key { print key "=" value; found = 1; next }
+    { print }
+    END { if (!found) print key "=" value }
+  ' .env >"$tmp"
+  cat "$tmp" >.env
+  rm -f "$tmp"
+}
+
+# A first-time .env: the example file with passwords nobody else has. An existing .env is never touched.
+ensure_env_file() {
+  [ -f .env ] && return 0
+  local postgres rabbit
+  postgres=$(random_word)
+  rabbit=$(random_word)
+  cp .env.example .env
+  env_set POSTGRES_PASSWORD "$postgres"
+  env_set RABBITMQ_PASSWORD "$rabbit"
+  env_set DATABASE_URL "postgres://$(env_get POSTGRES_USER):$postgres@localhost:$(env_get POSTGRES_PORT)/$(env_get POSTGRES_DB)"
+  env_set RABBITMQ_URL "amqp://$(env_get RABBITMQ_USER):$rabbit@localhost:$(env_get RABBITMQ_PORT)"
+  say "Created .env with new random passwords."
+}
+
+# The passwords end up inside connection URLs, so an @ or a / in them would break the URL.
+check_passwords() {
+  local name value
+  for name in POSTGRES_PASSWORD RABBITMQ_PASSWORD; do
+    value=$(env_get "$name")
+    [ -n "$value" ] || die "$name is empty in .env."
+    case $value in
+      *[!A-Za-z0-9_-]*) die "$name in .env has characters other than letters, numbers, _ and -. They break the connection URLs. Pick another one, or delete .env and run ./eco up again." ;;
+    esac
+  done
+}
+
+# The frontend is built with the Firebase web config. The API key is the one value we can't make up.
+ensure_firebase_web_config() {
+  local key
+  key=$(env_get NEXT_PUBLIC_FIREBASE_API_KEY)
+  [ -n "$key" ] || key=${NEXT_PUBLIC_FIREBASE_API_KEY:-}
+  if [ -z "$key" ] && [ -t 0 ]; then
+    say "The frontend needs the Firebase web API key (Firebase console, Project settings, General, Your apps)."
+    printf 'Paste it here: '
+    read -r key
+  fi
+  [ -n "$key" ] || die "NEXT_PUBLIC_FIREBASE_API_KEY is empty. Put it in .env (Firebase console, Project settings, General, Your apps), or run ./eco up from a terminal and paste it when asked."
+  env_set NEXT_PUBLIC_FIREBASE_API_KEY "$key"
+}
+
+# --- checks before starting --------------------------------------------------
+
+check_docker() {
+  command -v docker >/dev/null 2>&1 || die "Docker is not installed. Install Docker Desktop (or Colima) first."
+  docker info >/dev/null 2>&1 || die "Docker is not running. Start Docker Desktop (or run: colima start) and try again."
+  $COMPOSE version >/dev/null 2>&1 || die "'docker compose' is missing. Update Docker Desktop, or install the compose plugin."
+}
+
+# On a Mac, iCloud can swap repo files for placeholders, and containers then fail with
+# "resource deadlock avoided". Reading a file on the Mac makes macOS download it again.
+download_icloud_files() {
+  [ "$(uname)" = Darwin ] || return 0
+  local file count=0
+  for file in infra/caddy/Caddyfile db/init/*.sql scripts/seed/*.js secrets/firebase-admin.json; do
+    [ -f "$file" ] || continue
+    if ls -lO "$file" 2>/dev/null | grep -q dataless; then count=$((count + 1)); fi
+    cat "$file" >/dev/null
+  done
+  [ "$count" -eq 0 ] || say "Downloaded $count file(s) that iCloud had moved off this Mac."
+}
+
+port_in_use() { # lsof is on macOS and most Linux, if it's missing we skip the check
+  command -v lsof >/dev/null 2>&1 && lsof -nP -iTCP:"$1" -sTCP:LISTEN >/dev/null 2>&1
+}
+
+check_ports() {
+  # If our own stack is already up, its ports are of course in use. Asking by label doesn't need .env to parse.
+  [ -z "$(docker ps -q --filter label=com.docker.compose.project=ecocollect)" ] || return 0
+  local port busy=""
+  for port in 80 443 "$(env_get POSTGRES_PORT)" "$(env_get RABBITMQ_PORT)" "$(env_get RABBITMQ_MGMT_PORT)"; do
+    if port_in_use "$port"; then busy="$busy $port"; fi
+  done
+  [ -z "$busy" ] || die "Port(s)$busy already in use by something else. Stop it, or change the *_PORT values in .env (80 and 443 can't be changed)."
+}
+
+check_memory() {
+  local bytes
+  bytes=$(docker info --format '{{.MemTotal}}' 2>/dev/null || echo 0)
+  if [ "$bytes" -gt 0 ] && [ "$bytes" -lt 2500000000 ]; then
+    warn "Docker has less than 2.5 GB of memory. The frontend build may fail. Give Docker more in its settings (or: colima start --memory 3)."
+  fi
+}
+
+check_key() {
+  [ -f secrets/firebase-admin.json ] || die "secrets/firebase-admin.json is missing. Generate your own Firebase Admin key, see secrets/README.md."
+}
+
+warn_if_in_icloud_folder() {
+  case "$PWD" in
+    "$HOME/Desktop"/* | "$HOME/Documents"/*) warn "This repo is in $PWD, which iCloud may sync. If something fails with 'resource deadlock avoided', move the repo out of Desktop and Documents." ;;
+  esac
+}
+
+# --- commands ----------------------------------------------------------------
+
+cmd_up() {
+  step "Checking this machine"
+  check_docker
+  check_key
+  warn_if_in_icloud_folder
+  download_icloud_files
+  ensure_env_file
+  check_passwords
+  ensure_firebase_web_config
+  check_ports
+  check_memory
+
+  step "Starting the stack (the first run builds the images, about 5 minutes)"
+  if ! $COMPOSE up --build -d --wait; then
+    explain_failure
+    exit 1
+  fi
+
+  step "Loading the demo users into the local database"
+  seed_database
+
+  summary
+}
+
+explain_failure() {
+  $COMPOSE ps >&2 || true
+  cat >&2 <<'EOF'
+
+It didn't start. Things worth checking:
+  - Changed a password in .env after the first run? Postgres and RabbitMQ keep the old one. Run ./eco reset.
+  - 'bind source path does not exist': Docker can only see folders under your home directory.
+  - 'resource deadlock avoided': iCloud files, see the note in the README.
+  - Look at the logs: ./eco logs backend
+EOF
+}
+
+# Only the local database. The Firebase users are shared by the whole team, see seed-firebase.
+seed_database() {
+  local output
+  output=$($COMPOSE run --rm --no-deps -T -e NODE_PATH=/app/node_modules -v "$PWD/scripts/seed:/seed:ro" --entrypoint node backend -e '
+    const { Pool } = require("pg");
+    const { seedDatabase } = require("/seed/index.js");
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    seedDatabase(pool).then(() => pool.end()).catch((e) => { console.error(e.message); process.exit(1); });
+  ' 2>&1) || {
+    say "$output" >&2
+    die "Loading the demo users failed. Is the database up? Try ./eco status."
+  }
+  say "Saved $(printf '%s\n' "$output" | grep -c 'saved') demo users."
+}
+
+cmd_seed_firebase() {
+  check_docker
+  check_key
+  [ -f .env ] || die "There is no .env yet. Run ./eco up first."
+  local password
+  password=$(env_get DEMO_PASSWORD)
+  [ -n "$password" ] || die "Set DEMO_PASSWORD in .env first. Use the team's shared value, not your own."
+  cat <<EOF
+This writes the 10 demo users into the REAL Firebase project and sets all their
+passwords to the DEMO_PASSWORD in your .env. Everyone on the team shares that
+project, so use the team's value or you will lock the others out.
+EOF
+  confirm "Go ahead?" || exit 1
+  $COMPOSE run --rm --no-deps -T -e NODE_PATH=/app/node_modules -e "DEMO_PASSWORD=$password" \
+    -v "$PWD/scripts/seed:/seed:ro" --entrypoint node backend /seed/index.js
+}
+
+summary() {
+  local login
+  login=$(curl -sk -o /dev/null -w '%{http_code}' "$SITE/login" || true)
+  step "Ready"
+  say "App:        $SITE   (the browser warns about the certificate once, accept it)"
+  say "RabbitMQ:   http://localhost:$(env_get RABBITMQ_MGMT_PORT)   (user $(env_get RABBITMQ_USER), password is RABBITMQ_PASSWORD in .env)"
+  say "Log in as:  riley@demo.ecocollect.test (resident) or vera@demo.ecocollect.test (volunteer)."
+  say "            rory@demo.ecocollect.test has both roles. The password is the team's DEMO_PASSWORD."
+  say "Login page answers: $login"
+  say ""
+  say "Stop: ./eco down    Fresh start: ./eco reset    Tests: ./eco test    All commands: ./eco help"
+}
+
+cmd_down() {
+  check_docker
+  $COMPOSE down --remove-orphans
+}
+
+confirm() { # question: asks, unless -y was given or there is no terminal to ask on
+  [ "${ASSUME_YES:-}" = 1 ] && return 0
+  [ -t 0 ] || die "$1 Run it again with -y to confirm."
+  local answer
+  printf '%s [y/N] ' "$1"
+  read -r answer
+  [ "$answer" = y ] || [ "$answer" = Y ]
+}
+
+cmd_reset() {
+  check_docker
+  say "This deletes the local database and the RabbitMQ data, then starts clean."
+  say "It keeps your .env and your Firebase key."
+  confirm "Continue?" || exit 1
+  $COMPOSE down -v --remove-orphans
+  cmd_up
+}
+
+cmd_wipe_env() {
+  [ -f .env ] || die "There is no .env."
+  say ".env also holds the Firebase web config you pasted. It can't be recovered from here."
+  confirm "Delete .env?" || exit 1
+  rm .env
+  say "Deleted. The next ./eco up creates a new one."
+}
+
+cmd_status() {
+  check_docker
+  $COMPOSE ps
+  say ""
+  local login api verify
+  login=$(curl -sk -o /dev/null -w '%{http_code}' "$SITE/login" || true)
+  api=$(curl -sk -o /dev/null -w '%{http_code}' "$SITE/api/requests?view=mine" || true)
+  verify=$(curl -sk -o /dev/null -w '%{http_code}' "$SITE/verify" || true)
+  say "Through the gateway: /login $login (want 200), /api/requests without a login $api (want 401), /verify $verify (want 404)"
+}
+
+cmd_logs() {
+  check_docker
+  $COMPOSE logs -f --tail=100 "$@"
+}
+
+# --- tests -------------------------------------------------------------------
+
+# Runs a command in a clean copy of the repo inside a Node 22 container. Nothing is written to your
+# checkout, and everyone gets the same Node and timezone data. Extra arguments go to docker run.
+in_node() { # folder command [docker args...]
+  local folder=$1 command=$2
+  shift 2
+  docker run --rm -v "$PWD:/src:ro" "$@" node:22-alpine sh -c \
+    "mkdir /w && tar -C /src -cf - --exclude=node_modules --exclude=.next --exclude=.git --exclude=secrets --exclude=.env --exclude=.eco . | tar -C /w -xf - && cd /w/$folder && $command"
+}
+
+# Suites chain their steps with && on purpose: bash ignores `set -e` inside a function that runs in an `if`.
+
+suite_eco() { bash scripts/eco.test.sh; }
+
+suite_contracts() {
+  if [ "${QUICK:-}" = 1 ]; then
+    in_node contracts "npm ci --silent && npm test"
+  else
+    in_node contracts "npm ci --silent && npm test && npm run lint"
+  fi
+}
+
+suite_backend() {
+  # The database tests need a real Postgres with our schema, so start a throwaway one.
+  local net="eco-test-$$" db="eco-test-$$-db" ready="" i status=1
+  docker network create "$net" >/dev/null || return 1
+  docker run -d --rm --name "$db" --network "$net" -e POSTGRES_PASSWORD=test -e POSTGRES_DB=test \
+    -v "$PWD/db/init:/docker-entrypoint-initdb.d:ro" postgres:16 >/dev/null || {
+    docker network rm "$net" >/dev/null 2>&1
+    return 1
+  }
+  for i in $(seq 1 60); do
+    if [ "$(docker exec "$db" psql -U postgres -d test -Atc "select to_regclass('public.outbox')" 2>/dev/null)" = outbox ]; then
+      ready=1
+      break
+    fi
+    sleep 1
+  done
+  if [ -n "$ready" ]; then
+    in_node backend "npm ci --silent && npm test" --network "$net" \
+      -e "TEST_DATABASE_URL=postgres://postgres:test@$db:5432/test" && status=0
+  else
+    echo "The test database did not come up in 60 seconds."
+  fi
+  docker rm -f "$db" >/dev/null 2>&1
+  docker network rm "$net" >/dev/null 2>&1
+  return $status
+}
+
+suite_seed() { in_node scripts/seed "npm ci --silent && npm test"; }
+
+suite_frontend() {
+  in_node frontend "npm ci --silent && npm run lint && NEXT_PUBLIC_FIREBASE_API_KEY=test NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=test.firebaseapp.com NEXT_PUBLIC_FIREBASE_PROJECT_ID=test NEXT_PUBLIC_FIREBASE_APP_ID=1:1:web:1 npm run build"
+}
+
+suite_gateway() { bash infra/caddy/testing/test.sh; }
+
+stack_is_up() { [ -n "$(docker ps -q --filter label=com.docker.compose.project=ecocollect)" ]; }
+
+# Checks the app that is running right now, as far as it goes without a real Firebase login: the gateway
+# rules, then a request created through the backend, its event leaving the outbox and reaching RabbitMQ.
+# The request it creates is removed again at the end.
+suite_smoke() {
+  stack_is_up || {
+    echo "The stack is not running. Start it with ./eco up first."
+    return 1
+  }
+  SMOKE_FAILED=""
+  local service status code out id mgmt user password
+
+  for service in postgres rabbitmq backend; do
+    status=$(docker inspect --format '{{.State.Health.Status}}' "$($COMPOSE ps -q $service)" 2>/dev/null || true)
+    [ -n "$status" ] || status=missing
+    smoke_check "$service is healthy" healthy "$status"
+  done
+
+  code() { curl -sk -o /dev/null -w '%{http_code}' "$@" || true; }
+  smoke_check "gateway serves /login" 200 "$(code "$SITE/login")"
+  smoke_check "http redirects to https" 308 "$(code http://localhost/)"
+  smoke_check "/api/requests without a login is refused" 401 "$(code "$SITE/api/requests?view=mine")"
+  smoke_check "/api/events without a login is refused" 401 "$(code "$SITE/api/events")"
+  smoke_check "/verify is not reachable from outside" 404 "$(code "$SITE/verify")"
+  smoke_check "faked X-User headers do not get in" 401 "$(code -H 'X-User-Id: demo-resident-1' -H 'X-User-Roles: resident' "$SITE/api/requests?view=mine")"
+
+  # Straight to the backend with the headers the gateway would add, because a login needs the real Firebase.
+  out=$($COMPOSE exec -T backend node -e '
+    const day = new Date(Date.now() + 3 * 864e5).toISOString().slice(0, 10);
+    const call = (path, options) => fetch("http://127.0.0.1:80" + path, options);
+    const as = (uid, roles) => ({ "X-User-Id": uid, "X-User-Roles": roles, "Content-Type": "application/json" });
+    (async () => {
+      const made = await call("/api/requests", { method: "POST", headers: as("demo-resident-1", "resident"),
+        body: JSON.stringify({ items: [{ categoryId: "laptops", quantity: 1 }], windows: [{ date: day, startHour: 14 }], notes: "eco smoke test", safetyAcknowledged: true }) });
+      const body = await made.json();
+      const id = body.requests && body.requests[0].requestId;
+      const mine = await (await call("/api/requests?view=mine", { headers: as("demo-resident-1", "resident") })).json();
+      const availableResponse = await call("/api/requests?view=available", { headers: as("demo-volunteer-1", "volunteer") });
+      const available = await availableResponse.json();
+      const wrongRole = await call("/api/requests?view=available", { headers: as("demo-resident-1", "resident") });
+      console.log("created=" + made.status);
+      console.log("id=" + id);
+      console.log("mine=" + mine.some((r) => r.requestId === id));
+      console.log("available=" + available.some((r) => r.requestId === id));
+      console.log("nostreet=" + !/street/i.test(JSON.stringify(available)));
+      console.log("wrongrole=" + wrongRole.status);
+    })().catch((e) => console.log("error=" + e.message));
+  ' 2>&1 || true)
+  smoke_field() { printf '%s\n' "$out" | sed -n "s/^$1=//p" | head -n 1; }
+  id=$(smoke_field id)
+  smoke_check "a resident can create a request" 201 "$(smoke_field created)"
+  smoke_check "the resident sees it in their own list" true "$(smoke_field mine)"
+  smoke_check "the matching volunteer sees it in the available list" true "$(smoke_field available)"
+  smoke_check "no street address in the volunteer list" true "$(smoke_field nostreet)"
+  smoke_check "a resident cannot read the volunteer list" 403 "$(smoke_field wrongrole)"
+
+  if printf '%s' "$id" | grep -Eq '^[0-9a-f-]{36}$'; then
+    local sent=0 seen="" i
+    for i in $(seq 1 15); do
+      sent=$($COMPOSE exec -T postgres sh -c "psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -Atc \"select count(*) from outbox where aggregate_id = '$id' and published_at is not null\"" 2>/dev/null || echo 0)
+      [ "$sent" = 1 ] && break
+      sleep 1
+    done
+    smoke_check "the event leaves the outbox once RabbitMQ confirms" 1 "$sent"
+
+    mgmt=$(env_get RABBITMQ_MGMT_PORT)
+    user=$(env_get RABBITMQ_USER)
+    password=$(env_get RABBITMQ_PASSWORD)
+    for i in $(seq 1 15); do
+      seen=$(curl -s -u "$user:$password" "http://localhost:$mgmt/api/exchanges/%2F/ecocollect.events" | sed -n 's/.*"publish_in":\([0-9]*\).*/\1/p' | head -n 1)
+      [ -n "$seen" ] && [ "$seen" -ge 1 ] && break
+      sleep 1
+    done
+    smoke_check "RabbitMQ has the exchange and saw the event" yes "$([ -n "$seen" ] && [ "$seen" -ge 1 ] && echo yes || echo no)"
+
+    $COMPOSE exec -T postgres sh -c "psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -qc \"delete from outbox where aggregate_id = '$id'; delete from pickup_request where request_id = '$id'\"" >/dev/null 2>&1 || echo "note: could not remove the test request $id"
+  else
+    smoke_check "the request got an id" "a uuid" "${id:-nothing} (output: $out)"
+  fi
+
+  [ -z "$SMOKE_FAILED" ]
+}
+
+smoke_check() { # name, wanted, got
+  if [ "$2" = "$3" ]; then
+    echo "ok   $1"
+  else
+    echo "FAIL $1 (wanted $2, got $3)"
+    SMOKE_FAILED=1
+  fi
+}
+
+run_suite() {
+  local name=$1 started=$SECONDS log="$LOGS/$1.log"
+  printf '%-10s ' "$name"
+  if "suite_$name" >"$log" 2>&1; then
+    printf 'ok      %ss\n' $((SECONDS - started))
+  else
+    printf 'FAILED  %ss   (full log: %s)\n' $((SECONDS - started)) "$log"
+    FAILED="$FAILED $name"
+    tail -n 20 "$log" | sed 's/^/    | /'
+  fi
+}
+
+cmd_test() {
+  check_docker
+  download_icloud_files
+  mkdir -p "$LOGS"
+  local suites="" arg
+  for arg in "$@"; do
+    case $arg in
+      quick) QUICK=1 ;;
+      eco | contracts | backend | seed | frontend | gateway | smoke) suites="$suites $arg" ;;
+      *) die "Unknown test suite '$arg'. Suites: eco contracts backend seed frontend gateway smoke. Or 'quick' to skip the slow ones." ;;
+    esac
+  done
+  if [ -z "$suites" ]; then
+    if [ "${QUICK:-}" = 1 ]; then suites="eco contracts backend seed"; else suites="eco contracts backend seed frontend gateway"; fi
+    # The smoke test needs the app running, so it only joins the full run when it is.
+    if stack_is_up; then suites="$suites smoke"; else say "(smoke test skipped: the app is not running, start it with ./eco up)"; fi
+  fi
+  step "Running:$suites"
+  FAILED=""
+  local name
+  for name in $suites; do run_suite "$name"; done
+  if [ -n "$FAILED" ]; then
+    printf '\nFailed:%s\n' "$FAILED"
+    exit 1
+  fi
+  printf '\nAll suites passed.\n'
+}
+
+# --- main --------------------------------------------------------------------
+
+cmd_help() {
+  cat <<'EOF'
+./eco up              set everything up (first run creates .env) and start it
+./eco down            stop everything, keep the data
+./eco reset [-y]      delete the local data and start clean (keeps .env and your key)
+./eco wipe-env [-y]   delete .env too
+./eco status          what is running, and a quick check through the gateway
+./eco logs [service]  follow the logs
+./eco seed-firebase   write the demo users into the shared Firebase project (asks first)
+./eco test [quick] [suite...]
+                      run the test suites: eco contracts backend seed frontend gateway smoke
+                      'quick' skips lint, the frontend build and the gateway test.
+                      'smoke' checks the running app, so it needs ./eco up first.
+EOF
+}
+
+main() {
+  cd "$(dirname "${BASH_SOURCE[0]}")"
+  local command=${1:-help}
+  [ $# -eq 0 ] || shift
+  local rest=() arg
+  for arg in "$@"; do
+    if [ "$arg" = -y ]; then ASSUME_YES=1; else rest+=("$arg"); fi
+  done
+  case $command in
+    up) cmd_up ;;
+    down) cmd_down ;;
+    reset) cmd_reset ;;
+    wipe-env) cmd_wipe_env ;;
+    status) cmd_status ;;
+    logs) cmd_logs ${rest[@]+"${rest[@]}"} ;;
+    seed-firebase) cmd_seed_firebase ;;
+    test) cmd_test ${rest[@]+"${rest[@]}"} ;;
+    help | -h | --help) cmd_help ;;
+    *) cmd_help >&2; die "Unknown command '$command'." ;;
+  esac
+}
+
+# Sourcing this file (the tests do) only loads the functions.
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then main "$@"; fi
