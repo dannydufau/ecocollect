@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/lib/api";
+import { logout } from "@/lib/auth";
 import { CATEGORIES, OTHER_CATEGORY_ID } from "@/lib/categories";
 import { queryKeys } from "@/lib/query-keys";
 import { calgaryInstant, calgaryToday, formatHour } from "@/lib/time";
@@ -56,6 +58,7 @@ function errorMessage(err: unknown): string {
 
 export default function CreateRequestForm() {
     const queryClient = useQueryClient();
+    const router = useRouter();
     const [items, setItems] = useState<ItemRow[]>([EMPTY_ITEM]);
     const [windows, setWindows] = useState<WindowRow[]>([EMPTY_WINDOW]);
     const [notes, setNotes] = useState("");
@@ -74,7 +77,13 @@ export default function CreateRequestForm() {
             setSafety(false);
             queryClient.invalidateQueries({ queryKey: queryKeys.myRequests }); // contract 9.2
         },
-        onError: (err) => setFormError(errorMessage(err)),
+        onError: (err) => {
+            setFormError(errorMessage(err));
+            // The token is no longer good, so send them to log in again instead of leaving them on the form.
+            if (err instanceof ApiError && err.status === 401) {
+                logout().then(() => router.replace("/login"));
+            }
+        },
     });
 
     function updateItem(index: number, change: Partial<ItemRow>) {
