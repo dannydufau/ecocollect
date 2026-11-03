@@ -1,132 +1,100 @@
-# Normalization Report - Issue #71
+# Normalization Report - Issue #71 (Revised to Combined-Nov-5)
 
 ## 1. Overview
 
-This report examines the normalization of the three EcoCollect relations assigned in Issue #71:
-
-- `ITEM_CATEGORY`
-- `PICKUP_REQUEST`
-- `PICKUP_WINDOW`
-
-The three relations are examined using functional dependencies and the first three normal forms (1NF, 2NF, and 3NF).
+This report checks the functional dependencies and the first three normal forms (1NF, 2NF, and 3NF) for the three EcoCollect relations assigned in Issue #71. The schemas follow the updated logical database model and the team's Combined-Nov-5 business rules.
 
 ## 2. Functional Dependencies
 
 ### 2.1 ITEM_CATEGORY
 
-**Relation:**
+**Relation:** `item_category(category_id, name, waste_type, standard_weight_kg)`
 
-`item_category(category_id, name, waste_type, standard_weight_kg)`
+**Primary key:** `category_id`. **Candidate keys:** `category_id`, `name` (because `name` is UNIQUE and NOT NULL).
 
-**Primary Key:** `category_id`
+**Functional dependencies:**
 
-**Candidate Keys:** `category_id`, `name`
+- `category_id → name, waste_type, standard_weight_kg`
+- `name → category_id, waste_type, standard_weight_kg`
 
-**Functional Dependencies:**
-
-`category_id → name, waste_type, standard_weight_kg`
-
-`name → category_id, waste_type, standard_weight_kg`
-
-Each category identifier determines its category name, waste type, and standard weight. Since the category name is unique and cannot be NULL, it also identifies a category.
+Each category ID determines one name, waste type, and standard weight. A unique category name can also identify the row.
 
 ### 2.2 PICKUP_REQUEST
 
-**Relation:**
+**Relation:** `pickup_request(request_id, account_id, category_id, acceptance_id, quantity, estimated_weight_kg, created_at, pickup_street, pickup_postal_code, notes, photo_url)`
 
-`pickup_request(request_id, account_id, category_id, acceptance_id, quantity, created_at, status, pickup_street, pickup_postal_code, notes, photo_url)`
+**Primary key:** `request_id`. **Candidate keys:** `request_id`, `acceptance_id` (assuming the team retains `UNIQUE NOT NULL` for the request-creation acceptance).
 
-**Primary Key:** `request_id`
+**Functional dependencies:**
 
-**Candidate Keys:** `request_id`, `acceptance_id`
+- `request_id → account_id, category_id, acceptance_id, quantity, estimated_weight_kg, created_at, pickup_street, pickup_postal_code, notes, photo_url`
+- `acceptance_id → request_id`
 
-**Functional Dependencies:**
+The recorded `estimated_weight_kg` is a historical value calculated at request creation or a permitted edit. It depends on the request's quantity and the **standard weight used at that time**, not necessarily the category's current standard weight. Thus, `category_id → estimated_weight_kg` does not hold, and a category-weight change does not overwrite earlier request weights (BR31).
 
-`request_id → account_id, category_id, acceptance_id, quantity, created_at, status, pickup_street, pickup_postal_code, notes, photo_url`
-
-`acceptance_id → request_id`
-
-Each request identifier determines the attributes of that pickup request.
-
-Since `acceptance_id` is defined as UNIQUE and NOT NULL in the logical model, it also uniquely identifies a pickup request.
+Current `status` is not stored in this relation; it comes from the latest `STATUS_CHANGE` row (BR47). `expires_at` is derived from `created_at + 30 days` (BR33).
 
 ### 2.3 PICKUP_WINDOW
 
-**Relation:**
+**Relation:** `pickup_window(window_id, request_id, pickup_date, slot, is_active)`
 
-`pickup_window(window_id, request_id, pickup_date, slot, is_active)`
+**Primary key:** `window_id`. **Candidate key:** `window_id`.
 
-**Primary Key:** `window_id`
+**Functional dependency:**
 
-**Candidate Key:** `window_id`
+- `window_id → request_id, pickup_date, slot, is_active`
 
-**Functional Dependency:**
-
-`window_id → request_id, pickup_date, slot, is_active`
-
-Each window identifier determines the associated pickup request, pickup date, time slot, and active status.
+The `slot` is an integer starting hour from 0 to 23. An active-date uniqueness constraint applies only to active rows, so (`request_id`, `pickup_date`) is **not** a candidate key for the entire table, which also retains inactive history.
 
 ## 3. First Normal Form (1NF)
 
-A relation satisfies 1NF when every attribute contains a single, atomic value and repeating groups are removed.
+A relation satisfies 1NF when attributes contain atomic values and repeating groups are removed.
 
 | Relation | Explanation |
 |---|---|
-| ITEM_CATEGORY | Each attribute contains a single value, such as one category name, waste type, or standard weight. |
-| PICKUP_REQUEST | Each request contains one category, quantity, and status. The composite pickup address is separated into `pickup_street` and `pickup_postal_code`. |
-| PICKUP_WINDOW | Each row represents one pickup window with one date and one time slot. Multiple pickup windows are stored as separate rows instead of repeating attributes in PICKUP_REQUEST. |
+| ITEM_CATEGORY | Each row stores one category name, one waste type, and one standard weight. |
+| PICKUP_REQUEST | Each request has atomic attributes. The pickup address is split into street and postal code. Current status is represented through a separate history relation. |
+| PICKUP_WINDOW | Each row stores one date, one starting hour, and one active flag. Multiple windows are stored as separate rows. |
 
 **Result:** All three relations satisfy 1NF.
 
 ## 4. Second Normal Form (2NF)
 
-A relation satisfies 2NF when it is in 1NF and every non-prime attribute is fully dependent on the entire candidate key. Partial dependencies must not exist.
+A relation satisfies 2NF when it satisfies 1NF and no non-prime attribute depends on only part of a candidate key.
 
 | Relation | Explanation |
 |---|---|
-| ITEM_CATEGORY | Both candidate keys, `category_id` and `name`, contain a single attribute. Therefore, no partial-key dependency exists. |
-| PICKUP_REQUEST | Both candidate keys, `request_id` and `acceptance_id`, contain a single attribute. Therefore, no partial-key dependency exists. |
-| PICKUP_WINDOW | The candidate key `window_id` contains a single attribute. Therefore, no partial-key dependency exists. |
+| ITEM_CATEGORY | Candidate keys `category_id` and `name` are each single attributes. |
+| PICKUP_REQUEST | Candidate keys `request_id` and `acceptance_id` are each single attributes. |
+| PICKUP_WINDOW | Candidate key `window_id` is a single attribute. |
 
-None of these relations has a composite candidate key, so partial-key dependencies do not occur.
+There are no composite candidate keys in these relations, so partial-key dependencies do not occur.
 
 **Result:** All three relations satisfy 2NF.
 
 ## 5. Third Normal Form (3NF)
 
-A relation satisfies 3NF when it is in 2NF and no non-prime attribute is transitively dependent on a candidate key through another non-prime attribute.
+A relation satisfies 3NF when it is in 2NF and does not contain a non-key attribute that determines another non-key attribute through a transitive dependency.
 
 ### 5.1 ITEM_CATEGORY
 
-The attributes `waste_type` and `standard_weight_kg` depend on the category identifier or unique category name.
-
-Both `category_id` and `name` are candidate keys. No non-key attribute determines another non-key attribute in the defined relation.
+`waste_type` and `standard_weight_kg` depend on the category ID or its unique name. There is no identified non-key-to-non-key dependency.
 
 **Result:** ITEM_CATEGORY satisfies 3NF.
 
 ### 5.2 PICKUP_REQUEST
 
-The attributes describing a pickup request depend on its request identifier.
+Resident details are held in the RESIDENT/ACCOUNT tables and category details are held in ITEM_CATEGORY. The request stores foreign keys instead of duplicating those details. The pickup address is a deliberate snapshot of the address at creation (BR34).
 
-Category details, including `name`, `waste_type`, and `standard_weight_kg`, are stored separately in ITEM_CATEGORY and referenced through `category_id`.
+The recorded estimated weight is also a deliberate historical snapshot (BR31). It cannot be reliably derived later from the **current** category standard weight, because that standard weight can change. Its storage does not create a transitive dependency among the attributes of this relation under the stated business rules.
 
-Resident information is referenced through `account_id` rather than duplicated in PICKUP_REQUEST.
+Status history is kept in STATUS_CHANGE, while expiry is derived from the original creation time. No other transitive dependency is identified among the stored attributes.
 
-The pickup address is stored as a request-specific snapshot because it must remain unchanged after the request is created.
-
-The derived attributes `estimated_weight_kg` and `expires_at` are calculated rather than stored as independent columns.
-
-Based on the defined functional dependencies, no non-prime attribute is transitively dependent on a candidate key.
-
-**Result:** PICKUP_REQUEST satisfies 3NF.
+**Result:** PICKUP_REQUEST satisfies 3NF under the stated dependencies.
 
 ### 5.3 PICKUP_WINDOW
 
-The attributes `request_id`, `pickup_date`, `slot`, and `is_active` depend on `window_id`.
-
-Pickup request details are stored separately in PICKUP_REQUEST and accessed through the `request_id` foreign key.
-
-No transitive dependencies are identified among the non-key attributes.
+The date, hourly slot, active flag, and parent request ID are determined by `window_id`. Request details remain in PICKUP_REQUEST. There is no identified non-key-to-non-key dependency.
 
 **Result:** PICKUP_WINDOW satisfies 3NF.
 
@@ -138,6 +106,6 @@ No transitive dependencies are identified among the non-key attributes.
 | PICKUP_REQUEST | Satisfied | Satisfied | Satisfied |
 | PICKUP_WINDOW | Satisfied | Satisfied | Satisfied |
 
-All three relations satisfy Third Normal Form (3NF) based on the functional dependencies and constraints defined in the logical database model.
+All three relations satisfy 3NF based on the functional dependencies and business rules described here. Storing a historical address and estimated weight is intentional: these values describe the request at the relevant time and should not be replaced when current profile or category values change.
 
-The design reduces unnecessary duplication by separating item categories, pickup requests, and pickup windows into individual relations connected through foreign keys. This helps maintain data consistency and prevents insertion, update, and deletion anomalies.
+**Integration note:** These normalization conclusions assume `name` and `acceptance_id` are enforced as unique non-null identifiers, and that each request's recorded estimated weight is a historical snapshot rather than a value always recomputed from the current category row.
