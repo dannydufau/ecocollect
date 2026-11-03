@@ -26,3 +26,4 @@ CREATE TABLE cleanup_record (
                     REFERENCES pickup_request (request_id) ON DELETE CASCADE,  -- owner's key: PK and FK
     cleaned_up_at   TIMESTAMPTZ NOT NULL DEFAULT now()                         -- when cleanup happened
 );
+ 
