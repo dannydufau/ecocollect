@@ -23,7 +23,7 @@ This logical model covers `ITEM_CATEGORY`, `PICKUP_REQUEST`, and `PICKUP_WINDOW`
 | `estimated_weight_kg` | NUMERIC(22,2) | NOT NULL |
 | `created_at` | TIMESTAMPTZ | NOT NULL |
 | `pickup_street` | VARCHAR(255) | NOT NULL |
-| `pickup_postal_code` | VARCHAR(6) | NOT NULL |
+| `pickup_postal_code` | VARCHAR(6) | NOT NULL, CHECK (LENGTH(pickup_postal_code) = 6) |
 | `notes` | TEXT | Optional |
 | `photo_url` | TEXT | Optional |
 
