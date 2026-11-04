@@ -5,7 +5,7 @@ SET
 CREATE TYPE account_role AS ENUM ('resident', 'volunteer');
 
 CREATE TABLE
-    account (username VARCHAR(50) PRIMARY KEY);
+    account (account_id VARCHAR(50) PRIMARY KEY);
 
 CREATE TABLE
     assignment (id INT PRIMARY KEY);
@@ -32,11 +32,11 @@ CREATE TABLE
     terms_acceptance (
         id INT PRIMARY KEY,
         terms_doc_id INT NOT NULL,
-        username VARCHAR(50) NOT NULL,
+        account_id VARCHAR(50) NOT NULL,
         accepted_at TIMESTAMPTZ NOT NULL,
         type terms_acceptance_type NOT NULL,
         FOREIGN KEY (terms_doc_id) REFERENCES terms_document (id),
-        FOREIGN KEY (username) REFERENCES account (username)
+        FOREIGN KEY (account_id) REFERENCES account (account_id)
     );
 
 CREATE TYPE ecopoints_formula AS ENUM (
@@ -48,12 +48,12 @@ CREATE TABLE
     ecopoints_award (
         id INT PRIMARY KEY,
         assignment_id INT NOT NULL,
-        username VARCHAR(50) NOT NULL,
+        account_id VARCHAR(50) NOT NULL,
         points INT NOT NULL,
         formula ecopoints_formula NOT NULL,
         role account_role NOT NULL,
         FOREIGN KEY (assignment_id) REFERENCES assignment (id),
-        FOREIGN KEY (username) REFERENCES account (username)
+        FOREIGN KEY (account_id) REFERENCES account (account_id)
     );
 
 CREATE TYPE notification_type AS ENUM (
@@ -81,14 +81,14 @@ CREATE TYPE notification_type AS ENUM (
 CREATE TABLE
     notification (
         id INT PRIMARY KEY,
-        username VARCHAR(50) NOT NULL,
+        account_id VARCHAR(50) NOT NULL,
         pickup_request_id UUID NOT NULL,
         ecopoints_award_id INT UNIQUE,
         type notification_type NOT NULL,
         created_at TIMESTAMPTZ NOT NULL,
         metadata JSONB,
         is_read BOOLEAN NOT NULL DEFAULT FALSE,
-        FOREIGN KEY (username) REFERENCES account (username),
+        FOREIGN KEY (account_id) REFERENCES account (account_id),
         FOREIGN KEY (pickup_request_id) REFERENCES pickup_request (id),
         FOREIGN KEY (ecopoints_award_id) REFERENCES ecopoints_award (id)
     );

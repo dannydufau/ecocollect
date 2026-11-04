@@ -3,7 +3,7 @@ SET
 
 -- Stubs seeding
 INSERT INTO
-    account (username)
+    account (account_id)
 VALUES
     ('resident1'),
     ('resident2'),
@@ -65,7 +65,7 @@ VALUES
     );
 
 INSERT INTO
-    terms_acceptance (id, terms_doc_id, username, accepted_at, type)
+    terms_acceptance (id, terms_doc_id, account_id, accepted_at, type)
 VALUES
     (
         4000,
@@ -107,7 +107,7 @@ INSERT INTO
     ecopoints_award (
         id,
         assignment_id,
-        username,
+        account_id,
         points,
         formula,
         role
@@ -157,7 +157,7 @@ VALUES
 INSERT INTO
     notification (
         id,
-        username,
+        account_id,
         pickup_request_id,
         ecopoints_award_id,
         type,
