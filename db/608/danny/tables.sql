@@ -1,29 +1,17 @@
 -- =========================================
--- PUSH_SUBSCRIPTION (Notification service)
--- One row per browser/device on which a user enabled push notifications.
+-- OUTBOX (messaging infrastructure; same as the app's public.outbox)
+-- Events written in the same transaction as the data change; a relay publishes them
+-- to RabbitMQ and sets published_at.
 -- =========================================
-CREATE TABLE push_subscription (
-    endpoint         VARCHAR(2048) PRIMARY KEY,          -- push service URL; unique per browser
-    account_uid      TEXT NOT NULL
-                     REFERENCES profiles (uid) ON DELETE CASCADE,   -- owning account (Firebase uid)
-    p256dh           VARCHAR(100) NOT NULL,              -- Keys (composite) flattened: browser public key
-    auth             VARCHAR(32)  NOT NULL,              -- Keys (composite) flattened: auth secret
-    expiration_time  TIMESTAMPTZ,                        -- set by the browser; often null
-    user_agent       VARCHAR(255),                       -- browser/device description
-    updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()  -- last time the subscription was saved
+DROP TABLE IF EXISTS outbox;
+CREATE TABLE outbox (
+    event_id       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_type     TEXT NOT NULL,                                     -- e.g. 'RequestExpired'
+    event_version  INTEGER NOT NULL DEFAULT 1 CHECK (event_version >= 1),
+    routing_key    TEXT NOT NULL,                                     -- e.g. 'request.expired'
+    aggregate_id   UUID NOT NULL,                                     -- id of the thing the event is about
+    payload        JSONB NOT NULL CHECK (jsonb_typeof(payload) = 'object'),
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    published_at   TIMESTAMPTZ                                        -- null until the relay publishes it
 );
-
--- Find all of a user's devices when sending a push.
-CREATE INDEX push_subscription_account_idx ON push_subscription (account_uid);
-
--- =========================================
--- CLEANUP_RECORD (Cleanup service)
--- Weak entity: at most one per pickup request, created when the request is cleaned up.
--- Request_Status and Expires_At are derived from pickup_request, so they are not stored.
--- =========================================
-CREATE TABLE cleanup_record (
-    request_id      UUID PRIMARY KEY
-                    REFERENCES pickup_request (request_id) ON DELETE CASCADE,  -- owner's key: PK and FK
-    cleaned_up_at   TIMESTAMPTZ NOT NULL DEFAULT now()                         -- when cleanup happened
-);
- 
+CREATE INDEX outbox_unpublished_idx ON outbox (created_at) WHERE published_at IS NULL;
