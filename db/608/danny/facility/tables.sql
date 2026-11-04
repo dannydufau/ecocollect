@@ -14,8 +14,7 @@ CREATE TABLE recycling_facility (
     facility_id           UUID PRIMARY KEY,
     name                  VARCHAR(100) NOT NULL,
     street                VARCHAR(100) NOT NULL,
-    postal_code           CHAR(6) NOT NULL
-        CHECK (postal_code ~ '^T[0-9][A-Z][0-9][A-Z][0-9]$'),   -- Calgary format, e.g. T2P1J9
+    postal_code           CHAR(6) NOT NULL,
     special_instructions  TEXT                                   -- may be empty
 );
 
