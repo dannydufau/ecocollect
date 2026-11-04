@@ -8,7 +8,7 @@ This logical model covers `ITEM_CATEGORY`, `PICKUP_REQUEST`, and `PICKUP_WINDOW`
 |---|---|---|
 | `category_id` | TEXT | Primary Key |
 | `name` | VARCHAR(120) | NOT NULL, UNIQUE |
-| `waste_type` | VARCHAR(120) | NOT NULL |
+| `waste_type` | VARCHAR(120) | NOT NULL; one supported waste type per category |
 | `standard_weight_kg` | NUMERIC(10,2) | NOT NULL, > 0 |
 
 ## 2. PICKUP_REQUEST
@@ -20,7 +20,7 @@ This logical model covers `ITEM_CATEGORY`, `PICKUP_REQUEST`, and `PICKUP_WINDOW`
 | `category_id` | TEXT | NOT NULL, FK → `ITEM_CATEGORY(category_id)` |
 | `acceptance_id` | Same as `TERMS_ACCEPTANCE.acceptance_id` | NOT NULL, UNIQUE, FK |
 | `quantity` | INTEGER | NOT NULL, > 0 |
-| `estimated_weight_kg` | NUMERIC(22,2) | NOT NULL |
+| `estimated_weight_kg` | NUMERIC(22,2) | NOT NULL, > 0 |
 | `created_at` | TIMESTAMPTZ | NOT NULL |
 | `pickup_street` | VARCHAR(255) | NOT NULL |
 | `pickup_postal_code` | VARCHAR(6) | NOT NULL, CHECK (LENGTH(pickup_postal_code) = 6) |
@@ -33,7 +33,7 @@ This logical model covers `ITEM_CATEGORY`, `PICKUP_REQUEST`, and `PICKUP_WINDOW`
 - `expires_at` = `created_at + 30 days`.
 - `safety_acknowledged` = valid request-creation `TERMS_ACCEPTANCE`.
 
-**Integrity rules:** `estimated_weight_kg` records `quantity × standard_weight_kg` at creation or edit; it is retained when the category's standard weight changes. The address is copied at creation and remains unchanged. Only Open requests may be edited. The acceptance must belong to the resident and have type `AT_RESIDENT_REQUEST_CREATION`.
+**Integrity rules:** `estimated_weight_kg` records `quantity × standard_weight_kg` at creation or edit and is retained when the category's standard weight changes. The Calgary pickup address is copied from the resident at creation and remains unchanged. Only Open requests may be edited. The acceptance must belong to the creating resident and have type `AT_RESIDENT_REQUEST_CREATION`. The first `STATUS_CHANGE` is Open; later changes are recorded in history. Only Open requests expire after 30 days from their original `created_at`.
 
 ## 3. PICKUP_WINDOW
 
@@ -42,10 +42,10 @@ This logical model covers `ITEM_CATEGORY`, `PICKUP_REQUEST`, and `PICKUP_WINDOW`
 | `window_id` | UUID | Primary Key |
 | `request_id` | UUID | NOT NULL, FK → `PICKUP_REQUEST(request_id)` |
 | `pickup_date` | DATE | NOT NULL |
-| `slot` | SMALLINT | NOT NULL, 0–23 |
+| `slot` | SMALLINT | NOT NULL, CHECK (slot BETWEEN 0 AND 23) |
 | `is_active` | BOOLEAN | NOT NULL |
 
-Each request has 1–3 active windows on distinct future dates before expiry. Replaced windows remain inactive. The combination (`request_id`, `pickup_date`) is unique among active windows.
+Each request has 1–3 active windows on distinct future dates before expiry. Replaced windows remain inactive as history. The combination (`request_id`, `pickup_date`) is unique among active windows.
 
 ## 4. Relationship Mapping
 
@@ -54,7 +54,7 @@ Each request has 1–3 active windows on distinct future dates before expiry. Re
 | RESIDENT creates PICKUP_REQUEST | 1 : 0..N | `PICKUP_REQUEST.account_id` FK |
 | ITEM_CATEGORY is for PICKUP_REQUEST | 1 : 0..N | `PICKUP_REQUEST.category_id` FK |
 | PICKUP_REQUEST offers PICKUP_WINDOW | 1 : 1..3 active | `PICKUP_WINDOW.request_id` FK |
-| PICKUP_REQUEST acknowledges TERMS_ACCEPTANCE | 1 : 1 | `PICKUP_REQUEST.acceptance_id` UNIQUE FK |
+| TERMS_ACCEPTANCE is used by PICKUP_REQUEST | 1 : 0..1 | `PICKUP_REQUEST.acceptance_id` NOT NULL, UNIQUE FK; each request has exactly one acceptance |
 | PICKUP_REQUEST has STATUS_CHANGE | 1 : 1..N | Status derived from latest history record |
 
 ## 5. Relational Schemas
