@@ -1,3 +1,5 @@
+SET search_path TO ecocollect608;
+
 -- Stub tables so FKs work
 
 CREATE TYPE account_role AS ENUM ('resident', 'volunteer'); 
@@ -67,7 +69,7 @@ CREATE TYPE notification_type AS ENUM (
 CREATE TABLE notification(
     id INT PRIMARY KEY,
     username VARCHAR(50) NOT NULL,
-    pickup_request_id UUID, -- can be null, if this notification is for an ecopoints_award
+    pickup_request_id UUID NOT NULL,
     type notification_type NOT NULL,
     created_at TIMESTAMPTZ NOT NULL,
     metadata JSONB NOT NULL,
