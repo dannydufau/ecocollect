@@ -1,8 +1,10 @@
-
+-- EcoCollect - Issue #71: PostgreSQL tables
+-- Run after the team's public.resident and public.terms_acceptance tables exist.
+-- These tables stay in a separate schema until team integration.
 
 BEGIN;
 
--- Stop before creating anything if a required parent is missing.
+-- Check required tables and ID types before creating anything.
 DO $preflight$
 DECLARE
     resident_id_type TEXT;
@@ -42,14 +44,12 @@ BEGIN
         RAISE EXCEPTION 'Missing terms_acceptance.acceptance_id';
     END IF;
 
-    -- The CREATE TABLE foreign keys will also verify that parent IDs
-    -- are primary keys or have suitable unique constraints.
 END;
 $preflight$;
 
 CREATE SCHEMA krunali_issue71;
 
--- 1. ITEM_CATEGORY
+-- Item categories and their standard weights.
 CREATE TABLE krunali_issue71.item_category (
     category_id         TEXT PRIMARY KEY,
     name                VARCHAR(120) NOT NULL UNIQUE,
@@ -58,8 +58,7 @@ CREATE TABLE krunali_issue71.item_category (
                         CHECK (standard_weight_kg > 0)
 );
 
--- 2. PICKUP_REQUEST
--- Match acceptance_id to the type used by the team's parent table.
+-- Use the same acceptance ID type as the team's table.
 DO $create_pickup_request$
 DECLARE
     acceptance_id_type TEXT;
@@ -94,7 +93,7 @@ BEGIN
 END;
 $create_pickup_request$;
 
--- 3. PICKUP_WINDOW
+-- Keep old pickup windows as inactive records.
 CREATE TABLE krunali_issue71.pickup_window (
     window_id    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     request_id   UUID NOT NULL
@@ -104,7 +103,6 @@ CREATE TABLE krunali_issue71.pickup_window (
     is_active    BOOLEAN NOT NULL DEFAULT TRUE
 );
 
--- An active request cannot offer the same date twice.
 CREATE UNIQUE INDEX pickup_window_active_date_uq
     ON krunali_issue71.pickup_window(request_id, pickup_date)
     WHERE is_active;
@@ -115,8 +113,7 @@ CREATE INDEX pickup_request_account_idx
 CREATE INDEX pickup_window_request_idx
     ON krunali_issue71.pickup_window(request_id);
 
--- Save a weight snapshot when a request is created or its category/quantity changes.
--- Later changes to item_category.standard_weight_kg do not rewrite old requests.
+-- Save the calculated weight when a request is created or its items change.
 CREATE FUNCTION krunali_issue71.calculate_request_weight()
 RETURNS TRIGGER LANGUAGE plpgsql AS $fn$
 DECLARE
@@ -158,7 +155,7 @@ CREATE TRIGGER pickup_request_weight_trg
 BEFORE INSERT OR UPDATE ON krunali_issue71.pickup_request
 FOR EACH ROW EXECUTE FUNCTION krunali_issue71.calculate_request_weight();
 
--- Validate dates and limit each request to at most three active windows.
+-- Check future dates and the maximum of three active windows.
 CREATE FUNCTION krunali_issue71.validate_pickup_window()
 RETURNS TRIGGER LANGUAGE plpgsql AS $fn$
 DECLARE
@@ -184,7 +181,6 @@ BEGIN
         END IF;
     END IF;
 
-    -- Lock the request to serialize concurrent changes to its windows.
     SELECT created_at INTO request_created
       FROM krunali_issue71.pickup_request
      WHERE request_id = NEW.request_id
@@ -225,8 +221,7 @@ CREATE TRIGGER pickup_window_validation_trg
 BEFORE INSERT OR UPDATE OR DELETE ON krunali_issue71.pickup_window
 FOR EACH ROW EXECUTE FUNCTION krunali_issue71.validate_pickup_window();
 
--- Check the minimum active-window count at transaction commit.
--- Create a request and its first window(s) in the same transaction.
+-- Check that each request has 1 to 3 active windows when the transaction ends.
 CREATE FUNCTION krunali_issue71.check_active_window_count()
 RETURNS TRIGGER LANGUAGE plpgsql AS $fn$
 DECLARE
@@ -269,10 +264,12 @@ AFTER INSERT OR UPDATE OR DELETE ON krunali_issue71.pickup_window
 DEFERRABLE INITIALLY DEFERRED
 FOR EACH ROW EXECUTE FUNCTION krunali_issue71.check_active_window_count();
 
--- Expiry is derived, not stored. Status is owned by the team's status_change table.
+-- Expiry is calculated from the original creation time.
 CREATE VIEW krunali_issue71.pickup_request_expiry AS
 SELECT request_id, created_at + INTERVAL '30 days' AS expires_at
 FROM krunali_issue71.pickup_request;
 
+-- Team integration: check acceptance ownership/type and Open-only edits
+-- using the team's terms_acceptance and status_change tables.
 COMMIT;
 
