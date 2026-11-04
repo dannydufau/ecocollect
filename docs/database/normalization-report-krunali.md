@@ -4,56 +4,44 @@ This report examines the `ITEM_CATEGORY`, `PICKUP_REQUEST`, and `PICKUP_WINDOW` 
 
 ## 1. Relational Tables and Sample Records
 
-The following illustrative records use our proposed seed IDs. Resident and terms-acceptance IDs are temporary until the team's parent records are available.
+The sample data below matches `db/seed/sample_records.sql`. The five resident and terms-acceptance ID pairs still require confirmation against the team's parent tables. `created_at` is set by PostgreSQL at insertion, and pickup dates are calculated from the current Calgary date.
 
 ### 1.1 ITEM_CATEGORY
 
 | category_id (PK) | name (UNIQUE) | waste_type | standard_weight_kg |
 |---|---|---|---:|
-| laptops | Computers/Laptops | Laptop | 2.50 |
-| batteries | Household Batteries | AA Battery | 0.30 |
-| monitors | Computer Monitors | Monitor | 4.50 |
-| phones | Mobile Phones | Cell Phone | 0.25 |
-| cables | Cables and Chargers | Cable | 0.10 |
+| laptops | Laptops | Laptop | 2.50 |
+| batteries | Batteries | AA Battery | 0.50 |
+| monitors | Monitors | Monitor | 4.00 |
+| phones | Phones | Cell Phone | 0.25 |
+| cables | Cables | Cable | 0.10 |
 
 ### 1.2 PICKUP_REQUEST
 
-The columns are displayed in two parts for readability; both parts represent the same five rows of one relation.
+| request_id (last 4 digits) | account_id (FK) | category_id (FK) | acceptance_id (FK, UNIQUE) | quantity | estimated_weight_kg | pickup_postal_code |
+|---|---|---|---:|---:|---:|---|
+| 0001 | resident1 | laptops | 4000 | 2 | 5.00 | T2P1J9 |
+| 0002 | resident2 | batteries | 4001 | 3 | 1.50 | T2A0A1 |
+| 0003 | resident3 | monitors | 4002 | 1 | 4.00 | T3A0A1 |
+| 0004 | resident4 | phones | 4003 | 2 | 0.50 | T2N1N4 |
+| 0005 | both1 | cables | 4004 | 5 | 0.50 | T2E0A1 |
 
-**Part A – Request details**
-
-| request_id (PK) | account_id (FK) | category_id (FK) | acceptance_id (FK, UNIQUE) | quantity | estimated_weight_kg | created_at |
-|---|---|---|---|---:|---:|---|
-| 10000000-0000-4000-8000-000000000001 | resident_test_01 | laptops | 00000000-0000-4000-8000-000000000101 | 2 | 5.00 | 2026-11-03 10:00-07 |
-| 10000000-0000-4000-8000-000000000002 | resident_test_02 | batteries | 00000000-0000-4000-8000-000000000102 | 4 | 1.20 | 2026-11-03 10:15-07 |
-| 10000000-0000-4000-8000-000000000003 | resident_test_03 | monitors | 00000000-0000-4000-8000-000000000103 | 1 | 4.50 | 2026-11-03 10:30-07 |
-| 10000000-0000-4000-8000-000000000004 | resident_test_04 | phones | 00000000-0000-4000-8000-000000000104 | 3 | 0.75 | 2026-11-03 10:45-07 |
-| 10000000-0000-4000-8000-000000000005 | resident_test_05 | cables | 00000000-0000-4000-8000-000000000105 | 5 | 0.50 | 2026-11-03 11:00-07 |
-
-**Part B – Pickup address and optional details**
-
-| request_id (PK, same record) | pickup_street | pickup_postal_code | notes | photo_url |
-|---|---|---|---|---|
-| 10000000-0000-4000-8000-000000000001 | 101 Centre Street | T2P1J9 | Front door pickup | NULL |
-| 10000000-0000-4000-8000-000000000002 | 202 8 Avenue SW | T2P1B3 | Small box | NULL |
-| 10000000-0000-4000-8000-000000000003 | 303 10 Street NW | T2N1V5 | NULL | NULL |
-| 10000000-0000-4000-8000-000000000004 | 404 17 Avenue SW | T2S0A1 | Call on arrival | NULL |
-| 10000000-0000-4000-8000-000000000005 | 505 4 Street NE | T2E3S1 | Porch pickup | NULL |
-
-The current request status is obtained from the latest `STATUS_CHANGE` record. `expires_at` is calculated as `created_at + 30 days`. These derived values are not independent columns in this relation.
+All five request IDs have the full form `10000000-0000-4000-8000-00000000000N`, with N from 1 to 5. Their pickup streets, notes, and optional photo URLs are defined in the seed script. Current status comes from the latest `STATUS_CHANGE` record. `expires_at` is calculated as `created_at + 30 days`.
 
 ### 1.3 PICKUP_WINDOW
 
-| window_id (PK) | request_id (FK) | pickup_date | slot (hour 0–23) | is_active |
-|---|---|---|---:|---|
-| 20000000-0000-4000-8000-000000000001 | 10000000-0000-4000-8000-000000000001 | 2026-11-10 | 9 | TRUE |
-| 20000000-0000-4000-8000-000000000002 | 10000000-0000-4000-8000-000000000001 | 2026-11-11 | 14 | TRUE |
-| 20000000-0000-4000-8000-000000000003 | 10000000-0000-4000-8000-000000000001 | 2026-11-12 | 18 | TRUE |
-| 20000000-0000-4000-8000-000000000004 | 10000000-0000-4000-8000-000000000002 | 2026-11-13 | 10 | TRUE |
-| 20000000-0000-4000-8000-000000000005 | 10000000-0000-4000-8000-000000000002 | 2026-11-14 | 15 | TRUE |
-| 20000000-0000-4000-8000-000000000006 | 10000000-0000-4000-8000-000000000003 | 2026-11-15 | 11 | TRUE |
-| 20000000-0000-4000-8000-000000000007 | 10000000-0000-4000-8000-000000000004 | 2026-11-16 | 16 | TRUE |
-| 20000000-0000-4000-8000-000000000008 | 10000000-0000-4000-8000-000000000005 | 2026-11-17 | 13 | TRUE |
+| window_id (last 4 digits) | request_id (last 4 digits) | pickup_date (Calgary date + days) | slot | is_active |
+|---|---|---:|---:|---|
+| 0001 | 0001 | +3 | 9 | TRUE |
+| 0002 | 0001 | +5 | 14 | TRUE |
+| 0003 | 0002 | +4 | 10 | TRUE |
+| 0004 | 0002 | +6 | 15 | TRUE |
+| 0005 | 0003 | +5 | 11 | TRUE |
+| 0006 | 0003 | +7 | 13 | TRUE |
+| 0007 | 0004 | +8 | 10 | TRUE |
+| 0008 | 0005 | +9 | 16 | TRUE |
+
+The full window IDs are `20000000-0000-4000-8000-000000000001` through `20000000-0000-4000-8000-000000000008`. The eight windows belong to five requests, with 1–2 active windows per request.
 
 ## 2. Functional Dependencies
 
