@@ -4,7 +4,7 @@ This report examines the `ITEM_CATEGORY`, `PICKUP_REQUEST`, and `PICKUP_WINDOW` 
 
 ## 1. Relational Tables and Sample Records
 
-The following records illustrate the final logical structure. The IDs for these three relations follow our proposed shared seed-ID list. Resident and terms-acceptance references are temporary test IDs until the team provides its shared parent records. These examples have not been executed against PostgreSQL.
+The following illustrative records use our proposed seed IDs. Resident and terms-acceptance IDs are temporary until the team's parent records are available.
 
 ### 1.1 ITEM_CATEGORY
 
