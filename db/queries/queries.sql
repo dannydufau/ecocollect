@@ -1,5 +1,5 @@
 
--- Step 7: SQL Queries and Execution Evidence
+-- Step 7: SQL queries (execution evidence recorded separately)
 -- ENSF 608 - EcoCollect
 -- Tables: item_category, pickup_request, pickup_window
 --
@@ -70,7 +70,7 @@ ORDER BY
 
 
 -- Verification 1: Count item categories.
--- Expected count: 5
+-- Expected count after a successful fresh Step 6 seed: 5
 
 SELECT
     COUNT(*) AS total_categories
@@ -78,7 +78,7 @@ FROM krunali_issue71.item_category;
 
 
 -- Verification 2: Count pickup requests.
--- Expected count: 5
+-- Expected count after a successful fresh Step 6 seed: 5
 
 SELECT
     COUNT(*) AS total_requests
@@ -86,7 +86,7 @@ FROM krunali_issue71.pickup_request;
 
 
 -- Verification 3: Count pickup windows.
--- Expected count: 8
+-- Expected count after a successful fresh Step 6 seed: 8
 
 SELECT
     COUNT(*) AS total_windows
