@@ -95,7 +95,7 @@ DECLARE
 BEGIN
     INSERT INTO krunali_issue71.item_category
         (category_id, name, waste_type, standard_weight_kg)
-    VALUES (v_category, 'Step 5 Test Category 71', 'E-waste', 2.50);
+    VALUES (v_category, 'Step 5 Test Category 71', 'Laptop', 2.50);
     INSERT INTO step5_results VALUES ('C01 valid category', 'PASS', 'Insert accepted');
 
     PERFORM pg_temp.expect_error('C02 duplicate category ID',
@@ -138,7 +138,7 @@ BEGIN
 
     PERFORM pg_temp.expect_error('R02 missing category FK',
         pg_temp.request_insert(gen_random_uuid(), a1,
-            'missing_category_step5_71', t1, 2), '23503');
+            'missing_category_step5_71', t1, 2), 'P0001');
 
     PERFORM pg_temp.expect_error('R03 zero quantity',
         pg_temp.request_insert(gen_random_uuid(), a1,
@@ -250,7 +250,7 @@ BEGIN
         format('INSERT INTO krunali_issue71.pickup_window
                 (request_id, pickup_date, slot)
                 VALUES (%L, %L, 10)',
-                'ffffffff-ffff-4fff-8fff-ffffffffffff', test_date + 1), '23503');
+                'ffffffff-ffff-4fff-8fff-ffffffffffff', test_date + 1), 'P0001');
 
     PERFORM pg_temp.expect_error('W04 slot below 0',
         format('INSERT INTO krunali_issue71.pickup_window
