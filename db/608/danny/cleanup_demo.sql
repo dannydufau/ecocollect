@@ -59,4 +59,4 @@ FROM cleanup_record c;
 
 SELECT event_type, routing_key, aggregate_id FROM outbox WHERE event_type = 'RequestExpired';
 
-ROLLBACK;;
+ROLLBACK;
