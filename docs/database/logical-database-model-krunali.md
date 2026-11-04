@@ -8,7 +8,7 @@ This logical model covers `ITEM_CATEGORY`, `PICKUP_REQUEST`, and `PICKUP_WINDOW`
 |---|---|---|
 | `category_id` | TEXT | Primary Key |
 | `name` | VARCHAR(120) | NOT NULL, UNIQUE |
-| `waste_type` | VARCHAR(120) | NOT NULL; one supported waste type per category |
+| `waste_type` | VARCHAR(120) | NOT NULL; one supported waste type per category (approved value list to be confirmed by the team) |
 | `standard_weight_kg` | NUMERIC(10,2) | NOT NULL, > 0 |
 
 ## 2. PICKUP_REQUEST
@@ -23,7 +23,7 @@ This logical model covers `ITEM_CATEGORY`, `PICKUP_REQUEST`, and `PICKUP_WINDOW`
 | `estimated_weight_kg` | NUMERIC(22,2) | NOT NULL, > 0 |
 | `created_at` | TIMESTAMPTZ | NOT NULL |
 | `pickup_street` | VARCHAR(255) | NOT NULL |
-| `pickup_postal_code` | VARCHAR(6) | NOT NULL, CHECK (LENGTH(pickup_postal_code) = 6) |
+| `pickup_postal_code` | VARCHAR(6) | NOT NULL, CHECK (Calgary-style six-character code: `T#L#L#` where `#` is a digit and `L` is a letter) |
 | `notes` | TEXT | Optional |
 | `photo_url` | TEXT | Optional |
 
@@ -64,3 +64,6 @@ Each request has 1–3 active windows on distinct future dates before expiry. Re
 `PICKUP_REQUEST(request_id PK, account_id FK, category_id FK, acceptance_id FK UNIQUE, quantity, estimated_weight_kg, created_at, pickup_street, pickup_postal_code, notes, photo_url)`
 
 `PICKUP_WINDOW(window_id PK, request_id FK, pickup_date, slot, is_active)`
+
+
+**Verification:** The PKs, FKs, and domains above describe the final intended mapping. The three tables are implemented in `db/migrations/04_krunali_tables.sql`; execution against the integrated parent tables and final status-history schema is pending team integration.
