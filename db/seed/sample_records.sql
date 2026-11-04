@@ -12,17 +12,61 @@
 
 BEGIN;
 
+-- Confirm the team's parent records before inserting sample data.
+DO $preflight$
+DECLARE
+    parent_id_type TEXT;
+    missing_count INTEGER;
+BEGIN
+    IF to_regclass('public.resident') IS NULL
+       OR to_regclass('public.terms_acceptance') IS NULL
+       OR to_regclass('krunali_issue71.pickup_request') IS NULL THEN
+        RAISE EXCEPTION 'Parent tables or Step 4 tables are missing';
+    END IF;
+
+    SELECT COUNT(*) INTO missing_count
+    FROM (VALUES ('resident1'), ('resident2'), ('resident3'), ('resident4'), ('both1')) AS ids(account_id)
+    WHERE NOT EXISTS (
+        SELECT 1 FROM public.resident r WHERE r.account_id = ids.account_id
+    );
+    IF missing_count > 0 THEN
+        RAISE EXCEPTION '% proposed resident IDs are missing; confirm IDs with teammate before seeding', missing_count;
+    END IF;
+
+    SELECT format_type(a.atttypid, a.atttypmod) INTO parent_id_type
+    FROM pg_attribute a
+    WHERE a.attrelid = 'public.terms_acceptance'::regclass
+      AND a.attname = 'acceptance_id' AND a.attnum > 0 AND NOT a.attisdropped;
+    IF parent_id_type IS NULL THEN
+        RAISE EXCEPTION 'Cannot find public.terms_acceptance.acceptance_id';
+    END IF;
+
+    IF parent_id_type NOT IN ('integer', 'bigint', 'smallint', 'numeric') THEN
+        RAISE EXCEPTION 'Proposed numeric acceptance IDs (4000-4004) do not match parent key type %; confirm IDs with teammate', parent_id_type;
+    END IF;
+
+    EXECUTE format(
+        'SELECT COUNT(*) FROM (VALUES (4000), (4001), (4002), (4003), (4004)) AS ids(id)'
+        || ' WHERE NOT EXISTS (SELECT 1 FROM public.terms_acceptance t WHERE t.acceptance_id = ids.id::%s)',
+        parent_id_type
+    ) INTO missing_count;
+    IF missing_count > 0 THEN
+        RAISE EXCEPTION '% proposed acceptance IDs are missing; confirm IDs with teammate before seeding', missing_count;
+    END IF;
+END;
+$preflight$;
+
 -- 6.1 ITEM_CATEGORY
 -- Five sample item categories.
 
 INSERT INTO krunali_issue71.item_category
     (category_id, name, waste_type, standard_weight_kg)
 VALUES
-    ('laptops', 'Laptops', 'E-waste', 2.50),
-    ('batteries', 'Batteries', 'E-waste', 0.50),
-    ('monitors', 'Monitors', 'E-waste', 4.00),
-    ('phones', 'Phones', 'E-waste', 0.25),
-    ('cables', 'Cables', 'E-waste', 0.10);
+    ('laptops', 'Laptops', 'Laptop', 2.50),
+    ('batteries', 'Batteries', 'AA Battery', 0.50),
+    ('monitors', 'Monitors', 'Monitor', 4.00),
+    ('phones', 'Phones', 'Cell Phone', 0.25),
+    ('cables', 'Cables', 'Cable', 0.10);
 
 
 -- 6.2 PICKUP_REQUEST
