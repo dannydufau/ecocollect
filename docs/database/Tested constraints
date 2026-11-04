@@ -1,0 +1,67 @@
+# Step 5 — Tested Constraints
+
+**Project:** EcoCollect (ENSF 608)  
+**Assigned tables:** `item_category`, `pickup_request`, `pickup_window`  
+**SQL test file:** `05_constraint_tests.sql`
+
+## 1. Purpose
+
+We prepared SQL tests to check whether our tables accept valid records and reject records that break the database constraints. The tests cover our three assigned tables. We used PostgreSQL 18 and lowercase `snake_case` names, consistent with the team's agreement.
+
+## 2. Tests completed locally
+
+The following tests were run in pgAdmin against **`ecocollect_ensf608.public.item_category`**. These are actual observed results, not estimated results.
+
+| Test | What we checked | Actual result | Status |
+|---|---|---|---|
+| C01 | Insert a valid category | Insert succeeded; transaction rolled back | PASS |
+| C02 | Use an existing `category_id` | Rejected: `23505`, `item_category_pkey` | PASS |
+| C03 | Use an existing category `name` | Rejected: `23505`, `item_category_name_key` | PASS |
+| C04 | Insert `NULL` for `name` | Rejected: `23502` | PASS |
+| C05 | Set `standard_weight_kg` to `0.00` | Rejected: `23514`, `item_category_standard_weight_kg_check` | PASS |
+
+**Note:** Our Step 4 integration script creates tables under `krunali_issue71`, not `public`. The five tests above verify the earlier local `public.item_category` table. The team must rerun the supplied SQL test file against the final Step 4 schema after integration.
+
+## 3. Tests prepared for integration
+
+The SQL file contains the following additional checks. They are **not marked PASS** because the parent tables and integrated schema have not been made available for testing.
+
+### `pickup_request`
+
+| Test IDs | Constraint or rule | Status |
+|---|---|---|
+| R01–R02 | Foreign keys to `resident` and `item_category` | Pending |
+| R03–R06 | Positive quantity, required pickup street, Calgary postal code, required terms acceptance | Pending |
+| R07–R08 | Valid inserts and calculated estimated weight | Pending |
+| R09–R10 | Duplicate request ID and reused acceptance ID | Pending |
+| R11–R12 | Prevent changes to pickup address and direct changes to estimated weight | Pending |
+| R13 | Expiry calculated as 30 days after creation | Pending |
+| R14–R15 | Recalculate weight when quantity changes; preserve saved weight after category weight changes | Pending |
+
+### `pickup_window`
+
+| Test IDs | Constraint or rule | Status |
+|---|---|---|
+| W01–W03 | Valid inserts, duplicate window ID, foreign key to request | Pending |
+| W04–W05 | Slot must be between 0 and 23 | Pending |
+| W06 | No duplicate active pickup date for the same request | Pending |
+| W07–W08 | Future pickup dates and 30-day expiry limit | Pending |
+| W09 | Maximum of three active windows | Pending |
+| W10 | Prevent deletion of pickup-window history | Pending |
+| W11–W12 | At least one and at most three active windows | Pending |
+| W13–W14 | Required pickup date and slot | Pending |
+
+## 4. How the integration tester will run the tests
+
+1. Create the team's `public.resident` and `public.terms_acceptance` tables and add suitable test records.
+2. Execute the approved Step 4 script to create the `krunali_issue71` tables.
+3. In `05_constraint_tests.sql`, replace the **two resident/terms-acceptance ID pairs** with valid, unused records. Each acceptance must belong to its matching resident.
+4. Run the test script in a dedicated test database, not the live project database.
+5. Review the `step5_results` output and the PostgreSQL Messages tab. Record any failures and fix the underlying issue before marking the test PASS.
+6. Keep the final `ROLLBACK;` so the test records are not saved. If an unexpected error stops the script, run `ROLLBACK;` manually.
+
+The script tests the three tables in the **`krunali_issue71`** schema. It does not create or change the team's parent tables. The exact foreign-key relationships and any team-wide ownership/status checks must be confirmed during integration.
+
+## 5. Current status
+
+Five local `item_category` checks passed. All three tables have a prepared test plan and SQL queries, but **full Step 5 testing is pending integration**. The teammate merging the database will run the remaining tests and attach the actual output or screenshots before final submission.
