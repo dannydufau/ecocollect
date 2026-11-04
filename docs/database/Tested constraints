@@ -2,7 +2,7 @@
 
 **Project:** EcoCollect (ENSF 608)  
 **Assigned tables:** `item_category`, `pickup_request`, `pickup_window`  
-**SQL test file:** `05_constraint_tests.sql`
+**SQL test file:** `db/tests/tests.sql`
 
 ## 1. Purpose
 
@@ -30,7 +30,7 @@ The SQL file contains the following additional checks. They are **not marked PAS
 
 | Test IDs | Constraint or rule | Status |
 |---|---|---|
-| R01–R02 | Foreign keys to `resident` and `item_category` | Pending |
+| R01–R02 | Missing resident FK and unknown category rejection (trigger) | Pending |
 | R03–R06 | Positive quantity, required pickup street, Calgary postal code, required terms acceptance | Pending |
 | R07–R08 | Valid inserts and calculated estimated weight | Pending |
 | R09–R10 | Duplicate request ID and reused acceptance ID | Pending |
@@ -42,7 +42,7 @@ The SQL file contains the following additional checks. They are **not marked PAS
 
 | Test IDs | Constraint or rule | Status |
 |---|---|---|
-| W01–W03 | Valid inserts, duplicate window ID, foreign key to request | Pending |
+| W01–W03 | Valid inserts, duplicate window ID, unknown request rejection (trigger) | Pending |
 | W04–W05 | Slot must be between 0 and 23 | Pending |
 | W06 | No duplicate active pickup date for the same request | Pending |
 | W07–W08 | Future pickup dates and 30-day expiry limit | Pending |
@@ -54,8 +54,8 @@ The SQL file contains the following additional checks. They are **not marked PAS
 ## 4. How the integration tester will run the tests
 
 1. Create the team's `public.resident` and `public.terms_acceptance` tables and add suitable test records.
-2. Execute the approved Step 4 script to create the `krunali_issue71` tables.
-3. In `05_constraint_tests.sql`, replace the **two resident/terms-acceptance ID pairs** with valid, unused records. Each acceptance must belong to its matching resident.
+2. Run `db/migrations/04_krunali_tables.sql` manually after confirming the parent tables.
+3. In `db/tests/tests.sql`, replace the **two resident/terms-acceptance ID pairs** with valid, unused records. Each acceptance must belong to its matching resident.
 4. Run the test script in a dedicated test database, not the live project database.
 5. Review the `step5_results` output and the PostgreSQL Messages tab. Record any failures and fix the underlying issue before marking the test PASS.
 6. Keep the final `ROLLBACK;` so the test records are not saved. If an unexpected error stops the script, run `ROLLBACK;` manually.
@@ -64,4 +64,4 @@ The script tests the three tables in the **`krunali_issue71`** schema. It does n
 
 ## 5. Current status
 
-Five local `item_category` checks passed. All three tables have a prepared test plan and SQL queries, but **full Step 5 testing is pending integration**. The teammate merging the database will run the remaining tests and attach the actual output or screenshots before final submission.
+Five local `public.item_category` checks passed. All three tables have a prepared test plan and SQL queries, but **full Step 5 testing is pending integration**. The teammate merging the database will run the remaining tests and attach the actual output or screenshots before final submission.
