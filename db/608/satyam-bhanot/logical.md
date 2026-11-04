@@ -36,4 +36,4 @@ The key is (`account_id`, `postal_code`), so the same code cannot be saved twice
 
 ### FOR THE OTHER TABLES
 
-Anything that points at a person should reference `account(account_id)` (TEXT). A table that only makes sense for one role can point at `resident(account_id)` or `volunteer(account_id)` instead, for example `pickup_request`.
+Anything that points at a person should reference `account(account_id)` (VARCHAR(50)). A table that only makes sense for one role can point at `resident(account_id)` or `volunteer(account_id)` instead, for example `pickup_request`.
