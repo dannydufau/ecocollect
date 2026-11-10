@@ -33,7 +33,7 @@ The system shall accept the optional photographs in JPEG, PNG, and WEBP formats,
 
 #### FR07 — Pickup Scheduling
 
-While creating a pickup request, the system shall allow Residents to provide 1 to 3 future time windows before the request’s expiration deadline. The system shall select the pickup address from the Resident’s profile.
+When creating a pickup request, the system shall allow the Resident to specify one to three non-overlapping pickup windows in Calgary local time. Each window shall last one hour, start after the request is created, and end no later than 30 days after request creation. The system shall use the address in the Resident’s profile as the pickup address.
 
 #### FR08 — Review and Confirm Pickup Requests
 
