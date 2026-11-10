@@ -6,7 +6,7 @@ The system shall allow individuals aged 18 or older to register as a Resident or
 
 #### FR02 — User Login, Logout, and Role Selection
 
-The system shall authenticate registered users using their email address and password and display Resident and Volunteer role choices after every successful login.
+The system shall authenticate registered users using their email address and password and display Resident and Volunteer role choices after every successful login. The system shall also provide a logout function that terminates the user's authenticated session.
 
 #### FR03 — Additional Role Activation
 
