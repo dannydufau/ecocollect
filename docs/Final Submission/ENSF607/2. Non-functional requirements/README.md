@@ -8,7 +8,9 @@ The system shall provide a consistent and understandable user interface that all
 
 #### NFR03 — Privacy
 
-The system shall protect private user information, exact pickup addresses, and delivery evidence by restricting access to authorized participants and excluding sensitive information from public interfaces, event messages, and user-submitted content such as photos of the requested items and delivery confirmation. 
+The system shall protect private user information, exact pickup addresses, and delivery evidence by restricting access to authorized participants. Exact pickup addresses shall be visible only to the request owner and the Volunteer with the active assignment. Item photographs shall be visible to the request owner and all Volunteers, while delivery evidence shall be visible only to the request owner and the delivering Volunteer.
+
+The system shall remove location metadata from uploaded photographs and prevent sensitive information, including exact street addresses and photograph links, from being exposed through public interfaces, event messages, and notifications.
 
 #### NFR04 — Security
 
