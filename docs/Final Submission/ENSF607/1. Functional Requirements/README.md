@@ -48,11 +48,13 @@ The system shall allow Residents to view their own pickup requests, filter them 
 The system shall allow Residents to edit pickup requests they own while those requests remain Open, including requests reopened after an assignment cancellation.  
 When a Resident changes the item category or quantity of an Open request, the system shall automatically recalculate its estimated total weight using the category's predefined standard weight.  
 A Resident cannot change the address of their pickup requests directly because the address is linked to their profile. To change the address, they must cancel any existing uncollected pickup requests they own, update their profile address and create new pickup requests.
+The system shall allow Residents to replace the active pickup windows of an Open request with valid new windows as per FR06. The request's expiration deadline shall be recalculated based on the updated windows and the original creation date as per FR20.
 
 #### FR11 — Cancel Pickup Requests
 
-The system shall allow Residents to cancel requests they own while the request status is Open or Assigned. If the Resident cancels a pickup request after it is assigned to a Volunteer and the cancellation is outside the cancellation window, the system revokes the assignment and awards the Volunteer EcoPoints.   
-The system shall also allow Residents to cancel their pickup request’s assignment before collection is confirmed. The same cancellation award applies as mentioned before.
+The system shall allow Residents to cancel their own Open or Assigned pickup requests. Cancelling an Open request shall change its status to Cancelled. Cancelling an Assigned request shall revoke the active Volunteer assignment and change the request’s status to Cancelled.
+The system shall also allow Residents to cancel an active Volunteer assignment before collection is confirmed, without cancelling the pickup request. After the assignment is cancelled, the request shall return to Open if valid future pickup windows remain. Otherwise, it shall become Expired.
+To recognize the Volunteer’s preparation, the cancellation window is the period ending 24 hours before the selected pickup window starts. If either Resident cancellation action ends an active assignment during this window, no cancellation EcoPoints shall be awarded. If the assignment is cancelled after the window ends but before the pickup window starts, the Volunteer shall receive cancellation EcoPoints in accordance with FR18.
 
 ### Volunteer Pickup Management
 
