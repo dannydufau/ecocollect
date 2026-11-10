@@ -29,6 +29,7 @@ The system shall provide publicly accessible user profiles displaying a user’s
 The system shall allow Residents to create pickup requests by selecting one or more predefined electronic waste categories, specifying a quantity for each selected category, and optionally uploading a photograph for each selected category. Photos are visible to the request owner and to Volunteers. Location data is removed from photos before upload.  
 The system shall automatically calculate the estimated total weight for each category by multiplying the category's predefined standard weight by the entered quantity. Residents shall not be allowed to enter or manually modify the calculated weight.  
 Each selected category shall generate a separate pickup request using the common pickup information provided during submission.
+The system shall accept the optional photographs in JPEG, PNG, and WEBP formats, with a maximum file size of 10 MB per photograph.
 
 #### FR07 — Pickup Scheduling
 
