@@ -13,7 +13,8 @@ What goes in and out of every component. No SQL schema: tables are named only to
   - Windows are turned into UTC instants only in the Request Service (in code, or in SQL with `AT TIME ZONE 'America/Edmonton'`). The frontend shows windows as stored (date + hour) and never converts them.
   - The frontend formats real timestamps with `timeZone: 'America/Edmonton'` explicitly, not the device's zone.
   - "Today" and "in the future" are decided in Calgary time. Containers run in UTC, so after 18:00 in Calgary the UTC date is already tomorrow.
-  - Window instants and `expiresAt` are derived when needed, never stored. The only stored copy is the Cleanup Service's job time, which every `RequestUpdated` refreshes.
+  - Window instants and `expiresAt` are derived when needed, never stored. The only stored copy is the Cleanup Service's job time, set from every `RequestCreated` and `RequestUpdated`.
+  - Every "now" in a decision (due jobs, expiry, "in the future", "window ended", the available list) is Postgres `now()` from the same transaction, never the container clock. All services use one Postgres, so they agree on the time. `now()` is the transaction's start time, so a wait on a row lock can only make expiry slightly late, and the next refire covers that.
   - Keep time zone data current: recent Node, Postgres and browser versions. Keep one test per side with known dates before and after March 2026.
 - Decimals (`estimatedWeightKg`, `points`) are JSON numbers with at most 2 decimals. `node-postgres` returns `numeric` as a string: convert it before sending, and do points arithmetic in hundredths (integers) to avoid float errors.
 - `accountId` is the username, also the Firebase uid: 3–50 characters, `a-z 0-9 _ -`, stored lowercase, never changes.
@@ -320,7 +321,7 @@ Assignment snapshot (as `data.assignment` where noted): `assignmentId, volunteer
 | E10 | `RequestExpired` | `request.expired` | Request: `CleanupRequest` confirmed, or an assignment cancellation (Q12) after `expiresAt` | `reason: "deadline"\|"no_future_windows"` | Notification, Cleanup |
 | E11 | `PointsAwardedDelivery` | `reward.points.delivery` | Reward: after E5 | `requestId, assignmentId, categoryName, quantity, estimatedWeightKg, awards: [{ awardId, accountId, earnedAs, points, formula }]` (2 awards) | Notification |
 | E12 | `PointsAwardedCancellation` | `reward.points.cancellation` | Reward: after E6 with `outsideCancellationWindow: true` | Same shape, 1 award (volunteer) | Notification |
-| E13 | `CleanupRequest` | `cleanup.request.due` | Cleanup: a job's time has come | `requestId, requestSeq, expiresAt` | Request |
+| E13 | `CleanupRequest` | `cleanup.request.due` | Cleanup: a pending job is due (at `expiresAt`, then every 5 min until E3, E9 or E10 ends it) | `requestId, requestSeq, expiresAt` | Request |
 | E14 | `NotificationCleanupRequested` | `cleanup.notifications.due` | Cleanup: daily at 03:00 Calgary | `requestedAt` | Notification |
 | E15 | `ProfileUpdated` | `user.profile.updated` | User: U7, U8 | `accountId, changed: ["publicName","address","preferredPostalCodes","roles"], publicName, roles` (never the address itself) | Notification |
 | E16 | `AccountDeactivated` | `user.account.deactivated` | User: U9 | `accountId, deactivatedAt` | Notification |
@@ -408,8 +409,8 @@ An event says what was true when it happened, not what is true now. It can be ol
 | Consumer | Risk | Handling |
 |---|---|---|
 | Reward | Points computed from changed data | Inputs are facts frozen at the moment (quantity and weight come from the event, as they were at that moment; `outsideCancellationWindow` is decided by the Request Service at cancel time). At most one award per assignment per role makes retries harmless (NFR06) |
-| Cleanup | An old `RequestUpdated` arrives after `RequestAssigned` and re-creates a job | Each job stores the `requestSeq` it came from. Upsert only if the incoming `requestSeq` is higher. Non-Open events leave a "no job" marker with their `requestSeq` instead of deleting the row, so an older event cannot bring the job back |
-| Request (`CleanupRequest`) | The job fires after the request changed | Lock the request row and re-check: still Open and `now ≥ expiresAt` (current value) → mark Expired and publish E10. Otherwise ack and do nothing. `data.requestSeq` and `expiresAt` are for logs only |
+| Cleanup | An old `RequestUpdated` arrives after `RequestAssigned` and re-creates a job | Each job stores the `requestSeq` it came from. Upsert only if the incoming `requestSeq` is higher. Non-Open events leave a "no job" marker with their `requestSeq` instead of deleting the row, so an older event cannot bring the job back. A job ends only on a non-Open event, never by firing |
+| Request (`CleanupRequest`) | The job fires after the request changed | Lock the request row and re-check: still Open and `now() ≥ expiresAt` (database clock, current value) → mark Expired and publish E10. Otherwise ack and do nothing. `data.requestSeq` and `expiresAt` are for logs only |
 | Notification | An old event pushes a misleading alert, or expires newer notifications | Keeps the highest `requestSeq` per request. An event with a lower `requestSeq` is stored as already expired: no SSE `notification`, no push. Expiry rules (13.2) only expire notifications with a lower `requestSeq`. Recipients whose account has `Deactivated_At` set are skipped |
 | Notification (matching) | `matchedVolunteerUids` is a snapshot | Accepted. A volunteer who changed preferences seconds earlier might get one notification more or less |
 | Frontend | Old data on screen | SSE and push are only signals. Data always comes fresh from REST (unchanged from Oct 28). After an `EventSource` reconnect, refetch everything on screen |
@@ -430,7 +431,7 @@ An event says what was true when it happened, not what is true now. It can be ol
 | Record delivery (Q15) | Collected | Delivered | E5 |
 | Cancel request (Q10) | Open | Cancelled | E9 |
 | Cancel request (Q10) | Assigned | Cancelled | E6, E9 |
-| Expire (`CleanupRequest`) | Open, `now ≥ expiresAt` | Expired | E10 |
+| Expire (`CleanupRequest`) | Open, `now() ≥ expiresAt` (database clock) | Expired | E10 |
 
 Every status change adds a status change row (BR16, BR17). Statuses: Open, Assigned, Collected, Delivered, Cancelled, Expired, Missed. Final: Delivered, Cancelled, Expired, Missed.
 
@@ -556,10 +557,11 @@ The page refetches U10 + R3 or R2. No other data travels on this stream.
 
 | # | Trigger | Action |
 |---|---|---|
-| 14.1 | E1, E2 | Upsert job for the request: run at `expiresAt`, remember `requestSeq` (only if higher, section 11) |
-| 14.2 | E3, E9, E10 | Mark "no job" with that `requestSeq` (only if higher) |
-| 14.3 | Poll every 30 s | For due jobs: write `CleanupRequest` to its outbox and mark the job fired, in one transaction |
+| 14.1 | E1, E2 | Upsert job for the request: run at `expiresAt` (resets any refire time), remember `requestSeq` (only if higher, section 11) |
+| 14.2 | E3, E9, E10 | Mark "no job" with that `requestSeq` (only if higher). This is the only way a job ends; normally it's E10 (`RequestExpired`) |
+| 14.3 | Poll every 30 s | For pending jobs with run time ≤ `now()` (database clock): write `CleanupRequest` to its outbox and set the run time to `now() + 5 min`, in one transaction. The job **stays pending**. Each fire is a new event with a new `eventId`. Only 14.2 ends a job |
 | 14.4 | Daily, 03:00 Calgary | Write `NotificationCleanupRequested` to its outbox |
+| 14.5 | Each fire in 14.3 | Add 1 to the job's fire count (14.1 resets it). At 12 fires (still pending after 1 h), log a warning with `requestId` and `requestSeq`: the event that should end the job is probably lost (for example in a DLQ) |
 
 ## 15. Reward Service internals
 
