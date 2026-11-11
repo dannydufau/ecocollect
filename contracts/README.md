@@ -175,7 +175,7 @@ Request detail (Q8 and the responses of Q9–Q15):
 |---|---|---|---|---|---|---|
 | R1 | `GET /api/ecopoints` | Bearer | – | `200 { total, asResident, asVolunteer, awards: [{ awardId, kind: "DELIVERY"\|"CANCELLATION", earnedAs: "resident"\|"volunteer", points, formula, requestId, assignmentId, categoryName, quantity, estimatedWeightKg, awardedAt }] }` newest first | 401 | FR18, BR12. Category, quantity and weight come from the award's assignment and request; `awardedAt` is the assignment's `Ended_At` |
 | R2 | `GET /api/public/stats` | none | – | `200 { deliveries, itemsDelivered, estimatedWeightKgDelivered, ecopointsAwarded, byWasteType: [{ wasteType, deliveries, itemsDelivered, estimatedWeightKgDelivered }], updatedAt }` | – | FR23. Computed by joining awards with assignments, requests and categories: one volunteer delivery award = one delivery |
-| R3 | `GET /api/public/profiles/:accountId/stats` | none | – | `200 { accountId, ecopoints, deliveriesAsVolunteer, requestsDeliveredAsResident, itemsDelivered, estimatedWeightKgDelivered }` | – (unknown account → zeros) | FR05, BR15. The page calls U10 first; U10's 404 hides the page |
+| R3 | `GET /api/public/profiles/:accountId/stats` | none | – | `200 { accountId, ecopoints }` | – (unknown account → zeros) | FR05, BR15. The page calls U10 first; U10's 404 hides the page |
 
 ### 5.4 Notification Service
 
