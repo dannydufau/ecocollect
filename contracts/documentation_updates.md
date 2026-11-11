@@ -40,6 +40,7 @@ Decisions behind these changes:
 | FR19 stories | Optional new story: "As a registered user, I want to mark notifications as read, so that I can tell new updates from ones I've seen." |
 | FR04 stories | Optional new story: "As a registered user, I want to deactivate my account, so that I can leave EcoCollect while my contribution history is kept." |
 | FR06 story | No change: it is now consistent with the photo rules (Volunteers can see item photos) |
+| FR21 | Add: "Volunteers can view all their past assignments, including cancelled and missed ones. After an assignment ends without delivery, the volunteer sees only its window and outcome, not the request's details." | 5.2 Q7, Q8 |
 
 ## 4. Business rules (note in the ER diagram)
 
