@@ -41,6 +41,7 @@ What goes in and out of every component. No SQL schema: tables are named only to
 | Every service reads every table; one writer per table | 3NF: no copied data in tables |
 | Item photos visible to volunteers; delivery photos private; GPS data removed before upload | NFR03, FR06 user story |
 | Demo mode runs as a separate copy of the real system | No duplicated business logic; real SSE and push |
+| Volunteers whose assignment was cancelled or missed get 404 on the request page and see no request details; Q7 keeps their own assignment history | NFR03: no access to a request they no longer work on |
 
 ## 1. Components and what they own
 
@@ -120,8 +121,8 @@ There is no `createUserWithEmailAndPassword` in the frontend: it would give the 
 | Q4 | `POST /api/requests` | Bearer, resident | `{ items: [{ categoryId, quantity, photo?: { fileId } }], windows: [{ date, startHour }], notes?, termsDocumentId }` | `201 { requests: [{ requestId, category, quantity, estimatedWeightKg, status: "Open", createdAt, expiresAt }] }` | 400, 403, 409 `terms_outdated` | FR06–FR08. One request per item, one transaction, one shared terms acceptance (BR45). Address copied from the profile (BR34). Windows: 1–3, distinct slots, each starts in the future and ends by `createdAt + 30 days`. Optional `Idempotency-Key` header: a repeat with the same key within 24 h returns the first `201` (NFR06). Publishes one `RequestCreated` per request |
 | Q5 | `GET /api/requests?view=mine&status=` | Bearer, resident | `status` optional, comma-separated: `Open, Assigned, Collected, Delivered, Cancelled, Expired, Missed` | `200 [{ requestId, category, quantity, estimatedWeightKg, status, createdAt, expiresAt, hasPhoto }]` newest first | 400, 401, 403 | FR09 |
 | Q6 | `GET /api/requests?view=available&postalCodes=` | Bearer, volunteer | `postalCodes` optional, max 10 | `200 [{ requestId, category, quantity, estimatedWeightKg, postalCode, windows, expiresAt }]` | 400, 401, 403 | FR12. Available = Open AND `expiresAt` > now; only future windows are listed. Includes the caller's own requests (BR14) |
-| Q7 | `GET /api/requests?view=volunteer&assignmentStatus=` | Bearer, volunteer | `assignmentStatus` optional, comma-separated: `Active, Collected, Delivered, Volunteer_Cancelled, Resident_Cancelled, Missed_Pickup` | `200 [{ requestId, category, quantity, estimatedWeightKg, postalCode, status, assignment: { assignmentId, window, status, acceptedAt, collectedAt, endedAt, endReason } }]` | 400, 401, 403 | FR21. One row per assignment of the caller. Points per request come from R1 |
-| Q8 | `GET /api/requests/:id` | Bearer | – | `200` request detail (below) | 401, 404 `request_unavailable` | What the caller sees depends on how they relate to the request (table below). A volunteer opening a request that is no longer Open and not theirs gets `404 request_unavailable`: the page says the request is gone (graceful handling of old push notifications) |
+| Q7 | `GET /api/requests?view=volunteer&assignmentStatus=` | Bearer, volunteer | `assignmentStatus` optional, comma-separated: `Active, Collected, Delivered, Volunteer_Cancelled, Resident_Cancelled, Missed_Pickup` | `200 [{ requestId, category, quantity, estimatedWeightKg, postalCode, status, assignment: { assignmentId, window, status, acceptedAt, collectedAt, endedAt, endReason } }]` | 400, 401, 403 | FR21. One row per assignment of the caller, including cancelled and missed ones: this is the volunteer's history. For an assignment that ended as `Volunteer_Cancelled`, `Resident_Cancelled` or `Missed_Pickup`, only `requestId` and `assignment` are filled; `category`, `quantity`, `estimatedWeightKg`, `postalCode` and `status` are null, because the volunteer is no longer linked to the request (Q8). Points per request come from R1 |
+| Q8 | `GET /api/requests/:id` | Bearer | – | `200` request detail (below) | 401, 404 `request_unavailable` | What the caller sees depends on how they relate to the request (table below). Once a request leaves Open, only the owner, the assigned volunteer (until the assignment ends) and the delivering volunteer can open it. Anyone else, including a volunteer whose assignment was cancelled or reported missed, gets `404 request_unavailable`: the page says the request is gone (graceful handling of old push notifications) |
 | Q9 | `PATCH /api/requests/:id` | Bearer, owner | Any of `{ categoryId, quantity, notes, windows, photo: { fileId } \| null }` | `200` request detail | 400, 403, 409 `not_open` | FR10, BR35. Weight recalculated (BR31). New `windows` replace the active ones (old kept inactive, BR36); `expiresAt` recalculated. Replacing or removing the photo follows 6.7. Publishes `RequestUpdated` (`reason: "edited"`) |
 | Q10 | `POST /api/requests/:id/cancel` | Bearer, owner | `{ reason? }` | `200` request detail | 403, 409 `not_cancellable` (not Open or Assigned) | FR11. If Assigned: publishes `RequestAssignmentCancelledResident` then `RequestCancelled` (one transaction); otherwise `RequestCancelled` |
 | Q11 | `POST /api/requests/:id/assignment` | Bearer, volunteer | `{ windowId, termsDocumentId }` | `201` request detail (now with address) | 400 (window not one of this request's active future windows), 409 `not_open` / `already_assigned` / `terms_outdated` | FR13, BR19, BR29. Row lock on the request plus one-active-assignment rule (NFR06). Publishes `RequestAssigned` |
@@ -154,18 +155,18 @@ Request detail (Q8 and the responses of Q9–Q15):
 }
 ```
 
-| Field | Owner | Volunteer with active (or delivering) assignment | Volunteer, request Open | Past volunteer (ended assignment) |
-|---|---|---|---|---|
-| Core fields, windows, `expiresAt` | ✓ | ✓ | ✓ (future windows only) | ✓ |
-| `notes`, `address` | ✓ | ✓ while assignment is Active | – | – |
-| `photoUrl` (item photo, signed, ~10 min) | ✓ | ✓ | ✓ | – |
-| `delivery.evidencePhotoUrl` | ✓ | ✓ (the delivering volunteer) | – | – |
-| `resident.publicName` | ✓ | ✓ | – | ✓ |
-| `assignment` | current/last | their own | – | their own |
-| `rescheduledFrom`, `rescheduledAs` (`{ requestId }` or null) | ✓ | – | – | – |
-| `statusHistory` | ✓ | – | – | – |
+| Field | Owner | Volunteer with active (or delivering) assignment | Volunteer, request Open |
+|---|---|---|---|
+| Core fields, windows, `expiresAt` | ✓ | ✓ | ✓ (future windows only) |
+| `notes`, `address` | ✓ | ✓ while assignment is Active | – |
+| `photoUrl` (item photo, signed, ~10 min) | ✓ | ✓ | ✓ |
+| `delivery.evidencePhotoUrl` | ✓ | ✓ (the delivering volunteer) | – |
+| `resident.publicName` | ✓ | ✓ | – |
+| `assignment` | current/last | their own | – |
+| `rescheduledFrom`, `rescheduledAs` (`{ requestId }` or null) | ✓ | – | – |
+| `statusHistory` | ✓ | – | – |
 
-"Volunteer, request Open" means any volunteer while the request is Open (the create-request user story: volunteers assess the items before accepting). Once the request leaves Open, only the owner and the assigned or delivering volunteer can see it.
+"Volunteer, request Open" means any volunteer while the request is Open (the create-request user story: volunteers assess the items before accepting). Once the request leaves Open, only the owner, the assigned volunteer (until the assignment ends) and the delivering volunteer can see it. A volunteer whose assignment was cancelled or reported missed gets `404 request_unavailable`; their history shows only their own assignment (Q7).
 
 `allowedActions` is computed by the server from status, role and timing (`edit`, `cancel`, `cancel_assignment`, `confirm_collected`, `report_missed`, `accept`, `record_delivery`), so the frontend never re-implements the rules. The server still checks every action.
 
@@ -173,7 +174,7 @@ Request detail (Q8 and the responses of Q9–Q15):
 
 | # | Method + path | Auth | Request | Success response | Errors | Notes |
 |---|---|---|---|---|---|---|
-| R1 | `GET /api/ecopoints` | Bearer | – | `200 { total, asResident, asVolunteer, awards: [{ awardId, kind: "DELIVERY"\|"CANCELLATION", earnedAs: "resident"\|"volunteer", points, formula, requestId, assignmentId, categoryName, quantity, estimatedWeightKg, awardedAt }] }` newest first | 401 | FR18, BR12. Category, quantity and weight come from the award's assignment and request; `awardedAt` is the assignment's `Ended_At` |
+| R1 | `GET /api/ecopoints` | Bearer | – | `200 { total, asResident, asVolunteer, awards: [{ awardId, kind: "DELIVERY"\|"CANCELLATION", earnedAs: "resident"\|"volunteer", points, formula, requestId, assignmentId, categoryName, quantity, estimatedWeightKg, awardedAt }] }` newest first | 401 | FR18, BR12. Category, quantity and weight come from the award's assignment and request; `awardedAt` is the assignment's `Ended_At`. For `CANCELLATION` awards, `categoryName`, `quantity` and `estimatedWeightKg` are null: the volunteer is no longer linked to the request |
 | R2 | `GET /api/public/stats` | none | – | `200 { deliveries, itemsDelivered, estimatedWeightKgDelivered, ecopointsAwarded, byWasteType: [{ wasteType, deliveries, itemsDelivered, estimatedWeightKgDelivered }], updatedAt }` | – | FR23. Computed by joining awards with assignments, requests and categories: one volunteer delivery award = one delivery |
 | R3 | `GET /api/public/profiles/:accountId/stats` | none | – | `200 { accountId, ecopoints }` | – (unknown account → zeros) | FR05, BR15. The page calls U10 first; U10's 404 hides the page |
 
@@ -406,7 +407,7 @@ An event says what was true when it happened, not what is true now. It can be ol
 
 | Consumer | Risk | Handling |
 |---|---|---|
-| Reward | Points computed from changed data | Inputs are facts frozen at the moment (quantity and weight never change after assignment, BR31; `outsideCancellationWindow` is decided by the Request Service at cancel time). At most one award per assignment per role makes retries harmless (NFR06) |
+| Reward | Points computed from changed data | Inputs are facts frozen at the moment (quantity and weight come from the event, as they were at that moment; `outsideCancellationWindow` is decided by the Request Service at cancel time). At most one award per assignment per role makes retries harmless (NFR06) |
 | Cleanup | An old `RequestUpdated` arrives after `RequestAssigned` and re-creates a job | Each job stores the `requestSeq` it came from. Upsert only if the incoming `requestSeq` is higher. Non-Open events leave a "no job" marker with their `requestSeq` instead of deleting the row, so an older event cannot bring the job back |
 | Request (`CleanupRequest`) | The job fires after the request changed | Lock the request row and re-check: still Open and `now ≥ expiresAt` (current value) → mark Expired and publish E10. Otherwise ack and do nothing. `data.requestSeq` and `expiresAt` are for logs only |
 | Notification | An old event pushes a misleading alert, or expires newer notifications | Keeps the highest `requestSeq` per request. An event with a lower `requestSeq` is stored as already expired: no SSE `notification`, no push. Expiry rules (13.2) only expire notifications with a lower `requestSeq`. Recipients whose account has `Deactivated_At` set are skipped |
@@ -465,7 +466,7 @@ A resident cancelling the assignment can send new `windows` in Q12, which move `
 
 ### 13.1 Notification types
 
-The Push column is decided by type: the side that performed the action gets no push, the other side does. An account on both sides (self-accept, self-delivery) gets the other side's push. Tag for push: `request-<requestId>` (request types) or `award-<awardId>` (award types). The `url` opens the relevant page.
+The Push column is decided by type: the side that performed the action gets no push, the other side does. An account on both sides (self-accept, self-delivery) gets the other side's push. Tag for push: `request-<requestId>` (request types) or `award-<awardId>` (award types). The `url` opens the relevant page: the request page, except for `ASSIGNMENT_CANCELLED_BY_RESIDENT_VOLUNTEER`, `ASSIGNMENT_CANCELLED_BY_VOLUNTEER_VOLUNTEER` and `ASSIGNMENT_MISSED_VOLUNTEER`, which open the volunteer's assignment history (the recipient can no longer open the request, Q8), and award types, which open the EcoPoints page.
 
 | Event | Type → recipient | Push |
 |---|---|---|
@@ -492,7 +493,7 @@ The Push column is decided by type: the side that performed the action gets no p
 
 When one account is both sides (self-accept, self-delivery, BR11, BR14), it gets both notifications.
 
-A notification stores its type, recipient, the request or award it is about, and metadata holding only facts not stored in any table: `requestSeq`, `transitionId`, and for E2 `reason` and `changed`. Title and body are built when read, by joining the request, category, assignment (window, volunteer's public name) or award (points). A request's details can change only while it is Open, and any change expires its older notifications (13.2), so the joined values always match what a live notification describes. It also stores when a push for it was actually sent (`Pushed_At`, null if none: the type said no push, the recipient has no subscription, or the event was stale), for 13.2. Example titles: "New pickup near you" / "2 × Computers/Laptops in T2P1J9"; "Pickup accepted" / "Danny will come on Nov 22, 14:00–15:00"; "You earned 26 EcoPoints".
+A notification stores its type, recipient, the request or award it is about, and metadata holding only facts not stored in any table: `requestSeq`, `transitionId`, and for E2 `reason` and `changed`. Title and body are built when read, by joining the request, category, assignment (window, volunteer's public name) or award (points). A request's details can change only while it is Open, and any change expires its older notifications (13.2), so the joined values always match what a live notification describes. It also stores when a push for it was actually sent (`Pushed_At`, null if none: the type said no push, the recipient has no subscription, or the event was stale), for 13.2. Example titles: "New pickup near you" / "2 × Computers/Laptops in T2P1J9"; "Pickup accepted" / "Danny will come on Nov 22, 14:00–15:00"; "You earned 26 EcoPoints". Notifications to a volunteer whose assignment ended without delivery (`ASSIGNMENT_CANCELLED_BY_RESIDENT_VOLUNTEER`, `ASSIGNMENT_CANCELLED_BY_VOLUNTEER_VOLUNTEER`, `ASSIGNMENT_MISSED_VOLUNTEER`, `ECOPOINTS_AWARDED_ON_ASSIGNMENT_CANCELLATION_VOLUNTEER`) show no request details, only the assignment's window and the points: "Pickup cancelled" / "Your pickup on Nov 22, 14:00–15:00 was cancelled".
 
 ### 13.2 Expiry rules (`Is_Expired`)
 
