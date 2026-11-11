@@ -14,7 +14,7 @@ The system shall remove location metadata from uploaded photographs and prevent 
 
 #### NFR04 — Security
 
-The system shall protect user accounts, sensitive information, and protected operations through secure password storage, authenticated access, server-side authorization, input validation, controlled file uploads, and encrypted communication in deployment. 
+The system shall protect user accounts, sensitive information, and protected operations through secure password storage, authenticated access, server-side authorization, input validation, controlled file uploads, and encrypted communication in deployment.
 
 #### NFR05 — Fairness
 
@@ -25,7 +25,3 @@ Delivery EcoPoints and cancellation EcoPoints shall be calculated according to t
 
 The system shall maintain consistent request statuses, Volunteer assignments, delivery records, notifications, and EcoPoints when operations are repeated, performed concurrently, or retried following processing failures.  
 The system shall prevent duplicate Volunteer assignments, duplicate delivery records, and duplicate EcoPoints awards.
-
-#### NFR07 — Portability
-
-(Can be removed if needs additional testing) The application shall support the latest Chrome browser versions on iOS, Android, macOS, and Windows devices.  
