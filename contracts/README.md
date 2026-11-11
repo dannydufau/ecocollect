@@ -569,7 +569,7 @@ The page refetches U10 + R3 or R2. No other data travels on this stream.
 | 15.2 | E6 with `outsideCancellationWindow: true` and a volunteer who is not the resident | One volunteer award with the volunteer formula. Publishes E12 |
 | 15.3 | E6 with `false` | Nothing (still recorded as processed) |
 | 15.4 | Duplicates | At most one award per assignment per role (resident, volunteer) + processed events. An assignment ends once, so it can't get both a delivery and a cancellation award |
-| 15.5 | R1–R3 | Read by joining awards with assignments, requests, categories and deliveries (section 8) |
+| 15.5 | R1–R3 | Read by joining awards with assignments, requests and categories (section 8) |
 
 ## 16. Frontend internals
 

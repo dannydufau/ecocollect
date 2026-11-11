@@ -114,7 +114,7 @@ The system shall display terms and conditions, including safety guidelines, and 
 
 #### FR23 - Public Community Impact Statistics
 
-The system shall display community impact statistics on a publicly accessible page calculated from successfully recorded Delivered requests.
+The system shall display community impact statistics on a publicly accessible page calculated from successfully recorded Delivered requests for which EcoPoints were awarded.
 
 ### Interactive Demo Mode
 
