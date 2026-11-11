@@ -566,7 +566,7 @@ The page refetches U10 + R3 or R2. No other data travels on this stream.
 | # | Trigger | Action |
 |---|---|---|
 | 15.1 | E5 | Two awards: volunteer `(3 × quantity) + (4 × estimatedWeightKg)`, resident = volunteer ÷ 2, no rounding (BR43). Inputs come from the event; the award stores only its assignment, account, role relationship, points and formula. Publishes E11 |
-| 15.2 | E6 with `outsideCancellationWindow: true` | One volunteer award with the volunteer formula. Publishes E12 |
+| 15.2 | E6 with `outsideCancellationWindow: true` and a volunteer who is not the resident | One volunteer award with the volunteer formula. Publishes E12 |
 | 15.3 | E6 with `false` | Nothing (still recorded as processed) |
 | 15.4 | Duplicates | At most one award per assignment per role (resident, volunteer) + processed events. An assignment ends once, so it can't get both a delivery and a cancellation award |
 | 15.5 | R1–R3 | Read by joining awards with assignments, requests, categories and deliveries (section 8) |
