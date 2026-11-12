@@ -190,7 +190,7 @@ paths:
     get:
       tags: [Events]
       operationId: openEventStream
-      summary: Live signals (Server-Sent Events)
+      summary: Live notifications and signals (Server-Sent Events)
       description: |
         Open once after login with `new EventSource('/api/events', { withCredentials: true })`
         and keep it open. The cookie is checked once, when the connection opens.
@@ -199,9 +199,12 @@ paths:
         first ping. Refetch the lists on screen in the `onopen` handler: it runs on the first connection
         and on every reconnect, which is how a missed signal is recovered.
 
-        After that, each message is `event: signal`, with a small signal as its data: the type and the request id.
-        The message formats are in [asyncapi.yaml](./asyncapi.yaml) (`SseReady` and `SseSignal`). A comment line
-        `: ping` arrives about every 25 seconds to keep the connection open, and `EventSource` ignores it.
+        After that the server sends the messages listed in [asyncapi.yaml](./asyncapi.yaml) on the
+        `userStream` channel: `notification` (with an `id:` line set to the notification id),
+        `notification-expired`, `notification-read`, `profile-updated`, `available-requests-changed` and
+        `account-deactivated`. They are signals with display text; the data always comes from the REST API.
+        A comment line `: ping` arrives about every 25 seconds to keep the connection open, and
+        `EventSource` ignores it.
 
         Caddy streams this route straight through and must not compress it.
       security:
@@ -217,8 +220,9 @@ paths:
                 event: ready
                 data: {}
 
-                event: signal
-                data: {"type":"NEW_MATCHING_REQUEST","requestId":"0b7e3f2a-6d1c-4a52-9a43-6a1f5e0f1c11"}
+                event: notification
+                id: n_789
+                data: {"notificationId":"n_789","type":"NEW_MATCHING_REQUEST","requestId":"6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11","awardId":null,"title":"New pickup near you","body":"2 x Computers/Laptops in T2P1J9","url":"/volunteer/requests/6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11","createdAt":"2026-11-20T16:15:00Z"}
         '401':
           $ref: '#/components/responses/Unauthorized'
 

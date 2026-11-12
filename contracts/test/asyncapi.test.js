@@ -1,11 +1,12 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { asyncapi, validator } = require('./helpers');
+const { asyncapi, common, validator } = require('./helpers');
 
-const note = () => structuredClone(asyncapi.components.messages.SseSignal.examples[0].payload);
 const messages = asyncapi.components.messages;
 const example = (type) => structuredClone(messages[type].examples[0].payload);
-const events = Object.keys(messages).filter((m) => !m.startsWith('Sse'));
+const browserSide = ['userStream', 'publicStream', 'webPush'];
+const browserMessages = browserSide.flatMap((c) => Object.values(asyncapi.channels[c].messages).map((m) => m.$ref.split('/').pop()));
+const events = Object.keys(messages).filter((m) => !browserMessages.includes(m));
 const valid = (type) => validator(asyncapi, `${type}Payload`);
 
 // The event list from the README (10.3): type, routing key, producer, consumers.
@@ -89,45 +90,15 @@ test('every queue is a durable quorum queue that dead-letters on the 5th failure
   }
 });
 
-test('no street address, notes or photo can travel in an event (NFR03)', () => {
+test('no street address, notes or photo can travel in an event, SSE message or push (NFR03)', () => {
   const schemas = asyncapi.components.schemas;
-  for (const name of ['RequestSnapshot', ...README_EVENTS.map(([t]) => `${t}Data`)]) {
-    for (const key of Object.keys(schemas[name].properties)) {
+  const browserPayloads = browserMessages.map((m) => messages[m].payload.$ref.split('/').pop());
+  for (const name of ['RequestSnapshot', ...README_EVENTS.map(([t]) => `${t}Data`), ...browserPayloads]) {
+    const props = schemas[name].properties ?? Object.assign({}, ...(schemas[name].oneOf ?? []).map((o) => o.properties));
+    for (const key of Object.keys(props)) {
       assert.doesNotMatch(key, /street|^address$|city|notes|photo|email/i, `${name}.${key}`);
     }
   }
-});
-
-test('the SSE example is a valid signal, for both types', () => {
-  const valid = validator(asyncapi, 'SseSignalPayload');
-  assert.ok(valid(note()));
-  assert.ok(valid({ ...note(), type: 'REQUEST_CREATED' }));
-});
-
-test('SSE signal: only a type and a request id, nothing stored and nothing private', () => {
-  const valid = validator(asyncapi, 'SseSignalPayload');
-  assert.ok(!valid({ ...note(), type: 'REQUEST_ACCEPTED' }), 'a type from after Oct 28');
-  assert.ok(!valid({ ...note(), type: undefined }));
-  assert.ok(!valid({ ...note(), requestId: undefined }));
-  assert.ok(!valid({ ...note(), requestId: 'r_123' }), 'ids are uuids in the database');
-  // No database in the notification service, so no stored notification fields either.
-  for (const extra of ['notificationId', 'title', 'body', 'createdAt', 'street', 'address', 'residentUid']) {
-    assert.ok(!valid({ ...note(), [extra]: 'x' }), `${extra} must be rejected`);
-  }
-});
-
-test('the ready event has an empty payload and nothing else can ride along', () => {
-  const valid = validator(asyncapi, 'SseReadyPayload');
-  assert.ok(valid(asyncapi.components.messages.SseReady.examples[0].payload));
-  assert.ok(valid({}));
-  for (const extra of [{ type: 'REQUEST_CREATED' }, { requestId: 'x' }, { street: 'x' }]) {
-    assert.ok(!valid(extra), `${JSON.stringify(extra)} must be rejected`);
-  }
-});
-
-test('the stream sends the ready event first, so both messages are on its channel and operation', () => {
-  assert.deepEqual(Object.keys(asyncapi.channels.signalStream.messages).sort(), ['ready', 'signal']);
-  assert.equal(asyncapi.operations.pushSignal.messages.length, 2);
 });
 
 test('every operation points at a channel and a message that exist', () => {
@@ -145,4 +116,40 @@ test('the message examples are all there', () => {
   for (const [name, message] of Object.entries(asyncapi.components.messages)) {
     assert.ok(message.examples?.length, `${name} has no example`);
   }
+});
+
+test('the user stream sends exactly the README messages (13.3), starting with ready', () => {
+  const names = Object.values(asyncapi.channels.userStream.messages).map((m) => messages[m.$ref.split('/').pop()].name);
+  assert.deepEqual(names.sort(), ['account-deactivated', 'available-requests-changed', 'notification',
+    'notification-expired', 'notification-read', 'profile-updated', 'ready']);
+  assert.equal(asyncapi.channels.userStream.address, '/api/events');
+});
+
+test('the public stream sends only the two README messages (13.5), with no user data', () => {
+  const channel = asyncapi.channels.publicStream;
+  assert.equal(channel.address, '/api/public/events');
+  const names = Object.values(channel.messages).map((m) => messages[m.$ref.split('/').pop()].name);
+  assert.deepEqual(names.sort(), ['public-profile-updated', 'stats-updated']);
+});
+
+test('every browser-side example is valid', () => {
+  for (const name of browserMessages) {
+    const valid = validator(asyncapi, messages[name].payload.$ref.split('/').pop());
+    for (const ex of messages[name].examples) assert.ok(valid(ex.payload), `${name}: ${ex.name}`);
+  }
+});
+
+test('the notification types are exactly the README list (13.1)', () => {
+  assert.deepEqual(common.NotificationType.enum, [
+    'REQUEST_CREATED', 'NEW_MATCHING_REQUEST', 'REQUEST_UPDATED_RESIDENT',
+    'REQUEST_ASSIGNED_RESIDENT', 'REQUEST_ASSIGNED_VOLUNTEER',
+    'REQUEST_COLLECTED_RESIDENT', 'REQUEST_COLLECTED_VOLUNTEER',
+    'REQUEST_DELIVERED_RESIDENT', 'REQUEST_DELIVERED_VOLUNTEER',
+    'ASSIGNMENT_CANCELLED_BY_RESIDENT_RESIDENT', 'ASSIGNMENT_CANCELLED_BY_RESIDENT_VOLUNTEER',
+    'ASSIGNMENT_CANCELLED_BY_VOLUNTEER_RESIDENT', 'ASSIGNMENT_CANCELLED_BY_VOLUNTEER_VOLUNTEER',
+    'ASSIGNMENT_MISSED_RESIDENT', 'ASSIGNMENT_MISSED_VOLUNTEER',
+    'REQUEST_CANCELLED_RESIDENT', 'REQUEST_EXPIRED_RESIDENT',
+    'ECOPOINTS_AWARDED_ON_DELIVERY_RESIDENT', 'ECOPOINTS_AWARDED_ON_DELIVERY_VOLUNTEER',
+    'ECOPOINTS_AWARDED_ON_ASSIGNMENT_CANCELLATION_VOLUNTEER',
+  ]);
 });

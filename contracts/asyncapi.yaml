@@ -33,9 +33,12 @@ info:
     by arrival. The producer is the only source of truth for current state: no consumer takes an
     irreversible decision from an event without asking the owner (README 11).
 
-    Server-Sent Events
+    Browser side
 
-    The browser side (`/api/events`) is still the Oct 28 version here and is updated separately.
+    The Notification Service turns events into notifications for people: live messages on the user's
+    Server-Sent Events stream (`/api/events`), a public stream for the public profile and statistics
+    pages (`/api/public/events`), and Web Push (README 13). These are only signals with display text:
+    the frontend always gets the data itself from the REST API.
 
     No street address ever appears in an event or an SSE message.
 servers:
@@ -47,6 +50,11 @@ servers:
     host: localhost
     protocol: https
     description: Caddy. The only publicly exposed service.
+  pushService:
+    host: push.service.of.the.browser
+    protocol: https
+    description: The browser's push service (for example Mozilla or Google). The real host comes from each subscription's
+      endpoint.
 channels:
   requestCreated:
     address: request.created
@@ -487,19 +495,57 @@ channels:
     messages:
       cleanupRequest:
         $ref: '#/components/messages/CleanupRequest'
-  signalStream:
+  userStream:
     address: /api/events
-    title: Server-Sent Events stream
+    title: Server-Sent Events stream for the signed-in user
     description: |
-      Opened once after login by `EventSource` with the session cookie. The first thing the
-      server writes on a new stream is a `ready` event.
+      Opened once per tab after login: `new EventSource('/api/events', { withCredentials: true })`,
+      authenticated with the session cookie. The Notification Service registers the connection, then
+      writes a `ready` event right away, so `onopen` fires at once. Every ~25 seconds it sends a comment
+      line, `: ping`, which `EventSource` ignores. `Last-Event-ID` resume is not supported: whenever the
+      stream opens (`onopen`), the first time or after a reconnect, the frontend refetches what is on screen.
     servers:
       - $ref: '#/servers/gateway'
     messages:
       ready:
         $ref: '#/components/messages/SseReady'
-      signal:
-        $ref: '#/components/messages/SseSignal'
+      notification:
+        $ref: '#/components/messages/SseNotification'
+      notificationExpired:
+        $ref: '#/components/messages/SseNotificationExpired'
+      notificationRead:
+        $ref: '#/components/messages/SseNotificationRead'
+      profileUpdated:
+        $ref: '#/components/messages/SseProfileUpdated'
+      availableRequestsChanged:
+        $ref: '#/components/messages/SseAvailableRequestsChanged'
+      accountDeactivated:
+        $ref: '#/components/messages/SseAccountDeactivated'
+  publicStream:
+    address: /api/public/events
+    title: Public Server-Sent Events stream (no login)
+    description: |
+      For the public profile and statistics pages only. Opened with exactly one of `?profile=<accountId>`
+      or `?stats` (otherwise `400`). No user data travels on this stream: each message only says what to
+      refetch.
+    servers:
+      - $ref: '#/servers/gateway'
+    messages:
+      publicProfileUpdated:
+        $ref: '#/components/messages/PublicProfileUpdated'
+      statsUpdated:
+        $ref: '#/components/messages/PublicStatsUpdated'
+  webPush:
+    address: null
+    title: Web Push to a subscribed browser
+    description: |
+      The address is the subscription's `endpoint`, which belongs to the browser's push service.
+      The Notification Service signs the request with its VAPID private key.
+    servers:
+      - $ref: '#/servers/pushService'
+    messages:
+      push:
+        $ref: '#/components/messages/Push'
 operations:
   publishRequestCreated:
     action: send
@@ -740,25 +786,38 @@ operations:
         ack: true
     messages:
       - $ref: '#/channels/requestCleanupEvents/messages/cleanupRequest'
-  pushSignal:
+  sendUserStream:
     action: send
     channel:
-      $ref: '#/channels/signalStream'
-    title: Notification service pushes a signal over SSE
+      $ref: '#/channels/userStream'
+    title: Notification Service writes to the user's SSE connections
     description: |
-      When a connection opens, the service registers it first and then writes a `ready` event right
-      away. Writing it flushes the headers, so `onopen` fires at once and not after the first ping.
-      The order matters: by the time the frontend refetches in `onopen` (or when it sees `ready`),
-      the connection is already registered and can receive signals, so none can slip through in between.
-
-      One `signal` message is written to every open connection of each recipient, so
-      several tabs all get it. A recipient with no open connection gets nothing. The frontend
-      refetches whenever the stream opens (`EventSource` `onopen`), the first time and after every reconnect,
-      so a missed signal costs nothing. Roughly every 25 seconds the server also sends a
-      comment line, `: ping`, to keep the connection open and to find dead connections.
+      The Notification Service runs as one instance and keeps every connection in memory, keyed by
+      user id and roles (README 13.0). A user with no open connection gets nothing live: the
+      notification is kept and shows up on the next refetch.
     messages:
-      - $ref: '#/channels/signalStream/messages/ready'
-      - $ref: '#/channels/signalStream/messages/signal'
+      - $ref: '#/channels/userStream/messages/ready'
+      - $ref: '#/channels/userStream/messages/notification'
+      - $ref: '#/channels/userStream/messages/notificationExpired'
+      - $ref: '#/channels/userStream/messages/notificationRead'
+      - $ref: '#/channels/userStream/messages/profileUpdated'
+      - $ref: '#/channels/userStream/messages/availableRequestsChanged'
+      - $ref: '#/channels/userStream/messages/accountDeactivated'
+  sendPublicStream:
+    action: send
+    channel:
+      $ref: '#/channels/publicStream'
+    title: Notification Service writes to public page watchers
+    messages:
+      - $ref: '#/channels/publicStream/messages/publicProfileUpdated'
+      - $ref: '#/channels/publicStream/messages/statsUpdated'
+  sendWebPush:
+    action: send
+    channel:
+      $ref: '#/channels/webPush'
+    title: Notification Service sends a Web Push
+    messages:
+      - $ref: '#/channels/webPush/messages/push'
 components:
   messages:
     RequestCreated:
@@ -1462,33 +1521,167 @@ components:
       examples:
         - name: A new stream
           payload: {}
-    SseSignal:
-      name: signal
-      title: A signal for the signed-in user
+    SseNotification:
+      name: notification
+      title: A new notification for the signed-in user
       contentType: application/json
       description: |
-        Sent as a Server-Sent Event, after the `ready` event that every stream starts with. On the
-        wire it is two lines and a blank line:
+        Sent to every open connection of the recipient, with an `id:` line set to the `notificationId`.
+        On the wire: `event: notification` and `data: <the payload as one line of JSON>`, then a blank line.
 
-        ```
-        event: signal
-        data: <the payload as one line of JSON>
-        ```
-
-        There is no `id` line, because nothing is stored: a connection that drops does not
-        get the messages it missed.
-
-        The message is only a signal. The frontend refetches from the REST API to get fresh data:
-        the available requests for `NEW_MATCHING_REQUEST`, and the resident's own requests
-        for `REQUEST_CREATED`. There is no stored inbox to refetch for Oct 28.
-        A signal missed while disconnected is not replayed. The frontend refetches in `onopen` instead.
+        Frontend: always refetch the notifications, then refetch what the type is about (README 16.3):
+        the resident's requests and the request for resident types, the available list for
+        `NEW_MATCHING_REQUEST`, the volunteer's assignments and the request for volunteer types, and the
+        EcoPoints for award types. The data always comes from REST: this is only a signal with display text.
+        No street address, notes or photo, ever.
       payload:
-        $ref: '#/components/schemas/SseSignalPayload'
+        $ref: '#/components/schemas/SseNotificationPayload'
       examples:
-        - name: A volunteer is told about a new request
+        - name: A volunteer is told about a new request nearby
           payload:
+            notificationId: n_789
             type: NEW_MATCHING_REQUEST
-            requestId: 0b7e3f2a-6d1c-4a52-9a43-6a1f5e0f1c11
+            requestId: 6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11
+            awardId: null
+            title: New pickup near you
+            body: 2 x Computers/Laptops in T2P1J9
+            url: /volunteer/requests/6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11
+            createdAt: '2026-11-20T16:15:00Z'
+    SseNotificationExpired:
+      name: notification-expired
+      title: Notifications that no longer describe the request
+      contentType: application/json
+      description: |
+        Sent to the recipient when their notifications about a request expire (README 13.2).
+        On the wire: `event: notification-expired` and `data: <the payload as one line of JSON>`, then a blank line.
+
+        Frontend: refetch the notifications, and close the OS notifications with this `tag`
+        (`registration.getNotifications({ tag })`). Award notifications never expire.
+      payload:
+        $ref: '#/components/schemas/SseNotificationExpiredPayload'
+      examples:
+        - name: The new-request alert expired because another volunteer accepted it
+          payload:
+            notificationIds:
+              - n_789
+            requestId: 6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11
+            tag: request-6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11
+    SseNotificationRead:
+      name: notification-read
+      title: Notifications were read on another connection
+      contentType: application/json
+      description: |
+        Sent to the user's other connections, one message per mark-as-read call: a list of ids, or
+        `{ "all": true }` for mark-all-read. On the wire: `event: notification-read` and `data: <the payload as one line of JSON>`, then a blank line.
+
+        Frontend: refetch the notifications and close the OS notifications for those ids.
+      payload:
+        $ref: '#/components/schemas/SseNotificationReadPayload'
+      examples:
+        - name: One notification read in another tab
+          payload:
+            notificationIds:
+              - n_789
+        - name: Mark all as read
+          payload:
+            all: true
+    SseProfileUpdated:
+      name: profile-updated
+      title: The user's profile changed
+      contentType: application/json
+      description: |
+        Sent to the user's connections after `ProfileUpdated`. On the wire: `event: profile-updated` and `data: <the payload as one line of JSON>`, then a blank line.
+
+        Frontend: refetch the profile. If `roles` changed, refresh the ID token, renew the session and
+        reopen the stream (README 3.3).
+      payload:
+        $ref: '#/components/schemas/SseProfileUpdatedPayload'
+      examples:
+        - name: A role was activated
+          payload:
+            changed:
+              - roles
+    SseAvailableRequestsChanged:
+      name: available-requests-changed
+      title: The list of available requests changed
+      contentType: application/json
+      description: |
+        Sent to every connection whose roles include volunteer, on `RequestCreated`, `RequestUpdated`,
+        `RequestAssigned`, `RequestCancelled` and `RequestExpired`. On the wire: `event: available-requests-changed` and `data: <the payload as one line of JSON>`, then a blank line.
+
+        Frontend: refetch the available list and that request.
+      payload:
+        $ref: '#/components/schemas/SseAvailableRequestsChangedPayload'
+      examples:
+        - name: Someone accepted a request
+          payload:
+            requestId: 6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11
+    SseAccountDeactivated:
+      name: account-deactivated
+      title: The account was deactivated
+      contentType: application/json
+      description: |
+        Sent to the user's connections after `AccountDeactivated`, then the server closes them.
+        On the wire: `event: account-deactivated` and `data: <the payload as one line of JSON>`, then a blank line. Frontend: sign out.
+      payload:
+        $ref: '#/components/schemas/SseAccountDeactivatedPayload'
+      examples:
+        - name: Deactivated
+          payload: {}
+    PublicProfileUpdated:
+      name: public-profile-updated
+      title: A public profile changed
+      contentType: application/json
+      description: |
+        Sent to watchers of `?profile=<accountId>` when that account's public name or roles change, when it
+        earns EcoPoints, or when it is deactivated. On the wire: `event: public-profile-updated` and `data: <the payload as one line of JSON>`, then a blank line.
+        The page refetches the public profile and its stats. No other data travels on this stream.
+      payload:
+        $ref: '#/components/schemas/PublicProfileUpdatedPayload'
+      examples:
+        - name: Danny earned points
+          payload:
+            accountId: danny
+    PublicStatsUpdated:
+      name: stats-updated
+      title: The public statistics changed
+      contentType: application/json
+      description: |
+        Sent to watchers of `?stats` whenever EcoPoints are awarded. On the wire: `event: stats-updated` and `data: <the payload as one line of JSON>`, then a blank line.
+        The page refetches the statistics.
+      payload:
+        $ref: '#/components/schemas/PublicStatsUpdatedPayload'
+      examples:
+        - name: Points were awarded
+          payload: {}
+    Push:
+      name: push
+      title: A Web Push message
+      contentType: application/json
+      description: |
+        Sent with Web Push, encrypted with the subscription's keys, only for the notification types
+        that push (README 13.1). The service worker shows it unless an EcoCollect tab is focused, and
+        opens `url` on click. A `404` or `410` from the push service means the subscription is gone:
+        delete it. No street address, notes or photo, ever.
+      payload:
+        $ref: '#/components/schemas/PushPayload'
+      examples:
+        - name: New pickup near you
+          payload:
+            notificationId: n_789
+            title: New pickup near you
+            body: 2 x Computers/Laptops in T2P1J9
+            url: /volunteer/requests/6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11
+            tag: request-6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11
+            silent: false
+        - name: Quiet replacement after it expired
+          payload:
+            notificationId: n_789
+            title: Pickup no longer available
+            body: Another volunteer accepted it
+            url: /volunteer/requests/6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11
+            tag: request-6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11
+            silent: true
   schemas:
     EventEnvelope:
       type: object
@@ -2172,21 +2365,160 @@ components:
       type: object
       additionalProperties: false
       description: Empty on purpose. Nothing is sent with the ready event.
-    SseSignalPayload:
+    SseNotificationPayload:
       type: object
       additionalProperties: false
       required:
+        - notificationId
         - type
         - requestId
+        - awardId
+        - title
+        - body
+        - url
+        - createdAt
       properties:
-        type:
+        notificationId:
           type: string
-          enum:
-            - REQUEST_CREATED
-            - NEW_MATCHING_REQUEST
-          description: |
-            `REQUEST_CREATED` is the confirmation to the resident. `NEW_MATCHING_REQUEST` is the alert to a volunteer.
+          minLength: 1
+        type:
+          $ref: ./schemas/common.yaml#/NotificationType
+        requestId:
+          oneOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          description: The request it is about, or null for award notifications.
+        awardId:
+          type:
+            - string
+            - 'null'
+          minLength: 1
+          description: The award it is about, or null for request notifications.
+        title:
+          type: string
+          minLength: 1
+        body:
+          type: string
+          minLength: 1
+        url:
+          type: string
+          pattern: ^/
+          description: A page in the app to open.
+        createdAt:
+          $ref: ./schemas/common.yaml#/Timestamp
+    SseNotificationExpiredPayload:
+      type: object
+      additionalProperties: false
+      required:
+        - notificationIds
+        - requestId
+        - tag
+      properties:
+        notificationIds:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            minLength: 1
         requestId:
           type: string
           format: uuid
-          description: The request to refetch. Nothing else about it is sent, so there is no street address.
+        tag:
+          type: string
+          pattern: ^request-
+          description: '`request-<requestId>`, the push tag.'
+    SseNotificationReadPayload:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required:
+            - notificationIds
+          properties:
+            notificationIds:
+              type: array
+              minItems: 1
+              items:
+                type: string
+                minLength: 1
+        - type: object
+          additionalProperties: false
+          required:
+            - all
+          properties:
+            all:
+              const: true
+    SseProfileUpdatedPayload:
+      type: object
+      additionalProperties: false
+      required:
+        - changed
+      properties:
+        changed:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: string
+            enum:
+              - publicName
+              - address
+              - preferredPostalCodes
+              - roles
+    SseAvailableRequestsChangedPayload:
+      type: object
+      additionalProperties: false
+      required:
+        - requestId
+      properties:
+        requestId:
+          type: string
+          format: uuid
+    SseAccountDeactivatedPayload:
+      type: object
+      additionalProperties: false
+      description: Empty on purpose.
+    PublicProfileUpdatedPayload:
+      type: object
+      additionalProperties: false
+      required:
+        - accountId
+      properties:
+        accountId:
+          $ref: ./schemas/common.yaml#/AccountId
+    PublicStatsUpdatedPayload:
+      type: object
+      additionalProperties: false
+      description: Empty on purpose.
+    PushPayload:
+      type: object
+      additionalProperties: false
+      required:
+        - notificationId
+        - title
+        - body
+        - url
+        - tag
+        - silent
+      properties:
+        notificationId:
+          type: string
+          minLength: 1
+        title:
+          type: string
+          minLength: 1
+        body:
+          type: string
+          minLength: 1
+        url:
+          type: string
+          pattern: ^/
+          description: A page in the app to open.
+        tag:
+          type: string
+          pattern: ^(request|award)-
+          description: '`request-<requestId>` or `award-<awardId>`. A newer push with the same tag replaces the
+            old one.'
+        silent:
+          type: boolean
+          description: True for a quiet replacement of an expired notification (README 13.2).

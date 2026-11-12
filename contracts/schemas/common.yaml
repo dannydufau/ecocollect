@@ -76,6 +76,35 @@ AssignmentStatus:
     Active or Collected: the volunteer still has work to do.
   enum: [Active, Collected, Delivered, Volunteer_Cancelled, Resident_Cancelled, Missed_Pickup]
 
+NotificationType:
+  type: string
+  description: >
+    What a notification is about and who it is for (README 13.1). The suffix says the recipient's
+    side: _RESIDENT for the request's owner, _VOLUNTEER for the volunteer. REQUEST_CREATED and
+    NEW_MATCHING_REQUEST have none: the first goes to the resident, the second to each matched
+    volunteer.
+  enum:
+    - REQUEST_CREATED
+    - NEW_MATCHING_REQUEST
+    - REQUEST_UPDATED_RESIDENT
+    - REQUEST_ASSIGNED_RESIDENT
+    - REQUEST_ASSIGNED_VOLUNTEER
+    - REQUEST_COLLECTED_RESIDENT
+    - REQUEST_COLLECTED_VOLUNTEER
+    - REQUEST_DELIVERED_RESIDENT
+    - REQUEST_DELIVERED_VOLUNTEER
+    - ASSIGNMENT_CANCELLED_BY_RESIDENT_RESIDENT
+    - ASSIGNMENT_CANCELLED_BY_RESIDENT_VOLUNTEER
+    - ASSIGNMENT_CANCELLED_BY_VOLUNTEER_RESIDENT
+    - ASSIGNMENT_CANCELLED_BY_VOLUNTEER_VOLUNTEER
+    - ASSIGNMENT_MISSED_RESIDENT
+    - ASSIGNMENT_MISSED_VOLUNTEER
+    - REQUEST_CANCELLED_RESIDENT
+    - REQUEST_EXPIRED_RESIDENT
+    - ECOPOINTS_AWARDED_ON_DELIVERY_RESIDENT
+    - ECOPOINTS_AWARDED_ON_DELIVERY_VOLUNTEER
+    - ECOPOINTS_AWARDED_ON_ASSIGNMENT_CANCELLATION_VOLUNTEER
+
 Error:
   type: object
   description: >
