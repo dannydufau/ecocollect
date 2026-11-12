@@ -1,0 +1,18 @@
+{
+  "name": "ecocollect-contracts",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Checks that the OpenAPI and AsyncAPI specs say what the README says",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "lint": "npx --yes @redocly/cli@2 lint openapi.yaml && npx --yes @asyncapi/cli@6 validate asyncapi.yaml"
+  },
+  "devDependencies": {
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "yaml": "^2.9.1"
+  }
+}

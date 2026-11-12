@@ -1,0 +1,9 @@
+# Redocly lint settings for openapi.yaml. The recommended rules, minus three that don't fit this project:
+# no license (a class project), a localhost server (Caddy runs locally), and calls that by design
+# have no 4xx answer (logout, the terms, public stats).
+extends:
+  - recommended
+rules:
+  info-license: off
+  no-server-example.com: off
+  operation-4xx-response: off

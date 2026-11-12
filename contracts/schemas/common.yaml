@@ -1,0 +1,211 @@
+# Definitions used by both openapi.yaml and asyncapi.yaml, so the REST API and the
+# events can't drift apart. Point at them with ./schemas/common.yaml#/Name
+
+PickupWindowInput:
+  type: object
+  description: >
+    A window as the browser sends it, before it is saved (creating, editing, reopening or
+    rescheduling a request). A one hour slot, given as a Calgary calendar date plus the hour it
+    starts. There is no time zone because it describes a local hour, not an instant. It has no
+    `windowId` yet: the server assigns one when it saves the window.
+  required: [date, startHour]
+  additionalProperties: false
+  properties:
+    date:
+      type: string
+      format: date
+      example: '2026-11-22'
+    startHour:
+      type: integer
+      minimum: 0
+      maximum: 23
+      description: 14 means 14:00 to 15:00 Calgary time. 23 ends at 00:00 the next day.
+      example: 14
+
+PickupWindow:
+  type: object
+  description: >
+    A saved window, as the server returns it in request details, lists and events. Same slot as
+    PickupWindowInput, plus the `windowId` the server gave it. A volunteer picks a window by its
+    `windowId` when accepting a request, and an assignment keeps the window it used.
+  required: [windowId, date, startHour]
+  additionalProperties: false
+  properties:
+    windowId:
+      type: string
+      minLength: 1
+      example: w_1
+    date:
+      type: string
+      format: date
+      example: '2026-11-22'
+    startHour:
+      type: integer
+      minimum: 0
+      maximum: 23
+      description: 14 means 14:00 to 15:00 Calgary time. 23 ends at 00:00 the next day.
+      example: 14
+
+PostalCode:
+  type: string
+  description: Full six character Calgary postal code, uppercase, no space. Calgary codes start with T, which is also what the database accepts.
+  pattern: '^T[0-9][A-Z][0-9][A-Z][0-9]$'
+  example: T2P1J9
+
+Timestamp:
+  type: string
+  format: date-time
+  pattern: 'Z$'
+  description: ISO 8601 in UTC with a Z suffix. The frontend converts to Calgary time for display only.
+  example: '2026-10-28T16:15:00Z'
+
+RequestStatus:
+  type: string
+  description: >
+    The request's current status. Open, Assigned and Collected are active. Delivered, Cancelled,
+    Expired and Missed are final: nothing changes the request after that. A missed pickup can be
+    rescheduled, but as a new request linked to the missed one, never by reopening it.
+  enum: [Open, Assigned, Collected, Delivered, Cancelled, Expired, Missed]
+
+AssignmentStatus:
+  type: string
+  description: >
+    Active (accepted, not collected) -> Collected (items picked up, not delivered) -> one final
+    status: Delivered, Volunteer_Cancelled, Resident_Cancelled or Missed_Pickup, at which point
+    `endedAt` is set. An "active assignment" means Active only. An "unfinished" assignment is
+    Active or Collected: the volunteer still has work to do.
+  enum: [Active, Collected, Delivered, Volunteer_Cancelled, Resident_Cancelled, Missed_Pickup]
+
+NotificationType:
+  type: string
+  description: >
+    What a notification is about and who it is for (README 13.1). The suffix says the recipient's
+    side: _RESIDENT for the request's owner, _VOLUNTEER for the volunteer. REQUEST_CREATED and
+    NEW_MATCHING_REQUEST have none: the first goes to the resident, the second to each matched
+    volunteer.
+  enum:
+    - REQUEST_CREATED
+    - NEW_MATCHING_REQUEST
+    - REQUEST_UPDATED_RESIDENT
+    - REQUEST_ASSIGNED_RESIDENT
+    - REQUEST_ASSIGNED_VOLUNTEER
+    - REQUEST_COLLECTED_RESIDENT
+    - REQUEST_COLLECTED_VOLUNTEER
+    - REQUEST_DELIVERED_RESIDENT
+    - REQUEST_DELIVERED_VOLUNTEER
+    - ASSIGNMENT_CANCELLED_BY_RESIDENT_RESIDENT
+    - ASSIGNMENT_CANCELLED_BY_RESIDENT_VOLUNTEER
+    - ASSIGNMENT_CANCELLED_BY_VOLUNTEER_RESIDENT
+    - ASSIGNMENT_CANCELLED_BY_VOLUNTEER_VOLUNTEER
+    - ASSIGNMENT_MISSED_RESIDENT
+    - ASSIGNMENT_MISSED_VOLUNTEER
+    - REQUEST_CANCELLED_RESIDENT
+    - REQUEST_EXPIRED_RESIDENT
+    - ECOPOINTS_AWARDED_ON_DELIVERY_RESIDENT
+    - ECOPOINTS_AWARDED_ON_DELIVERY_VOLUNTEER
+    - ECOPOINTS_AWARDED_ON_ASSIGNMENT_CANCELLATION_VOLUNTEER
+
+Error:
+  type: object
+  description: >
+    The body of every error response. `code` is the contract and never changes meaning;
+    `message` is for people and can change. Validation errors (400) put one entry per field
+    in `details.fields`.
+  required: [error]
+  additionalProperties: false
+  properties:
+    error:
+      type: object
+      required: [code, message]
+      additionalProperties: false
+      properties:
+        code:
+          type: string
+          pattern: '^[a-z][a-z0-9_]*$'
+          example: request_unavailable
+        message:
+          type: string
+          minLength: 1
+          example: This request is no longer available.
+        details:
+          type: object
+          properties:
+            fields:
+              type: object
+              description: One readable problem per field, keyed by the field's path.
+              additionalProperties:
+                type: string
+              example:
+                items[1].categoryId: already selected
+
+Category:
+  type: object
+  description: An item category as lists, details and stats show it.
+  required: [categoryId, name, wasteType]
+  additionalProperties: false
+  properties:
+    categoryId:
+      type: string
+      minLength: 1
+      example: laptops
+    name:
+      type: string
+      minLength: 1
+      example: Computers/Laptops
+    wasteType:
+      type: string
+      minLength: 1
+      example: Electronics
+
+AccountId:
+  type: string
+  description: >
+    The username, also used as the Firebase uid. 3 to 50 characters: lowercase letters, digits,
+    `_` and `-`. Stored lowercase and never changes.
+  pattern: '^[a-z0-9_-]{3,50}$'
+  example: danny
+
+Decimal:
+  type: number
+  description: >
+    A decimal with at most 2 decimal places, sent as a JSON number (estimatedWeightKg, points).
+    Postgres returns numeric as a string: convert it before sending.
+  minimum: 0
+  multipleOf: 0.01
+  example: 5.07
+
+Role:
+  type: string
+  enum: [resident, volunteer]
+
+Roles:
+  type: array
+  description: The account's roles, as in the Firebase custom claim `roles`.
+  items:
+    type: string
+    enum: [resident, volunteer]
+  minItems: 1
+  maxItems: 2
+  uniqueItems: true
+  example: [resident, volunteer]
+
+Address:
+  type: object
+  description: >
+    A Calgary street address. It only ever appears in the account's own profile and in the
+    request detail for the people allowed to see it, never in events, SSE, push or lists (NFR03).
+    `city` is always Calgary and is only returned, never sent.
+  required: [street, postalCode]
+  additionalProperties: false
+  properties:
+    street:
+      type: string
+      minLength: 1
+      example: 123 4 Ave SW
+    city:
+      type: string
+      const: Calgary
+    postalCode:
+      type: string
+      pattern: '^T[0-9][A-Z][0-9][A-Z][0-9]$'
+      example: T2P1J9

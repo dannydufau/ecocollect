@@ -1,0 +1,2647 @@
+openapi: 3.1.0
+info:
+  title: EcoCollect public API (Nov 9)
+  version: 1.0.0
+  description: |
+    Everything the frontend calls, through the gateway (Caddy) on one origin, following the Nov 9 contracts in
+    [README.md](./README.md) (section 5). Events are in [asyncapi.yaml](./asyncapi.yaml). Each operation's
+    summary starts with its id in the README (Q4 and so on).
+
+    Calls send `Authorization: Bearer <Firebase ID token>`. The exception is `GET /api/events`: `EventSource`
+    can't set headers, so it uses the session cookie from `POST /api/session` instead.
+
+    Status codes mean the same thing everywhere:
+
+    - `200` OK with a body, `201` created, `204` OK with no body.
+    - `400` the request itself is invalid. One entry per field in `error.details.fields`.
+    - `401` not signed in, or the token or cookie is invalid or expired. Sign in again.
+    - `403` signed in, but not allowed: the wrong role, or the action belongs to someone else.
+    - `404` the resource does not exist, or the caller may not see it. Both get the same answer, so a hidden
+      request is never revealed (NFR03). If `GET /api/requests/{id}` would be a 404 for the caller, every other
+      call on that request is a 404 too, never a 403.
+    - `409` valid, but the current state does not allow it. `error.code` says which state; refetch and show it.
+    - `500` unexpected error. Nothing was saved and it is safe to retry. A `500` from the auth check means
+      Firebase or the server's setup failed, which is not the user's fault, so the frontend should not log them out.
+
+    Every error body is `{ "error": { "code", "message", "details" } }`. The `code` is the contract; the
+    `message` can change.
+
+    A street address only ever appears in the caller's own profile and in a request detail for the people
+    allowed to see it. Never in a list.
+servers:
+  - url: https://localhost
+    description: Caddy in local development
+tags:
+  - name: Users
+    description: 'User Service: sessions, registration, terms, profiles and roles (README 5.1).'
+  - name: Requests
+    description: 'Request Service: categories, facilities, photo uploads and the request lifecycle (README 5.2).'
+  - name: Rewards
+    description: 'Reward Service: EcoPoints and public statistics (README 5.3).'
+  - name: Notifications
+    description: 'Notification Service: the live streams, the notification list and push subscriptions (README 5.4).'
+  - name: Internal
+    description: Never routed publicly. Only Caddy calls it.
+  - name: Demo
+    description: Only in the demo stack (README 17).
+paths:
+  /api/session:
+    post:
+      tags:
+        - Users
+      operationId: createSession
+      summary: U1. Swap an ID token for a session cookie
+      x-readme-id: U1
+      description: |
+        Exists only for SSE: `EventSource` can not send an `Authorization` header, but browsers send cookies.
+        Call it right after login, and again after a role is activated. Firebase checks the token while creating the cookie.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - idToken
+              properties:
+                idToken:
+                  type: string
+                  minLength: 1
+                  description: Firebase ID token from `getIdToken()`.
+            example:
+              idToken: eyJhbGciOi...
+      responses:
+        '204':
+          description: Session created. The cookie lasts 5 days.
+          headers:
+            Set-Cookie:
+              description: '`session=...; HttpOnly; Secure; SameSite=Lax`. JavaScript can not read it.'
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/Error
+          description: The token is missing, invalid, or the sign-in is not recent.
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/Error
+          description: Firebase or the server's own setup failed. The token was not at fault, so do not log the
+            user out.
+    delete:
+      tags:
+        - Users
+      operationId: deleteSession
+      summary: U2. End the session
+      x-readme-id: U2
+      description: |
+        Call on logout, after unsubscribing push and before Firebase `signOut`. The cookie is cleared even if there was none.
+      security: []
+      responses:
+        '204':
+          description: Cookie cleared.
+          headers:
+            Set-Cookie:
+              description: '`session=...; HttpOnly; Secure; SameSite=Lax`. JavaScript can not read it.'
+              schema:
+                type: string
+  /verify:
+    get:
+      tags:
+        - Internal
+      operationId: verify
+      summary: U3. Check a token or cookie (internal, Caddy only)
+      x-readme-id: U3
+      description: |
+        Called only by Caddy's `forward_auth` on the internal network, with the original `Authorization` and `Cookie`
+        headers. Never routed publicly. Bearer first, else the cookie; both reject disabled (deactivated) users.
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Valid. Caddy copies these headers onto the original request.
+          headers:
+            X-User-Id:
+              schema:
+                $ref: ./schemas/common.yaml#/AccountId
+            X-User-Roles:
+              description: Comma separated, empty if none.
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/Error
+          description: 'Firebase or the server setup failed: not the user''s fault.'
+  /api/accounts:
+    post:
+      tags:
+        - Users
+      operationId: createAccount
+      summary: U4. Register
+      x-readme-id: U4
+      description: |
+        FR01. Creates the Firebase user (uid = username) with its role claim, then the account, role, address or postal
+        codes and the terms acceptance in one transaction (README 7.1). Then the frontend signs in and calls U1.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAccount'
+            example:
+              username: jasdeep
+              email: jas@example.test
+              password: correct horse
+              firstName: Jasdeep
+              lastName: S
+              publicName: Jas
+              dateOfBirth: '1995-06-15'
+              role: resident
+              address:
+                street: 123 4 Ave SW
+                postalCode: T2P1J9
+              termsDocumentId: terms_3
+      responses:
+        '201':
+          description: Registered.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - accountId
+                  - roles
+                properties:
+                  accountId:
+                    $ref: ./schemas/common.yaml#/AccountId
+                  roles:
+                    $ref: ./schemas/common.yaml#/Roles
+              example:
+                accountId: jasdeep
+                roles:
+                  - resident
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          description: The username or email is taken, or the terms changed.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: ./schemas/common.yaml#/Error
+                  - properties:
+                      error:
+                        properties:
+                          code:
+                            enum:
+                              - username_taken
+                              - email_taken
+                              - terms_outdated
+  /api/terms:
+    get:
+      tags:
+        - Users
+      operationId: getTerms
+      summary: U5. The current terms document
+      x-readme-id: U5
+      description: |
+        Needed before an account exists, so no login.
+      security: []
+      responses:
+        '200':
+          description: The current document.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TermsDocument'
+  /api/profile:
+    get:
+      tags:
+        - Users
+      operationId: getProfile
+      summary: U6. My profile
+      x-readme-id: U6
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The caller's own profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+              example:
+                accountId: danny
+                email: danny@example.test
+                firstName: Danny
+                lastName: D
+                publicName: Danny
+                dateOfBirth: '1990-04-02'
+                roles:
+                  - volunteer
+                address: null
+                preferredPostalCodes:
+                  - T2P1J9
+                createdAt: '2026-11-01T18:00:00Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/Error
+          description: No profile for this account.
+    patch:
+      tags:
+        - Users
+      operationId: editProfile
+      summary: U7. Edit my profile
+      x-readme-id: U7
+      description: |
+        FR04. Publishes `ProfileUpdated`.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileEdit'
+            example:
+              preferredPostalCodes:
+                - T2P1J9
+                - T3A0B1
+      responses:
+        '200':
+          description: The full profile, as U6.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/Error
+          description: '`role_required`: the address needs the resident role, postal codes need the volunteer role.'
+        '409':
+          description: The resident owns an Open or Assigned request.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: ./schemas/common.yaml#/Error
+                  - properties:
+                      error:
+                        properties:
+                          code:
+                            enum:
+                              - address_locked
+    delete:
+      tags:
+        - Users
+      operationId: deactivateAccount
+      summary: U9. Deactivate my account
+      x-readme-id: U9
+      description: |
+        FR04 (README 7.4). Disables the Firebase user and revokes its tokens, then sets `Deactivated_At`. Publishes
+        `AccountDeactivated`. The frontend then signs out.
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Deactivated. The session cookie is cleared.
+          headers:
+            Set-Cookie:
+              description: '`session=...; HttpOnly; Secure; SameSite=Lax`. JavaScript can not read it.'
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Owns an Open, Assigned or Collected request, or has an unfinished assignment.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: ./schemas/common.yaml#/Error
+                  - properties:
+                      error:
+                        properties:
+                          code:
+                            enum:
+                              - active_work
+  /api/profile/roles:
+    post:
+      tags:
+        - Users
+      operationId: activateRole
+      summary: U8. Activate my second role
+      x-readme-id: U8
+      description: |
+        FR03. Writes the role, its terms acceptance and the Firebase claim. Then the frontend refreshes the ID token,
+        calls U1 again and reopens the stream. Publishes `ProfileUpdated` (`changed: ["roles"]`).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActivateRole'
+            example:
+              role: resident
+              termsDocumentId: terms_3
+              address:
+                street: 9 Main St NW
+                postalCode: T3A0B1
+      responses:
+        '200':
+          description: The roles now.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - roles
+                properties:
+                  roles:
+                    $ref: ./schemas/common.yaml#/Roles
+              example:
+                roles:
+                  - resident
+                  - volunteer
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: The role is already active, or the terms changed.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: ./schemas/common.yaml#/Error
+                  - properties:
+                      error:
+                        properties:
+                          code:
+                            enum:
+                              - role_already_active
+                              - terms_outdated
+  /api/public/profiles/{accountId}:
+    get:
+      tags:
+        - Users
+      operationId: getPublicProfile
+      summary: U10. A public profile
+      x-readme-id: U10
+      description: |
+        FR05. No login. A deactivated account is a 404, which also hides its stats page.
+      security: []
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            $ref: ./schemas/common.yaml#/AccountId
+      responses:
+        '200':
+          description: The public profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicProfile'
+              example:
+                accountId: danny
+                publicName: Danny
+                roles:
+                  - volunteer
+                memberSince: '2026-11-01T18:00:00Z'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/Error
+          description: Unknown or deactivated account.
+  /api/demo/session:
+    post:
+      tags:
+        - Demo
+      operationId: createDemoSession
+      summary: Demo. Start a demo (demo stack only)
+      x-readme-id: Demo
+      description: |
+        Only when the User Service runs with `DEMO_MODE=true`, and never routed by the production Caddy site (README 17.3).
+        Creates a throwaway account `demo-<random>` with both roles, an address, a preferred postal code and the terms
+        accepted. The frontend calls `signInWithCustomToken`, then U1 and the stream as usual. Rate-limited per IP.
+      security: []
+      responses:
+        '200':
+          description: A Firebase custom token for the new demo account.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - customToken
+                properties:
+                  customToken:
+                    type: string
+                    minLength: 1
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/Error
+          description: Too many demo sessions from this address. Try again later.
+  /api/categories:
+    get:
+      tags:
+        - Requests
+      operationId: listCategories
+      summary: Q1. Item categories
+      x-readme-id: Q1
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Every category.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryWithWeight'
+              example:
+                - categoryId: laptops
+                  name: Computers/Laptops
+                  wasteType: Electronics
+                  standardWeightKg: 2.5
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/facilities:
+    get:
+      tags:
+        - Requests
+      operationId: listFacilities
+      summary: Q2. Recycling facilities (volunteer)
+      x-readme-id: Q2
+      description: With `categoryId`, only the facilities that accept it (FR17).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: categoryId
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        '200':
+          description: The facilities.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Facility'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/uploads:
+    post:
+      tags:
+        - Requests
+      operationId: createUpload
+      summary: Q3. Sign a photo upload
+      x-readme-id: Q3
+      description: |
+        The browser uploads straight to ImageKit with this one-time ticket, then sends only the `fileId` (README 6).
+        Before asking, the browser re-encodes the image to strip its metadata (README 6.0).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadRequest'
+            example:
+              purpose: item_photo
+              fileName: laptops.jpg
+              contentType: image/jpeg
+              sizeBytes: 412000
+      responses:
+        '200':
+          description: The upload ticket.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadTicket'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/requests:
+    post:
+      tags:
+        - Requests
+      operationId: createRequests
+      summary: Q4. Create pickup requests (resident)
+      x-readme-id: Q4
+      description: |
+        One request per item, all in one transaction with one shared terms acceptance (FR06-FR08, FR22). The
+        address is copied from the resident's profile, never sent. Weight is worked out by the server. Publishes one
+        `RequestCreated` per request.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema:
+            type: string
+            minLength: 1
+          description: A repeat with the same key within 24 hours returns the first `201` (NFR06).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRequests'
+            example:
+              items:
+                - categoryId: laptops
+                  quantity: 2
+                  photo:
+                    fileId: imgkit_6f1a
+                - categoryId: phones
+                  quantity: 1
+              windows:
+                - date: '2026-11-22'
+                  startHour: 14
+              notes: Side door
+              termsDocumentId: terms_3
+      responses:
+        '201':
+          description: Created, one per item.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - requests
+                properties:
+                  requests:
+                    type: array
+                    minItems: 1
+                    items:
+                      $ref: '#/components/schemas/CreatedRequest'
+              example:
+                requests:
+                  - requestId: 6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11
+                    category:
+                      categoryId: laptops
+                      name: Computers/Laptops
+                      wasteType: Electronics
+                    quantity: 2
+                    estimatedWeightKg: 5.0
+                    status: Open
+                    createdAt: '2026-11-20T16:15:00Z'
+                    expiresAt: '2026-11-22T20:00:00Z'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: 'The terms changed: reload them and ask again.'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: ./schemas/common.yaml#/Error
+                  - properties:
+                      error:
+                        properties:
+                          code:
+                            enum:
+                              - terms_outdated
+    get:
+      tags:
+        - Requests
+      operationId: listRequests
+      summary: 'Q5, Q6, Q7. List requests: mine, available or my assignments'
+      x-readme-id: Q5, Q6, Q7
+      description: |
+        One endpoint, three views, newest first:
+
+        | `view` | Who | Returns | README |
+        |---|---|---|---|
+        | `mine` | resident | the caller's own requests, optional `status` filter | Q5, FR09 |
+        | `available` | volunteer | Open requests not past `expiresAt`, future windows only, optional `postalCodes` | Q6, FR12 |
+        | `volunteer` | volunteer | one row per assignment of the caller, optional `assignmentStatus` filter | Q7, FR21 |
+
+        Lists never carry a street address, notes or a photo URL.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: view
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - mine
+              - available
+              - volunteer
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Only with `view=mine`. Comma-separated request statuses.
+          example: Open,Assigned
+        - name: postalCodes
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Only with `view=available`. Comma-separated, at most 10.
+          example: T2P1J9,T3A0B1
+        - name: assignmentStatus
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Only with `view=volunteer`. Comma-separated assignment statuses.
+          example: Active,Collected
+      responses:
+        '200':
+          description: The list for the chosen view.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - type: array
+                    title: view=mine
+                    items:
+                      $ref: '#/components/schemas/MyRequest'
+                  - type: array
+                    title: view=available
+                    items:
+                      $ref: '#/components/schemas/AvailableRequest'
+                  - type: array
+                    title: view=volunteer
+                    items:
+                      $ref: '#/components/schemas/VolunteerAssignment'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/requests/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: The request id.
+    get:
+      tags:
+        - Requests
+      operationId: getRequest
+      summary: Q8. One request
+      x-readme-id: Q8
+      description: |
+        What the caller sees depends on how they relate to the request (README 5.2). Once a request leaves Open,
+        only the owner, the assigned volunteer (until the assignment ends) and the delivering volunteer can open it.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The request detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestDetail'
+              example:
+                requestId: 6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11
+                status: Assigned
+                category:
+                  categoryId: laptops
+                  name: Computers/Laptops
+                  wasteType: Electronics
+                quantity: 2
+                estimatedWeightKg: 5.0
+                postalCode: T2P1J9
+                windows:
+                  - windowId: w_1
+                    date: '2026-11-22'
+                    startHour: 14
+                createdAt: '2026-11-20T16:15:00Z'
+                expiresAt: '2026-11-22T20:00:00Z'
+                notes: Side door
+                address:
+                  street: 123 4 Ave SW
+                  postalCode: T2P1J9
+                photoUrl: https://ik.imagekit.io/ecocollect/item-photos/jasdeep/3f2a.jpg?ik-t=1795000000&ik-s=abc123
+                resident:
+                  accountId: jasdeep
+                  publicName: Jas
+                assignment:
+                  assignmentId: a_9
+                  volunteer:
+                    accountId: danny
+                    publicName: Danny
+                  window:
+                    windowId: w_1
+                    date: '2026-11-22'
+                    startHour: 14
+                  status: Active
+                  acceptedAt: '2026-11-21T02:00:00Z'
+                  collectedAt: null
+                  endedAt: null
+                  endReason: null
+                  outsideCancellationWindow: false
+                delivery: null
+                rescheduledFrom: null
+                rescheduledAs: null
+                statusHistory:
+                  - status: Open
+                    changedAt: '2026-11-20T16:15:00Z'
+                    reason: null
+                  - status: Assigned
+                    changedAt: '2026-11-21T02:00:00Z'
+                    reason: null
+                viewer: owner
+                allowedActions:
+                  - cancel
+                  - cancel_assignment
+                  - confirm_collected
+                refreshAt: '2026-11-21T20:00:00Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags:
+        - Requests
+      operationId: editRequest
+      summary: Q9. Edit an Open request (owner)
+      x-readme-id: Q9
+      description: |
+        Weight and `expiresAt` are recalculated. Publishes `RequestUpdated` (`edited`). An overdue Open request is
+        expired instead (`409 expired`).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EditRequest'
+            example:
+              quantity: 3
+      responses:
+        '200':
+          description: The request detail, as Q8 returns it to the caller.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestDetail'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: The request is no longer Open, or it was overdue and has just expired.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: ./schemas/common.yaml#/Error
+                  - properties:
+                      error:
+                        properties:
+                          code:
+                            enum:
+                              - not_open
+                              - expired
+  /api/requests/{id}/cancel:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: The request id.
+    post:
+      tags:
+        - Requests
+      operationId: cancelRequest
+      summary: Q10. Cancel a request (owner)
+      x-readme-id: Q10
+      description: |
+        Open or Assigned only, and for Assigned only until the selected window ends (then confirm collection or report
+        a missed pickup). Publishes `RequestCancelled`, after `RequestAssignmentCancelledResident` if it was Assigned.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelRequest'
+            example:
+              reason: Dropped them off myself
+      responses:
+        '200':
+          description: The request detail, as Q8 returns it to the caller.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Not Open or Assigned, the selected window has ended, or the request just expired.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: ./schemas/common.yaml#/Error
+                  - properties:
+                      error:
+                        properties:
+                          code:
+                            enum:
+                              - not_cancellable
+                              - window_ended
+                              - expired
+  /api/requests/{id}/assignment:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: The request id.
+    post:
+      tags:
+        - Requests
+      operationId: acceptRequest
+      summary: Q11. Accept a request (volunteer)
+      x-readme-id: Q11
+      description: |
+        Picks one window by its `windowId` (FR13, FR22). The response now includes the address. Publishes `RequestAssigned`.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcceptRequest'
+            example:
+              windowId: w_1
+              termsDocumentId: terms_3
+      responses:
+        '201':
+          description: 'Accepted: the request detail, now with the address.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestDetail'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Someone else was faster, the request is gone or expired, or the terms changed.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: ./schemas/common.yaml#/Error
+                  - properties:
+                      error:
+                        properties:
+                          code:
+                            enum:
+                              - not_open
+                              - already_assigned
+                              - expired
+                              - terms_outdated
+  /api/requests/{id}/assignment/cancel:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: The request id.
+    post:
+      tags:
+        - Requests
+      operationId: cancelAssignment
+      summary: Q12. Cancel the assignment (owner or volunteer)
+      x-readme-id: Q12
+      description: |
+        A volunteer can cancel any time before collection (FR14). A resident only until the selected window ends
+        (FR11). The request then reopens, or expires if it is past `expiresAt`.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelAssignment'
+            example:
+              reason: Something came up
+      responses:
+        '200':
+          description: The request detail, as Q8 returns it to the caller.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestDetail'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: No Active assignment, the items were already collected, or (resident) the window has ended.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: ./schemas/common.yaml#/Error
+                  - properties:
+                      error:
+                        properties:
+                          code:
+                            enum:
+                              - no_active_assignment
+                              - already_collected
+                              - window_ended
+  /api/requests/{id}/assignment/collected:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: The request id.
+    post:
+      tags:
+        - Requests
+      operationId: confirmCollected
+      summary: Q13. Confirm collection (owner)
+      x-readme-id: Q13
+      description: |
+        FR15. Publishes `RequestAssignmentCollected`.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The request detail, as Q8 returns it to the caller.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: The request is not Assigned.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: ./schemas/common.yaml#/Error
+                  - properties:
+                      error:
+                        properties:
+                          code:
+                            enum:
+                              - not_assigned
+  /api/requests/{id}/assignment/missed:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: The request id.
+    post:
+      tags:
+        - Requests
+      operationId: reportMissed
+      summary: Q14. Report a missed pickup (owner)
+      x-readme-id: Q14
+      description: |
+        After the selected window ends (FR16). The request becomes Missed, which is final. With `reschedule`, the same
+        transaction creates a new Open request linked to it.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportMissed'
+            example:
+              reason: Nobody came
+              reschedule:
+                windows:
+                  - date: '2026-11-24'
+                    startHour: 10
+                termsDocumentId: terms_3
+      responses:
+        '200':
+          description: The missed request, and the new one if rescheduled.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - request
+                  - rescheduledRequest
+                properties:
+                  request:
+                    $ref: '#/components/schemas/RequestDetail'
+                  rescheduledRequest:
+                    oneOf:
+                      - $ref: '#/components/schemas/CreatedRequest'
+                      - type: 'null'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Not Assigned, the window has not ended yet, or the terms changed.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: ./schemas/common.yaml#/Error
+                  - properties:
+                      error:
+                        properties:
+                          code:
+                            enum:
+                              - not_assigned
+                              - window_not_ended
+                              - terms_outdated
+  /api/requests/{id}/assignment/delivery:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: The request id.
+    post:
+      tags:
+        - Requests
+      operationId: recordDelivery
+      summary: Q15. Record the delivery (assigned volunteer)
+      x-readme-id: Q15
+      description: |
+        The facility must accept the category (FR17), and the evidence photo is required. Publishes `RequestAssignmentDelivered`.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecordDelivery'
+            example:
+              facilityId: f_3
+              evidencePhoto:
+                fileId: imgkit_9c2b
+      responses:
+        '200':
+          description: The request detail, as Q8 returns it to the caller.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestDetail'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: The items are not collected yet, or it was already delivered.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: ./schemas/common.yaml#/Error
+                  - properties:
+                      error:
+                        properties:
+                          code:
+                            enum:
+                              - not_collected
+                              - already_delivered
+  /api/events:
+    get:
+      tags:
+        - Notifications
+      operationId: openEventStream
+      summary: N1. Live notifications and signals (Server-Sent Events)
+      description: |
+        Open once after login with `new EventSource('/api/events', { withCredentials: true })`
+        and keep it open. The cookie is checked once, when the connection opens.
+        `EventSource` reconnects by itself if it drops. As soon as the stream is set up, the server
+        writes a `ready` event (`event: ready`, `data: {}`), so `onopen` fires right away and not after the
+        first ping. Refetch the lists on screen in the `onopen` handler: it runs on the first connection
+        and on every reconnect, which is how a missed signal is recovered.
+
+        After that the server sends the messages listed in [asyncapi.yaml](./asyncapi.yaml) on the
+        `userStream` channel: `notification` (with an `id:` line set to the notification id),
+        `notification-expired`, `notification-read`, `profile-updated`, `available-requests-changed` and
+        `account-deactivated`. They are signals with display text; the data always comes from the REST API.
+        A comment line `: ping` arrives about every 25 seconds to keep the connection open, and
+        `EventSource` ignores it.
+
+        Caddy streams this route straight through and must not compress it.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: The stream.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+              example: |
+                event: ready
+                data: {}
+
+                event: notification
+                id: n_789
+                data: {"notificationId":"n_789","type":"NEW_MATCHING_REQUEST","requestId":"6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11","awardId":null,"title":"New pickup near you","body":"2 x Computers/Laptops in T2P1J9","url":"/volunteer/requests/6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11","createdAt":"2026-11-20T16:15:00Z"}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      x-readme-id: N1
+  /api/public/events:
+    get:
+      tags:
+        - Notifications
+      operationId: openPublicEventStream
+      summary: N2. Live updates for a public page (Server-Sent Events)
+      x-readme-id: N2
+      description: |
+        Public profile and statistics pages only, no login. Exactly one of `profile` or `stats`. The messages are on the
+        `publicStream` channel in [asyncapi.yaml](./asyncapi.yaml); none carries user data.
+      security: []
+      parameters:
+        - name: profile
+          in: query
+          required: false
+          schema:
+            $ref: ./schemas/common.yaml#/AccountId
+        - name: stats
+          in: query
+          required: false
+          allowEmptyValue: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The stream.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+              example: |
+                event: stats-updated
+                data: {}
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  /api/notifications:
+    get:
+      tags:
+        - Notifications
+      operationId: listNotifications
+      summary: N3. My notifications
+      x-readme-id: N3
+      description: |
+        Newest first. Expired notifications are never returned. Page with `before` (the `createdAt` of the last one shown).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: before
+          in: query
+          required: false
+          schema:
+            $ref: ./schemas/common.yaml#/Timestamp
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 30
+      responses:
+        '200':
+          description: A page of notifications and the unread count.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - unreadCount
+                  - notifications
+                properties:
+                  unreadCount:
+                    type: integer
+                    minimum: 0
+                  notifications:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Notification'
+              example:
+                unreadCount: 1
+                notifications:
+                  - notificationId: n_789
+                    type: NEW_MATCHING_REQUEST
+                    requestId: 6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11
+                    awardId: null
+                    title: New pickup near you
+                    body: 2 x Computers/Laptops in T2P1J9
+                    url: /volunteer/requests/6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11
+                    isRead: false
+                    createdAt: '2026-11-20T16:15:00Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/notifications/{id}/read:
+    patch:
+      tags:
+        - Notifications
+      operationId: markNotificationRead
+      summary: N4. Mark one notification read
+      x-readme-id: N4
+      description: |
+        Sends `notification-read` to the user's other connections.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        '204':
+          description: Marked read.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/Error
+          description: Not the caller's notification, or gone.
+  /api/notifications/read-all:
+    post:
+      tags:
+        - Notifications
+      operationId: markAllNotificationsRead
+      summary: N5. Mark all notifications read
+      x-readme-id: N5
+      description: |
+        One `notification-read` message with `all: true` to the user's other connections.
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: All marked read.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/push/subscriptions:
+    post:
+      tags:
+        - Notifications
+      operationId: subscribePush
+      summary: N6. Save a push subscription
+      x-readme-id: N6
+      description: |
+        After the user clicks "Enable notifications". The same endpoint again updates it. The user agent comes from the `User-Agent` header.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushSubscription'
+            example:
+              endpoint: https://push.example.test/abc
+              keys:
+                p256dh: BNcR...
+                auth: tBHI...
+              expirationTime: null
+      responses:
+        '201':
+          description: Saved.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    delete:
+      tags:
+        - Notifications
+      operationId: unsubscribePush
+      summary: N7. Remove a push subscription
+      x-readme-id: N7
+      description: |
+        On logout, before `DELETE /api/session`.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - endpoint
+              properties:
+                endpoint:
+                  type: string
+                  format: uri
+            example:
+              endpoint: https://push.example.test/abc
+      responses:
+        '204':
+          description: Removed.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/ecopoints:
+    get:
+      tags:
+        - Rewards
+      operationId: getMyEcopoints
+      summary: R1. My EcoPoints
+      x-readme-id: R1
+      description: |
+        FR18. Totals and every award, newest first.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Totals and awards.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - total
+                  - asResident
+                  - asVolunteer
+                  - awards
+                properties:
+                  total:
+                    $ref: ./schemas/common.yaml#/Decimal
+                  asResident:
+                    $ref: ./schemas/common.yaml#/Decimal
+                  asVolunteer:
+                    $ref: ./schemas/common.yaml#/Decimal
+                  awards:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Award'
+              example:
+                total: 26.0
+                asResident: 0
+                asVolunteer: 26.0
+                awards:
+                  - awardId: aw_1
+                    kind: DELIVERY
+                    earnedAs: volunteer
+                    points: 26.0
+                    formula: VOLUNTEER
+                    requestId: 6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11
+                    assignmentId: a_9
+                    categoryName: Computers/Laptops
+                    quantity: 2
+                    estimatedWeightKg: 5.0
+                    awardedAt: '2026-11-22T23:10:00Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/public/stats:
+    get:
+      tags:
+        - Rewards
+      operationId: getPublicStats
+      summary: R2. Community statistics
+      x-readme-id: R2
+      description: |
+        FR23. No login. One volunteer delivery award counts as one delivery.
+      security: []
+      responses:
+        '200':
+          description: The statistics.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - deliveries
+                  - itemsDelivered
+                  - estimatedWeightKgDelivered
+                  - ecopointsAwarded
+                  - byWasteType
+                  - updatedAt
+                properties:
+                  deliveries:
+                    type: integer
+                    minimum: 0
+                  itemsDelivered:
+                    type: integer
+                    minimum: 0
+                  estimatedWeightKgDelivered:
+                    $ref: ./schemas/common.yaml#/Decimal
+                  ecopointsAwarded:
+                    $ref: ./schemas/common.yaml#/Decimal
+                  byWasteType:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WasteTypeStats'
+                  updatedAt:
+                    $ref: ./schemas/common.yaml#/Timestamp
+  /api/public/profiles/{accountId}/stats:
+    get:
+      tags:
+        - Rewards
+      operationId: getPublicProfileStats
+      summary: R3. EcoPoints on a public profile
+      x-readme-id: R3
+      description: |
+        FR05. No login. An unknown account returns zeros; the page calls U10 first, and its 404 hides the page.
+      security: []
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            $ref: ./schemas/common.yaml#/AccountId
+      responses:
+        '200':
+          description: The account's EcoPoints.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - accountId
+                  - ecopoints
+                properties:
+                  accountId:
+                    $ref: ./schemas/common.yaml#/AccountId
+                  ecopoints:
+                    $ref: ./schemas/common.yaml#/Decimal
+              example:
+                accountId: danny
+                ecopoints: 26.0
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Firebase ID token (JWT, about 1 hour)
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: session
+      description: Firebase session cookie from `POST /api/session`.
+  responses:
+    ValidationError:
+      content:
+        application/json:
+          schema:
+            $ref: ./schemas/common.yaml#/Error
+      description: The request itself is invalid. One entry per field in `error.details.fields`. Sending it again
+        fails the same way.
+    Unauthorized:
+      content:
+        application/json:
+          schema:
+            $ref: ./schemas/common.yaml#/Error
+      description: Not signed in, or the token or session cookie is invalid or expired (answered by the gateway).
+        Sign in again.
+    Forbidden:
+      content:
+        application/json:
+          schema:
+            $ref: ./schemas/common.yaml#/Error
+      description: Signed in, but missing the role this call needs, or the action belongs to someone else.
+    NotFound:
+      content:
+        application/json:
+          schema:
+            $ref: ./schemas/common.yaml#/Error
+      description: |
+        `request_unavailable`: the request does not exist or the caller may not see it. Both get the same
+        answer, so a hidden request is never revealed (NFR03).
+  schemas:
+    CategoryWithWeight:
+      type: object
+      additionalProperties: false
+      required:
+        - categoryId
+        - name
+        - wasteType
+        - standardWeightKg
+      properties:
+        categoryId:
+          type: string
+          minLength: 1
+        name:
+          type: string
+          minLength: 1
+        wasteType:
+          type: string
+          minLength: 1
+        standardWeightKg:
+          $ref: ./schemas/common.yaml#/Decimal
+    Facility:
+      type: object
+      description: A recycling facility. Its address is public, unlike a resident's.
+      additionalProperties: false
+      required:
+        - facilityId
+        - name
+        - street
+        - postalCode
+        - specialInstructions
+        - acceptedCategoryIds
+      properties:
+        facilityId:
+          type: string
+          minLength: 1
+        name:
+          type: string
+          minLength: 1
+        street:
+          type: string
+          minLength: 1
+        postalCode:
+          $ref: ./schemas/common.yaml#/PostalCode
+        specialInstructions:
+          type:
+            - string
+            - 'null'
+        acceptedCategoryIds:
+          type: array
+          items:
+            type: string
+            minLength: 1
+    PhotoRef:
+      type: object
+      additionalProperties: false
+      required:
+        - fileId
+      properties:
+        fileId:
+          type: string
+          minLength: 1
+          description: The ImageKit `fileId` returned by the upload (README 6.4).
+    UploadRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - purpose
+        - fileName
+        - contentType
+        - sizeBytes
+      properties:
+        purpose:
+          type: string
+          enum:
+            - item_photo
+            - delivery_evidence
+        requestId:
+          type: string
+          format: uuid
+          description: Required for `delivery_evidence`.
+        fileName:
+          type: string
+          minLength: 1
+        contentType:
+          type: string
+          enum:
+            - image/jpeg
+            - image/png
+            - image/webp
+        sizeBytes:
+          type: integer
+          minimum: 1
+          maximum: 10485760
+    UploadTicket:
+      type: object
+      additionalProperties: false
+      required:
+        - uploadUrl
+        - token
+        - fields
+        - expiresAt
+      properties:
+        uploadUrl:
+          type: string
+          format: uri
+        token:
+          type: string
+          minLength: 1
+          description: One-time JWT signed with the ImageKit private key. It pins every value in `fields`.
+        fields:
+          type: object
+          description: Send every entry unchanged with the file (README 6.3).
+          additionalProperties: false
+          required:
+            - fileName
+            - folder
+            - isPrivateFile
+            - useUniqueFileName
+            - overwriteFile
+            - checks
+            - transformation
+          properties:
+            fileName:
+              type: string
+              minLength: 1
+            folder:
+              type: string
+              minLength: 1
+            isPrivateFile:
+              const: true
+            useUniqueFileName:
+              const: false
+            overwriteFile:
+              const: false
+            checks:
+              type: string
+              minLength: 1
+            transformation:
+              type: string
+              minLength: 1
+              description: 'The JSON string to send as is: `{"pre":"md-false"}` (strips all metadata, including
+                GPS).'
+        expiresAt:
+          $ref: ./schemas/common.yaml#/Timestamp
+    CreateRequests:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - windows
+        - termsDocumentId
+      properties:
+        items:
+          type: array
+          minItems: 1
+          description: One request per item. Each `categoryId` at most once.
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - categoryId
+              - quantity
+            properties:
+              categoryId:
+                type: string
+                minLength: 1
+              quantity:
+                type: integer
+                minimum: 1
+              photo:
+                $ref: '#/components/schemas/PhotoRef'
+        windows:
+          type: array
+          minItems: 1
+          maxItems: 3
+          items:
+            $ref: ./schemas/common.yaml#/PickupWindowInput
+          description: |
+            1 to 3 distinct slots. Each starts in the future and ends by `createdAt + 30 days`
+            (the original `createdAt` when editing). Times are decided in Calgary time with the database clock.
+        notes:
+          type: string
+        termsDocumentId:
+          type: string
+          minLength: 1
+          description: The terms document the resident just acknowledged. Must be the current one.
+    CreatedRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - requestId
+        - category
+        - quantity
+        - estimatedWeightKg
+        - status
+        - createdAt
+        - expiresAt
+      properties:
+        requestId:
+          type: string
+          format: uuid
+        category:
+          $ref: ./schemas/common.yaml#/Category
+        quantity:
+          type: integer
+          minimum: 1
+        estimatedWeightKg:
+          $ref: ./schemas/common.yaml#/Decimal
+        status:
+          const: Open
+        createdAt:
+          $ref: ./schemas/common.yaml#/Timestamp
+        expiresAt:
+          allOf:
+            - $ref: ./schemas/common.yaml#/Timestamp
+          description: The start of the last active window.
+    MyRequest:
+      type: object
+      description: A resident's own request in a list. The photo itself and the address are only in the detail (Q8).
+      additionalProperties: false
+      required:
+        - requestId
+        - category
+        - quantity
+        - estimatedWeightKg
+        - status
+        - createdAt
+        - expiresAt
+        - hasPhoto
+      properties:
+        requestId:
+          type: string
+          format: uuid
+        category:
+          $ref: ./schemas/common.yaml#/Category
+        quantity:
+          type: integer
+          minimum: 1
+        estimatedWeightKg:
+          $ref: ./schemas/common.yaml#/Decimal
+        status:
+          $ref: ./schemas/common.yaml#/RequestStatus
+        createdAt:
+          $ref: ./schemas/common.yaml#/Timestamp
+        expiresAt:
+          $ref: ./schemas/common.yaml#/Timestamp
+        hasPhoto:
+          type: boolean
+    AvailableRequest:
+      type: object
+      description: What any volunteer sees. No street address, no notes, no photo and no resident name, and no other
+        field can be added (NFR03).
+      additionalProperties: false
+      required:
+        - requestId
+        - category
+        - quantity
+        - estimatedWeightKg
+        - postalCode
+        - windows
+        - expiresAt
+        - hasPhoto
+      properties:
+        requestId:
+          type: string
+          format: uuid
+        category:
+          $ref: ./schemas/common.yaml#/Category
+        quantity:
+          type: integer
+          minimum: 1
+        estimatedWeightKg:
+          $ref: ./schemas/common.yaml#/Decimal
+        postalCode:
+          $ref: ./schemas/common.yaml#/PostalCode
+        windows:
+          type: array
+          minItems: 1
+          items:
+            $ref: ./schemas/common.yaml#/PickupWindow
+          description: Future windows only.
+        expiresAt:
+          $ref: ./schemas/common.yaml#/Timestamp
+        hasPhoto:
+          type: boolean
+    VolunteerAssignment:
+      type: object
+      description: |
+        One row per assignment of the caller: the volunteer's history (Q7). For an assignment that ended as
+        Volunteer_Cancelled, Resident_Cancelled or Missed_Pickup, only `requestId` and `assignment` are filled and
+        the rest is null, because the volunteer is no longer linked to the request.
+      additionalProperties: false
+      required:
+        - requestId
+        - category
+        - quantity
+        - estimatedWeightKg
+        - postalCode
+        - status
+        - assignment
+      properties:
+        requestId:
+          type: string
+          format: uuid
+        category:
+          oneOf:
+            - $ref: ./schemas/common.yaml#/Category
+            - type: 'null'
+        quantity:
+          type:
+            - integer
+            - 'null'
+          minimum: 1
+        estimatedWeightKg:
+          oneOf:
+            - $ref: ./schemas/common.yaml#/Decimal
+            - type: 'null'
+        postalCode:
+          oneOf:
+            - $ref: ./schemas/common.yaml#/PostalCode
+            - type: 'null'
+        status:
+          oneOf:
+            - $ref: ./schemas/common.yaml#/RequestStatus
+            - type: 'null'
+        assignment:
+          type: object
+          additionalProperties: false
+          required:
+            - assignmentId
+            - window
+            - status
+            - acceptedAt
+            - collectedAt
+            - endedAt
+            - endReason
+          properties:
+            assignmentId:
+              type: string
+              minLength: 1
+            window:
+              $ref: ./schemas/common.yaml#/PickupWindow
+            status:
+              $ref: ./schemas/common.yaml#/AssignmentStatus
+            acceptedAt:
+              $ref: ./schemas/common.yaml#/Timestamp
+            collectedAt:
+              oneOf:
+                - $ref: ./schemas/common.yaml#/Timestamp
+                - type: 'null'
+            endedAt:
+              oneOf:
+                - $ref: ./schemas/common.yaml#/Timestamp
+                - type: 'null'
+            endReason:
+              type:
+                - string
+                - 'null'
+              enum:
+                - Delivered
+                - Volunteer_Cancelled
+                - Resident_Cancelled
+                - Missed_Pickup
+                - null
+    PublicPerson:
+      type: object
+      additionalProperties: false
+      required:
+        - accountId
+        - publicName
+      properties:
+        accountId:
+          $ref: ./schemas/common.yaml#/AccountId
+        publicName:
+          type: string
+          minLength: 1
+    RequestDetail:
+      type: object
+      description: |
+        A single request. Which optional fields are present depends on who is asking (README 5.2, visibility table).
+        Anyone who is not allowed to see the request gets `404 request_unavailable` instead.
+      additionalProperties: false
+      required:
+        - requestId
+        - status
+        - category
+        - quantity
+        - estimatedWeightKg
+        - postalCode
+        - windows
+        - createdAt
+        - expiresAt
+        - viewer
+        - allowedActions
+        - refreshAt
+      properties:
+        requestId:
+          type: string
+          format: uuid
+        status:
+          $ref: ./schemas/common.yaml#/RequestStatus
+        category:
+          $ref: ./schemas/common.yaml#/Category
+        quantity:
+          type: integer
+          minimum: 1
+        estimatedWeightKg:
+          $ref: ./schemas/common.yaml#/Decimal
+        postalCode:
+          $ref: ./schemas/common.yaml#/PostalCode
+        windows:
+          type: array
+          items:
+            $ref: ./schemas/common.yaml#/PickupWindow
+          description: Active windows. A volunteer viewing an Open request sees future windows only.
+        createdAt:
+          $ref: ./schemas/common.yaml#/Timestamp
+        expiresAt:
+          $ref: ./schemas/common.yaml#/Timestamp
+        notes:
+          type:
+            - string
+            - 'null'
+          description: Owner, and the volunteer while their assignment is Active.
+        address:
+          $ref: ./schemas/common.yaml#/Address
+          description: Owner, and the volunteer while their assignment is Active.
+        photoUrl:
+          type:
+            - string
+            - 'null'
+          format: uri
+          description: Item photo, signed for about 10 minutes. Never stored and never in events. Owner and volunteers.
+        resident:
+          $ref: '#/components/schemas/PublicPerson'
+          description: Owner and the assigned or delivering volunteer.
+        assignment:
+          oneOf:
+            - type: object
+              description: The owner sees the current or last assignment; a volunteer sees only their own.
+              additionalProperties: false
+              required:
+                - assignmentId
+                - volunteer
+                - window
+                - status
+                - acceptedAt
+                - collectedAt
+                - endedAt
+                - endReason
+                - outsideCancellationWindow
+              properties:
+                assignmentId:
+                  type: string
+                  minLength: 1
+                volunteer:
+                  $ref: '#/components/schemas/PublicPerson'
+                window:
+                  $ref: ./schemas/common.yaml#/PickupWindow
+                status:
+                  $ref: ./schemas/common.yaml#/AssignmentStatus
+                acceptedAt:
+                  $ref: ./schemas/common.yaml#/Timestamp
+                collectedAt:
+                  oneOf:
+                    - $ref: ./schemas/common.yaml#/Timestamp
+                    - type: 'null'
+                endedAt:
+                  oneOf:
+                    - $ref: ./schemas/common.yaml#/Timestamp
+                    - type: 'null'
+                endReason:
+                  type:
+                    - string
+                    - 'null'
+                  enum:
+                    - Delivered
+                    - Volunteer_Cancelled
+                    - Resident_Cancelled
+                    - Missed_Pickup
+                    - null
+                outsideCancellationWindow:
+                  type: boolean
+                  description: True once it is less than 24 hours before the selected window starts.
+            - type: 'null'
+        delivery:
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required:
+                - facility
+                - deliveredAt
+              properties:
+                facility:
+                  type: object
+                  additionalProperties: false
+                  required:
+                    - facilityId
+                    - name
+                  properties:
+                    facilityId:
+                      type: string
+                      minLength: 1
+                    name:
+                      type: string
+                      minLength: 1
+                deliveredAt:
+                  $ref: ./schemas/common.yaml#/Timestamp
+                evidencePhotoUrl:
+                  type: string
+                  format: uri
+                  description: Signed, about 10 minutes. Owner and the delivering volunteer only.
+            - type: 'null'
+        rescheduledFrom:
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required:
+                - requestId
+              properties:
+                requestId:
+                  type: string
+                  format: uuid
+            - type: 'null'
+        rescheduledAs:
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required:
+                - requestId
+              properties:
+                requestId:
+                  type: string
+                  format: uuid
+            - type: 'null'
+        statusHistory:
+          type: array
+          description: Owner only.
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - status
+              - changedAt
+              - reason
+            properties:
+              status:
+                $ref: ./schemas/common.yaml#/RequestStatus
+              changedAt:
+                $ref: ./schemas/common.yaml#/Timestamp
+              reason:
+                type:
+                  - string
+                  - 'null'
+        viewer:
+          type: string
+          enum:
+            - owner
+            - assigned_volunteer
+            - volunteer
+          description: How the caller relates to the request (README 5.2 visibility table). Decides which fields are present. Owner and assigned volunteer at once gets `owner`.
+        allowedActions:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum:
+              - edit
+              - cancel
+              - cancel_assignment
+              - confirm_collected
+              - report_missed
+              - accept
+              - record_delivery
+          description: Computed by the server from status, role and timing, so the frontend never re-implements
+            the rules. The server still checks every action.
+        refreshAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          description: The next moment the server would answer differently from the same data (README 5.2), or null.
+            Set a timer to refetch then.
+    EditRequest:
+      type: object
+      description: 'Any of these. `windows` replaces the active windows; `photo: null` removes the photo.'
+      additionalProperties: false
+      required: []
+      properties:
+        categoryId:
+          type: string
+          minLength: 1
+        quantity:
+          type: integer
+          minimum: 1
+        notes:
+          type:
+            - string
+            - 'null'
+        windows:
+          type: array
+          minItems: 1
+          maxItems: 3
+          items:
+            $ref: ./schemas/common.yaml#/PickupWindowInput
+          description: |
+            1 to 3 distinct slots. Each starts in the future and ends by `createdAt + 30 days`
+            (the original `createdAt` when editing). Times are decided in Calgary time with the database clock.
+        photo:
+          oneOf:
+            - $ref: '#/components/schemas/PhotoRef'
+            - type: 'null'
+      minProperties: 1
+    CancelRequest:
+      type: object
+      additionalProperties: false
+      required: []
+      properties:
+        reason:
+          type: string
+    AcceptRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - windowId
+        - termsDocumentId
+      properties:
+        windowId:
+          type: string
+          minLength: 1
+          description: One of this request's active windows that has not started yet.
+        termsDocumentId:
+          type: string
+          minLength: 1
+    CancelAssignment:
+      type: object
+      additionalProperties: false
+      required: []
+      properties:
+        as:
+          type: string
+          enum:
+            - resident
+            - volunteer
+          description: Only when the caller is both the owner and the assigned volunteer.
+        reason:
+          type: string
+        windows:
+          type: array
+          minItems: 1
+          maxItems: 3
+          items:
+            $ref: ./schemas/common.yaml#/PickupWindowInput
+          description: 'Resident only: replaces the active windows before the request reopens.'
+    ReportMissed:
+      type: object
+      additionalProperties: false
+      required: []
+      properties:
+        reason:
+          type: string
+        reschedule:
+          type: object
+          description: Creates a new Open request linked to the missed one, in the same transaction.
+          additionalProperties: false
+          required:
+            - windows
+            - termsDocumentId
+          properties:
+            windows:
+              type: array
+              minItems: 1
+              maxItems: 3
+              items:
+                $ref: ./schemas/common.yaml#/PickupWindowInput
+              description: |
+                1 to 3 distinct slots. Each starts in the future and ends by `createdAt + 30 days`
+                (the original `createdAt` when editing). Times are decided in Calgary time with the database clock.
+            termsDocumentId:
+              type: string
+              minLength: 1
+    RecordDelivery:
+      type: object
+      additionalProperties: false
+      required:
+        - facilityId
+        - evidencePhoto
+      properties:
+        facilityId:
+          type: string
+          minLength: 1
+        evidencePhoto:
+          $ref: '#/components/schemas/PhotoRef'
+    Profile:
+      type: object
+      description: The caller's own profile. The only place besides a request detail where a street address appears.
+      additionalProperties: false
+      required:
+        - accountId
+        - email
+        - firstName
+        - lastName
+        - publicName
+        - dateOfBirth
+        - roles
+        - address
+        - preferredPostalCodes
+        - createdAt
+      properties:
+        accountId:
+          $ref: ./schemas/common.yaml#/AccountId
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+          minLength: 1
+        lastName:
+          type: string
+          minLength: 1
+        publicName:
+          type: string
+          minLength: 1
+        dateOfBirth:
+          type: string
+          format: date
+        roles:
+          $ref: ./schemas/common.yaml#/Roles
+        address:
+          oneOf:
+            - $ref: ./schemas/common.yaml#/Address
+            - type: 'null'
+          description: Null for volunteer-only accounts.
+        preferredPostalCodes:
+          type: array
+          maxItems: 3
+          uniqueItems: true
+          items:
+            $ref: ./schemas/common.yaml#/PostalCode
+        createdAt:
+          $ref: ./schemas/common.yaml#/Timestamp
+    CreateAccount:
+      type: object
+      additionalProperties: false
+      required:
+        - username
+        - email
+        - password
+        - firstName
+        - lastName
+        - publicName
+        - dateOfBirth
+        - role
+        - termsDocumentId
+      properties:
+        username:
+          $ref: ./schemas/common.yaml#/AccountId
+          description: Becomes the account id and the Firebase uid. Never changes.
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+        firstName:
+          type: string
+          minLength: 1
+        lastName:
+          type: string
+          minLength: 1
+        publicName:
+          type: string
+          minLength: 1
+        dateOfBirth:
+          type: string
+          format: date
+          description: The account holder must be 18 or older.
+        role:
+          $ref: ./schemas/common.yaml#/Role
+        address:
+          allOf:
+            - $ref: ./schemas/common.yaml#/Address
+          description: Required when `role` is resident.
+        preferredPostalCodes:
+          type: array
+          maxItems: 3
+          uniqueItems: true
+          items:
+            $ref: ./schemas/common.yaml#/PostalCode
+          description: 0 to 3 distinct codes. Replaces the whole list.
+        termsDocumentId:
+          type: string
+          minLength: 1
+    ProfileEdit:
+      type: object
+      description: Any of these.
+      additionalProperties: false
+      required: []
+      properties:
+        publicName:
+          type: string
+          minLength: 1
+        address:
+          allOf:
+            - $ref: ./schemas/common.yaml#/Address
+          description: Residents only. Locked while the resident owns an Open or Assigned request.
+        preferredPostalCodes:
+          type: array
+          maxItems: 3
+          uniqueItems: true
+          items:
+            $ref: ./schemas/common.yaml#/PostalCode
+          description: Volunteers only. 0 to 3 distinct codes; replaces the whole list.
+      minProperties: 1
+    ActivateRole:
+      type: object
+      additionalProperties: false
+      required:
+        - role
+        - termsDocumentId
+      properties:
+        role:
+          $ref: ./schemas/common.yaml#/Role
+        termsDocumentId:
+          type: string
+          minLength: 1
+        address:
+          allOf:
+            - $ref: ./schemas/common.yaml#/Address
+          description: Required when activating resident.
+        preferredPostalCodes:
+          type: array
+          maxItems: 3
+          uniqueItems: true
+          items:
+            $ref: ./schemas/common.yaml#/PostalCode
+          description: 0 to 3 distinct codes. Replaces the whole list.
+    PublicProfile:
+      type: object
+      description: Public profile (FR05). EcoPoints come from `GET /api/public/profiles/{accountId}/stats`.
+      additionalProperties: false
+      required:
+        - accountId
+        - publicName
+        - roles
+        - memberSince
+      properties:
+        accountId:
+          $ref: ./schemas/common.yaml#/AccountId
+        publicName:
+          type: string
+          minLength: 1
+        roles:
+          $ref: ./schemas/common.yaml#/Roles
+        memberSince:
+          $ref: ./schemas/common.yaml#/Timestamp
+    TermsDocument:
+      type: object
+      additionalProperties: false
+      required:
+        - termsDocumentId
+        - content
+        - publishedAt
+      properties:
+        termsDocumentId:
+          type: string
+          minLength: 1
+        content:
+          type: string
+          minLength: 1
+        publishedAt:
+          $ref: ./schemas/common.yaml#/Timestamp
+    Notification:
+      type: object
+      description: Title and body are built when read, from the request, assignment or award. Never a street address.
+      additionalProperties: false
+      required:
+        - notificationId
+        - type
+        - requestId
+        - awardId
+        - title
+        - body
+        - url
+        - isRead
+        - createdAt
+      properties:
+        notificationId:
+          type: string
+          minLength: 1
+        type:
+          $ref: ./schemas/common.yaml#/NotificationType
+        requestId:
+          type:
+            - string
+            - 'null'
+          format: uuid
+        awardId:
+          type:
+            - string
+            - 'null'
+          minLength: 1
+        title:
+          type: string
+          minLength: 1
+        body:
+          type: string
+          minLength: 1
+        url:
+          type: string
+          pattern: ^/
+        isRead:
+          type: boolean
+        createdAt:
+          $ref: ./schemas/common.yaml#/Timestamp
+    PushSubscription:
+      type: object
+      description: Exactly what `pushManager.subscribe()` returns, as JSON.
+      additionalProperties: false
+      required:
+        - endpoint
+        - keys
+      properties:
+        endpoint:
+          type: string
+          format: uri
+        keys:
+          type: object
+          additionalProperties: false
+          required:
+            - p256dh
+            - auth
+          properties:
+            p256dh:
+              type: string
+              minLength: 1
+            auth:
+              type: string
+              minLength: 1
+        expirationTime:
+          type:
+            - integer
+            - 'null'
+          description: From the browser's `PushSubscription`, often null.
+    Award:
+      type: object
+      description: 'For `CANCELLATION` awards, `categoryName`, `quantity` and `estimatedWeightKg` are null: the
+        volunteer is no longer linked to the request.'
+      additionalProperties: false
+      required:
+        - awardId
+        - kind
+        - earnedAs
+        - points
+        - formula
+        - requestId
+        - assignmentId
+        - categoryName
+        - quantity
+        - estimatedWeightKg
+        - awardedAt
+      properties:
+        awardId:
+          type: string
+          minLength: 1
+        kind:
+          type: string
+          enum:
+            - DELIVERY
+            - CANCELLATION
+        earnedAs:
+          $ref: ./schemas/common.yaml#/Role
+        points:
+          $ref: ./schemas/common.yaml#/Decimal
+        formula:
+          type: string
+          enum:
+            - VOLUNTEER
+            - RESIDENT
+        requestId:
+          type: string
+          format: uuid
+        assignmentId:
+          type: string
+          minLength: 1
+        categoryName:
+          type:
+            - string
+            - 'null'
+        quantity:
+          type:
+            - integer
+            - 'null'
+          minimum: 1
+        estimatedWeightKg:
+          oneOf:
+            - $ref: ./schemas/common.yaml#/Decimal
+            - type: 'null'
+        awardedAt:
+          allOf:
+            - $ref: ./schemas/common.yaml#/Timestamp
+          description: The assignment's `Ended_At`.
+    WasteTypeStats:
+      type: object
+      additionalProperties: false
+      required:
+        - wasteType
+        - deliveries
+        - itemsDelivered
+        - estimatedWeightKgDelivered
+      properties:
+        wasteType:
+          type: string
+          minLength: 1
+        deliveries:
+          type: integer
+          minimum: 0
+        itemsDelivered:
+          type: integer
+          minimum: 0
+        estimatedWeightKgDelivered:
+          $ref: ./schemas/common.yaml#/Decimal

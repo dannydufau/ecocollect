@@ -2,7 +2,7 @@
 
 ## Auth module (`src/api/auth/`)
 
-Verifies Firebase users for the gateway. It lives in the API server for now and has its own router, so it can become a separate service later.
+This checks Firebase users for the gateway. It lives in the API server for now, but it has its own router so it can become a separate service later.
 
 | Route | What it does |
 |---|---|
@@ -23,7 +23,7 @@ Creates and lists pickup requests, following [contracts/](../contracts/). It tru
 | `GET /api/requests?view=mine` | Resident only. Their own requests, newest first. Optional `status`. |
 | `GET /api/requests?view=available` | Volunteer only. Open requests with a window still ahead, never the street. Optional `postalCodes`. |
 
-The outbox publisher runs in the same process. Every second it sends unsent outbox rows to the `ecocollect.events` topic exchange (routing key `request.created`, persistent, waits for the broker's confirm) and marks a row sent only after that. If RabbitMQ is down it logs the error and tries again, and the events wait in the database. It creates the exchange itself if it is missing.
+The outbox publisher runs in the same process. Every second it sends unsent outbox rows to the `ecocollect.events` topic exchange (routing key `request.created`, persistent) and waits for the broker's confirm before marking a row as sent. If RabbitMQ is down it logs the error and tries again, and the events just wait in the database. It creates the exchange itself if it's missing.
 
 ## Run it
 
@@ -39,8 +39,8 @@ Save the Firebase admin key as `secrets/firebase-admin.json` in the repo root (k
 |---|---|
 | `GOOGLE_APPLICATION_CREDENTIALS` | Path to the Firebase service-account key. Defaults to `secrets/firebase-admin.json`. Never commit it. |
 | `FIREBASE_AUTH_EMULATOR_HOST` | Set (e.g. `127.0.0.1:9099`) to use the Auth emulator instead of the key. |
-| `DATABASE_URL` | Postgres connection string. `.env.example` has a working local value, and `RABBITMQ_URL` comes with the RabbitMQ setup in the same file. Needs the tables from `db/init`. |
-| `RABBITMQ_URL` | For example `amqp://ecocollect:change-me@localhost:5672`. |
+| `DATABASE_URL` | Postgres connection string. `.env.example` has a working local one, and the tables come from `db/init`. |
+| `RABBITMQ_URL` | For example `amqp://ecocollect:change_me@localhost:5672`. Also in `.env.example`. |
 | `PORT` | Defaults to `3001`. |
 | `NODE_ENV` | Set to `production` when deployed. Otherwise Express puts stack traces in error responses (e.g. a body that is too large). `npm start` does not set it. |
 
