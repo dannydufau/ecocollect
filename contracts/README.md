@@ -21,8 +21,10 @@ What goes in and out of every component. No SQL schema: tables are named only to
 - `accountId` is the username and is also used as the Firebase uid. Our rule: 3–50 characters, `a-z 0-9 _ -`, stored lowercase, never changes.
 - Postal codes are 6 characters, uppercase, no space (`T2P1J9`), Calgary only. Every endpoint normalizes input (uppercase, spaces removed) before validating.
 - Roles live in Firebase custom claims: `{ roles: ["resident"] | ["volunteer"] | ["resident","volunteer"] }`. The active role is chosen in the frontend only; services authorize by the roles claim plus ownership of the resource.
+- Assignment statuses: `Active` (accepted, not collected) → `Collected` (items picked up, not delivered) → one final status: `Delivered`, `Volunteer_Cancelled`, `Resident_Cancelled` or `Missed_Pickup` (`Ended_At` set). "Active assignment" means status `Active` only. An **unfinished** assignment is `Active` or `Collected` (`Ended_At` is null): the volunteer still has work to do.
 - Privacy (NFR03): A street address appears only in your own profile (U6, and the U7 response) and in the request detail (Q8 and the responses of Q9–Q15), following the visibility table (5.2). Photo URLs appear only in the request detail. Neither ever appears in events, SSE messages, push payloads, notifications or lists.
 - One Postgres instance, one schema per service. Every service can read every table; each table has exactly one service that writes it (section 8). Tables are normalized to 3NF; events and API responses are messages, not tables, so they can carry copied data.
+- Every Request Service action on an existing request (Q9–Q15, `CleanupRequest`) runs in one transaction that starts by locking the request row (`SELECT … FOR UPDATE`), then reads its status, assignment and windows and decides. Actions on the same request therefore run one after another: two of them can't both succeed from the same starting state (for example Q10 by the resident and Q12 by the volunteer at the same moment), and `requestSeq` stays consecutive (10.2). The loser of a race gets the normal `409` for the new state.
 - Caddy is the gateway and the only publicly exposed service. It serves the Next.js frontend and `/api/*` on one origin. The User Service is the only backend component that talks to Firebase. The Request Service is the only one that holds the ImageKit private key.
 
 ## 0. Changes since Oct 28
@@ -41,7 +43,7 @@ What goes in and out of every component. No SQL schema: tables are named only to
 | Mark as read is in scope | Was deferred on Oct 28 |
 | Missed is a terminal status; reporting a miss can reschedule as a new, linked request | Avoids reopening with past windows |
 | Every service reads every table; one writer per table | 3NF: no copied data in tables |
-| Item photos visible to volunteers; delivery photos private; GPS data removed before upload | NFR03, FR06 user story |
+| Item photos visible to volunteers; delivery photos private; GPS data removed in the browser and again by ImageKit before the file is stored | NFR03, FR06 user story |
 | Demo mode runs as a separate copy of the real system | No duplicated business logic; real SSE and push |
 | Volunteers whose assignment was cancelled or missed get 404 on the request page and see no request details; Q7 keeps their own assignment history | NFR03: no access to a request they no longer work on |
 | The Notification Service runs as **one instance**; the per-instance SSE queue is removed | SSE connections live in that instance's memory, and one instance receives every event from the shared queue (13.0). Scaling out is deferred (18) |
@@ -56,7 +58,7 @@ What goes in and out of every component. No SQL schema: tables are named only to
 | Frontend (Next.js) | – | – | REST, SSE, push | Pages |
 | Caddy | – | – | – | Everything (only public service) |
 | User Service | Accounts, resident address, volunteer preferred postal codes, terms documents, registration/activation terms acceptances, its outbox; Firebase users and claims | `ProfileUpdated`, `AccountDeactivated` | – | `/api/session`, `/api/accounts`, `/api/terms`, `/api/profile*`, `/api/public/profiles/:accountId` + internal `/verify` |
-| Request Service | Categories, facilities, pickup requests, windows, status changes, assignments, deliveries, request-creation and acceptance terms acceptances, photo references, its outbox | All `Request*` events | `CleanupRequest` | `/api/categories`, `/api/facilities`, `/api/uploads`, `/api/requests*` |
+| Request Service | Categories, facilities, pickup requests, windows, status changes, assignments, deliveries, photos (file id and path), request-creation and acceptance terms acceptances, its outbox and idempotency keys | All `Request*` events | `CleanupRequest` | `/api/categories`, `/api/facilities`, `/api/uploads`, `/api/requests*` |
 | Reward Service | EcoPoints awards, its outbox, processed events | `PointsAwardedDelivery`, `PointsAwardedCancellation` | `RequestAssignmentDelivered`, `RequestAssignmentCancelledResident` | `/api/ecopoints`, `/api/public/stats`, `/api/public/profiles/:accountId/stats` |
 | Notification Service | Notifications, push subscriptions, request progress (highest `requestSeq` seen), processed events | – | All `Request*`, `Points*`, `ProfileUpdated`, `AccountDeactivated`, `NotificationCleanupRequested` | `/api/events`, `/api/public/events`, `/api/notifications*`, `/api/push/*` |
 | Cleanup Service | Expiry jobs, its outbox, processed events | `CleanupRequest`, `NotificationCleanupRequested` | `RequestCreated`, `RequestUpdated`, `RequestAssigned`, `RequestCancelled`, `RequestExpired` | none |
@@ -71,7 +73,7 @@ What goes in and out of every component. No SQL schema: tables are named only to
 | 2.1 | Seed script → Postgres | SQL as an admin user | Schemas `users`, `requests`, `rewards`, `notifications`, `cleanup`; one DB user per service: full rights on its own schema, `SELECT` on all others (section 8); categories (name, waste type, standard weight), facilities and what they accept, the current terms document | Seeded rows | Registration replaces seeded profiles. Optional demo accounts are created through `POST /api/accounts` so Firebase and Postgres agree |
 | 2.2 | Setup → User Service env | Firebase Admin key file | `secrets/firebase-admin.json` | Admin SDK ready | Only the User Service mounts it |
 | 2.3 | Setup → Notification Service env | VAPID key pair | Private key in the Notification Service env; public key to the frontend as `NEXT_PUBLIC_VAPID_KEY` | Ready to send push | Same as Oct 28 |
-| 2.4 | Setup → Request Service env | ImageKit keys | `IMAGEKIT_PRIVATE_KEY`, `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_URL_ENDPOINT` | Ready to sign uploads and URLs | The frontend needs no ImageKit config |
+| 2.4 | Setup → Request Service env | ImageKit keys and folder; demo flag | `IMAGEKIT_PRIVATE_KEY`, `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_URL_ENDPOINT`, `IMAGEKIT_ROOT_FOLDER` (`/ecocollect`, or `/ecocollect-demo` in the demo stack), `DEMO_MODE` (`false`, or `true` in the demo stack, 17.5) | Ready to sign uploads and URLs | The frontend needs no ImageKit config. Upload folders (6.2) start with `IMAGEKIT_ROOT_FOLDER` |
 | 2.5 | Setup → RabbitMQ | Each service declares what it uses on start | Exchanges, queues with their arguments, dead-letter queues, bindings (section 9) | Topology | Declarations are idempotent only if the arguments match exactly; a mismatch fails with `PRECONDITION_FAILED`. A queue's type can't be changed in place: when moving from the Oct 28 classic queues, delete the old queues once (or remove the RabbitMQ volume with `docker compose down -v`) |
 
 ## 3. Frontend ↔ Firebase Auth (client SDK)
@@ -114,7 +116,7 @@ There is no `createUserWithEmailAndPassword` in the frontend: it would give the 
 | U6 | `GET /api/profile` | Bearer | – | `200 { accountId, email, firstName, lastName, publicName, dateOfBirth, roles, address: { street, city: "Calgary", postalCode } \| null, preferredPostalCodes: [..], createdAt }` | 401, 404 | Own profile only. `address` is null for volunteer-only accounts |
 | U7 | `PATCH /api/profile` | Bearer | Any of `{ publicName, address: { street, postalCode }, preferredPostalCodes: [..] }` | `200` full profile (as U6) | 400, 403 `role_required` (address needs resident, codes need volunteer), 409 `address_locked` | FR04: address is locked while the resident owns an Open or Assigned request (read from Request tables, section 8). `preferredPostalCodes` replaces the whole list (0–3 distinct). Publishes `ProfileUpdated` |
 | U8 | `POST /api/profile/roles` | Bearer | `{ role, termsDocumentId, address?: {..}, preferredPostalCodes?: [..] }` | `200 { roles }` | 400 (address required when activating resident), 409 `role_already_active` / `terms_outdated` | FR03. Writes the role, its terms acceptance and the Firebase claims (7.3). Frontend then does 3.3. Publishes `ProfileUpdated` (`changed: ["roles"]`) |
-| U9 | `DELETE /api/profile` | Bearer | – | `204`, session cookie cleared | 409 `active_work` (owns an Open/Assigned/Collected request, or has an active assignment) | Deactivation (FR04). See 7.4. Publishes `AccountDeactivated`. Frontend then signs out |
+| U9 | `DELETE /api/profile` | Bearer | – | `204`, session cookie cleared | 409 `active_work` (owns an Open/Assigned/Collected request, or has an unfinished (Active or Collected) assignment) | Deactivation (FR04). See 7.4. Publishes `AccountDeactivated`. Frontend then signs out |
 | U10 | `GET /api/public/profiles/:accountId` | none | – | `200 { accountId, publicName, roles, memberSince }` | 404 (unknown or deactivated) | FR05. EcoPoints come from R3 |
 
 ### 5.2 Request Service
@@ -124,14 +126,14 @@ There is no `createUserWithEmailAndPassword` in the frontend: it would give the 
 | Q1 | `GET /api/categories` | Bearer | – | `200 [{ categoryId, name, wasteType, standardWeightKg }]` | 401 | |
 | Q2 | `GET /api/facilities?categoryId=` | Bearer, volunteer | `categoryId` optional | `200 [{ facilityId, name, street, postalCode, specialInstructions, acceptedCategoryIds }]` | 401, 403 | With `categoryId`: only facilities that accept it (FR17) |
 | Q3 | `POST /api/uploads` | Bearer | `{ purpose: "item_photo"\|"delivery_evidence", requestId?, fileName, contentType, sizeBytes }` | `200 { uploadUrl, token, fileName, folder, expiresAt }` | 400 (type not jpeg/png/webp, > 10 MB), 403 (evidence: not the assigned volunteer of a Collected request), 404 | Section 6. `requestId` is required for `delivery_evidence` |
-| Q4 | `POST /api/requests` | Bearer, resident | `{ items: [{ categoryId, quantity, photo?: { fileId } }], windows: [{ date, startHour }], notes?, termsDocumentId }` | `201 { requests: [{ requestId, category, quantity, estimatedWeightKg, status: "Open", createdAt, expiresAt }] }` | 400, 403, 409 `terms_outdated` | FR06–FR08. One request per item, one transaction, one shared terms acceptance (FR22). Address copied from the profile (FR07). Windows: 1–3, distinct slots, each starts in the future and ends by `createdAt + 30 days`. Optional `Idempotency-Key` header: a repeat with the same key within 24 h returns the first `201` (NFR06). Publishes one `RequestCreated` per request |
+| Q4 | `POST /api/requests` | Bearer, resident | `{ items: [{ categoryId, quantity, photo?: { fileId } }], windows: [{ date, startHour }], notes?, termsDocumentId }` | `201 { requests: [{ requestId, category, quantity, estimatedWeightKg, status: "Open", createdAt, expiresAt }] }` | 400 (including a repeated `categoryId`), 403, 409 `terms_outdated` | FR06–FR08. One request per item, one transaction, one shared terms acceptance (FR22). Each `categoryId` appears at most once in `items` (FR06: one request per selected category); a repeat returns 400 with `details.fields`, e.g. `{ "items[1].categoryId": "already selected" }`. Address copied from the profile (FR07). Windows: 1–3, distinct slots, each starts in the future and ends by `createdAt + 30 days`. Optional `Idempotency-Key` header: a repeat with the same key within 24 h returns the first `201` (NFR06); keys are stored per resident in an operational table (section 8). Publishes one `RequestCreated` per request |
 | Q5 | `GET /api/requests?view=mine&status=` | Bearer, resident | `status` optional, comma-separated: `Open, Assigned, Collected, Delivered, Cancelled, Expired, Missed` | `200 [{ requestId, category, quantity, estimatedWeightKg, status, createdAt, expiresAt, hasPhoto }]` newest first | 400, 401, 403 | FR09 |
 | Q6 | `GET /api/requests?view=available&postalCodes=` | Bearer, volunteer | `postalCodes` optional, max 10 | `200 [{ requestId, category, quantity, estimatedWeightKg, postalCode, windows, expiresAt }]` | 400, 401, 403 | FR12. Available = Open AND `expiresAt` > now; only future windows are listed. Includes the caller's own requests (FR13) |
-| Q7 | `GET /api/requests?view=volunteer&assignmentStatus=` | Bearer, volunteer | `assignmentStatus` optional, comma-separated: `Active, Collected, Delivered, Volunteer_Cancelled, Resident_Cancelled, Missed_Pickup` | `200 [{ requestId, category, quantity, estimatedWeightKg, postalCode, status, assignment: { assignmentId, window, status, acceptedAt, collectedAt, endedAt, endReason } }]` | 400, 401, 403 | FR21. One row per assignment of the caller, including cancelled and missed ones: this is the volunteer's history. For an assignment that ended as `Volunteer_Cancelled`, `Resident_Cancelled` or `Missed_Pickup`, only `requestId` and `assignment` are filled; `category`, `quantity`, `estimatedWeightKg`, `postalCode` and `status` are null, because the volunteer is no longer linked to the request (Q8). Points per request come from R1 |
+| Q7 | `GET /api/requests?view=volunteer&assignmentStatus=` | Bearer, volunteer | `assignmentStatus` optional, comma-separated: `Active, Collected, Delivered, Volunteer_Cancelled, Resident_Cancelled, Missed_Pickup` | `200 [{ requestId, category, quantity, estimatedWeightKg, postalCode, status, assignment: { assignmentId, window, status, acceptedAt, collectedAt, endedAt, endReason } }]` | 400, 401, 403 | FR21. FR21's Assigned, Collected and Delivered requests are the `Active`, `Collected` and `Delivered` assignment statuses; the other three are extra history. One row per assignment of the caller, including cancelled and missed ones: this is the volunteer's history. For an assignment that ended as `Volunteer_Cancelled`, `Resident_Cancelled` or `Missed_Pickup`, only `requestId` and `assignment` are filled; `category`, `quantity`, `estimatedWeightKg`, `postalCode` and `status` are null, because the volunteer is no longer linked to the request (Q8). Points per request come from R1 |
 | Q8 | `GET /api/requests/:id` | Bearer | – | `200` request detail (below) | 401, 404 `request_unavailable` | What the caller sees depends on how they relate to the request (table below). Once a request leaves Open, only the owner, the assigned volunteer (until the assignment ends) and the delivering volunteer can open it. Anyone else, including a volunteer whose assignment was cancelled or reported missed, gets `404 request_unavailable`: the page says the request is gone (graceful handling of old push notifications) |
-| Q9 | `PATCH /api/requests/:id` | Bearer, owner | Any of `{ categoryId, quantity, notes, windows, photo: { fileId } \| null }` | `200` request detail | 400, 403, 409 `not_open` | FR10. Weight recalculated. New `windows` follow the Q4 window rules, checked against the original `createdAt` (FR07), and replace the active ones (old ones kept inactive for assignment history); `expiresAt` recalculated (12.2). Replacing or removing the photo follows 6.7. Publishes `RequestUpdated` (`reason: "edited"`) |
-| Q10 | `POST /api/requests/:id/cancel` | Bearer, owner | `{ reason? }` | `200` request detail | 403, 409 `not_cancellable` (not Open or Assigned) / `window_ended` (Assigned and the selected window has ended) | FR11. If Assigned: publishes `RequestAssignmentCancelledResident` then `RequestCancelled` (one transaction); otherwise `RequestCancelled`. Once the selected window has ended, the resident reports a missed pickup (Q14) instead (12.4) |
-| Q11 | `POST /api/requests/:id/assignment` | Bearer, volunteer | `{ windowId, termsDocumentId }` | `201` request detail (now with address) | 400 (window not one of this request's active future windows), 409 `not_open` / `already_assigned` / `terms_outdated` | FR13, FR22. Row lock on the request plus one-active-assignment rule (NFR06). A window is future while `now() < window start` (database clock), the same comparison as expiry (12.2). Publishes `RequestAssigned` |
+| Q9 | `PATCH /api/requests/:id` | Bearer, owner | Any of `{ categoryId, quantity, notes, windows, photo: { fileId } \| null }` | `200` request detail | 400, 403, 409 `not_open` / `expired` | FR10. Weight recalculated. New `windows` follow the Q4 window rules, checked against the original `createdAt` (FR07), and replace the active ones (old ones kept inactive for assignment history); `expiresAt` recalculated (12.2). Replacing or removing the photo follows 6.7. On success, publishes `RequestUpdated` (`reason: "edited"`). An overdue Open request is expired instead of edited: only `RequestExpired` (`trigger: "overdue_on_action"`) is published, and the call returns `409 expired` (12.6) |
+| Q10 | `POST /api/requests/:id/cancel` | Bearer, owner | `{ reason? }` | `200` request detail | 403, 409 `not_cancellable` (not Open or Assigned) / `window_ended` (Assigned and the selected window has ended) / `expired` (overdue Open request, 12.6) | FR11. On success: if Assigned, publishes `RequestAssignmentCancelledResident` then `RequestCancelled` (one transaction); otherwise `RequestCancelled`. An overdue Open request is expired instead of cancelled: only `RequestExpired` (`trigger: "overdue_on_action"`) is published, and the call returns `409 expired` (12.6). Once the selected window has ended, the resident reports a missed pickup (Q14) instead (12.4) |
+| Q11 | `POST /api/requests/:id/assignment` | Bearer, volunteer | `{ windowId, termsDocumentId }` | `201` request detail (now with address) | 400 (window not one of this request's active future windows), 409 `not_open` / `already_assigned` / `expired` / `terms_outdated` | FR13, FR22. Row lock on the request (Conventions), backed by the one-unfinished-assignment index (12.7, NFR06). A window is future while `now() < window start` (database clock), the same comparison as expiry (12.2). On success, publishes `RequestAssigned`. An overdue Open request is expired instead of accepted: only `RequestExpired` (`trigger: "overdue_on_action"`) is published, and the call returns `409 expired` (12.6) |
 | Q12 | `POST /api/requests/:id/assignment/cancel` | Bearer, owner or assigned volunteer | `{ as?: "resident"\|"volunteer", reason?, windows?: [..] }` | `200` request detail | 400, 403, 409 `no_active_assignment` / `already_collected` / `window_ended` (resident only, selected window has ended) | FR11 (resident), FR14 (volunteer). `as` is required only when the caller is both owner and assigned volunteer. A resident (including `as: "resident"`) can cancel only until the selected window ends (12.4); after that, Q14. A volunteer can cancel any time before collection. `windows` (resident only) follow the Q4 window rules, checked against the original `createdAt` (FR07), and replace the active windows before reopening (12.2). Publishes `RequestAssignmentCancelledResident` or `…Volunteer`, then `RequestUpdated` (reopened) or `RequestExpired` (12.3) |
 | Q13 | `POST /api/requests/:id/assignment/collected` | Bearer, owner | – | `200` request detail | 403, 409 `not_assigned` | FR15. Publishes `RequestAssignmentCollected` |
 | Q14 | `POST /api/requests/:id/assignment/missed` | Bearer, owner | `{ reason?, reschedule?: { windows: [..], termsDocumentId } }` | `200 { request: <detail of the missed request>, rescheduledRequest: { requestId, category, quantity, estimatedWeightKg, status: "Open", createdAt, expiresAt } \| null }` | 400 (windows), 403, 409 `not_assigned` / `window_not_ended` / `terms_outdated` | FR16. Allowed after the selected window ends. The request becomes **Missed** (terminal). With `reschedule`, the same transaction creates a new Open request linked to the missed one (12.5). Publishes `RequestAssignmentMissed`, then `RequestCreated` for the new request if rescheduled |
@@ -173,9 +175,9 @@ Request detail (Q8 and the responses of Q9–Q15):
 | `rescheduledFrom`, `rescheduledAs` (`{ requestId }` or null) | ✓ | – | – |
 | `statusHistory` | ✓ | – | – |
 
-"Volunteer, request Open" means any volunteer while the request is Open (the create-request user story: volunteers assess the items before accepting). Once the request leaves Open, only the owner, the assigned volunteer (until the assignment ends) and the delivering volunteer can see it. A volunteer whose assignment was cancelled or reported missed gets `404 request_unavailable`; their history shows only their own assignment (Q7).
+"Volunteer, request Open" means any volunteer while the request is Open. A caller who is neither the owner nor a volunteer (a resident-only account) gets `404 request_unavailable` for any other resident's request, in every status (NFR03: item photos are for the owner and volunteers). Once the request leaves Open, only the owner, the assigned volunteer (until the assignment ends) and the delivering volunteer can see it. A volunteer whose assignment was cancelled or reported missed gets `404 request_unavailable`; their history shows only their own assignment (Q7).
 
-`allowedActions` is computed by the server from status, role and timing (`edit`, `cancel`, `cancel_assignment`, `confirm_collected`, `report_missed`, `accept`, `record_delivery`), so the frontend never re-implements the rules. The server still checks every action. For the owner of an Assigned request, the end of the selected window splits the actions: before it, `cancel`, `cancel_assignment`, `confirm_collected`; from it on, `confirm_collected`, `report_missed`. The assigned volunteer keeps `cancel_assignment` until collection.
+`allowedActions` is computed by the server from status, role and timing (`edit`, `cancel`, `cancel_assignment`, `confirm_collected`, `report_missed`, `accept`, `record_delivery`), so the frontend never re-implements the rules. The server still checks every action. An overdue Open request (12.6) gets an empty list. For the owner of an Assigned request, the end of the selected window splits the actions: before it, `cancel`, `cancel_assignment`, `confirm_collected`; from it on, `confirm_collected`, `report_missed`. The assigned volunteer keeps `cancel_assignment` until collection.
 
 `refreshAt` is the next moment the server would build a different response from the same stored data, or null if there is none. Time passing changes no stored state, so no event announces these moments (16.12). Assigned: the earlier future one of `selectedWindowStart − 24 h` (`assignment.outsideCancellationWindow` turns true) and `selectedWindowEnd` (`cancel_assignment` gives way to `report_missed`). Open: the start of the next active window (volunteers stop seeing it; the last one is `expiresAt`). Other statuses: null.
 
@@ -201,7 +203,7 @@ Request detail (Q8 and the responses of Q9–Q15):
 
 ## 6. Photo uploads (ImageKit, browser uploads directly)
 
-The browser uploads straight to ImageKit; our server only signs the upload and checks the result. ImageKit's V2 client-side upload uses a one-time JWT that the server signs with the private key. The JWT carries the upload parameters, so the browser cannot change the folder, the file name or `isPrivateFile`. V2 is marked beta, so confirm the exact JWT claims and form fields against ImageKit's V2 docs when implementing. If you fall back to V1 (`token` + `expire` + `signature`), the parameters are not pinned, but step 6.5 still catches anything wrong.
+The browser uploads straight to ImageKit; our server only signs the upload and checks the result. ImageKit's V2 client-side upload uses a one-time JWT that the server signs with the private key. The JWT carries the upload parameters, so the browser cannot change the folder, the file name, `isPrivateFile` or the pre-transformation that strips metadata (6.2). V2 is marked beta, so confirm the exact JWT claims and form fields (including `transformation`) against ImageKit's V2 docs when implementing. If you fall back to V1 (`token` + `expire` + `signature`), the parameters are not pinned: step 6.5 still catches a wrong folder, privacy flag, type or size, but not a missing pre-transformation, so the browser step (6.0) is then the only metadata stripping.
 
 ```mermaid
 sequenceDiagram
@@ -221,12 +223,12 @@ sequenceDiagram
 
 | # | Step | Contract |
 |---|---|---|
-| 6.0 | Prepare in the browser | Before asking for a token, draw the image on a canvas and re-encode it (JPEG or WebP, longest side ≤ 2048 px). This removes EXIF data, including the GPS location phone photos carry, and shrinks the file (NFR03). The upload field says: no house numbers, faces, mail or documents in the photo |
+| 6.0 | Prepare in the browser | Before asking for a token, draw the image on a canvas and re-encode it (JPEG or WebP, longest side ≤ 2048 px). This removes EXIF data, including the GPS location phone photos carry, before the file leaves the device, and shrinks the file. ImageKit strips all metadata again before storing the file (6.2), so a client that skips this step still leaks nothing (NFR03). The upload field says: no house numbers, faces, mail or documents in the photo |
 | 6.1 | `POST /api/uploads` (Q3) | Server checks role and purpose (evidence: caller is the assigned volunteer of a Collected request), type in `image/jpeg, image/png, image/webp`, size ≤ 10 MB |
-| 6.2 | JWT pins | `fileName: "<uuid>.<ext>"`, `folder`: `/ecocollect/item-photos/<callerAccountId>/` or, for evidence, `/ecocollect/delivery-evidence/<callerAccountId>/<requestId>/`, `isPrivateFile: true`, `useUniqueFileName: false`, `overwriteFile: false`, plus a `checks` expression limiting size and MIME type. Expires in 10 min, one use |
+| 6.2 | JWT pins | `fileName: "<uuid>.<ext>"`, `folder`: `<IMAGEKIT_ROOT_FOLDER>/item-photos/<callerAccountId>/` or, for evidence, `<IMAGEKIT_ROOT_FOLDER>/delivery-evidence/<callerAccountId>/<requestId>/` (2.4), `isPrivateFile: true`, `useUniqueFileName: false`, `overwriteFile: false`, `transformation: { pre: "md-false" }` (ImageKit strips all metadata, including GPS, before storing the file), plus a `checks` expression limiting size and MIME type. Expires in 10 min, one use |
 | 6.3 | Browser upload | `POST https://upload.imagekit.io/api/v2/files/upload`, multipart, with the file, the token and the same parameter values. One file per call |
 | 6.4 | Attach | The browser sends only `{ fileId }` (Q4 items, Q9, Q15) |
-| 6.5 | Verify | Request Service fetches the file details with the private key and rejects (400 `invalid_photo`) unless: `filePath` starts with the folder 6.2 pins for this caller and purpose, `isPrivateFile` is true, MIME and size are allowed. It stores `fileId` and `filePath` |
+| 6.5 | Verify | Request Service fetches the file details with the private key and rejects (400 `invalid_photo`) unless: `filePath` starts with the folder 6.2 pins for this caller and purpose, `isPrivateFile` is true, MIME and size are allowed. It stores `fileId` and `filePath` as one PHOTO row and links it from the request (item photo) or the delivery (evidence) |
 | 6.6 | Read | Q8 builds a signed URL with the ImageKit SDK (`signed: true`, ~600 s) only for the people in the visibility table (5.2). The URL is never stored or put in events |
 | 6.7 | Replace/remove | Q9 with a new photo or `null` detaches the old file from that request. After commit, the Request Service deletes the file from ImageKit **only if no other request still references it** (a rescheduled request shares its photo with the missed one, 12.5). Deletion is best effort and logged on failure. Files are never deleted because a request reaches a final status: they are part of its history. Evidence photos are never shared (6.5) or deleted |
 | 6.8 | Orphans | Files uploaded but never attached stay in ImageKit. Cleaning them up is deferred (section 18) |
@@ -248,24 +250,29 @@ Each service's DB user has full rights on its own schema and `SELECT` on every o
 | Writer | Tables (ER names) |
 |---|---|
 | User Service | ACCOUNT, RESIDENT, VOLUNTEER, preferred postal codes, TERMS_DOCUMENT |
-| Request Service | ITEM_CATEGORY, RECYCLING_FACILITY, facility–category link, PICKUP_REQUEST, PICKUP_WINDOW, STATUS_CHANGE, ASSIGNMENT, DELIVERY |
+| Request Service | ITEM_CATEGORY, RECYCLING_FACILITY, facility–category link, PICKUP_REQUEST, PICKUP_WINDOW, PHOTO, STATUS_CHANGE, ASSIGNMENT, DELIVERY |
 | Reward Service | ECOPOINTS_AWARD |
 | Notification Service | NOTIFICATION, PUSH_SUBSCRIPTION |
 | User **and** Request Service | TERMS_ACCEPTANCE: the one exception. It is insert-only; the User Service inserts registration and activation acceptances, the Request Service inserts request-creation and volunteer-acceptance ones. Neither updates or deletes rows |
-| Every producer / consumer | Its own operational tables, outside the ER model: outbox, processed events; Cleanup's expiry jobs; Notification's request progress |
+| Each service | Its own operational tables, outside the ER model: outbox (producers), processed events (consumers), Cleanup's expiry jobs, Notification's request progress, Request's idempotency keys (Q4) |
 
 Main reads across services:
 
 | Reader | Reads | For |
 |---|---|---|
 | Request Service | Resident address, preferred postal codes, `Deactivated_At`, current terms document | Copying the address (FR07), matching volunteers (skipping deactivated ones), terms checks |
-| User Service | Requests owned by the account and their status; the account's active assignments | Address lock (FR04), deactivation guard (U9) |
+| User Service | Requests owned by the account and their status; the account's unfinished (Active or Collected) assignments | Address lock (FR04), deactivation guard (U9) |
 | Reward Service | Assignments, requests, categories | Award lists and statistics (R1–R3) |
 | Notification Service | Requests, categories, assignments, awards, accounts (public name, `Deactivated_At`) | Building titles and bodies; skipping deactivated recipients |
+
+
+These reads are the only dependencies between services. A change to a table or column listed here must be agreed with the service that reads it; everything else in a service's schema can change freely (NFR01). Sharing one database this way is a deliberate tradeoff: it keeps the data in 3NF with no copies, at the cost of this short list of shared columns.
 
 Reads show the current state. For a decision that depends on another service's data at the moment something happened, use the facts in the event (section 11).
 
 Known race, accepted: a resident could create a request at the same instant as changing their address. The window is milliseconds. Closing it fully would need a lock across schemas, which needs write rights we don't want to grant.
+
+Idempotency keys (Q4): the Request Service's table holds `(Resident_ID, Idempotency_Key)` as primary key, the stored `201` body and `created_at`. Q4 inserts the key first, in the same transaction as the requests. A second call with the same key waits on the primary key until the first commits, then hits the conflict and returns the stored body. A key older than 24 h is overwritten.
 
 ## 9. RabbitMQ
 
@@ -321,7 +328,7 @@ The state of the request **after** the change:
 
 `requestId, requestSeq, transitionId, status, residentUid, categoryId, categoryName, wasteType, quantity, estimatedWeightKg, postalCode, windows: [{ windowId, date, startHour }] (active only), createdAt, expiresAt`
 
-- `requestSeq`: a per-request counter, +1 for every event about that request. Two events from one action get consecutive numbers.
+- `requestSeq`: a per-request counter stored on the request row, +1 for every event about that request, incremented under the row lock in the same transaction that writes the outbox rows. Two events from one action get consecutive numbers.
 - `transitionId`: one uuid per action (per transaction). Events from the same action share it.
 
 Assignment snapshot (as `data.assignment` where noted): `assignmentId, volunteerUid, window: { windowId, date, startHour }, acceptedAt, collectedAt, endedAt, endReason`.
@@ -339,13 +346,15 @@ Assignment snapshot (as `data.assignment` where noted): `assignmentId, volunteer
 | E7 | `RequestAssignmentCancelledVolunteer` | `request.assignment.cancelled.volunteer` | Request: Q12 by volunteer | `assignment`, `cancelledAt` | Notification |
 | E8 | `RequestAssignmentMissed` | `request.assignment.missed` | Request: Q14 (request status in the snapshot is `Missed`) | `assignment`, `reportedAt`, `rescheduledAsRequestId` (null if not rescheduled) | Notification |
 | E9 | `RequestCancelled` | `request.cancelled` | Request: Q10 | `reason` | Notification, Cleanup |
-| E10 | `RequestExpired` | `request.expired` | Request: `CleanupRequest` confirmed, or an assignment cancellation (Q12) when `now() ≥ expiresAt` | `trigger: "cleanup_job"\|"assignment_cancelled"` | Notification, Cleanup |
+| E10 | `RequestExpired` | `request.expired` | Request: `CleanupRequest` confirmed, an assignment cancellation (Q12) when `now() ≥ expiresAt`, or Q9/Q10/Q11 on an overdue Open request (12.6) | `trigger: "cleanup_job"\|"assignment_cancelled"\|"overdue_on_action"` | Notification, Cleanup |
 | E11 | `PointsAwardedDelivery` | `reward.points.delivery` | Reward: after E5 | `requestId, assignmentId, categoryName, quantity, estimatedWeightKg, awards: [{ awardId, accountId, earnedAs, points, formula }]` (2 awards) | Notification |
 | E12 | `PointsAwardedCancellation` | `reward.points.cancellation` | Reward: after E6 with `outsideCancellationWindow: true` | Same shape, 1 award (volunteer) | Notification |
 | E13 | `CleanupRequest` | `cleanup.request.due` | Cleanup: a pending job is due (at `expiresAt`, then every 5 min until E3, E9 or E10 ends it) | `requestId, requestSeq, expiresAt` | Request |
 | E14 | `NotificationCleanupRequested` | `cleanup.notifications.due` | Cleanup: daily at 03:00 Calgary | `requestedAt` | Notification |
 | E15 | `ProfileUpdated` | `user.profile.updated` | User: U7, U8 | `accountId, changed: ["publicName","address","preferredPostalCodes","roles"], publicName, roles` (never the address itself) | Notification |
 | E16 | `AccountDeactivated` | `user.account.deactivated` | User: U9 | `accountId, deactivatedAt` | Notification |
+
+`matchedVolunteerUids` (E1, E2): every volunteer whose preferred postal codes include the request's postal code, leaving out deactivated accounts and the request's own resident (in demo mode the resident stays in, 17.5). The Request Service computes it in the same transaction (section 8).
 
 Events from one action, in order: Q10 on Assigned → E6, E9. Q12 → E6 or E7, then E2 (reopened) or E10. Q14 → E8, then E1 for the new request if rescheduled (the new request has its own `requestSeq` starting at 1; both events share the `transitionId`).
 
@@ -453,6 +462,7 @@ An event says what was true when it happened, not what is true now. It can be ol
 | Cancel request (Q10) | Open | Cancelled | E9 |
 | Cancel request (Q10) | Assigned, selected window not ended | Cancelled | E6, E9 |
 | Expire (`CleanupRequest`) | Open, `now() ≥ expiresAt` (database clock) | Expired | E10 |
+| Expire on action (Q9, Q10, Q11) | Open, `now() ≥ expiresAt` (job not processed yet) | Expired | E10 (`overdue_on_action`); the call returns `409 expired` (12.6) |
 
 Every status change adds a status change row. Statuses: Open, Assigned, Collected, Delivered, Cancelled, Expired, Missed. Final: Delivered, Cancelled, Expired, Missed.
 
@@ -470,6 +480,8 @@ When an assignment is cancelled before collection (Q12), the request goes back t
 
 A resident cancelling the assignment can send new `windows` in Q12, which move `expiresAt` so the request reopens normally. A volunteer cancellation can't, so it may expire the request; the resident is told by `REQUEST_EXPIRED_RESIDENT` and can create a new request. Missed pickups don't reopen at all (12.5).
 
+A volunteer can still cancel after the selected window has ended, because FR14 allows it until collection. The assignment then ends as `Volunteer_Cancelled`, not `Missed_Pickup`, and the request reopens or expires by the rule above, so the resident has no missed pickup to report and no linked reschedule (12.5). If it reopened, they can edit its windows (Q9); if it expired, they create a new request.
+
 ### 12.4 Cancellation window (FR11)
 
 `outsideCancellationWindow = cancelledAt > selectedWindowStart − 24 h`. Decided by the Request Service at cancel time, carried in E6, never recomputed.
@@ -485,6 +497,28 @@ A resident can cancel (Q10 on an Assigned request, Q12) only while `now() < sele
 | 12.5.3 | The new request stores a reference to the missed one (`Rescheduled_From_Request_ID`, unique). A missed request can therefore be rescheduled once. The resident sees "Missed, rescheduled as …" and "Rescheduled from …" (Q8 `rescheduledFrom`, `rescheduledAs`) |
 | 12.5.4 | Without `reschedule`, the request is just Missed. The resident can create a new request later as usual (not linked) |
 | 12.5.5 | The photo file is shared, not copied. 6.7 keeps it as long as either request references it |
+
+### 12.6 Overdue Open requests (FR20)
+
+An Open request is **overdue** when `now() ≥ expiresAt` but its `CleanupRequest` hasn't been processed yet (the Cleanup poll runs every 30 s, then the event waits in the queue). By FR20 it is already expired, so no action may treat it as Open:
+
+- Q9, Q10 and Q11 lock the row (Conventions), find the request overdue, mark it Expired (status change row, outbox `RequestExpired` with `trigger: "overdue_on_action"`), **commit**, then return `409 expired`. The resident gets `REQUEST_EXPIRED_RESIDENT` as usual.
+- Q12 already makes the same check when an assignment is cancelled (12.3, `trigger: "assignment_cancelled"`).
+- Q8 still shows `status: "Open"` until then, with an empty `allowedActions`. Q6 already hides it (`expiresAt > now`).
+- The `CleanupRequest` that arrives later finds the request no longer Open and does nothing (section 11).
+
+### 12.7 Database guards (NFR06)
+
+The row lock handles the normal case. These constraints make a missed check fail instead of writing a duplicate:
+
+| Guard | Constraint |
+|---|---|
+| One unfinished assignment per request | Partial unique index on ASSIGNMENT (`Request_ID`) `WHERE Ended_At IS NULL` |
+| One delivery per assignment | `UNIQUE (Assignment_ID)` on DELIVERY |
+| A missed request is rescheduled once | `UNIQUE (Rescheduled_From_Request_ID)` on PICKUP_REQUEST (12.5.3) |
+| One stored Q4 response per idempotency key | Primary key `(Resident_ID, Idempotency_Key)` on the idempotency table (section 8) |
+
+A violation means a bug, or a race the lock missed: roll back and return the `409` the endpoint gives for the new state.
 
 ## 13. Notification Service internals and outputs
 
@@ -626,11 +660,11 @@ Demo mode is a second, separate copy of the real system with its own data. No bu
 
 | # | Piece | Contract |
 |---|---|---|
-| 17.1 | Demo stack | A Docker Compose profile `demo` starts a second set of the services and a second frontend build. Its own Postgres database, its own RabbitMQ virtual host (`demo`), its own Firebase project (or the Firebase Auth emulator, since we run locally), its own VAPID keys and an ImageKit folder prefix `/ecocollect-demo/`. Caddy serves it at `demo.localhost` |
+| 17.1 | Demo stack | A Docker Compose profile `demo` starts a second set of the services and a second frontend build. Its own Postgres database, its own RabbitMQ virtual host (`demo`), its own Firebase project (or the Firebase Auth emulator, since we run locally), its own VAPID keys, and a Request Service with `IMAGEKIT_ROOT_FOLDER=/ecocollect-demo` and `DEMO_MODE=true` (2.4). Caddy serves it at `demo.localhost` |
 | 17.2 | Frontend build | Built with `NEXT_PUBLIC_DEMO=true` and the demo Firebase config (baked in at build time). Shows a "Demo" banner and a "Start demo" page instead of login and registration. The active role is kept per tab (`sessionStorage`) |
 | 17.3 | `POST /api/demo/session` | User Service, only when `DEMO_MODE=true`, no auth, rate-limited per IP. Creates a throwaway account `demo-<random>` with **both roles**, an address and a preferred postal code from a demo pool, and the terms accepted. Returns `200 { customToken }` (Admin SDK `createCustomToken`). The frontend calls `signInWithCustomToken`, then the normal U1 and SSE steps. Not routed in the production Caddy site |
 | 17.4 | Seed | Categories, facilities, terms, and a few Open requests from seeded demo residents in the pool postal codes, so the available list isn't empty |
-| 17.5 | Matching in demo | With `DEMO_MODE=true`, matching does not exclude the requesting resident, so the demo account also gets `NEW_MATCHING_REQUEST` for its own request |
+| 17.5 | Matching in demo | With `DEMO_MODE=true` in the Request Service env (2.4), the matching that builds `matchedVolunteerUids` does not exclude the requesting resident, so the demo account also gets `NEW_MATCHING_REQUEST` for its own request |
 | 17.6 | Two roles, two tabs | The visitor opens the demo in two tabs and picks Resident in one, Volunteer in the other (same account). Creating a request in the resident tab appears live in the volunteer tab (SSE `notification` + `available-requests-changed`); accepting it updates the resident tab. Push works through the one browser subscription; the service worker hides pushes while an EcoCollect tab is focused (16.6), so the visitor sees them after switching away. Two *different* accounts in one browser would sign each other out (Firebase keeps one sign-in per site), so that needs a private window |
 | 17.7 | Reset | Nightly script (and a manual command): drop and re-seed the demo database, delete demo Firebase users, delete the demo ImageKit folder |
 | 17.8 | Isolation | Different database, broker vhost, Firebase project and Caddy site: nothing in demo can read or change production data (FR24). Visitors share the demo data; the banner says so and that it resets nightly |
@@ -644,5 +678,5 @@ Work involved: configuration (Compose profile, Caddy site, env files, Firebase p
 | Orphaned ImageKit uploads | A daily job in the Request Service (it holds the ImageKit key) lists the upload folders and deletes files older than 24 h that no request or delivery references |
 | Email change, password change in-app | Firebase client SDK flows; not in FRs |
 | Reactivating a deactivated account | Not in FRs |
-| Retention of old status changes, processed events, outbox rows | Scheduled deletion of published outbox rows and processed events older than 30 days |
+| Retention of old status changes, processed events, outbox rows, idempotency keys | Scheduled deletion of published outbox rows and processed events older than 30 days, and idempotency keys older than 24 h |
 | More than one Notification Service instance | Needs more than a second queue. (1) The shared `notification.events` consumer stays the only one that stores notifications and sends web push, once. (2) After commit, it publishes a `NotificationsStored` event (recipients, notification ids, SSE payloads) through a new Notification Service outbox. (3) Each instance declares its own classic queue (server-named, exclusive, auto-delete; quorum queues can't be exclusive) bound to that event, and only writes SSE to the connections it holds: no DB writes, failures dropped. (4) Every other SSE message (13.3, 13.5), including `notification-read` and `account-deactivated`, goes through the broker the same way, because the connections it targets may be on another instance |

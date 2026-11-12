@@ -14,7 +14,7 @@ The system shall allow registered users to activate an additional Resident or Vo
 
 #### FR04 - Profile Management
 
-The system shall provide a profile management page where authenticated users can view their information and modify permitted account settings. Residents cannot change their address if they have any uncollected (Open or Assigned) pickup requests. Users can deactivate their account when they own no Open, Assigned or Collected requests and have no active assignment.
+The system shall provide a profile management page where authenticated users can view their information and modify permitted account settings. Residents cannot change their address if they have any uncollected (Open or Assigned) pickup requests. Users can deactivate their account when they own no Open, Assigned or Collected requests and are not the assigned Volunteer of any Assigned or Collected request.
 
 ### Public User Information
 
@@ -26,7 +26,7 @@ The system shall provide publicly accessible user profiles displaying a user’s
 
 #### FR06 - Create Pickup Requests
 
-The system shall allow Residents to create pickup requests by selecting one or more predefined electronic waste categories, specifying a quantity for each selected category, and optionally uploading a photograph for each selected category. Photos are visible to the request owner and to Volunteers while the request is Open, then to the owner and the assigned Volunteer. Location data is removed from photos before upload.  
+The system shall allow Residents to create pickup requests by selecting one or more distinct predefined electronic waste categories (each category at most once per submission), specifying a quantity for each selected category, and optionally uploading a photograph for each selected category. Photos are visible to the request owner and to Volunteers while the request is Open, then to the owner and the assigned Volunteer. Location data is removed from photos before upload.  
 The system shall automatically calculate the estimated total weight for each category by multiplying the category's predefined standard weight by the entered quantity. Residents shall not be allowed to enter or manually modify the calculated weight.
 Each selected category shall generate a separate pickup request using the common pickup information provided during submission.
 The system shall accept the optional photographs in JPEG, PNG, and WEBP formats, with a maximum file size of 10 MB per photograph.
