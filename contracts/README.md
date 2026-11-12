@@ -15,6 +15,7 @@ What goes in and out of every component. No SQL schema: tables are named only to
   - "Today" and "in the future" are decided in Calgary time. Containers run in UTC, so after 18:00 in Calgary the UTC date is already tomorrow.
   - Window instants and `expiresAt` are derived when needed, never stored. The only stored copy is the Cleanup Service's job time, set from every `RequestCreated` and `RequestUpdated`.
   - Every "now" in a decision (due jobs, expiry, "in the future", "window ended", the available list) is Postgres `now()` from the same transaction, never the container clock. All services use one Postgres, so they agree on the time. `now()` is the transaction's start time, not the moment of the check.
+  - A window ends 1 hour after it starts: `windowEnd = windowStart + 1 h`, computed on the UTC instant (a window with `startHour` 23 ends at 00:00 the next day). "The selected window has ended" means `now() ≥ selectedWindowEnd`. Q10, Q12, Q14, `allowedActions` and `refreshAt` all use this one check, so at the exact end, cancelling is already refused and reporting a missed pickup is already allowed.
   - Keep time zone data current: recent Node, Postgres and browser versions. Keep one test per side with known dates before and after March 2026.
 - Decimals (`estimatedWeightKg`, `points`) are JSON numbers with at most 2 decimals. `node-postgres` returns `numeric` as a string: convert it before sending, and do points arithmetic in hundredths (integers) to avoid float errors.
 - `accountId` is the username and is also used as the Firebase uid. Our rule: 3–50 characters, `a-z 0-9 _ -`, stored lowercase, never changes.
@@ -45,6 +46,8 @@ What goes in and out of every component. No SQL schema: tables are named only to
 | Volunteers whose assignment was cancelled or missed get 404 on the request page and see no request details; Q7 keeps their own assignment history | NFR03: no access to a request they no longer work on |
 | The Notification Service runs as **one instance**; the per-instance SSE queue is removed | SSE connections live in that instance's memory, and one instance receives every event from the shared queue (13.0). Scaling out is deferred (18) |
 | Queues are **quorum queues**; RabbitMQ dead-letters a message after 5 failed attempts | The broker counts attempts and dead-letters, so no service counts retries itself (9.5) |
+| A resident can no longer cancel an Assigned request (Q10) or its assignment (Q12) once the selected window has ended; they confirm collection (Q13) or report a missed pickup (Q14) instead | FR11, FR16: a volunteer who didn't come can't get cancellation points |
+| Request detail has `refreshAt` | `allowedActions` changes as time passes, and no event announces it |
 
 ## 1. Components and what they own
 
@@ -127,9 +130,9 @@ There is no `createUserWithEmailAndPassword` in the frontend: it would give the 
 | Q7 | `GET /api/requests?view=volunteer&assignmentStatus=` | Bearer, volunteer | `assignmentStatus` optional, comma-separated: `Active, Collected, Delivered, Volunteer_Cancelled, Resident_Cancelled, Missed_Pickup` | `200 [{ requestId, category, quantity, estimatedWeightKg, postalCode, status, assignment: { assignmentId, window, status, acceptedAt, collectedAt, endedAt, endReason } }]` | 400, 401, 403 | FR21. One row per assignment of the caller, including cancelled and missed ones: this is the volunteer's history. For an assignment that ended as `Volunteer_Cancelled`, `Resident_Cancelled` or `Missed_Pickup`, only `requestId` and `assignment` are filled; `category`, `quantity`, `estimatedWeightKg`, `postalCode` and `status` are null, because the volunteer is no longer linked to the request (Q8). Points per request come from R1 |
 | Q8 | `GET /api/requests/:id` | Bearer | – | `200` request detail (below) | 401, 404 `request_unavailable` | What the caller sees depends on how they relate to the request (table below). Once a request leaves Open, only the owner, the assigned volunteer (until the assignment ends) and the delivering volunteer can open it. Anyone else, including a volunteer whose assignment was cancelled or reported missed, gets `404 request_unavailable`: the page says the request is gone (graceful handling of old push notifications) |
 | Q9 | `PATCH /api/requests/:id` | Bearer, owner | Any of `{ categoryId, quantity, notes, windows, photo: { fileId } \| null }` | `200` request detail | 400, 403, 409 `not_open` | FR10. Weight recalculated. New `windows` follow the Q4 window rules, checked against the original `createdAt` (FR07), and replace the active ones (old ones kept inactive for assignment history); `expiresAt` recalculated (12.2). Replacing or removing the photo follows 6.7. Publishes `RequestUpdated` (`reason: "edited"`) |
-| Q10 | `POST /api/requests/:id/cancel` | Bearer, owner | `{ reason? }` | `200` request detail | 403, 409 `not_cancellable` (not Open or Assigned) | FR11. If Assigned: publishes `RequestAssignmentCancelledResident` then `RequestCancelled` (one transaction); otherwise `RequestCancelled` |
+| Q10 | `POST /api/requests/:id/cancel` | Bearer, owner | `{ reason? }` | `200` request detail | 403, 409 `not_cancellable` (not Open or Assigned) / `window_ended` (Assigned and the selected window has ended) | FR11. If Assigned: publishes `RequestAssignmentCancelledResident` then `RequestCancelled` (one transaction); otherwise `RequestCancelled`. Once the selected window has ended, the resident reports a missed pickup (Q14) instead (12.4) |
 | Q11 | `POST /api/requests/:id/assignment` | Bearer, volunteer | `{ windowId, termsDocumentId }` | `201` request detail (now with address) | 400 (window not one of this request's active future windows), 409 `not_open` / `already_assigned` / `terms_outdated` | FR13, FR22. Row lock on the request plus one-active-assignment rule (NFR06). A window is future while `now() < window start` (database clock), the same comparison as expiry (12.2). Publishes `RequestAssigned` |
-| Q12 | `POST /api/requests/:id/assignment/cancel` | Bearer, owner or assigned volunteer | `{ as?: "resident"\|"volunteer", reason?, windows?: [..] }` | `200` request detail | 400, 403, 409 `no_active_assignment` / `already_collected` | FR11 (resident), FR14 (volunteer). `as` is required only when the caller is both owner and assigned volunteer. `windows` (resident only) follow the Q4 window rules, checked against the original `createdAt` (FR07), and replace the active windows before reopening (12.2). Publishes `RequestAssignmentCancelledResident` or `…Volunteer`, then `RequestUpdated` (reopened) or `RequestExpired` (12.3) |
+| Q12 | `POST /api/requests/:id/assignment/cancel` | Bearer, owner or assigned volunteer | `{ as?: "resident"\|"volunteer", reason?, windows?: [..] }` | `200` request detail | 400, 403, 409 `no_active_assignment` / `already_collected` / `window_ended` (resident only, selected window has ended) | FR11 (resident), FR14 (volunteer). `as` is required only when the caller is both owner and assigned volunteer. A resident (including `as: "resident"`) can cancel only until the selected window ends (12.4); after that, Q14. A volunteer can cancel any time before collection. `windows` (resident only) follow the Q4 window rules, checked against the original `createdAt` (FR07), and replace the active windows before reopening (12.2). Publishes `RequestAssignmentCancelledResident` or `…Volunteer`, then `RequestUpdated` (reopened) or `RequestExpired` (12.3) |
 | Q13 | `POST /api/requests/:id/assignment/collected` | Bearer, owner | – | `200` request detail | 403, 409 `not_assigned` | FR15. Publishes `RequestAssignmentCollected` |
 | Q14 | `POST /api/requests/:id/assignment/missed` | Bearer, owner | `{ reason?, reschedule?: { windows: [..], termsDocumentId } }` | `200 { request: <detail of the missed request>, rescheduledRequest: { requestId, category, quantity, estimatedWeightKg, status: "Open", createdAt, expiresAt } \| null }` | 400 (windows), 403, 409 `not_assigned` / `window_not_ended` / `terms_outdated` | FR16. Allowed after the selected window ends. The request becomes **Missed** (terminal). With `reschedule`, the same transaction creates a new Open request linked to the missed one (12.5). Publishes `RequestAssignmentMissed`, then `RequestCreated` for the new request if rescheduled |
 | Q15 | `POST /api/requests/:id/assignment/delivery` | Bearer, assigned volunteer | `{ facilityId, evidencePhoto: { fileId } }` | `200` request detail | 400 (facility does not accept the category, FR17; photo check failed), 403, 409 `not_collected` / `already_delivered` | FR17, NFR03. Sets `Ended_At`, `End_Reason = Delivered`. Publishes `RequestAssignmentDelivered` |
@@ -154,7 +157,8 @@ Request detail (Q8 and the responses of Q9–Q15):
   "rescheduledFrom": null, "rescheduledAs": null,
   "statusHistory": [{ "status": "Open", "changedAt": "…", "reason": null }, { "status": "Assigned", "changedAt": "…", "reason": null }],
   "viewer": "owner",
-  "allowedActions": ["cancel", "cancel_assignment", "confirm_collected"]
+  "allowedActions": ["cancel", "cancel_assignment", "confirm_collected"],
+  "refreshAt": "2026-11-21T20:00:00Z"
 }
 ```
 
@@ -171,7 +175,9 @@ Request detail (Q8 and the responses of Q9–Q15):
 
 "Volunteer, request Open" means any volunteer while the request is Open (the create-request user story: volunteers assess the items before accepting). Once the request leaves Open, only the owner, the assigned volunteer (until the assignment ends) and the delivering volunteer can see it. A volunteer whose assignment was cancelled or reported missed gets `404 request_unavailable`; their history shows only their own assignment (Q7).
 
-`allowedActions` is computed by the server from status, role and timing (`edit`, `cancel`, `cancel_assignment`, `confirm_collected`, `report_missed`, `accept`, `record_delivery`), so the frontend never re-implements the rules. The server still checks every action.
+`allowedActions` is computed by the server from status, role and timing (`edit`, `cancel`, `cancel_assignment`, `confirm_collected`, `report_missed`, `accept`, `record_delivery`), so the frontend never re-implements the rules. The server still checks every action. For the owner of an Assigned request, the end of the selected window splits the actions: before it, `cancel`, `cancel_assignment`, `confirm_collected`; from it on, `confirm_collected`, `report_missed`. The assigned volunteer keeps `cancel_assignment` until collection.
+
+`refreshAt` is the next moment the server would build a different response from the same stored data, or null if there is none. Time passing changes no stored state, so no event announces these moments (16.12). Assigned: the earlier future one of `selectedWindowStart − 24 h` (`assignment.outsideCancellationWindow` turns true) and `selectedWindowEnd` (`cancel_assignment` gives way to `report_missed`). Open: the start of the next active window (volunteers stop seeing it; the last one is `expiresAt`). Other statuses: null.
 
 ### 5.3 Reward Service
 
@@ -329,7 +335,7 @@ Assignment snapshot (as `data.assignment` where noted): `assignmentId, volunteer
 | E3 | `RequestAssigned` | `request.assigned` | Request: Q11 | `assignment` | Notification, Cleanup |
 | E4 | `RequestAssignmentCollected` | `request.assignment.collected` | Request: Q13 | `assignment` | Notification |
 | E5 | `RequestAssignmentDelivered` | `request.assignment.delivered` | Request: Q15 | `assignment`, `facility: { facilityId, name }`, `deliveredAt` | Notification, Reward |
-| E6 | `RequestAssignmentCancelledResident` | `request.assignment.cancelled.resident` | Request: Q12 by owner, or Q10 on an Assigned request | `assignment`, `cancelledAt`, `outsideCancellationWindow` | Notification, Reward |
+| E6 | `RequestAssignmentCancelledResident` | `request.assignment.cancelled.resident` | Request: Q12 by owner, or Q10 on an Assigned request, both only before the selected window ends (12.4) | `assignment`, `cancelledAt`, `outsideCancellationWindow` | Notification, Reward |
 | E7 | `RequestAssignmentCancelledVolunteer` | `request.assignment.cancelled.volunteer` | Request: Q12 by volunteer | `assignment`, `cancelledAt` | Notification |
 | E8 | `RequestAssignmentMissed` | `request.assignment.missed` | Request: Q14 (request status in the snapshot is `Missed`) | `assignment`, `reportedAt`, `rescheduledAsRequestId` (null if not rescheduled) | Notification |
 | E9 | `RequestCancelled` | `request.cancelled` | Request: Q10 | `reason` | Notification, Cleanup |
@@ -439,13 +445,13 @@ An event says what was true when it happened, not what is true now. It can be ol
 | Create (Q4) | – | Open | E1 |
 | Edit (Q9) | Open | Open | E2 (`edited`) |
 | Accept (Q11) | Open | Assigned | E3 |
-| Resident cancels assignment (Q12) | Assigned (not collected) | Open or Expired | E6, then E2 (`reopened`) or E10 |
+| Resident cancels assignment (Q12) | Assigned (not collected), selected window not ended | Open or Expired | E6, then E2 (`reopened`) or E10 |
 | Volunteer cancels assignment (Q12) | Assigned (not collected) | Open or Expired | E7, then E2 (`reopened`) or E10 |
 | Report missed (Q14) | Assigned, selected window ended | Missed (terminal) | E8; with `reschedule` also E1 for a new Open request |
 | Confirm collected (Q13) | Assigned | Collected | E4 |
 | Record delivery (Q15) | Collected | Delivered | E5 |
 | Cancel request (Q10) | Open | Cancelled | E9 |
-| Cancel request (Q10) | Assigned | Cancelled | E6, E9 |
+| Cancel request (Q10) | Assigned, selected window not ended | Cancelled | E6, E9 |
 | Expire (`CleanupRequest`) | Open, `now() ≥ expiresAt` (database clock) | Expired | E10 |
 
 Every status change adds a status change row. Statuses: Open, Assigned, Collected, Delivered, Cancelled, Expired, Missed. Final: Delivered, Cancelled, Expired, Missed.
@@ -456,7 +462,7 @@ Every status change adds a status change row. Statuses: Open, Assigned, Collecte
 
 ### 12.3 Reopen or expire (assignment cancellations only)
 
-When an assignment is cancelled before collection (Q12), the request goes back to Open, but only if it can still be picked up. FR20 says an Open request expires when its last window starts. Cancellations usually happen before the window, but not always. Example:
+When an assignment is cancelled before collection (Q12), the request goes back to Open, but only if it can still be picked up. FR20 says an Open request expires when its last window starts. Cancellations usually happen before the window, but not always: a resident can cancel until the selected window ends (12.4), and a volunteer any time before collection. Example:
 
 - Windows offered: Nov 22 at 14:00 and Nov 23 at 10:00. A volunteer accepts Nov 23 and cancels at 10:30 on Nov 23, after the window has started.
 - Both windows have started, so `expiresAt` (start of the last window, 10:00 Nov 23) has already passed.
@@ -466,7 +472,9 @@ A resident cancelling the assignment can send new `windows` in Q12, which move `
 
 ### 12.4 Cancellation window (FR11)
 
-`outsideCancellationWindow = cancelledAt > selectedWindowStart − 24 h`. It also counts after the window has started. Decided by the Request Service at cancel time, carried in E6, never recomputed.
+`outsideCancellationWindow = cancelledAt > selectedWindowStart − 24 h`. Decided by the Request Service at cancel time, carried in E6, never recomputed.
+
+A resident can cancel (Q10 on an Assigned request, Q12) only while `now() < selectedWindowEnd`. Once the selected window has ended (`now() ≥ selectedWindowEnd`), both return `409 window_ended`, and the resident confirms collection (Q13) or reports a missed pickup (Q14). So when E6 carries `outsideCancellationWindow: true`, the resident cancelled between 24 h before the window start and the window end, never after it. A volunteer who didn't come is reported missed and gets no cancellation points (FR16).
 
 ### 12.5 Missed pickup and rescheduling
 
@@ -607,6 +615,8 @@ The page refetches U10 + R3 or R2. No other data travels on this stream.
 | 16.9 | Volunteer opens available requests | Load U6 (cached). Non-empty `preferredPostalCodes` → Q6 with them; else Q6 without. The filter can be cleared |
 | 16.10 | Public profile / stats page | U10 + R3, or R2, then open `EventSource('/api/public/events?profile=…')` or `?stats` |
 | 16.11 | Role activated (U8) | `getIdToken(true)`, `POST /api/session`, reopen the `EventSource` (the hub reads roles when the stream opens) |
+| 16.12 | Request page receives a request detail | If `refreshAt` is not null, set a timer that invalidates `["request", id]` at `refreshAt`. Compute the delay from the server's time (the response's `Date` header), not the device clock, and wait at least 5 s so a fast device clock can't cause a refetch loop. Clear the timer when the page unmounts or the data refetches |
+| 16.13 | Cancel request (Q10) or cancel assignment as the resident (Q12) returns `409 window_ended` | Invalidate `["request", id]` and show "The pickup window has ended. Confirm the collection or report a missed pickup." The refetched `allowedActions` then offer `confirm_collected` and `report_missed` instead of the cancel buttons |
 
 Query keys: `["profile"]`, `["notifications"]`, `["requests","mine"]`, `["requests","available"]`, `["requests","volunteer"]`, `["request", id]`, `["ecopoints"]`, `["public-profile", accountId]`, `["public-stats"]`.
 
