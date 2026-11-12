@@ -48,7 +48,7 @@ The system shall allow Residents to view their own pickup requests, filter them 
 The system shall allow Residents to edit pickup requests they own while those requests remain Open, including requests reopened after an assignment cancellation.  
 When a Resident changes the item category or quantity of an Open request, the system shall automatically recalculate its estimated total weight using the category's predefined standard weight.  
 A Resident cannot change the address of their pickup requests directly because the address is linked to their profile. To change the address, they must cancel any existing uncollected (Open or Assigned) pickup requests they own, update their profile address and create new pickup requests.
-The system shall allow Residents to replace the active pickup windows of an Open request with future valid new windows as per FR07. The request's expiration deadline shall be recalculated based on the updated windows and the original creation date as per FR20.
+The system shall allow Residents to replace the active pickup windows of an Open request with future valid new windows as per FR07. The request's expiration time shall be recalculated from the updated windows as per FR20.
 
 #### FR11 - Cancel Pickup Requests
 
@@ -64,7 +64,7 @@ The system shall allow Volunteers to browse Open pickup requests filtered by the
 
 #### FR13 - Accept Pickup Requests
 
-The system shall allow a Volunteer to accept an Open request by selecting one of the Resident's offered future pickup windows. A Volunteer can accept a request created by their own account.
+The system shall allow a Volunteer to accept an Open request by selecting one of the Resident's offered future pickup windows, meaning windows that have not started yet. A Volunteer can accept a request created by their own account.
 
 #### FR14 - Cancel Volunteer Assignment
 
@@ -100,7 +100,7 @@ The system shall generate and display in-app and push notifications for relevant
 
 #### FR20 - Automatic Request Expiration
 
-The system shall automatically mark an Open request as Expired when either its expiration period (as per FR07) elapses or its final scheduled pickup window ends, whichever occurs first.
+The system shall automatically mark an Open request as Expired when its last active pickup window starts, because no Volunteer can accept a window that has started (FR13). Since every window ends within the expiration period (FR07), a request never stays Open past that period.
 
 #### FR21 - Volunteer Pickup History
 
