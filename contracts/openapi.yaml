@@ -710,7 +710,7 @@ paths:
           content:
             application/json:
               schema:
-                oneOf:
+                anyOf:
                   - type: array
                     title: view=mine
                     items:
@@ -2179,7 +2179,11 @@ components:
                   - 'null'
         viewer:
           type: string
-          description: How the caller relates to the request, for example `owner`. Decides which fields are present.
+          enum:
+            - owner
+            - assigned_volunteer
+            - volunteer
+          description: How the caller relates to the request (README 5.2 visibility table). Decides which fields are present. Owner and assigned volunteer at once gets `owner`.
         allowedActions:
           type: array
           uniqueItems: true
