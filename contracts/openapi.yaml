@@ -32,23 +32,29 @@ servers:
   - url: https://localhost
     description: Caddy in local development
 tags:
-  - name: Session
-    description: Turns a login into the cookie that SSE needs, and ends it.
+  - name: Users
+    description: 'User Service: sessions, registration, terms, profiles and roles (README 5.1).'
   - name: Requests
     description: 'Request Service: categories, facilities, photo uploads and the request lifecycle (README 5.2).'
-  - name: Events
-    description: The live stream for the signed-in user.
+  - name: Rewards
+    description: 'Reward Service: EcoPoints and public statistics (README 5.3).'
+  - name: Notifications
+    description: 'Notification Service: the live streams, the notification list and push subscriptions (README 5.4).'
+  - name: Internal
+    description: Never routed publicly. Only Caddy calls it.
+  - name: Demo
+    description: Only in the demo stack (README 17).
 paths:
   /api/session:
     post:
       tags:
-        - Session
+        - Users
       operationId: createSession
-      summary: Swap an ID token for a session cookie
+      summary: U1. Swap an ID token for a session cookie
+      x-readme-id: U1
       description: |
-        Exists only for SSE. The ID token goes in the body, and Firebase checks it
-        while creating the cookie. Call it once right after login.
-        Caddy routes this without the auth check, because there is no session yet.
+        Exists only for SSE: `EventSource` can not send an `Authorization` header, but browsers send cookies.
+        Call it right after login, and again after a role is activated. Firebase checks the token while creating the cookie.
       security: []
       requestBody:
         required: true
@@ -56,12 +62,16 @@ paths:
           application/json:
             schema:
               type: object
+              additionalProperties: false
               required:
                 - idToken
               properties:
                 idToken:
                   type: string
+                  minLength: 1
                   description: Firebase ID token from `getIdToken()`.
+            example:
+              idToken: eyJhbGciOi...
       responses:
         '204':
           description: Session created. The cookie lasts 5 days.
@@ -71,22 +81,400 @@ paths:
               schema:
                 type: string
         '400':
-          description: The body is not valid JSON.
+          $ref: '#/components/responses/ValidationError'
         '401':
-          description: The token is missing, invalid or stale.
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/Error
+          description: The token is missing, invalid, or the sign-in is not recent.
         '500':
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/Error
           description: Firebase or the server's own setup failed. The token was not at fault, so do not log the
             user out.
     delete:
       tags:
-        - Session
+        - Users
       operationId: deleteSession
-      summary: End the session
-      description: Call on logout, before Firebase `signOut`. The cookie is cleared even if there was none.
+      summary: U2. End the session
+      x-readme-id: U2
+      description: |
+        Call on logout, after unsubscribing push and before Firebase `signOut`. The cookie is cleared even if there was none.
       security: []
       responses:
         '204':
           description: Cookie cleared.
+          headers:
+            Set-Cookie:
+              description: '`session=...; HttpOnly; Secure; SameSite=Lax`. JavaScript can not read it.'
+              schema:
+                type: string
+  /verify:
+    get:
+      tags:
+        - Internal
+      operationId: verify
+      summary: U3. Check a token or cookie (internal, Caddy only)
+      x-readme-id: U3
+      description: |
+        Called only by Caddy's `forward_auth` on the internal network, with the original `Authorization` and `Cookie`
+        headers. Never routed publicly. Bearer first, else the cookie; both reject disabled (deactivated) users.
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Valid. Caddy copies these headers onto the original request.
+          headers:
+            X-User-Id:
+              schema:
+                $ref: ./schemas/common.yaml#/AccountId
+            X-User-Roles:
+              description: Comma separated, empty if none.
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/Error
+          description: 'Firebase or the server setup failed: not the user''s fault.'
+  /api/accounts:
+    post:
+      tags:
+        - Users
+      operationId: createAccount
+      summary: U4. Register
+      x-readme-id: U4
+      description: |
+        FR01. Creates the Firebase user (uid = username) with its role claim, then the account, role, address or postal
+        codes and the terms acceptance in one transaction (README 7.1). Then the frontend signs in and calls U1.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAccount'
+            example:
+              username: jasdeep
+              email: jas@example.test
+              password: correct horse
+              firstName: Jasdeep
+              lastName: S
+              publicName: Jas
+              dateOfBirth: '1995-06-15'
+              role: resident
+              address:
+                street: 123 4 Ave SW
+                postalCode: T2P1J9
+              termsDocumentId: terms_3
+      responses:
+        '201':
+          description: Registered.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - accountId
+                  - roles
+                properties:
+                  accountId:
+                    $ref: ./schemas/common.yaml#/AccountId
+                  roles:
+                    $ref: ./schemas/common.yaml#/Roles
+              example:
+                accountId: jasdeep
+                roles:
+                  - resident
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          description: The username or email is taken, or the terms changed.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: ./schemas/common.yaml#/Error
+                  - properties:
+                      error:
+                        properties:
+                          code:
+                            enum:
+                              - username_taken
+                              - email_taken
+                              - terms_outdated
+  /api/terms:
+    get:
+      tags:
+        - Users
+      operationId: getTerms
+      summary: U5. The current terms document
+      x-readme-id: U5
+      description: |
+        Needed before an account exists, so no login.
+      security: []
+      responses:
+        '200':
+          description: The current document.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TermsDocument'
+  /api/profile:
+    get:
+      tags:
+        - Users
+      operationId: getProfile
+      summary: U6. My profile
+      x-readme-id: U6
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The caller's own profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+              example:
+                accountId: danny
+                email: danny@example.test
+                firstName: Danny
+                lastName: D
+                publicName: Danny
+                dateOfBirth: '1990-04-02'
+                roles:
+                  - volunteer
+                address: null
+                preferredPostalCodes:
+                  - T2P1J9
+                createdAt: '2026-11-01T18:00:00Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/Error
+          description: No profile for this account.
+    patch:
+      tags:
+        - Users
+      operationId: editProfile
+      summary: U7. Edit my profile
+      x-readme-id: U7
+      description: |
+        FR04. Publishes `ProfileUpdated`.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileEdit'
+            example:
+              preferredPostalCodes:
+                - T2P1J9
+                - T3A0B1
+      responses:
+        '200':
+          description: The full profile, as U6.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/Error
+          description: '`role_required`: the address needs the resident role, postal codes need the volunteer role.'
+        '409':
+          description: The resident owns an Open or Assigned request.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: ./schemas/common.yaml#/Error
+                  - properties:
+                      error:
+                        properties:
+                          code:
+                            enum:
+                              - address_locked
+    delete:
+      tags:
+        - Users
+      operationId: deactivateAccount
+      summary: U9. Deactivate my account
+      x-readme-id: U9
+      description: |
+        FR04 (README 7.4). Disables the Firebase user and revokes its tokens, then sets `Deactivated_At`. Publishes
+        `AccountDeactivated`. The frontend then signs out.
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Deactivated. The session cookie is cleared.
+          headers:
+            Set-Cookie:
+              description: '`session=...; HttpOnly; Secure; SameSite=Lax`. JavaScript can not read it.'
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Owns an Open, Assigned or Collected request, or has an unfinished assignment.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: ./schemas/common.yaml#/Error
+                  - properties:
+                      error:
+                        properties:
+                          code:
+                            enum:
+                              - active_work
+  /api/profile/roles:
+    post:
+      tags:
+        - Users
+      operationId: activateRole
+      summary: U8. Activate my second role
+      x-readme-id: U8
+      description: |
+        FR03. Writes the role, its terms acceptance and the Firebase claim. Then the frontend refreshes the ID token,
+        calls U1 again and reopens the stream. Publishes `ProfileUpdated` (`changed: ["roles"]`).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActivateRole'
+            example:
+              role: resident
+              termsDocumentId: terms_3
+              address:
+                street: 9 Main St NW
+                postalCode: T3A0B1
+      responses:
+        '200':
+          description: The roles now.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - roles
+                properties:
+                  roles:
+                    $ref: ./schemas/common.yaml#/Roles
+              example:
+                roles:
+                  - resident
+                  - volunteer
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: The role is already active, or the terms changed.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: ./schemas/common.yaml#/Error
+                  - properties:
+                      error:
+                        properties:
+                          code:
+                            enum:
+                              - role_already_active
+                              - terms_outdated
+  /api/public/profiles/{accountId}:
+    get:
+      tags:
+        - Users
+      operationId: getPublicProfile
+      summary: U10. A public profile
+      x-readme-id: U10
+      description: |
+        FR05. No login. A deactivated account is a 404, which also hides its stats page.
+      security: []
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            $ref: ./schemas/common.yaml#/AccountId
+      responses:
+        '200':
+          description: The public profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicProfile'
+              example:
+                accountId: danny
+                publicName: Danny
+                roles:
+                  - volunteer
+                memberSince: '2026-11-01T18:00:00Z'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/Error
+          description: Unknown or deactivated account.
+  /api/demo/session:
+    post:
+      tags:
+        - Demo
+      operationId: createDemoSession
+      summary: Demo. Start a demo (demo stack only)
+      x-readme-id: Demo
+      description: |
+        Only when the User Service runs with `DEMO_MODE=true`, and never routed by the production Caddy site (README 17.3).
+        Creates a throwaway account `demo-<random>` with both roles, an address, a preferred postal code and the terms
+        accepted. The frontend calls `signInWithCustomToken`, then U1 and the stream as usual. Rate-limited per IP.
+      security: []
+      responses:
+        '200':
+          description: A Firebase custom token for the new demo account.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - customToken
+                properties:
+                  customToken:
+                    type: string
+                    minLength: 1
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/Error
+          description: Too many demo sessions from this address. Try again later.
   /api/categories:
     get:
       tags:
@@ -828,9 +1216,9 @@ paths:
   /api/events:
     get:
       tags:
-        - Events
+        - Notifications
       operationId: openEventStream
-      summary: Live notifications and signals (Server-Sent Events)
+      summary: N1. Live notifications and signals (Server-Sent Events)
       description: |
         Open once after login with `new EventSource('/api/events', { withCredentials: true })`
         and keep it open. The cookie is checked once, when the connection opens.
@@ -865,6 +1253,335 @@ paths:
                 data: {"notificationId":"n_789","type":"NEW_MATCHING_REQUEST","requestId":"6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11","awardId":null,"title":"New pickup near you","body":"2 x Computers/Laptops in T2P1J9","url":"/volunteer/requests/6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11","createdAt":"2026-11-20T16:15:00Z"}
         '401':
           $ref: '#/components/responses/Unauthorized'
+      x-readme-id: N1
+  /api/public/events:
+    get:
+      tags:
+        - Notifications
+      operationId: openPublicEventStream
+      summary: N2. Live updates for a public page (Server-Sent Events)
+      x-readme-id: N2
+      description: |
+        Public profile and statistics pages only, no login. Exactly one of `profile` or `stats`. The messages are on the
+        `publicStream` channel in [asyncapi.yaml](./asyncapi.yaml); none carries user data.
+      security: []
+      parameters:
+        - name: profile
+          in: query
+          required: false
+          schema:
+            $ref: ./schemas/common.yaml#/AccountId
+        - name: stats
+          in: query
+          required: false
+          allowEmptyValue: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The stream.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+              example: |
+                event: stats-updated
+                data: {}
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  /api/notifications:
+    get:
+      tags:
+        - Notifications
+      operationId: listNotifications
+      summary: N3. My notifications
+      x-readme-id: N3
+      description: |
+        Newest first. Expired notifications are never returned. Page with `before` (the `createdAt` of the last one shown).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: before
+          in: query
+          required: false
+          schema:
+            $ref: ./schemas/common.yaml#/Timestamp
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 30
+      responses:
+        '200':
+          description: A page of notifications and the unread count.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - unreadCount
+                  - notifications
+                properties:
+                  unreadCount:
+                    type: integer
+                    minimum: 0
+                  notifications:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Notification'
+              example:
+                unreadCount: 1
+                notifications:
+                  - notificationId: n_789
+                    type: NEW_MATCHING_REQUEST
+                    requestId: 6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11
+                    awardId: null
+                    title: New pickup near you
+                    body: 2 x Computers/Laptops in T2P1J9
+                    url: /volunteer/requests/6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11
+                    isRead: false
+                    createdAt: '2026-11-20T16:15:00Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/notifications/{id}/read:
+    patch:
+      tags:
+        - Notifications
+      operationId: markNotificationRead
+      summary: N4. Mark one notification read
+      x-readme-id: N4
+      description: |
+        Sends `notification-read` to the user's other connections.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        '204':
+          description: Marked read.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/Error
+          description: Not the caller's notification, or gone.
+  /api/notifications/read-all:
+    post:
+      tags:
+        - Notifications
+      operationId: markAllNotificationsRead
+      summary: N5. Mark all notifications read
+      x-readme-id: N5
+      description: |
+        One `notification-read` message with `all: true` to the user's other connections.
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: All marked read.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/push/subscriptions:
+    post:
+      tags:
+        - Notifications
+      operationId: subscribePush
+      summary: N6. Save a push subscription
+      x-readme-id: N6
+      description: |
+        After the user clicks "Enable notifications". The same endpoint again updates it. The user agent comes from the `User-Agent` header.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushSubscription'
+            example:
+              endpoint: https://push.example.test/abc
+              keys:
+                p256dh: BNcR...
+                auth: tBHI...
+              expirationTime: null
+      responses:
+        '201':
+          description: Saved.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    delete:
+      tags:
+        - Notifications
+      operationId: unsubscribePush
+      summary: N7. Remove a push subscription
+      x-readme-id: N7
+      description: |
+        On logout, before `DELETE /api/session`.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - endpoint
+              properties:
+                endpoint:
+                  type: string
+                  format: uri
+            example:
+              endpoint: https://push.example.test/abc
+      responses:
+        '204':
+          description: Removed.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/ecopoints:
+    get:
+      tags:
+        - Rewards
+      operationId: getMyEcopoints
+      summary: R1. My EcoPoints
+      x-readme-id: R1
+      description: |
+        FR18. Totals and every award, newest first.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Totals and awards.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - total
+                  - asResident
+                  - asVolunteer
+                  - awards
+                properties:
+                  total:
+                    $ref: ./schemas/common.yaml#/Decimal
+                  asResident:
+                    $ref: ./schemas/common.yaml#/Decimal
+                  asVolunteer:
+                    $ref: ./schemas/common.yaml#/Decimal
+                  awards:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Award'
+              example:
+                total: 26.0
+                asResident: 0
+                asVolunteer: 26.0
+                awards:
+                  - awardId: aw_1
+                    kind: DELIVERY
+                    earnedAs: volunteer
+                    points: 26.0
+                    formula: VOLUNTEER
+                    requestId: 6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11
+                    assignmentId: a_9
+                    categoryName: Computers/Laptops
+                    quantity: 2
+                    estimatedWeightKg: 5.0
+                    awardedAt: '2026-11-22T23:10:00Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/public/stats:
+    get:
+      tags:
+        - Rewards
+      operationId: getPublicStats
+      summary: R2. Community statistics
+      x-readme-id: R2
+      description: |
+        FR23. No login. One volunteer delivery award counts as one delivery.
+      security: []
+      responses:
+        '200':
+          description: The statistics.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - deliveries
+                  - itemsDelivered
+                  - estimatedWeightKgDelivered
+                  - ecopointsAwarded
+                  - byWasteType
+                  - updatedAt
+                properties:
+                  deliveries:
+                    type: integer
+                    minimum: 0
+                  itemsDelivered:
+                    type: integer
+                    minimum: 0
+                  estimatedWeightKgDelivered:
+                    $ref: ./schemas/common.yaml#/Decimal
+                  ecopointsAwarded:
+                    $ref: ./schemas/common.yaml#/Decimal
+                  byWasteType:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WasteTypeStats'
+                  updatedAt:
+                    $ref: ./schemas/common.yaml#/Timestamp
+  /api/public/profiles/{accountId}/stats:
+    get:
+      tags:
+        - Rewards
+      operationId: getPublicProfileStats
+      summary: R3. EcoPoints on a public profile
+      x-readme-id: R3
+      description: |
+        FR05. No login. An unknown account returns zeros; the page calls U10 first, and its 404 hides the page.
+      security: []
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            $ref: ./schemas/common.yaml#/AccountId
+      responses:
+        '200':
+          description: The account's EcoPoints.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - accountId
+                  - ecopoints
+                properties:
+                  accountId:
+                    $ref: ./schemas/common.yaml#/AccountId
+                  ecopoints:
+                    $ref: ./schemas/common.yaml#/Decimal
+              example:
+                accountId: danny
+                ecopoints: 26.0
 components:
   securitySchemes:
     bearerAuth:
@@ -1595,3 +2312,332 @@ components:
           minLength: 1
         evidencePhoto:
           $ref: '#/components/schemas/PhotoRef'
+    Profile:
+      type: object
+      description: The caller's own profile. The only place besides a request detail where a street address appears.
+      additionalProperties: false
+      required:
+        - accountId
+        - email
+        - firstName
+        - lastName
+        - publicName
+        - dateOfBirth
+        - roles
+        - address
+        - preferredPostalCodes
+        - createdAt
+      properties:
+        accountId:
+          $ref: ./schemas/common.yaml#/AccountId
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+          minLength: 1
+        lastName:
+          type: string
+          minLength: 1
+        publicName:
+          type: string
+          minLength: 1
+        dateOfBirth:
+          type: string
+          format: date
+        roles:
+          $ref: ./schemas/common.yaml#/Roles
+        address:
+          oneOf:
+            - $ref: ./schemas/common.yaml#/Address
+            - type: 'null'
+          description: Null for volunteer-only accounts.
+        preferredPostalCodes:
+          type: array
+          maxItems: 3
+          uniqueItems: true
+          items:
+            $ref: ./schemas/common.yaml#/PostalCode
+        createdAt:
+          $ref: ./schemas/common.yaml#/Timestamp
+    CreateAccount:
+      type: object
+      additionalProperties: false
+      required:
+        - username
+        - email
+        - password
+        - firstName
+        - lastName
+        - publicName
+        - dateOfBirth
+        - role
+        - termsDocumentId
+      properties:
+        username:
+          $ref: ./schemas/common.yaml#/AccountId
+          description: Becomes the account id and the Firebase uid. Never changes.
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+        firstName:
+          type: string
+          minLength: 1
+        lastName:
+          type: string
+          minLength: 1
+        publicName:
+          type: string
+          minLength: 1
+        dateOfBirth:
+          type: string
+          format: date
+          description: The account holder must be 18 or older.
+        role:
+          $ref: ./schemas/common.yaml#/Role
+        address:
+          allOf:
+            - $ref: ./schemas/common.yaml#/Address
+          description: Required when `role` is resident.
+        preferredPostalCodes:
+          type: array
+          maxItems: 3
+          uniqueItems: true
+          items:
+            $ref: ./schemas/common.yaml#/PostalCode
+          description: 0 to 3 distinct codes. Replaces the whole list.
+        termsDocumentId:
+          type: string
+          minLength: 1
+    ProfileEdit:
+      type: object
+      description: Any of these.
+      additionalProperties: false
+      required: []
+      properties:
+        publicName:
+          type: string
+          minLength: 1
+        address:
+          allOf:
+            - $ref: ./schemas/common.yaml#/Address
+          description: Residents only. Locked while the resident owns an Open or Assigned request.
+        preferredPostalCodes:
+          type: array
+          maxItems: 3
+          uniqueItems: true
+          items:
+            $ref: ./schemas/common.yaml#/PostalCode
+          description: Volunteers only. 0 to 3 distinct codes; replaces the whole list.
+      minProperties: 1
+    ActivateRole:
+      type: object
+      additionalProperties: false
+      required:
+        - role
+        - termsDocumentId
+      properties:
+        role:
+          $ref: ./schemas/common.yaml#/Role
+        termsDocumentId:
+          type: string
+          minLength: 1
+        address:
+          allOf:
+            - $ref: ./schemas/common.yaml#/Address
+          description: Required when activating resident.
+        preferredPostalCodes:
+          type: array
+          maxItems: 3
+          uniqueItems: true
+          items:
+            $ref: ./schemas/common.yaml#/PostalCode
+          description: 0 to 3 distinct codes. Replaces the whole list.
+    PublicProfile:
+      type: object
+      description: Public profile (FR05). EcoPoints come from `GET /api/public/profiles/{accountId}/stats`.
+      additionalProperties: false
+      required:
+        - accountId
+        - publicName
+        - roles
+        - memberSince
+      properties:
+        accountId:
+          $ref: ./schemas/common.yaml#/AccountId
+        publicName:
+          type: string
+          minLength: 1
+        roles:
+          $ref: ./schemas/common.yaml#/Roles
+        memberSince:
+          $ref: ./schemas/common.yaml#/Timestamp
+    TermsDocument:
+      type: object
+      additionalProperties: false
+      required:
+        - termsDocumentId
+        - content
+        - publishedAt
+      properties:
+        termsDocumentId:
+          type: string
+          minLength: 1
+        content:
+          type: string
+          minLength: 1
+        publishedAt:
+          $ref: ./schemas/common.yaml#/Timestamp
+    Notification:
+      type: object
+      description: Title and body are built when read, from the request, assignment or award. Never a street address.
+      additionalProperties: false
+      required:
+        - notificationId
+        - type
+        - requestId
+        - awardId
+        - title
+        - body
+        - url
+        - isRead
+        - createdAt
+      properties:
+        notificationId:
+          type: string
+          minLength: 1
+        type:
+          $ref: ./schemas/common.yaml#/NotificationType
+        requestId:
+          type:
+            - string
+            - 'null'
+          format: uuid
+        awardId:
+          type:
+            - string
+            - 'null'
+          minLength: 1
+        title:
+          type: string
+          minLength: 1
+        body:
+          type: string
+          minLength: 1
+        url:
+          type: string
+          pattern: ^/
+        isRead:
+          type: boolean
+        createdAt:
+          $ref: ./schemas/common.yaml#/Timestamp
+    PushSubscription:
+      type: object
+      description: Exactly what `pushManager.subscribe()` returns, as JSON.
+      additionalProperties: false
+      required:
+        - endpoint
+        - keys
+      properties:
+        endpoint:
+          type: string
+          format: uri
+        keys:
+          type: object
+          additionalProperties: false
+          required:
+            - p256dh
+            - auth
+          properties:
+            p256dh:
+              type: string
+              minLength: 1
+            auth:
+              type: string
+              minLength: 1
+        expirationTime:
+          type:
+            - integer
+            - 'null'
+          description: From the browser's `PushSubscription`, often null.
+    Award:
+      type: object
+      description: 'For `CANCELLATION` awards, `categoryName`, `quantity` and `estimatedWeightKg` are null: the
+        volunteer is no longer linked to the request.'
+      additionalProperties: false
+      required:
+        - awardId
+        - kind
+        - earnedAs
+        - points
+        - formula
+        - requestId
+        - assignmentId
+        - categoryName
+        - quantity
+        - estimatedWeightKg
+        - awardedAt
+      properties:
+        awardId:
+          type: string
+          minLength: 1
+        kind:
+          type: string
+          enum:
+            - DELIVERY
+            - CANCELLATION
+        earnedAs:
+          $ref: ./schemas/common.yaml#/Role
+        points:
+          $ref: ./schemas/common.yaml#/Decimal
+        formula:
+          type: string
+          enum:
+            - VOLUNTEER
+            - RESIDENT
+        requestId:
+          type: string
+          format: uuid
+        assignmentId:
+          type: string
+          minLength: 1
+        categoryName:
+          type:
+            - string
+            - 'null'
+        quantity:
+          type:
+            - integer
+            - 'null'
+          minimum: 1
+        estimatedWeightKg:
+          oneOf:
+            - $ref: ./schemas/common.yaml#/Decimal
+            - type: 'null'
+        awardedAt:
+          allOf:
+            - $ref: ./schemas/common.yaml#/Timestamp
+          description: The assignment's `Ended_At`.
+    WasteTypeStats:
+      type: object
+      additionalProperties: false
+      required:
+        - wasteType
+        - deliveries
+        - itemsDelivered
+        - estimatedWeightKgDelivered
+      properties:
+        wasteType:
+          type: string
+          minLength: 1
+        deliveries:
+          type: integer
+          minimum: 0
+        itemsDelivered:
+          type: integer
+          minimum: 0
+        estimatedWeightKgDelivered:
+          $ref: ./schemas/common.yaml#/Decimal
