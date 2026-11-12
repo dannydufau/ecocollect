@@ -77,6 +77,20 @@ test('SSE signal: only a type and a request id, nothing stored and nothing priva
   }
 });
 
+test('the ready event has an empty payload and nothing else can ride along', () => {
+  const valid = validator(asyncapi, 'SseReadyPayload');
+  assert.ok(valid(asyncapi.components.messages.SseReady.examples[0].payload));
+  assert.ok(valid({}));
+  for (const extra of [{ type: 'REQUEST_CREATED' }, { requestId: 'x' }, { street: 'x' }]) {
+    assert.ok(!valid(extra), `${JSON.stringify(extra)} must be rejected`);
+  }
+});
+
+test('the stream sends the ready event first, so both messages are on its channel and operation', () => {
+  assert.deepEqual(Object.keys(asyncapi.channels.signalStream.messages).sort(), ['ready', 'signal']);
+  assert.equal(asyncapi.operations.pushSignal.messages.length, 2);
+});
+
 test('the RabbitMQ setup matches the README', () => {
   const exchange = asyncapi.channels.requestCreated.bindings.amqp.exchange;
   assert.equal(asyncapi.channels.requestCreated.address, 'request.created');

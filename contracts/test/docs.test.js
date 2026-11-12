@@ -80,3 +80,20 @@ test('the README says how events may change: new fields are fine, breaking chang
   assert.match(read('README.md'), /ignore (the )?fields they don't know/i);
   assert.match(read('README.md'), /new `version`/);
 });
+
+test('every file says the server writes a ready event as soon as the stream is set up', () => {
+  for (const file of ['README.md', 'asyncapi.yaml', 'openapi.yaml']) {
+    assert.match(read(file), /`ready` event|event: ready/, `${file} should mention the ready event`);
+    assert.doesNotMatch(read(file), /`: ready`|: ready comment/, `${file} still talks about a ": ready" comment line`);
+  }
+  assert.match(read('asyncapi.yaml'), /registered/, 'the connection has to be registered before the ready event, or a signal can slip through');
+});
+
+test('in the flow diagram, auth checks every call that goes on to the pickup or notification service', () => {
+  const diagram = read('README.md').match(/```mermaid\n([\s\S]*?)```/)[1].split('\n').map((l) => l.trim());
+  const proxied = diagram.map((line, i) => [line, i]).filter(([line]) => /^C->>[PN]:/.test(line));
+  assert.ok(proxied.length >= 3, 'expected the stream, the create call and the list call');
+  for (const [line, i] of proxied) {
+    assert.match(diagram[i - 1], /^A-->>C: 200/, `no auth reply before "${line}"`);
+  }
+});
