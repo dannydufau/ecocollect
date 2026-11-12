@@ -27,7 +27,7 @@ What goes in and out of every component. No SQL schema: tables are named only to
   - Keep time zone data current: recent Node, Postgres and browser versions. Keep one test per side with known dates before and after March 2026.
 - Decimals (`estimatedWeightKg`, `points`) are JSON numbers with at most 2 decimals. `node-postgres` returns `numeric` as a string: convert it before sending, and do points arithmetic in hundredths (integers) to avoid float errors.
 - `accountId` is the username and is also used as the Firebase uid. Our rule: 3–50 characters, `a-z 0-9 _ -`, stored lowercase, never changes.
-- Postal codes are 6 characters, uppercase, no space (`T2P1J9`), Calgary only. Every endpoint normalizes input (uppercase, spaces removed) before validating.
+- Postal codes are 6 characters, uppercase, no space (`T2P1J9`), Calgary only. The frontend uppercases and removes spaces before sending; services accept only that form and return `400` for anything else (e.g. `t2p 1j9`).
 - Roles live in Firebase custom claims: `{ roles: ["resident"] | ["volunteer"] | ["resident","volunteer"] }`. The active role is chosen in the frontend only; services authorize by the roles claim plus ownership of the resource.
 - Assignment statuses: `Active` (accepted, not collected) → `Collected` (items picked up, not delivered) → one final status: `Delivered`, `Volunteer_Cancelled`, `Resident_Cancelled` or `Missed_Pickup` (`Ended_At` set). "Active assignment" means status `Active` only. An **unfinished** assignment is `Active` or `Collected` (`Ended_At` is null): the volunteer still has work to do.
 - Privacy (NFR03): A street address appears only in your own profile (U6, and the U7 response) and in the request detail (Q8 and the responses of Q9–Q15), following the visibility table (5.2). Photo URLs appear only in the request detail. Neither ever appears in events, SSE messages, push payloads, notifications or lists.
@@ -116,9 +116,9 @@ There is no `createUserWithEmailAndPassword` in the frontend: it would give the 
 
 | # | Method + path | Auth | Request | Success response | Errors | Notes |
 |---|---|---|---|---|---|---|
-| U1 | `POST /api/session` | none (ID token in body)| `{ idToken }` | `204`, `Set-Cookie: session=…; HttpOnly; Secure; SameSite=Lax` | 401 | Same as Oct 28. Exists only for SSE |
+| U1 | `POST /api/session` | none (ID token in body)| `{ idToken }` | `204`, `Set-Cookie: session=…; HttpOnly; Secure; SameSite=Lax` | 400, 401, 500 | Same as Oct 28. Exists only for SSE |
 | U2 | `DELETE /api/session` | Cookie | – | `204`, cookie cleared | – | |
-| U3 | `GET /verify` (internal) | Bearer or cookie | – | `200` + `X-User-Id`, `X-User-Roles` | 401 | Bearer first, else cookie. Both checks reject disabled (deactivated) users |
+| U3 | `GET /verify` (internal) | Bearer or cookie | – | `200` + `X-User-Id`, `X-User-Roles` | 401, 500 | Bearer first, else cookie. Both checks reject disabled (deactivated) users |
 | U4 | `POST /api/accounts` | none | `{ username, email, password, firstName, lastName, publicName, dateOfBirth, role: "resident"\|"volunteer", address?: { street, postalCode }, preferredPostalCodes?: [..], termsDocumentId }` | `201 { accountId, roles }` | 400 validation (age < 18, birth date in the future, non-Calgary postal code, address missing for resident, > 3 or duplicate postal codes), 409 `username_taken` / `email_taken` / `terms_outdated` | FR01. See 7.1 for the steps. Then the frontend signs in (3.1) and calls U1 |
 | U5 | `GET /api/terms` | none | – | `200 { termsDocumentId, content, publishedAt }` | – | The current document. Needed before an account exists |
 | U6 | `GET /api/profile` | Bearer | – | `200 { accountId, email, firstName, lastName, publicName, dateOfBirth, roles, address: { street, city: "Calgary", postalCode } \| null, preferredPostalCodes: [..], createdAt }` | 401, 404 | Own profile only. `address` is null for volunteer-only accounts |
@@ -185,6 +185,8 @@ Request detail (Q8 and the responses of Q9–Q15):
 
 "Volunteer, request Open" means any volunteer while the request is Open. A caller who is neither the owner nor a volunteer (a resident-only account) gets `404 request_unavailable` for any other resident's request, in every status (NFR03: item photos are for the owner and volunteers). Once the request leaves Open, only the owner, the assigned volunteer (until the assignment ends) and the delivering volunteer can see it. A volunteer whose assignment was cancelled or reported missed gets `404 request_unavailable`; their history shows only their own assignment (Q7).
 
+`viewer` names the column the response follows: `owner`, `assigned_volunteer` (active, collecting or delivering volunteer) or `volunteer` (any volunteer, request Open). A caller who is both the owner and the assigned volunteer gets `owner`, and `allowedActions` includes the actions of both sides.
+
 `allowedActions` is computed by the server from status, role and timing (`edit`, `cancel`, `cancel_assignment`, `confirm_collected`, `report_missed`, `accept`, `record_delivery`), so the frontend never re-implements the rules. The server still checks every action. An overdue Open request (12.6) gets an empty list. For the owner of an Assigned request, the end of the selected window splits the actions: before it, `cancel`, `cancel_assignment`, `confirm_collected`; from it on, `confirm_collected`, `report_missed`. The assigned volunteer keeps `cancel_assignment` until collection.
 
 `refreshAt` is the next moment the server would build a different response from the same stored data, or null if there is none. Time passing changes no stored state, so no event announces these moments (16.12). Assigned: the earlier future one of `selectedWindowStart − 24 h` (`assignment.outsideCancellationWindow` turns true) and `selectedWindowEnd` (`cancel_assignment` gives way to `report_missed`). Open: the start of the next active window (volunteers stop seeing it; the last one is `expiresAt`). Other statuses: null.
@@ -245,7 +247,7 @@ sequenceDiagram
 
 | # | Flow | Steps | Failure handling |
 |---|---|---|---|
-| 7.1 | Registration (U4) | Validate → `createUser({ uid: username, email, password, displayName: publicName })` → `setCustomUserClaims(uid, { roles: [role] })` → one DB transaction: account, role row, address or postal codes, terms acceptance | `auth/uid-already-exists` → 409 `username_taken`; `auth/email-already-exists` → 409 `email_taken`. If the DB transaction fails, `deleteUser(uid)` and return 500 |
+| 7.1 | Registration (U4) | Validate → `createUser({ uid: username, email, password, displayName: publicName })` → `setCustomUserClaims(uid, { roles: [role] })` → one DB transaction: account, role row, address or postal codes, terms acceptance | `auth/uid-already-exists` or `auth/email-already-exists`: look up that Firebase user (`getUser(uid)` / `getUserByEmail(email)`). If no ACCOUNT row has its uid and it was created more than 10 minutes ago (`metadata.creationTime`), it is left over from a crash: `deleteUser` it and register again once. Otherwise 409 `username_taken` / `email_taken`. If the DB transaction fails, `deleteUser(uid)` and return 500 |
 | 7.2 | Verify (U3) | `verifyIdToken(token, true)` or `verifySessionCookie(cookie, true)` → `{ uid, roles }` | 401. The `true` also rejects disabled users and revoked tokens |
 | 7.3 | Role activation (U8) | DB transaction (role row, terms acceptance, outbox) → `setCustomUserClaims(uid, { roles: [...old, role] })` | If the claims call fails, retry 3 times; if it still fails, reverse the DB change in a new transaction and return 500 |
 | 7.4 | Deactivation (U9) | Check active work (section 8) → `updateUser(uid, { disabled: true })` + `revokeRefreshTokens(uid)` → DB transaction: `Deactivated_At`, outbox `AccountDeactivated` | If the DB transaction fails, `updateUser(uid, { disabled: false })` and return 500 |
@@ -362,7 +364,7 @@ Assignment snapshot (as `data.assignment` where noted): `assignmentId, volunteer
 | E15 | `ProfileUpdated` | `user.profile.updated` | User: U7, U8 | `accountId, changed: ["publicName","address","preferredPostalCodes","roles"], publicName, roles` (never the address itself) | Notification |
 | E16 | `AccountDeactivated` | `user.account.deactivated` | User: U9 | `accountId, deactivatedAt` | Notification |
 
-`matchedVolunteerUids` (E1, E2): every volunteer whose preferred postal codes include the request's postal code, leaving out deactivated accounts and the request's own resident (in demo mode the resident stays in, 17.5). The Request Service computes it in the same transaction (section 8).
+`matchedVolunteerUids` (E1, E2): every volunteer whose preferred postal codes include the request's postal code (exact, full 6-character match, on purpose: notifications go only to volunteers who chose that exact code; the available list (Q6) can always be browsed without the filter, 16.9), leaving out deactivated accounts and the request's own resident (in demo mode the resident stays in, 17.5). The Request Service computes it in the same transaction (section 8).
 
 Events from one action, in order: Q10 on Assigned → E6, E9. Q12 → E6 or E7, then E2 (reopened) or E10. Q14 → E8, then E1 for the new request if rescheduled (the new request has its own `requestSeq` starting at 1; both events share the `transitionId`).
 
@@ -584,6 +586,7 @@ Effects of an expiry:
 
 | `event:` | `data` | Sent to | Frontend action |
 |---|---|---|---|
+| `ready` | `{}` | The new connection only, once, as its first message | Nothing to handle: it makes `onopen` fire at once. Refetch in `onopen` (16.5) |
 | `notification` (`id:` = notificationId) | `{ notificationId, type, requestId, awardId, title, body, url, createdAt }` | Every open connection of the recipient | 16.3 |
 | `notification-expired` | `{ notificationIds: [..], requestId, tag }` | Recipient | Invalidate `["notifications"]`; close OS notifications with `tag` via `registration.getNotifications({ tag })` |
 | `notification-read` | `{ notificationIds: [..] }` or `{ all: true }` | The user's **other** connections (one message per N4/N5 call) | Invalidate `["notifications"]`; close OS notifications for those ids |
@@ -592,7 +595,7 @@ Effects of an expiry:
 | `account-deactivated` | `{}` | The user's connections (E16), then the server closes them | Sign out |
 | comment `: ping` | – | Everyone, every ~25 s | Ignored by `EventSource` |
 
-`Last-Event-ID` resume is not supported: after a reconnect the frontend refetches (11).
+`Last-Event-ID` resume is not supported: after a reconnect the frontend refetches (11). The server writes `ready` as soon as it registers a connection, so `onopen` fires right away instead of when the first `: ping` arrives (up to ~25 s later).
 
 ### 13.4 Push
 
@@ -650,7 +653,7 @@ The page refetches U10 + R3 or R2. No other data travels on this stream.
 | 16.2 | Any mutation succeeds | Invalidate what it changed (e.g. Q4 → `["requests","mine"]`, Q11 → `["requests","available"]`, `["requests","volunteer"]`, `["request", id]`) |
 | 16.3 | SSE `notification` | Always `["notifications"]`. Then by type: `REQUEST_CREATED` and `*_RESIDENT` request types → `["requests","mine"]`, `["request", requestId]`; `NEW_MATCHING_REQUEST` → `["requests","available"]`; `*_VOLUNTEER` request types → `["requests","volunteer"]`, `["request", requestId]`; `ECOPOINTS_*` → `["ecopoints"]` |
 | 16.4 | Other SSE messages | Section 13.3 |
-| 16.5 | SSE drops | `EventSource` reconnects by itself; meanwhile refetch `["notifications"]` every 30 s; on reopen, invalidate everything on screen |
+| 16.5 | SSE drops | `EventSource` reconnects by itself; meanwhile refetch `["notifications"]` every 30 s; on reopen (`onopen`, fired at once by `ready`), invalidate everything on screen |
 | 16.6 | Service worker `push` | Non-silent and an EcoCollect tab is focused → skip. Otherwise `showNotification(title, { body, tag, silent, data: { url } })`. A silent one replaces the old notification with the same tag quietly |
 | 16.7 | `notificationclick` | Focus or open `url`. If the request is gone, Q8's `404 request_unavailable` shows a friendly page |
 | 16.8 | Enable notifications (button) | Permission → `pushManager.subscribe()` with `NEXT_PUBLIC_VAPID_KEY` → N6. Must come from a click |
@@ -659,6 +662,7 @@ The page refetches U10 + R3 or R2. No other data travels on this stream.
 | 16.11 | Role activated (U8) | `getIdToken(true)`, `POST /api/session`, reopen the `EventSource` (the hub reads roles when the stream opens) |
 | 16.12 | Request page receives a request detail | If `refreshAt` is not null, set a timer that invalidates `["request", id]` at `refreshAt`. Compute the delay from the server's time (the response's `Date` header), not the device clock, and wait at least 5 s so a fast device clock can't cause a refetch loop. Clear the timer when the page unmounts or the data refetches |
 | 16.13 | Any mutation returns `409` | Invalidate `["request", id]` and the list the user came from, and show a message for the `code`. The refetched request and its `allowedActions` show what is possible now. Examples: `window_ended` (Q10, or Q12 as the resident): "The pickup window has ended. Confirm the collection or report a missed pickup." (the cancel buttons give way to `confirm_collected` and `report_missed`); `expired` (Q9–Q11): "This request has expired."; `already_assigned` (Q11): "Another volunteer accepted this request first."; `terms_outdated`: reload the terms (U5) and ask for acknowledgement again |
+| 16.14 | Page paths | Notification `url`s (13.1) and links use only these. The prefix sets the tab's active role when opened from a notification. `/resident/requests/<requestId>`: `REQUEST_CREATED`, `REQUEST_UPDATED_RESIDENT`, `REQUEST_ASSIGNED_RESIDENT`, `REQUEST_COLLECTED_RESIDENT`, `REQUEST_DELIVERED_RESIDENT`, `ASSIGNMENT_CANCELLED_BY_RESIDENT_RESIDENT`, `ASSIGNMENT_CANCELLED_BY_VOLUNTEER_RESIDENT`, `ASSIGNMENT_MISSED_RESIDENT`, `REQUEST_CANCELLED_RESIDENT`, `REQUEST_EXPIRED_RESIDENT`. `/volunteer/requests/<requestId>`: `NEW_MATCHING_REQUEST`, `REQUEST_ASSIGNED_VOLUNTEER`, `REQUEST_COLLECTED_VOLUNTEER`, `REQUEST_DELIVERED_VOLUNTEER`. `/volunteer/history`: `ASSIGNMENT_CANCELLED_BY_RESIDENT_VOLUNTEER`, `ASSIGNMENT_CANCELLED_BY_VOLUNTEER_VOLUNTEER`, `ASSIGNMENT_MISSED_VOLUNTEER`. `/ecopoints`: every `ECOPOINTS_*` type. Not used by notifications: `/profiles/<accountId>` (public profile, 16.10), `/stats` (public stats) |
 
 Query keys: `["profile"]`, `["notifications"]`, `["requests","mine"]`, `["requests","available"]`, `["requests","volunteer"]`, `["request", id]`, `["ecopoints"]`, `["public-profile", accountId]`, `["public-stats"]`.
 
