@@ -43,8 +43,8 @@ test('nothing in the contracts talks about who or what wrote it', () => {
 test('the notification service has no database for Oct 28', () => {
   const [flow] = read('README.md').split('## Deferred');
   const stored = /processed_events|notification rows|saves? (a |the )?notifications?|database work/i;
+  // Only the README flow still describes Oct 28; asyncapi.yaml now describes the Nov 9 design.
   assert.doesNotMatch(flow, stored, 'README flow');
-  assert.doesNotMatch(read('asyncapi.yaml'), stored, 'asyncapi.yaml');
   assert.doesNotMatch(read('openapi.yaml'), stored, 'openapi.yaml');
 });
 
@@ -58,9 +58,8 @@ test('stored notifications are one deferred line, not a plan, and processed_even
 });
 
 test('no shared queue is named anywhere, each notification instance has its own', () => {
-  for (const file of ['README.md', 'asyncapi.yaml']) {
-    assert.doesNotMatch(read(file), /notification\.request-events/, `${file} still names the shared queue`);
-  }
+  // asyncapi.yaml now has the Nov 9 shared queue, notification.events; the README is still Oct 28.
+  assert.doesNotMatch(read('README.md'), /notification\.request-events/, 'README.md still names the shared queue');
 });
 
 test('every file says the frontend refetches when the stream opens, that is how missed signals are recovered', () => {

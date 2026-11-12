@@ -2,61 +2,100 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { asyncapi, validator } = require('./helpers');
 
-const event = () => structuredClone(asyncapi.components.messages.RequestCreated.examples[0].payload);
 const note = () => structuredClone(asyncapi.components.messages.SseSignal.examples[0].payload);
-const withData = (change) => ({ ...event(), data: { ...event().data, ...change } });
+const messages = asyncapi.components.messages;
+const example = (type) => structuredClone(messages[type].examples[0].payload);
+const events = Object.keys(messages).filter((m) => !m.startsWith('Sse'));
+const valid = (type) => validator(asyncapi, `${type}Payload`);
 
-test('the RequestCreated example is a valid event', () => {
-  assert.ok(validator(asyncapi, 'RequestCreatedPayload')(event()));
+// The event list from the README (10.3): type, routing key, producer, consumers.
+const README_EVENTS = [
+  ['RequestCreated', 'request.created', 'request-service', ['notification', 'cleanup']],
+  ['RequestUpdated', 'request.updated', 'request-service', ['notification', 'cleanup']],
+  ['RequestAssigned', 'request.assigned', 'request-service', ['notification', 'cleanup']],
+  ['RequestAssignmentCollected', 'request.assignment.collected', 'request-service', ['notification']],
+  ['RequestAssignmentDelivered', 'request.assignment.delivered', 'request-service', ['notification', 'reward']],
+  ['RequestAssignmentCancelledResident', 'request.assignment.cancelled.resident', 'request-service', ['notification', 'reward']],
+  ['RequestAssignmentCancelledVolunteer', 'request.assignment.cancelled.volunteer', 'request-service', ['notification']],
+  ['RequestAssignmentMissed', 'request.assignment.missed', 'request-service', ['notification']],
+  ['RequestCancelled', 'request.cancelled', 'request-service', ['notification', 'cleanup']],
+  ['RequestExpired', 'request.expired', 'request-service', ['notification', 'cleanup']],
+  ['PointsAwardedDelivery', 'reward.points.delivery', 'reward-service', ['notification']],
+  ['PointsAwardedCancellation', 'reward.points.cancellation', 'reward-service', ['notification']],
+  ['CleanupRequest', 'cleanup.request.due', 'cleanup-service', ['request']],
+  ['NotificationCleanupRequested', 'cleanup.notifications.due', 'cleanup-service', ['notification']],
+  ['ProfileUpdated', 'user.profile.updated', 'user-service', ['notification']],
+  ['AccountDeactivated', 'user.account.deactivated', 'user-service', ['notification']],
+];
+const QUEUES = {
+  notification: 'notification.events',
+  cleanup: 'cleanup.request-events',
+  reward: 'reward.request-events',
+  request: 'request.cleanup-events',
+};
+const queueChannel = (name) => Object.values(asyncapi.channels).find((c) => c.address === name);
+const messageNames = (channel) => Object.values(channel.messages).map((m) => m.$ref.split('/').pop()).sort();
+
+test('every event in the README is in the spec, and nothing else', () => {
+  assert.deepEqual(events.sort(), README_EVENTS.map(([t]) => t).sort());
 });
 
-test('RequestCreated: no matched volunteers is fine, the list just has to be there', () => {
-  const valid = validator(asyncapi, 'RequestCreatedPayload');
-  assert.ok(valid(withData({ matchedVolunteerUids: [] })));
-  const { matchedVolunteerUids, ...rest } = event().data;
-  assert.ok(!valid({ ...event(), data: rest }));
+test('every event example is valid, with the right type, producer and version', () => {
+  for (const [type, , producer] of README_EVENTS) {
+    const e = example(type);
+    assert.ok(valid(type)(e), `${type} example is invalid: ${JSON.stringify(valid(type).errors)}`);
+    assert.equal(e.type, type);
+    assert.equal(e.producer, producer, `${type} producer`);
+    assert.equal(e.version, type === 'RequestCreated' ? 2 : 1, `${type} version`);
+  }
 });
 
-test('RequestCreated: no street address is part of the event', () => {
-  const declared = Object.keys(asyncapi.components.schemas.RequestCreatedPayload.properties.data.properties);
-  for (const key of declared) assert.doesNotMatch(key, /street|address|city|residentName|fullName/i, `${key} could carry an address`);
-  // The producer sends exactly what is declared, so the example is the list a producer test can compare to.
-  assert.deepEqual(Object.keys(event().data).sort(), [...declared].sort());
+test('each event is published on its routing key to ecocollect.events, persistent, by its producer', () => {
+  for (const [type, key] of README_EVENTS) {
+    const op = asyncapi.operations[`publish${type}`];
+    assert.ok(op, `no publish operation for ${type}`);
+    assert.equal(op.action, 'send');
+    assert.equal(op.bindings.amqp.deliveryMode, 2, `${type} must be persistent`);
+    const channel = asyncapi.channels[op.channel.$ref.split('/').pop()];
+    assert.equal(channel.address, key, `${type} routing key`);
+    assert.deepEqual(
+      [channel.bindings.amqp.exchange.name, channel.bindings.amqp.exchange.type, channel.bindings.amqp.exchange.durable],
+      ['ecocollect.events', 'topic', true],
+    );
+  }
 });
 
-test('RequestCreated: a consumer ignores fields it does not know, so adding one is not breaking', () => {
-  const valid = validator(asyncapi, 'RequestCreatedPayload');
-  assert.ok(valid(withData({ priority: 'high' })), 'a new field must not make an old consumer reject the event');
-  assert.ok(valid({ ...event(), traceId: 'abc' }));
+test('each consumer queue receives exactly the events the README gives it', () => {
+  for (const [consumer, queue] of Object.entries(QUEUES)) {
+    const channel = queueChannel(queue);
+    assert.ok(channel, `queue ${queue} is missing`);
+    const expected = README_EVENTS.filter(([, , , c]) => c.includes(consumer)).map(([t]) => t).sort();
+    assert.deepEqual(messageNames(channel), expected, `${queue}`);
+  }
 });
 
-test('RequestCreated: the envelope has to be right', () => {
-  const valid = validator(asyncapi, 'RequestCreatedPayload');
-  const bad = {
-    'wrong type': { ...event(), type: 'RequestCancelled' },
-    'wrong version': { ...event(), version: 2 },
-    'event id not a uuid': { ...event(), eventId: 'abc' },
-    'no event id': { ...event(), eventId: undefined },
-    'time with offset': { ...event(), occurredAt: '2026-10-28T10:15:00-06:00' },
-    'no data': { ...event(), data: undefined },
-  };
-  for (const [name, value] of Object.entries(bad)) assert.ok(!valid(value), `should reject: ${name}`);
+test('every queue is a durable quorum queue that dead-letters on the 5th failure', () => {
+  for (const queue of Object.values(QUEUES)) {
+    const channel = queueChannel(queue);
+    assert.deepEqual(channel['x-queue-arguments'], {
+      'x-queue-type': 'quorum',
+      'x-delivery-limit': 4,
+      'x-dead-letter-exchange': 'ecocollect.dlx',
+      'x-dead-letter-routing-key': queue,
+    }, queue);
+    assert.equal(channel['x-dead-letter-queue'], `${queue}.dlq`);
+    const q = channel.bindings.amqp.queue;
+    assert.deepEqual([q.name, q.durable, q.exclusive, q.autoDelete], [queue, true, false, false], queue);
+  }
 });
 
-test('RequestCreated: the data has to be right', () => {
-  const valid = validator(asyncapi, 'RequestCreatedPayload');
-  const bad = {
-    'zero quantity': withData({ quantity: 0 }),
-    'bad postal code': withData({ postalCode: 'T2P' }),
-    'no windows': withData({ windows: [] }),
-    'four windows': withData({ windows: Array.from({ length: 4 }, (_, i) => ({ date: `2026-11-0${i + 1}`, startHour: 9 })) }),
-    'window hour 24': withData({ windows: [{ date: '2026-10-30', startHour: 24 }] }),
-    'expiry with offset': withData({ expiresAt: '2026-11-27T09:15:00-07:00' }),
-    'request id not a uuid': withData({ requestId: 'r_123' }),
-    'volunteers as text': withData({ matchedVolunteerUids: 'firebaseUid_v1' }),
-    'no resident': withData({ residentUid: undefined }),
-  };
-  for (const [name, value] of Object.entries(bad)) assert.ok(!valid(value), `should reject: ${name}`);
+test('no street address, notes or photo can travel in an event (NFR03)', () => {
+  const schemas = asyncapi.components.schemas;
+  for (const name of ['RequestSnapshot', ...README_EVENTS.map(([t]) => `${t}Data`)]) {
+    for (const key of Object.keys(schemas[name].properties)) {
+      assert.doesNotMatch(key, /street|^address$|city|notes|photo|email/i, `${name}.${key}`);
+    }
+  }
 });
 
 test('the SSE example is a valid signal, for both types', () => {
@@ -89,33 +128,6 @@ test('the ready event has an empty payload and nothing else can ride along', () 
 test('the stream sends the ready event first, so both messages are on its channel and operation', () => {
   assert.deepEqual(Object.keys(asyncapi.channels.signalStream.messages).sort(), ['ready', 'signal']);
   assert.equal(asyncapi.operations.pushSignal.messages.length, 2);
-});
-
-test('the RabbitMQ setup matches the README', () => {
-  const exchange = asyncapi.channels.requestCreated.bindings.amqp.exchange;
-  assert.equal(asyncapi.channels.requestCreated.address, 'request.created');
-  assert.deepEqual(
-    [exchange.name, exchange.type, exchange.durable],
-    ['ecocollect.events', 'topic', true],
-  );
-  assert.equal(asyncapi.channels.requestEventsQueue.address, null, 'the broker names the queue');
-  assert.equal(asyncapi.operations.publishRequestCreated.bindings.amqp.deliveryMode, 2, 'persistent');
-  assert.equal(asyncapi.operations.receiveRequestCreated.bindings.amqp.ack, true, 'manual ack');
-});
-
-test('every notification instance gets its own queue, so no instance misses a signal', () => {
-  const queue = asyncapi.channels.requestEventsQueue.bindings.amqp.queue;
-  assert.equal(queue.exclusive, true, 'only the instance that made it can use it');
-  assert.equal(queue.autoDelete, true, 'gone when the instance goes');
-  assert.equal(queue.durable, false);
-  assert.ok(!queue.name, 'a fixed name would make instances share one queue');
-});
-
-test('the publisher sends, the notification service receives, and nobody listens to themselves', () => {
-  const ops = asyncapi.operations;
-  assert.equal(ops.publishRequestCreated.action, 'send');
-  assert.equal(ops.receiveRequestCreated.action, 'receive');
-  assert.equal(ops.pushSignal.action, 'send');
 });
 
 test('every operation points at a channel and a message that exist', () => {

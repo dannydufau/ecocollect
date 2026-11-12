@@ -1,21 +1,43 @@
 asyncapi: 3.0.0
 info:
-  title: EcoCollect events (Oct 28)
-  version: 0.1.0
+  title: EcoCollect events (Nov 9)
+  version: 1.0.0
   description: |
-    The two messages in the Oct 28 flow:
+    Every message in EcoCollect that is not a REST call, following the Nov 9 contracts in
+    [README.md](./README.md) (sections 9 to 11). The REST calls are in [openapi.yaml](./openapi.yaml).
+    This one file describes the services on both sides of each message, so every operation says which
+    service does it.
 
-    1. RequestCreated: the pickup service tells the notification service, through
-       RabbitMQ, that a resident created a request.
-    2. SseSignal: the notification service tells the browser, over the open
-       `GET /api/events` stream, that there is something new.
+    RabbitMQ
 
-    This one file describes the services on both sides of each message, so every operation
-    says which service does it. The REST calls are in [openapi.yaml](./openapi.yaml)
-    and the flow around all of this is in [README.md](./README.md).
+    - Exchanges: `ecocollect.events` (topic, durable) for every event, and `ecocollect.dlx` (direct,
+      durable) for dead letters only.
+    - Message properties: `messageId` is the `eventId`, `type` is the event type, `contentType` is
+      `application/json`, and every message is persistent.
+    - Publishing: every producer writes the event to its own outbox table in the same transaction as the
+      change, so an event is never lost before it reaches RabbitMQ. A loop in the same process publishes
+      unsent rows in order with publisher confirms, and marks a row sent only after the confirm.
+    - Consuming: four quorum queues, one per consumer, each declared by its consumer with exactly the
+      arguments listed on its channel (`x-queue-type` quorum, `x-delivery-limit` 4, dead-lettering to
+      `ecocollect.dlx` with the queue's own name as routing key). Each consumer also declares
+      `<queue>.dlq` (quorum, no other arguments) and binds it to `ecocollect.dlx` with the queue's name.
+    - Failures: roll back, then `basic.reject` with `requeue = true`. Use `reject`, not `basic.nack`:
+      only `reject` (or a lost connection) adds to the delivery count. RabbitMQ dead-letters the message
+      on its 5th failure, so no service counts attempts itself. Log `eventId`, `type`, the queue, the
+      error and `x-delivery-count` before every reject.
+
+    Stale events
+
+    An event says what was true when it happened. Every request event carries the request as it was
+    after the change (`data.request`), with `requestSeq`, so consumers order by `requestSeq` and not
+    by arrival. The producer is the only source of truth for current state: no consumer takes an
+    irreversible decision from an event without asking the owner (README 11).
+
+    Server-Sent Events
+
+    The browser side (`/api/events`) is still the Oct 28 version here and is updated separately.
 
     No street address ever appears in an event or an SSE message.
-
 servers:
   rabbitmq:
     host: localhost:5672
@@ -25,12 +47,10 @@ servers:
     host: localhost
     protocol: https
     description: Caddy. The only publicly exposed service.
-
 channels:
   requestCreated:
     address: request.created
     title: Routing key request.created
-    description: Published to the exchange below, one message per created request.
     servers:
       - $ref: '#/servers/rabbitmq'
     bindings:
@@ -45,32 +65,428 @@ channels:
     messages:
       requestCreated:
         $ref: '#/components/messages/RequestCreated'
-
-  requestEventsQueue:
-    address: null
-    title: The queue of one notification instance
-    description: |
-      Every notification instance declares its own queue when it starts and binds it to the
-      exchange with `request.*`, so every instance receives every event. The SSE connections
-      live in the memory of one instance, so a queue shared between instances would hand an
-      event to an instance that may not hold the user's connection, and the signal would be
-      lost without anyone noticing. The queue is exclusive, auto-delete and not durable, and
-      the broker picks its name. Events published while no instance is running are dropped,
-      which is fine for a signal.
+  requestUpdated:
+    address: request.updated
+    title: Routing key request.updated
     servers:
       - $ref: '#/servers/rabbitmq'
     bindings:
       amqp:
+        is: routingKey
+        exchange:
+          name: ecocollect.events
+          type: topic
+          durable: true
+          autoDelete: false
+          vhost: /
+    messages:
+      requestUpdated:
+        $ref: '#/components/messages/RequestUpdated'
+  requestAssigned:
+    address: request.assigned
+    title: Routing key request.assigned
+    servers:
+      - $ref: '#/servers/rabbitmq'
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: ecocollect.events
+          type: topic
+          durable: true
+          autoDelete: false
+          vhost: /
+    messages:
+      requestAssigned:
+        $ref: '#/components/messages/RequestAssigned'
+  requestAssignmentCollected:
+    address: request.assignment.collected
+    title: Routing key request.assignment.collected
+    servers:
+      - $ref: '#/servers/rabbitmq'
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: ecocollect.events
+          type: topic
+          durable: true
+          autoDelete: false
+          vhost: /
+    messages:
+      requestAssignmentCollected:
+        $ref: '#/components/messages/RequestAssignmentCollected'
+  requestAssignmentDelivered:
+    address: request.assignment.delivered
+    title: Routing key request.assignment.delivered
+    servers:
+      - $ref: '#/servers/rabbitmq'
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: ecocollect.events
+          type: topic
+          durable: true
+          autoDelete: false
+          vhost: /
+    messages:
+      requestAssignmentDelivered:
+        $ref: '#/components/messages/RequestAssignmentDelivered'
+  requestAssignmentCancelledResident:
+    address: request.assignment.cancelled.resident
+    title: Routing key request.assignment.cancelled.resident
+    servers:
+      - $ref: '#/servers/rabbitmq'
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: ecocollect.events
+          type: topic
+          durable: true
+          autoDelete: false
+          vhost: /
+    messages:
+      requestAssignmentCancelledResident:
+        $ref: '#/components/messages/RequestAssignmentCancelledResident'
+  requestAssignmentCancelledVolunteer:
+    address: request.assignment.cancelled.volunteer
+    title: Routing key request.assignment.cancelled.volunteer
+    servers:
+      - $ref: '#/servers/rabbitmq'
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: ecocollect.events
+          type: topic
+          durable: true
+          autoDelete: false
+          vhost: /
+    messages:
+      requestAssignmentCancelledVolunteer:
+        $ref: '#/components/messages/RequestAssignmentCancelledVolunteer'
+  requestAssignmentMissed:
+    address: request.assignment.missed
+    title: Routing key request.assignment.missed
+    servers:
+      - $ref: '#/servers/rabbitmq'
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: ecocollect.events
+          type: topic
+          durable: true
+          autoDelete: false
+          vhost: /
+    messages:
+      requestAssignmentMissed:
+        $ref: '#/components/messages/RequestAssignmentMissed'
+  requestCancelled:
+    address: request.cancelled
+    title: Routing key request.cancelled
+    servers:
+      - $ref: '#/servers/rabbitmq'
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: ecocollect.events
+          type: topic
+          durable: true
+          autoDelete: false
+          vhost: /
+    messages:
+      requestCancelled:
+        $ref: '#/components/messages/RequestCancelled'
+  requestExpired:
+    address: request.expired
+    title: Routing key request.expired
+    servers:
+      - $ref: '#/servers/rabbitmq'
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: ecocollect.events
+          type: topic
+          durable: true
+          autoDelete: false
+          vhost: /
+    messages:
+      requestExpired:
+        $ref: '#/components/messages/RequestExpired'
+  pointsAwardedDelivery:
+    address: reward.points.delivery
+    title: Routing key reward.points.delivery
+    servers:
+      - $ref: '#/servers/rabbitmq'
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: ecocollect.events
+          type: topic
+          durable: true
+          autoDelete: false
+          vhost: /
+    messages:
+      pointsAwardedDelivery:
+        $ref: '#/components/messages/PointsAwardedDelivery'
+  pointsAwardedCancellation:
+    address: reward.points.cancellation
+    title: Routing key reward.points.cancellation
+    servers:
+      - $ref: '#/servers/rabbitmq'
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: ecocollect.events
+          type: topic
+          durable: true
+          autoDelete: false
+          vhost: /
+    messages:
+      pointsAwardedCancellation:
+        $ref: '#/components/messages/PointsAwardedCancellation'
+  cleanupRequest:
+    address: cleanup.request.due
+    title: Routing key cleanup.request.due
+    servers:
+      - $ref: '#/servers/rabbitmq'
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: ecocollect.events
+          type: topic
+          durable: true
+          autoDelete: false
+          vhost: /
+    messages:
+      cleanupRequest:
+        $ref: '#/components/messages/CleanupRequest'
+  notificationCleanupRequested:
+    address: cleanup.notifications.due
+    title: Routing key cleanup.notifications.due
+    servers:
+      - $ref: '#/servers/rabbitmq'
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: ecocollect.events
+          type: topic
+          durable: true
+          autoDelete: false
+          vhost: /
+    messages:
+      notificationCleanupRequested:
+        $ref: '#/components/messages/NotificationCleanupRequested'
+  profileUpdated:
+    address: user.profile.updated
+    title: Routing key user.profile.updated
+    servers:
+      - $ref: '#/servers/rabbitmq'
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: ecocollect.events
+          type: topic
+          durable: true
+          autoDelete: false
+          vhost: /
+    messages:
+      profileUpdated:
+        $ref: '#/components/messages/ProfileUpdated'
+  accountDeactivated:
+    address: user.account.deactivated
+    title: Routing key user.account.deactivated
+    servers:
+      - $ref: '#/servers/rabbitmq'
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: ecocollect.events
+          type: topic
+          durable: true
+          autoDelete: false
+          vhost: /
+    messages:
+      accountDeactivated:
+        $ref: '#/components/messages/AccountDeactivated'
+  notificationEvents:
+    address: notification.events
+    title: Queue notification.events (Notification Service)
+    description: |
+      Quorum queue declared by the Notification Service when it starts, with exactly the arguments in
+      `x-queue-arguments`, and bound to `ecocollect.events` with the keys in `x-bindings`. A
+      message that fails 5 times goes to `notification.events.dlq` through `ecocollect.dlx`.
+
+      The Notification Service runs as exactly one instance (README 13.0), which holds every SSE
+      connection in memory and is the only consumer of this queue, so every event reaches the
+      process that holds the recipient's connections. A second instance would take only some
+      of the events and its users would miss live updates. Scaling out is deferred.
+    servers:
+      - $ref: '#/servers/rabbitmq'
+    x-bindings:
+      - request.#
+      - reward.#
+      - user.#
+      - cleanup.notifications.due
+    x-queue-arguments:
+      x-queue-type: quorum
+      x-delivery-limit: 4
+      x-dead-letter-exchange: ecocollect.dlx
+      x-dead-letter-routing-key: notification.events
+    x-dead-letter-queue: notification.events.dlq
+    bindings:
+      amqp:
         is: queue
         queue:
-          durable: false
-          exclusive: true
-          autoDelete: true
+          name: notification.events
+          durable: true
+          exclusive: false
+          autoDelete: false
           vhost: /
     messages:
       requestCreated:
         $ref: '#/components/messages/RequestCreated'
-
+      requestUpdated:
+        $ref: '#/components/messages/RequestUpdated'
+      requestAssigned:
+        $ref: '#/components/messages/RequestAssigned'
+      requestAssignmentCollected:
+        $ref: '#/components/messages/RequestAssignmentCollected'
+      requestAssignmentDelivered:
+        $ref: '#/components/messages/RequestAssignmentDelivered'
+      requestAssignmentCancelledResident:
+        $ref: '#/components/messages/RequestAssignmentCancelledResident'
+      requestAssignmentCancelledVolunteer:
+        $ref: '#/components/messages/RequestAssignmentCancelledVolunteer'
+      requestAssignmentMissed:
+        $ref: '#/components/messages/RequestAssignmentMissed'
+      requestCancelled:
+        $ref: '#/components/messages/RequestCancelled'
+      requestExpired:
+        $ref: '#/components/messages/RequestExpired'
+      pointsAwardedDelivery:
+        $ref: '#/components/messages/PointsAwardedDelivery'
+      pointsAwardedCancellation:
+        $ref: '#/components/messages/PointsAwardedCancellation'
+      notificationCleanupRequested:
+        $ref: '#/components/messages/NotificationCleanupRequested'
+      profileUpdated:
+        $ref: '#/components/messages/ProfileUpdated'
+      accountDeactivated:
+        $ref: '#/components/messages/AccountDeactivated'
+  cleanupRequestEvents:
+    address: cleanup.request-events
+    title: Queue cleanup.request-events (Cleanup Service)
+    description: |
+      Quorum queue declared by the Cleanup Service when it starts, with exactly the arguments in
+      `x-queue-arguments`, and bound to `ecocollect.events` with the keys in `x-bindings`. A
+      message that fails 5 times goes to `cleanup.request-events.dlq` through `ecocollect.dlx`.
+    servers:
+      - $ref: '#/servers/rabbitmq'
+    x-bindings:
+      - request.created
+      - request.updated
+      - request.assigned
+      - request.cancelled
+      - request.expired
+    x-queue-arguments:
+      x-queue-type: quorum
+      x-delivery-limit: 4
+      x-dead-letter-exchange: ecocollect.dlx
+      x-dead-letter-routing-key: cleanup.request-events
+    x-dead-letter-queue: cleanup.request-events.dlq
+    bindings:
+      amqp:
+        is: queue
+        queue:
+          name: cleanup.request-events
+          durable: true
+          exclusive: false
+          autoDelete: false
+          vhost: /
+    messages:
+      requestCreated:
+        $ref: '#/components/messages/RequestCreated'
+      requestUpdated:
+        $ref: '#/components/messages/RequestUpdated'
+      requestAssigned:
+        $ref: '#/components/messages/RequestAssigned'
+      requestCancelled:
+        $ref: '#/components/messages/RequestCancelled'
+      requestExpired:
+        $ref: '#/components/messages/RequestExpired'
+  rewardRequestEvents:
+    address: reward.request-events
+    title: Queue reward.request-events (Reward Service)
+    description: |
+      Quorum queue declared by the Reward Service when it starts, with exactly the arguments in
+      `x-queue-arguments`, and bound to `ecocollect.events` with the keys in `x-bindings`. A
+      message that fails 5 times goes to `reward.request-events.dlq` through `ecocollect.dlx`.
+    servers:
+      - $ref: '#/servers/rabbitmq'
+    x-bindings:
+      - request.assignment.delivered
+      - request.assignment.cancelled.resident
+    x-queue-arguments:
+      x-queue-type: quorum
+      x-delivery-limit: 4
+      x-dead-letter-exchange: ecocollect.dlx
+      x-dead-letter-routing-key: reward.request-events
+    x-dead-letter-queue: reward.request-events.dlq
+    bindings:
+      amqp:
+        is: queue
+        queue:
+          name: reward.request-events
+          durable: true
+          exclusive: false
+          autoDelete: false
+          vhost: /
+    messages:
+      requestAssignmentDelivered:
+        $ref: '#/components/messages/RequestAssignmentDelivered'
+      requestAssignmentCancelledResident:
+        $ref: '#/components/messages/RequestAssignmentCancelledResident'
+  requestCleanupEvents:
+    address: request.cleanup-events
+    title: Queue request.cleanup-events (Request Service)
+    description: |
+      Quorum queue declared by the Request Service when it starts, with exactly the arguments in
+      `x-queue-arguments`, and bound to `ecocollect.events` with the keys in `x-bindings`. A
+      message that fails 5 times goes to `request.cleanup-events.dlq` through `ecocollect.dlx`.
+    servers:
+      - $ref: '#/servers/rabbitmq'
+    x-bindings:
+      - cleanup.request.due
+    x-queue-arguments:
+      x-queue-type: quorum
+      x-delivery-limit: 4
+      x-dead-letter-exchange: ecocollect.dlx
+      x-dead-letter-routing-key: request.cleanup-events
+    x-dead-letter-queue: request.cleanup-events.dlq
+    bindings:
+      amqp:
+        is: queue
+        queue:
+          name: request.cleanup-events
+          durable: true
+          exclusive: false
+          autoDelete: false
+          vhost: /
+    messages:
+      cleanupRequest:
+        $ref: '#/components/messages/CleanupRequest'
   signalStream:
     address: /api/events
     title: Server-Sent Events stream
@@ -84,45 +500,246 @@ channels:
         $ref: '#/components/messages/SseReady'
       signal:
         $ref: '#/components/messages/SseSignal'
-
 operations:
   publishRequestCreated:
     action: send
     channel:
       $ref: '#/channels/requestCreated'
-    title: Pickup service publishes RequestCreated
-    summary: One event per created request, so a 3-category submission sends 3.
-    description: |
-      Sent by the outbox publisher in the pickup service. The event is saved in the
-      same database transaction as the request, so it is never lost before it reaches RabbitMQ.
-      A background loop publishes it with publisher confirms on, and marks the outbox row as
-      sent only after RabbitMQ confirms. After that it is up to each consumer: an event that
-      arrives while no notification instance is running is dropped, which is fine for a signal,
-      and a consumer that needs more (stored notifications, email) must keep its own queue.
+    title: Request Service publishes RequestCreated
     bindings:
       amqp:
         deliveryMode: 2
     messages:
       - $ref: '#/channels/requestCreated/messages/requestCreated'
-
-  receiveRequestCreated:
+  publishRequestUpdated:
+    action: send
+    channel:
+      $ref: '#/channels/requestUpdated'
+    title: Request Service publishes RequestUpdated
+    bindings:
+      amqp:
+        deliveryMode: 2
+    messages:
+      - $ref: '#/channels/requestUpdated/messages/requestUpdated'
+  publishRequestAssigned:
+    action: send
+    channel:
+      $ref: '#/channels/requestAssigned'
+    title: Request Service publishes RequestAssigned
+    bindings:
+      amqp:
+        deliveryMode: 2
+    messages:
+      - $ref: '#/channels/requestAssigned/messages/requestAssigned'
+  publishRequestAssignmentCollected:
+    action: send
+    channel:
+      $ref: '#/channels/requestAssignmentCollected'
+    title: Request Service publishes RequestAssignmentCollected
+    bindings:
+      amqp:
+        deliveryMode: 2
+    messages:
+      - $ref: '#/channels/requestAssignmentCollected/messages/requestAssignmentCollected'
+  publishRequestAssignmentDelivered:
+    action: send
+    channel:
+      $ref: '#/channels/requestAssignmentDelivered'
+    title: Request Service publishes RequestAssignmentDelivered
+    bindings:
+      amqp:
+        deliveryMode: 2
+    messages:
+      - $ref: '#/channels/requestAssignmentDelivered/messages/requestAssignmentDelivered'
+  publishRequestAssignmentCancelledResident:
+    action: send
+    channel:
+      $ref: '#/channels/requestAssignmentCancelledResident'
+    title: Request Service publishes RequestAssignmentCancelledResident
+    bindings:
+      amqp:
+        deliveryMode: 2
+    messages:
+      - $ref: '#/channels/requestAssignmentCancelledResident/messages/requestAssignmentCancelledResident'
+  publishRequestAssignmentCancelledVolunteer:
+    action: send
+    channel:
+      $ref: '#/channels/requestAssignmentCancelledVolunteer'
+    title: Request Service publishes RequestAssignmentCancelledVolunteer
+    bindings:
+      amqp:
+        deliveryMode: 2
+    messages:
+      - $ref: '#/channels/requestAssignmentCancelledVolunteer/messages/requestAssignmentCancelledVolunteer'
+  publishRequestAssignmentMissed:
+    action: send
+    channel:
+      $ref: '#/channels/requestAssignmentMissed'
+    title: Request Service publishes RequestAssignmentMissed
+    bindings:
+      amqp:
+        deliveryMode: 2
+    messages:
+      - $ref: '#/channels/requestAssignmentMissed/messages/requestAssignmentMissed'
+  publishRequestCancelled:
+    action: send
+    channel:
+      $ref: '#/channels/requestCancelled'
+    title: Request Service publishes RequestCancelled
+    bindings:
+      amqp:
+        deliveryMode: 2
+    messages:
+      - $ref: '#/channels/requestCancelled/messages/requestCancelled'
+  publishRequestExpired:
+    action: send
+    channel:
+      $ref: '#/channels/requestExpired'
+    title: Request Service publishes RequestExpired
+    bindings:
+      amqp:
+        deliveryMode: 2
+    messages:
+      - $ref: '#/channels/requestExpired/messages/requestExpired'
+  publishPointsAwardedDelivery:
+    action: send
+    channel:
+      $ref: '#/channels/pointsAwardedDelivery'
+    title: Reward Service publishes PointsAwardedDelivery
+    bindings:
+      amqp:
+        deliveryMode: 2
+    messages:
+      - $ref: '#/channels/pointsAwardedDelivery/messages/pointsAwardedDelivery'
+  publishPointsAwardedCancellation:
+    action: send
+    channel:
+      $ref: '#/channels/pointsAwardedCancellation'
+    title: Reward Service publishes PointsAwardedCancellation
+    bindings:
+      amqp:
+        deliveryMode: 2
+    messages:
+      - $ref: '#/channels/pointsAwardedCancellation/messages/pointsAwardedCancellation'
+  publishCleanupRequest:
+    action: send
+    channel:
+      $ref: '#/channels/cleanupRequest'
+    title: Cleanup Service publishes CleanupRequest
+    bindings:
+      amqp:
+        deliveryMode: 2
+    messages:
+      - $ref: '#/channels/cleanupRequest/messages/cleanupRequest'
+  publishNotificationCleanupRequested:
+    action: send
+    channel:
+      $ref: '#/channels/notificationCleanupRequested'
+    title: Cleanup Service publishes NotificationCleanupRequested
+    bindings:
+      amqp:
+        deliveryMode: 2
+    messages:
+      - $ref: '#/channels/notificationCleanupRequested/messages/notificationCleanupRequested'
+  publishProfileUpdated:
+    action: send
+    channel:
+      $ref: '#/channels/profileUpdated'
+    title: User Service publishes ProfileUpdated
+    bindings:
+      amqp:
+        deliveryMode: 2
+    messages:
+      - $ref: '#/channels/profileUpdated/messages/profileUpdated'
+  publishAccountDeactivated:
+    action: send
+    channel:
+      $ref: '#/channels/accountDeactivated'
+    title: User Service publishes AccountDeactivated
+    bindings:
+      amqp:
+        deliveryMode: 2
+    messages:
+      - $ref: '#/channels/accountDeactivated/messages/accountDeactivated'
+  consumeNotificationEvents:
     action: receive
     channel:
-      $ref: '#/channels/requestEventsQueue'
-    title: Notification service consumes RequestCreated
+      $ref: '#/channels/notificationEvents'
+    title: Notification Service consumes notification.events
     description: |
-      The notification service has no database for Oct 28. Each instance reads its own queue. For each event it sends a
-      `REQUEST_CREATED` signal to the resident (`data.residentUid`) and a
-      `NEW_MATCHING_REQUEST` signal to each uid in `matchedVolunteerUids`, and then
-      acknowledges the message (manual ack, so an unacked message is delivered again).
-      The recipients come straight from the event, there is no matching in this service.
-      A repeated delivery sends the signal again, which only costs an extra refetch.
+      Manual ack after the database work commits, with `prefetch = 1`. Each event id is recorded
+      in this consumer's processed-events table in the same transaction, and a repeat is skipped.
+      On failure: roll back, then `basic.reject` with `requeue = true`. An unusable message (bad
+      JSON, unknown type, invalid envelope): `basic.reject` with `requeue = false`.
     bindings:
       amqp:
         ack: true
     messages:
-      - $ref: '#/channels/requestEventsQueue/messages/requestCreated'
-
+      - $ref: '#/channels/notificationEvents/messages/requestCreated'
+      - $ref: '#/channels/notificationEvents/messages/requestUpdated'
+      - $ref: '#/channels/notificationEvents/messages/requestAssigned'
+      - $ref: '#/channels/notificationEvents/messages/requestAssignmentCollected'
+      - $ref: '#/channels/notificationEvents/messages/requestAssignmentDelivered'
+      - $ref: '#/channels/notificationEvents/messages/requestAssignmentCancelledResident'
+      - $ref: '#/channels/notificationEvents/messages/requestAssignmentCancelledVolunteer'
+      - $ref: '#/channels/notificationEvents/messages/requestAssignmentMissed'
+      - $ref: '#/channels/notificationEvents/messages/requestCancelled'
+      - $ref: '#/channels/notificationEvents/messages/requestExpired'
+      - $ref: '#/channels/notificationEvents/messages/pointsAwardedDelivery'
+      - $ref: '#/channels/notificationEvents/messages/pointsAwardedCancellation'
+      - $ref: '#/channels/notificationEvents/messages/notificationCleanupRequested'
+      - $ref: '#/channels/notificationEvents/messages/profileUpdated'
+      - $ref: '#/channels/notificationEvents/messages/accountDeactivated'
+  consumeCleanupRequestEvents:
+    action: receive
+    channel:
+      $ref: '#/channels/cleanupRequestEvents'
+    title: Cleanup Service consumes cleanup.request-events
+    description: |
+      Manual ack after the database work commits, with `prefetch = 1`. Each event id is recorded
+      in this consumer's processed-events table in the same transaction, and a repeat is skipped.
+      On failure: roll back, then `basic.reject` with `requeue = true`. An unusable message (bad
+      JSON, unknown type, invalid envelope): `basic.reject` with `requeue = false`.
+    bindings:
+      amqp:
+        ack: true
+    messages:
+      - $ref: '#/channels/cleanupRequestEvents/messages/requestCreated'
+      - $ref: '#/channels/cleanupRequestEvents/messages/requestUpdated'
+      - $ref: '#/channels/cleanupRequestEvents/messages/requestAssigned'
+      - $ref: '#/channels/cleanupRequestEvents/messages/requestCancelled'
+      - $ref: '#/channels/cleanupRequestEvents/messages/requestExpired'
+  consumeRewardRequestEvents:
+    action: receive
+    channel:
+      $ref: '#/channels/rewardRequestEvents'
+    title: Reward Service consumes reward.request-events
+    description: |
+      Manual ack after the database work commits, with `prefetch = 1`. Each event id is recorded
+      in this consumer's processed-events table in the same transaction, and a repeat is skipped.
+      On failure: roll back, then `basic.reject` with `requeue = true`. An unusable message (bad
+      JSON, unknown type, invalid envelope): `basic.reject` with `requeue = false`.
+    bindings:
+      amqp:
+        ack: true
+    messages:
+      - $ref: '#/channels/rewardRequestEvents/messages/requestAssignmentDelivered'
+      - $ref: '#/channels/rewardRequestEvents/messages/requestAssignmentCancelledResident'
+  consumeRequestCleanupEvents:
+    action: receive
+    channel:
+      $ref: '#/channels/requestCleanupEvents'
+    title: Request Service consumes request.cleanup-events
+    description: |
+      Manual ack after the database work commits, with `prefetch = 1`. Each event id is recorded
+      in this consumer's processed-events table in the same transaction, and a repeat is skipped.
+      On failure: roll back, then `basic.reject` with `requeue = true`. An unusable message (bad
+      JSON, unknown type, invalid envelope): `basic.reject` with `requeue = false`.
+    bindings:
+      amqp:
+        ack: true
+    messages:
+      - $ref: '#/channels/requestCleanupEvents/messages/cleanupRequest'
   pushSignal:
     action: send
     channel:
@@ -142,41 +759,689 @@ operations:
     messages:
       - $ref: '#/channels/signalStream/messages/ready'
       - $ref: '#/channels/signalStream/messages/signal'
-
 components:
   messages:
     RequestCreated:
       name: RequestCreated
-      title: A resident created a pickup request
+      title: A request was created (Q4, one per request; or Q14 with reschedule)
       contentType: application/json
       description: |
-        AMQP properties: `messageId` is the `eventId`, `contentType` is `application/json`,
-        and the message is persistent (`deliveryMode` 2).
+        E1. A request was created (Q4, one per request; or Q14 with reschedule). Routing key `request.created`. Consumed by: Notification Service, Cleanup Service.
+
+        Version 2. On Oct 28 (version 1) the request fields sat directly in `data`. They now sit in
+        `data.request` as the request snapshot, with `requestSeq`, `transitionId` and `wasteType`,
+        and `rescheduledFromRequestId` is new.
       correlationId:
         location: $message.payload#/eventId
+      bindings:
+        amqp:
+          messageType: RequestCreated
       payload:
         $ref: '#/components/schemas/RequestCreatedPayload'
       examples:
-        - name: Two laptops with two matched volunteers
+        - name: Two laptops, two matched volunteers
           payload:
-            eventId: 6f1c9c2e-3b0e-4f0f-9d57-2c2f6a1d8e11
+            eventId: 00000001-0b9e-4a2c-8d1e-5f6a7b8c9d0e
             type: RequestCreated
-            version: 1
-            occurredAt: '2026-10-28T16:15:00Z'
+            version: 2
+            occurredAt: '2026-11-20T16:15:00Z'
+            producer: request-service
+            traceId: 4f1d2c3b-a5e6-4f70-8192-a3b4c5d6e7f8
             data:
-              requestId: 0b7e3f2a-6d1c-4a52-9a43-6a1f5e0f1c11
-              residentUid: firebaseUid_abc
-              categoryId: laptops
+              request:
+                requestId: 6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11
+                requestSeq: 1
+                transitionId: a71e4c2d-3b5f-4e6a-8c9d-0e1f2a3b4c5d
+                status: Open
+                residentUid: jasdeep
+                categoryId: laptops
+                categoryName: Computers/Laptops
+                wasteType: Electronics
+                quantity: 2
+                estimatedWeightKg: 5.0
+                postalCode: T2P1J9
+                windows:
+                  - windowId: w_1
+                    date: '2026-11-22'
+                    startHour: 14
+                createdAt: '2026-11-20T16:15:00Z'
+                expiresAt: '2026-11-22T20:00:00Z'
+              matchedVolunteerUids:
+                - danny
+                - vedant
+              rescheduledFromRequestId: null
+    RequestUpdated:
+      name: RequestUpdated
+      title: An Open request was edited (Q9) or reopened after an assignment cancellation (Q12)
+      contentType: application/json
+      description: 'E2. An Open request was edited (Q9) or reopened after an assignment cancellation (Q12). Routing
+        key `request.updated`. Consumed by: Notification Service, Cleanup Service.'
+      correlationId:
+        location: $message.payload#/eventId
+      bindings:
+        amqp:
+          messageType: RequestUpdated
+      payload:
+        $ref: '#/components/schemas/RequestUpdatedPayload'
+      examples:
+        - name: The resident changed the quantity
+          payload:
+            eventId: 00000002-0b9e-4a2c-8d1e-5f6a7b8c9d0e
+            type: RequestUpdated
+            version: 1
+            occurredAt: '2026-11-20T18:00:00Z'
+            producer: request-service
+            traceId: 4f1d2c3b-a5e6-4f70-8192-a3b4c5d6e7f8
+            data:
+              request:
+                requestId: 6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11
+                requestSeq: 2
+                transitionId: c3d2e1f0-9a8b-4c7d-8e6f-5a4b3c2d1e0f
+                status: Open
+                residentUid: jasdeep
+                categoryId: laptops
+                categoryName: Computers/Laptops
+                wasteType: Electronics
+                quantity: 3
+                estimatedWeightKg: 7.5
+                postalCode: T2P1J9
+                windows:
+                  - windowId: w_1
+                    date: '2026-11-22'
+                    startHour: 14
+                createdAt: '2026-11-20T16:15:00Z'
+                expiresAt: '2026-11-22T20:00:00Z'
+              reason: edited
+              changed:
+                - quantity
+              matchedVolunteerUids:
+                - danny
+                - vedant
+    RequestAssigned:
+      name: RequestAssigned
+      title: A volunteer accepted a request (Q11)
+      contentType: application/json
+      description: 'E3. A volunteer accepted a request (Q11). Routing key `request.assigned`. Consumed by: Notification
+        Service, Cleanup Service.'
+      correlationId:
+        location: $message.payload#/eventId
+      bindings:
+        amqp:
+          messageType: RequestAssigned
+      payload:
+        $ref: '#/components/schemas/RequestAssignedPayload'
+      examples:
+        - name: Danny accepted the 14:00 window
+          payload:
+            eventId: 00000003-0b9e-4a2c-8d1e-5f6a7b8c9d0e
+            type: RequestAssigned
+            version: 1
+            occurredAt: '2026-11-21T02:00:00Z'
+            producer: request-service
+            traceId: 4f1d2c3b-a5e6-4f70-8192-a3b4c5d6e7f8
+            data:
+              request:
+                requestId: 6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11
+                requestSeq: 2
+                transitionId: c3d2e1f0-9a8b-4c7d-8e6f-5a4b3c2d1e0f
+                status: Assigned
+                residentUid: jasdeep
+                categoryId: laptops
+                categoryName: Computers/Laptops
+                wasteType: Electronics
+                quantity: 2
+                estimatedWeightKg: 5.0
+                postalCode: T2P1J9
+                windows:
+                  - windowId: w_1
+                    date: '2026-11-22'
+                    startHour: 14
+                createdAt: '2026-11-20T16:15:00Z'
+                expiresAt: '2026-11-22T20:00:00Z'
+              assignment:
+                assignmentId: a_9
+                volunteerUid: danny
+                window:
+                  windowId: w_1
+                  date: '2026-11-22'
+                  startHour: 14
+                acceptedAt: '2026-11-21T02:00:00Z'
+                collectedAt: null
+                endedAt: null
+                endReason: null
+    RequestAssignmentCollected:
+      name: RequestAssignmentCollected
+      title: The resident confirmed collection (Q13)
+      contentType: application/json
+      description: 'E4. The resident confirmed collection (Q13). Routing key `request.assignment.collected`. Consumed
+        by: Notification Service.'
+      correlationId:
+        location: $message.payload#/eventId
+      bindings:
+        amqp:
+          messageType: RequestAssignmentCollected
+      payload:
+        $ref: '#/components/schemas/RequestAssignmentCollectedPayload'
+      examples:
+        - name: The resident confirmed collection
+          payload:
+            eventId: 00000004-0b9e-4a2c-8d1e-5f6a7b8c9d0e
+            type: RequestAssignmentCollected
+            version: 1
+            occurredAt: '2026-11-22T20:40:00Z'
+            producer: request-service
+            traceId: 4f1d2c3b-a5e6-4f70-8192-a3b4c5d6e7f8
+            data:
+              request:
+                requestId: 6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11
+                requestSeq: 3
+                transitionId: c3d2e1f0-9a8b-4c7d-8e6f-5a4b3c2d1e0f
+                status: Collected
+                residentUid: jasdeep
+                categoryId: laptops
+                categoryName: Computers/Laptops
+                wasteType: Electronics
+                quantity: 2
+                estimatedWeightKg: 5.0
+                postalCode: T2P1J9
+                windows:
+                  - windowId: w_1
+                    date: '2026-11-22'
+                    startHour: 14
+                createdAt: '2026-11-20T16:15:00Z'
+                expiresAt: '2026-11-22T20:00:00Z'
+              assignment:
+                assignmentId: a_9
+                volunteerUid: danny
+                window:
+                  windowId: w_1
+                  date: '2026-11-22'
+                  startHour: 14
+                acceptedAt: '2026-11-21T02:00:00Z'
+                collectedAt: '2026-11-22T20:40:00Z'
+                endedAt: null
+                endReason: null
+    RequestAssignmentDelivered:
+      name: RequestAssignmentDelivered
+      title: The volunteer recorded the delivery (Q15)
+      contentType: application/json
+      description: 'E5. The volunteer recorded the delivery (Q15). Routing key `request.assignment.delivered`. Consumed
+        by: Notification Service, Reward Service.'
+      correlationId:
+        location: $message.payload#/eventId
+      bindings:
+        amqp:
+          messageType: RequestAssignmentDelivered
+      payload:
+        $ref: '#/components/schemas/RequestAssignmentDeliveredPayload'
+      examples:
+        - name: Delivered to a facility
+          payload:
+            eventId: 00000005-0b9e-4a2c-8d1e-5f6a7b8c9d0e
+            type: RequestAssignmentDelivered
+            version: 1
+            occurredAt: '2026-11-22T23:10:00Z'
+            producer: request-service
+            traceId: 4f1d2c3b-a5e6-4f70-8192-a3b4c5d6e7f8
+            data:
+              request:
+                requestId: 6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11
+                requestSeq: 4
+                transitionId: c3d2e1f0-9a8b-4c7d-8e6f-5a4b3c2d1e0f
+                status: Delivered
+                residentUid: jasdeep
+                categoryId: laptops
+                categoryName: Computers/Laptops
+                wasteType: Electronics
+                quantity: 2
+                estimatedWeightKg: 5.0
+                postalCode: T2P1J9
+                windows:
+                  - windowId: w_1
+                    date: '2026-11-22'
+                    startHour: 14
+                createdAt: '2026-11-20T16:15:00Z'
+                expiresAt: '2026-11-22T20:00:00Z'
+              assignment:
+                assignmentId: a_9
+                volunteerUid: danny
+                window:
+                  windowId: w_1
+                  date: '2026-11-22'
+                  startHour: 14
+                acceptedAt: '2026-11-21T02:00:00Z'
+                collectedAt: '2026-11-22T20:40:00Z'
+                endedAt: '2026-11-22T23:10:00Z'
+                endReason: Delivered
+              facility:
+                facilityId: f_3
+                name: Spyhill Waste Management Facility
+              deliveredAt: '2026-11-22T23:10:00Z'
+    RequestAssignmentCancelledResident:
+      name: RequestAssignmentCancelledResident
+      title: The resident cancelled the assignment before the selected window ended (Q12, or Q10 on an Assigned
+        request)
+      contentType: application/json
+      description: 'E6. The resident cancelled the assignment before the selected window ended (Q12, or Q10 on an
+        Assigned request). Routing key `request.assignment.cancelled.resident`. Consumed by: Notification Service,
+        Reward Service.'
+      correlationId:
+        location: $message.payload#/eventId
+      bindings:
+        amqp:
+          messageType: RequestAssignmentCancelledResident
+      payload:
+        $ref: '#/components/schemas/RequestAssignmentCancelledResidentPayload'
+      examples:
+        - name: Cancelled 11.5 hours before the window, followed by RequestUpdated (reopened)
+          payload:
+            eventId: 00000006-0b9e-4a2c-8d1e-5f6a7b8c9d0e
+            type: RequestAssignmentCancelledResident
+            version: 1
+            occurredAt: '2026-11-22T08:30:00Z'
+            producer: request-service
+            traceId: 4f1d2c3b-a5e6-4f70-8192-a3b4c5d6e7f8
+            data:
+              request:
+                requestId: 6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11
+                requestSeq: 3
+                transitionId: c3d2e1f0-9a8b-4c7d-8e6f-5a4b3c2d1e0f
+                status: Open
+                residentUid: jasdeep
+                categoryId: laptops
+                categoryName: Computers/Laptops
+                wasteType: Electronics
+                quantity: 2
+                estimatedWeightKg: 5.0
+                postalCode: T2P1J9
+                windows:
+                  - windowId: w_1
+                    date: '2026-11-22'
+                    startHour: 14
+                createdAt: '2026-11-20T16:15:00Z'
+                expiresAt: '2026-11-22T20:00:00Z'
+              assignment:
+                assignmentId: a_9
+                volunteerUid: danny
+                window:
+                  windowId: w_1
+                  date: '2026-11-22'
+                  startHour: 14
+                acceptedAt: '2026-11-21T02:00:00Z'
+                collectedAt: null
+                endedAt: '2026-11-22T08:30:00Z'
+                endReason: Resident_Cancelled
+              cancelledAt: '2026-11-22T08:30:00Z'
+              outsideCancellationWindow: true
+    RequestAssignmentCancelledVolunteer:
+      name: RequestAssignmentCancelledVolunteer
+      title: The volunteer cancelled the assignment (Q12)
+      contentType: application/json
+      description: 'E7. The volunteer cancelled the assignment (Q12). Routing key `request.assignment.cancelled.volunteer`.
+        Consumed by: Notification Service.'
+      correlationId:
+        location: $message.payload#/eventId
+      bindings:
+        amqp:
+          messageType: RequestAssignmentCancelledVolunteer
+      payload:
+        $ref: '#/components/schemas/RequestAssignmentCancelledVolunteerPayload'
+      examples:
+        - name: The volunteer cancelled; the request is reopened next
+          payload:
+            eventId: 00000007-0b9e-4a2c-8d1e-5f6a7b8c9d0e
+            type: RequestAssignmentCancelledVolunteer
+            version: 1
+            occurredAt: '2026-11-21T15:00:00Z'
+            producer: request-service
+            traceId: 4f1d2c3b-a5e6-4f70-8192-a3b4c5d6e7f8
+            data:
+              request:
+                requestId: 6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11
+                requestSeq: 3
+                transitionId: c3d2e1f0-9a8b-4c7d-8e6f-5a4b3c2d1e0f
+                status: Open
+                residentUid: jasdeep
+                categoryId: laptops
+                categoryName: Computers/Laptops
+                wasteType: Electronics
+                quantity: 2
+                estimatedWeightKg: 5.0
+                postalCode: T2P1J9
+                windows:
+                  - windowId: w_1
+                    date: '2026-11-22'
+                    startHour: 14
+                createdAt: '2026-11-20T16:15:00Z'
+                expiresAt: '2026-11-22T20:00:00Z'
+              assignment:
+                assignmentId: a_9
+                volunteerUid: danny
+                window:
+                  windowId: w_1
+                  date: '2026-11-22'
+                  startHour: 14
+                acceptedAt: '2026-11-21T02:00:00Z'
+                collectedAt: null
+                endedAt: '2026-11-21T15:00:00Z'
+                endReason: Volunteer_Cancelled
+              cancelledAt: '2026-11-21T15:00:00Z'
+    RequestAssignmentMissed:
+      name: RequestAssignmentMissed
+      title: The resident reported a missed pickup (Q14). The request is now Missed
+      contentType: application/json
+      description: 'E8. The resident reported a missed pickup (Q14). The request is now Missed. Routing key `request.assignment.missed`.
+        Consumed by: Notification Service.'
+      correlationId:
+        location: $message.payload#/eventId
+      bindings:
+        amqp:
+          messageType: RequestAssignmentMissed
+      payload:
+        $ref: '#/components/schemas/RequestAssignmentMissedPayload'
+      examples:
+        - name: Reported missed and rescheduled
+          payload:
+            eventId: 00000008-0b9e-4a2c-8d1e-5f6a7b8c9d0e
+            type: RequestAssignmentMissed
+            version: 1
+            occurredAt: '2026-11-22T22:00:00Z'
+            producer: request-service
+            traceId: 4f1d2c3b-a5e6-4f70-8192-a3b4c5d6e7f8
+            data:
+              request:
+                requestId: 6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11
+                requestSeq: 3
+                transitionId: c3d2e1f0-9a8b-4c7d-8e6f-5a4b3c2d1e0f
+                status: Missed
+                residentUid: jasdeep
+                categoryId: laptops
+                categoryName: Computers/Laptops
+                wasteType: Electronics
+                quantity: 2
+                estimatedWeightKg: 5.0
+                postalCode: T2P1J9
+                windows:
+                  - windowId: w_1
+                    date: '2026-11-22'
+                    startHour: 14
+                createdAt: '2026-11-20T16:15:00Z'
+                expiresAt: '2026-11-22T20:00:00Z'
+              assignment:
+                assignmentId: a_9
+                volunteerUid: danny
+                window:
+                  windowId: w_1
+                  date: '2026-11-22'
+                  startHour: 14
+                acceptedAt: '2026-11-21T02:00:00Z'
+                collectedAt: null
+                endedAt: '2026-11-22T22:00:00Z'
+                endReason: Missed_Pickup
+              reportedAt: '2026-11-22T22:00:00Z'
+              rescheduledAsRequestId: 9d1e2f3a-4b5c-4d6e-8f70-81a2b3c4d5e6
+    RequestCancelled:
+      name: RequestCancelled
+      title: The resident cancelled the request (Q10)
+      contentType: application/json
+      description: 'E9. The resident cancelled the request (Q10). Routing key `request.cancelled`. Consumed by:
+        Notification Service, Cleanup Service.'
+      correlationId:
+        location: $message.payload#/eventId
+      bindings:
+        amqp:
+          messageType: RequestCancelled
+      payload:
+        $ref: '#/components/schemas/RequestCancelledPayload'
+      examples:
+        - name: The resident cancelled an Open request
+          payload:
+            eventId: 00000009-0b9e-4a2c-8d1e-5f6a7b8c9d0e
+            type: RequestCancelled
+            version: 1
+            occurredAt: '2026-11-20T19:00:00Z'
+            producer: request-service
+            traceId: 4f1d2c3b-a5e6-4f70-8192-a3b4c5d6e7f8
+            data:
+              request:
+                requestId: 6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11
+                requestSeq: 2
+                transitionId: c3d2e1f0-9a8b-4c7d-8e6f-5a4b3c2d1e0f
+                status: Cancelled
+                residentUid: jasdeep
+                categoryId: laptops
+                categoryName: Computers/Laptops
+                wasteType: Electronics
+                quantity: 2
+                estimatedWeightKg: 5.0
+                postalCode: T2P1J9
+                windows:
+                  - windowId: w_1
+                    date: '2026-11-22'
+                    startHour: 14
+                createdAt: '2026-11-20T16:15:00Z'
+                expiresAt: '2026-11-22T20:00:00Z'
+              reason: Dropped them off myself
+    RequestExpired:
+      name: RequestExpired
+      title: An Open request expired
+      contentType: application/json
+      description: 'E10. An Open request expired. Routing key `request.expired`. Consumed by: Notification Service,
+        Cleanup Service.'
+      correlationId:
+        location: $message.payload#/eventId
+      bindings:
+        amqp:
+          messageType: RequestExpired
+      payload:
+        $ref: '#/components/schemas/RequestExpiredPayload'
+      examples:
+        - name: Nobody accepted it before its last window started
+          payload:
+            eventId: 0000000a-0b9e-4a2c-8d1e-5f6a7b8c9d0e
+            type: RequestExpired
+            version: 1
+            occurredAt: '2026-11-22T20:00:05Z'
+            producer: request-service
+            traceId: 4f1d2c3b-a5e6-4f70-8192-a3b4c5d6e7f8
+            data:
+              request:
+                requestId: 6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11
+                requestSeq: 2
+                transitionId: c3d2e1f0-9a8b-4c7d-8e6f-5a4b3c2d1e0f
+                status: Expired
+                residentUid: jasdeep
+                categoryId: laptops
+                categoryName: Computers/Laptops
+                wasteType: Electronics
+                quantity: 2
+                estimatedWeightKg: 5.0
+                postalCode: T2P1J9
+                windows:
+                  - windowId: w_1
+                    date: '2026-11-22'
+                    startHour: 14
+                createdAt: '2026-11-20T16:15:00Z'
+                expiresAt: '2026-11-22T20:00:00Z'
+              trigger: cleanup_job
+    PointsAwardedDelivery:
+      name: PointsAwardedDelivery
+      title: EcoPoints were awarded for a delivery (after E5)
+      contentType: application/json
+      description: 'E11. EcoPoints were awarded for a delivery (after E5). Routing key `reward.points.delivery`.
+        Consumed by: Notification Service.'
+      correlationId:
+        location: $message.payload#/eventId
+      bindings:
+        amqp:
+          messageType: PointsAwardedDelivery
+      payload:
+        $ref: '#/components/schemas/PointsAwardedDeliveryPayload'
+      examples:
+        - name: Two awards for one delivery
+          payload:
+            eventId: 0000000b-0b9e-4a2c-8d1e-5f6a7b8c9d0e
+            type: PointsAwardedDelivery
+            version: 1
+            occurredAt: '2026-11-22T23:10:02Z'
+            producer: reward-service
+            traceId: null
+            data:
+              requestId: 6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11
+              assignmentId: a_9
               categoryName: Computers/Laptops
               quantity: 2
               estimatedWeightKg: 5.0
-              postalCode: T2P1J9
-              windows:
-                - date: '2026-10-30'
-                  startHour: 14
-              expiresAt: '2026-11-27T16:15:00Z'
-              matchedVolunteerUids: [firebaseUid_v1, firebaseUid_v2]
-
+              awards:
+                - awardId: aw_1
+                  accountId: danny
+                  earnedAs: volunteer
+                  points: 26.0
+                  formula: VOLUNTEER
+                - awardId: aw_2
+                  accountId: jasdeep
+                  earnedAs: resident
+                  points: 13.0
+                  formula: RESIDENT
+    PointsAwardedCancellation:
+      name: PointsAwardedCancellation
+      title: EcoPoints were awarded to a volunteer for a late resident cancellation (after E6)
+      contentType: application/json
+      description: 'E12. EcoPoints were awarded to a volunteer for a late resident cancellation (after E6). Routing
+        key `reward.points.cancellation`. Consumed by: Notification Service.'
+      correlationId:
+        location: $message.payload#/eventId
+      bindings:
+        amqp:
+          messageType: PointsAwardedCancellation
+      payload:
+        $ref: '#/components/schemas/PointsAwardedCancellationPayload'
+      examples:
+        - name: A late cancellation pays the volunteer
+          payload:
+            eventId: 0000000c-0b9e-4a2c-8d1e-5f6a7b8c9d0e
+            type: PointsAwardedCancellation
+            version: 1
+            occurredAt: '2026-11-22T08:30:02Z'
+            producer: reward-service
+            traceId: null
+            data:
+              requestId: 6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11
+              assignmentId: a_9
+              categoryName: Computers/Laptops
+              quantity: 2
+              estimatedWeightKg: 5.0
+              awards:
+                - awardId: aw_3
+                  accountId: danny
+                  earnedAs: volunteer
+                  points: 26.0
+                  formula: VOLUNTEER
+    CleanupRequest:
+      name: CleanupRequest
+      title: 'A pending expiry job is due: the Request Service should check the request'
+      contentType: application/json
+      description: 'E13. A pending expiry job is due: the Request Service should check the request. Routing key
+        `cleanup.request.due`. Consumed by: Request Service.'
+      correlationId:
+        location: $message.payload#/eventId
+      bindings:
+        amqp:
+          messageType: CleanupRequest
+      payload:
+        $ref: '#/components/schemas/CleanupRequestPayload'
+      examples:
+        - name: The job for a request is due
+          payload:
+            eventId: 0000000d-0b9e-4a2c-8d1e-5f6a7b8c9d0e
+            type: CleanupRequest
+            version: 1
+            occurredAt: '2026-11-22T20:00:05Z'
+            producer: cleanup-service
+            traceId: null
+            data:
+              requestId: 6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11
+              requestSeq: 1
+              expiresAt: '2026-11-22T20:00:00Z'
+    NotificationCleanupRequested:
+      name: NotificationCleanupRequested
+      title: 'Daily at 03:00 Calgary: delete expired notifications'
+      contentType: application/json
+      description: 'E14. Daily at 03:00 Calgary: delete expired notifications. Routing key `cleanup.notifications.due`.
+        Consumed by: Notification Service.'
+      correlationId:
+        location: $message.payload#/eventId
+      bindings:
+        amqp:
+          messageType: NotificationCleanupRequested
+      payload:
+        $ref: '#/components/schemas/NotificationCleanupRequestedPayload'
+      examples:
+        - name: The daily run
+          payload:
+            eventId: 0000000e-0b9e-4a2c-8d1e-5f6a7b8c9d0e
+            type: NotificationCleanupRequested
+            version: 1
+            occurredAt: '2026-11-23T10:00:00Z'
+            producer: cleanup-service
+            traceId: null
+            data:
+              requestedAt: '2026-11-23T10:00:00Z'
+    ProfileUpdated:
+      name: ProfileUpdated
+      title: A profile changed (U7) or a role was activated (U8)
+      contentType: application/json
+      description: 'E15. A profile changed (U7) or a role was activated (U8). Routing key `user.profile.updated`.
+        Consumed by: Notification Service.'
+      correlationId:
+        location: $message.payload#/eventId
+      bindings:
+        amqp:
+          messageType: ProfileUpdated
+      payload:
+        $ref: '#/components/schemas/ProfileUpdatedPayload'
+      examples:
+        - name: A volunteer activated the resident role
+          payload:
+            eventId: 0000000f-0b9e-4a2c-8d1e-5f6a7b8c9d0e
+            type: ProfileUpdated
+            version: 1
+            occurredAt: '2026-11-20T15:00:00Z'
+            producer: user-service
+            traceId: 4f1d2c3b-a5e6-4f70-8192-a3b4c5d6e7f8
+            data:
+              accountId: danny
+              changed:
+                - roles
+              publicName: Danny
+              roles:
+                - resident
+                - volunteer
+    AccountDeactivated:
+      name: AccountDeactivated
+      title: An account was deactivated (U9)
+      contentType: application/json
+      description: 'E16. An account was deactivated (U9). Routing key `user.account.deactivated`. Consumed by: Notification
+        Service.'
+      correlationId:
+        location: $message.payload#/eventId
+      bindings:
+        amqp:
+          messageType: AccountDeactivated
+      payload:
+        $ref: '#/components/schemas/AccountDeactivatedPayload'
+      examples:
+        - name: An account was deactivated
+          payload:
+            eventId: 00000010-0b9e-4a2c-8d1e-5f6a7b8c9d0e
+            type: AccountDeactivated
+            version: 1
+            occurredAt: '2026-11-25T17:00:00Z'
+            producer: user-service
+            traceId: 4f1d2c3b-a5e6-4f70-8192-a3b4c5d6e7f8
+            data:
+              accountId: vedant
+              deactivatedAt: '2026-11-25T17:00:00Z'
     SseReady:
       name: ready
       title: The stream is open
@@ -197,7 +1462,6 @@ components:
       examples:
         - name: A new stream
           payload: {}
-
     SseSignal:
       name: signal
       title: A signal for the signed-in user
@@ -225,92 +1489,703 @@ components:
           payload:
             type: NEW_MATCHING_REQUEST
             requestId: 0b7e3f2a-6d1c-4a52-9a43-6a1f5e0f1c11
-
   schemas:
-    RequestCreatedPayload:
+    EventEnvelope:
       type: object
-      required: [eventId, type, version, occurredAt, data]
+      description: |
+        The outside of every event (README 10.1). Consumers ignore fields they do not know, so adding a
+        field never breaks them. `version` is per event type: a change that removes a field or changes
+        what one means gets a new version.
+      required:
+        - eventId
+        - type
+        - version
+        - occurredAt
+        - producer
+        - traceId
+        - data
       properties:
         eventId:
           type: string
           format: uuid
-          description: Unique per event. It is also the AMQP `messageId`.
+          description: Unique per event. It is also the AMQP `messageId`, and consumers use it to skip duplicates.
         type:
           type: string
-          const: RequestCreated
+          description: The event name, also the AMQP `type` property.
         version:
           type: integer
-          const: 1
+          minimum: 1
         occurredAt:
           $ref: ./schemas/common.yaml#/Timestamp
+        producer:
+          type: string
+          enum:
+            - request-service
+            - reward-service
+            - cleanup-service
+            - user-service
+        traceId:
+          type:
+            - string
+            - 'null'
+          description: The `X-Request-Id` of the HTTP call that caused the event, or null when no call did (a scheduled
+            job, or an event caused by another event).
         data:
           type: object
-          description: >
-            Consumers ignore fields they don't know, so adding a field is not a breaking change.
-            There is never a street address in here.
-          required:
-            - requestId
-            - residentUid
-            - categoryId
-            - categoryName
-            - quantity
-            - estimatedWeightKg
-            - postalCode
-            - windows
-            - expiresAt
-            - matchedVolunteerUids
-          properties:
-            requestId:
-              type: string
+    RequestSnapshot:
+      type: object
+      description: |
+        The request after the change (README 10.2). It is in every `Request*` event as `data.request`.
+        Never a street address, notes or a photo.
+      required:
+        - requestId
+        - requestSeq
+        - transitionId
+        - status
+        - residentUid
+        - categoryId
+        - categoryName
+        - wasteType
+        - quantity
+        - estimatedWeightKg
+        - postalCode
+        - windows
+        - createdAt
+        - expiresAt
+      properties:
+        requestId:
+          type: string
+          format: uuid
+        requestSeq:
+          type: integer
+          minimum: 1
+          description: Counter per request, +1 for every event about it, set under the request row lock. Two events
+            from one action get consecutive numbers. Consumers order by this, not by arrival (README 11).
+        transitionId:
+          type: string
+          format: uuid
+          description: One per action (per transaction). Events from the same action share it.
+        status:
+          $ref: ./schemas/common.yaml#/RequestStatus
+        residentUid:
+          $ref: ./schemas/common.yaml#/AccountId
+        categoryId:
+          type: string
+          minLength: 1
+        categoryName:
+          type: string
+          minLength: 1
+        wasteType:
+          type: string
+          minLength: 1
+        quantity:
+          type: integer
+          minimum: 1
+        estimatedWeightKg:
+          $ref: ./schemas/common.yaml#/Decimal
+        postalCode:
+          $ref: ./schemas/common.yaml#/PostalCode
+        windows:
+          type: array
+          maxItems: 3
+          description: Active windows only.
+          items:
+            $ref: ./schemas/common.yaml#/PickupWindow
+        createdAt:
+          $ref: ./schemas/common.yaml#/Timestamp
+        expiresAt:
+          allOf:
+            - $ref: ./schemas/common.yaml#/Timestamp
+          description: The start of the last active window (README 12.2).
+    AssignmentSnapshot:
+      type: object
+      description: The assignment after the change, as `data.assignment` where an event has one (README 10.2).
+      required:
+        - assignmentId
+        - volunteerUid
+        - window
+        - acceptedAt
+        - collectedAt
+        - endedAt
+        - endReason
+      properties:
+        assignmentId:
+          type: string
+          minLength: 1
+        volunteerUid:
+          $ref: ./schemas/common.yaml#/AccountId
+        window:
+          allOf:
+            - $ref: ./schemas/common.yaml#/PickupWindow
+          description: The window the volunteer picked.
+        acceptedAt:
+          $ref: ./schemas/common.yaml#/Timestamp
+        collectedAt:
+          oneOf:
+            - $ref: ./schemas/common.yaml#/Timestamp
+            - type: 'null'
+        endedAt:
+          oneOf:
+            - $ref: ./schemas/common.yaml#/Timestamp
+            - type: 'null'
+        endReason:
+          type:
+            - string
+            - 'null'
+          enum:
+            - Delivered
+            - Volunteer_Cancelled
+            - Resident_Cancelled
+            - Missed_Pickup
+            - null
+          description: Set together with `endedAt` when the assignment ends.
+    PointsAward:
+      type: object
+      required:
+        - awardId
+        - accountId
+        - earnedAs
+        - points
+        - formula
+      properties:
+        awardId:
+          type: string
+          minLength: 1
+        accountId:
+          $ref: ./schemas/common.yaml#/AccountId
+        earnedAs:
+          type: string
+          enum:
+            - resident
+            - volunteer
+        points:
+          $ref: ./schemas/common.yaml#/Decimal
+        formula:
+          type: string
+          enum:
+            - VOLUNTEER
+            - RESIDENT
+    RequestCreatedData:
+      type: object
+      required:
+        - request
+        - matchedVolunteerUids
+        - rescheduledFromRequestId
+      properties:
+        request:
+          $ref: '#/components/schemas/RequestSnapshot'
+        matchedVolunteerUids:
+          type: array
+          items:
+            $ref: ./schemas/common.yaml#/AccountId
+          description: |
+            Every volunteer whose preferred postal codes include the request's postal code, leaving out
+            deactivated accounts and the request's own resident (in demo mode the resident stays in).
+            A snapshot from the same transaction. It can be empty.
+        rescheduledFromRequestId:
+          oneOf:
+            - type: string
               format: uuid
-            residentUid:
+            - type: 'null'
+          description: The missed request this one reschedules (Q14), otherwise null.
+    RequestCreatedPayload:
+      allOf:
+        - $ref: '#/components/schemas/EventEnvelope'
+        - properties:
+            type:
+              const: RequestCreated
+            version:
+              const: 2
+            producer:
+              const: request-service
+            data:
+              $ref: '#/components/schemas/RequestCreatedData'
+    RequestUpdatedData:
+      type: object
+      required:
+        - request
+        - reason
+        - matchedVolunteerUids
+      properties:
+        request:
+          $ref: '#/components/schemas/RequestSnapshot'
+        reason:
+          type: string
+          enum:
+            - edited
+            - reopened
+        changed:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: string
+            enum:
+              - category
+              - quantity
+              - notes
+              - windows
+              - photo
+          description: 'Only when `reason` is `edited`: what the resident changed.'
+        matchedVolunteerUids:
+          type: array
+          items:
+            $ref: ./schemas/common.yaml#/AccountId
+          description: |
+            Every volunteer whose preferred postal codes include the request's postal code, leaving out
+            deactivated accounts and the request's own resident (in demo mode the resident stays in).
+            A snapshot from the same transaction. It can be empty.
+    RequestUpdatedPayload:
+      allOf:
+        - $ref: '#/components/schemas/EventEnvelope'
+        - properties:
+            type:
+              const: RequestUpdated
+            version:
+              const: 1
+            producer:
+              const: request-service
+            data:
+              $ref: '#/components/schemas/RequestUpdatedData'
+    RequestAssignedData:
+      type: object
+      required:
+        - request
+        - assignment
+      properties:
+        request:
+          $ref: '#/components/schemas/RequestSnapshot'
+        assignment:
+          $ref: '#/components/schemas/AssignmentSnapshot'
+    RequestAssignedPayload:
+      allOf:
+        - $ref: '#/components/schemas/EventEnvelope'
+        - properties:
+            type:
+              const: RequestAssigned
+            version:
+              const: 1
+            producer:
+              const: request-service
+            data:
+              $ref: '#/components/schemas/RequestAssignedData'
+    RequestAssignmentCollectedData:
+      type: object
+      required:
+        - request
+        - assignment
+      properties:
+        request:
+          $ref: '#/components/schemas/RequestSnapshot'
+        assignment:
+          $ref: '#/components/schemas/AssignmentSnapshot'
+    RequestAssignmentCollectedPayload:
+      allOf:
+        - $ref: '#/components/schemas/EventEnvelope'
+        - properties:
+            type:
+              const: RequestAssignmentCollected
+            version:
+              const: 1
+            producer:
+              const: request-service
+            data:
+              $ref: '#/components/schemas/RequestAssignmentCollectedData'
+    RequestAssignmentDeliveredData:
+      type: object
+      required:
+        - request
+        - assignment
+        - facility
+        - deliveredAt
+      properties:
+        request:
+          $ref: '#/components/schemas/RequestSnapshot'
+        assignment:
+          $ref: '#/components/schemas/AssignmentSnapshot'
+        facility:
+          type: object
+          required:
+            - facilityId
+            - name
+          properties:
+            facilityId:
               type: string
-              description: Firebase uid of the resident.
-            categoryId:
+              minLength: 1
+            name:
               type: string
-            categoryName:
-              type: string
-            quantity:
-              type: integer
-              minimum: 1
-            estimatedWeightKg:
-              type: number
-              exclusiveMinimum: 0
-            postalCode:
-              $ref: ./schemas/common.yaml#/PostalCode
-            windows:
-              type: array
-              minItems: 1
-              maxItems: 3
-              items:
-                $ref: ./schemas/common.yaml#/PickupWindowInput
-            expiresAt:
-              $ref: ./schemas/common.yaml#/Timestamp
-            matchedVolunteerUids:
-              type: array
-              description: >
-                Volunteers whose saved postal codes include this request's postal code, without the
-                resident. A snapshot taken when the request was created, so later preference changes
-                do not affect it. It can be empty.
-              items:
-                type: string
-
+              minLength: 1
+        deliveredAt:
+          $ref: ./schemas/common.yaml#/Timestamp
+    RequestAssignmentDeliveredPayload:
+      allOf:
+        - $ref: '#/components/schemas/EventEnvelope'
+        - properties:
+            type:
+              const: RequestAssignmentDelivered
+            version:
+              const: 1
+            producer:
+              const: request-service
+            data:
+              $ref: '#/components/schemas/RequestAssignmentDeliveredData'
+    RequestAssignmentCancelledResidentData:
+      type: object
+      required:
+        - request
+        - assignment
+        - cancelledAt
+        - outsideCancellationWindow
+      properties:
+        request:
+          $ref: '#/components/schemas/RequestSnapshot'
+        assignment:
+          $ref: '#/components/schemas/AssignmentSnapshot'
+        cancelledAt:
+          $ref: ./schemas/common.yaml#/Timestamp
+        outsideCancellationWindow:
+          type: boolean
+          description: |
+            True when the cancellation came less than 24 hours before the selected window started.
+            Decided by the Request Service at cancel time, so it never goes stale. The Reward Service
+            awards cancellation points only when it is true.
+    RequestAssignmentCancelledResidentPayload:
+      allOf:
+        - $ref: '#/components/schemas/EventEnvelope'
+        - properties:
+            type:
+              const: RequestAssignmentCancelledResident
+            version:
+              const: 1
+            producer:
+              const: request-service
+            data:
+              $ref: '#/components/schemas/RequestAssignmentCancelledResidentData'
+    RequestAssignmentCancelledVolunteerData:
+      type: object
+      required:
+        - request
+        - assignment
+        - cancelledAt
+      properties:
+        request:
+          $ref: '#/components/schemas/RequestSnapshot'
+        assignment:
+          $ref: '#/components/schemas/AssignmentSnapshot'
+        cancelledAt:
+          $ref: ./schemas/common.yaml#/Timestamp
+    RequestAssignmentCancelledVolunteerPayload:
+      allOf:
+        - $ref: '#/components/schemas/EventEnvelope'
+        - properties:
+            type:
+              const: RequestAssignmentCancelledVolunteer
+            version:
+              const: 1
+            producer:
+              const: request-service
+            data:
+              $ref: '#/components/schemas/RequestAssignmentCancelledVolunteerData'
+    RequestAssignmentMissedData:
+      type: object
+      required:
+        - request
+        - assignment
+        - reportedAt
+        - rescheduledAsRequestId
+      properties:
+        request:
+          $ref: '#/components/schemas/RequestSnapshot'
+        assignment:
+          $ref: '#/components/schemas/AssignmentSnapshot'
+        reportedAt:
+          $ref: ./schemas/common.yaml#/Timestamp
+        rescheduledAsRequestId:
+          oneOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          description: The new request when the resident rescheduled, otherwise null.
+    RequestAssignmentMissedPayload:
+      allOf:
+        - $ref: '#/components/schemas/EventEnvelope'
+        - properties:
+            type:
+              const: RequestAssignmentMissed
+            version:
+              const: 1
+            producer:
+              const: request-service
+            data:
+              $ref: '#/components/schemas/RequestAssignmentMissedData'
+    RequestCancelledData:
+      type: object
+      required:
+        - request
+        - reason
+      properties:
+        request:
+          $ref: '#/components/schemas/RequestSnapshot'
+        reason:
+          type:
+            - string
+            - 'null'
+          description: The resident's reason, if they gave one.
+    RequestCancelledPayload:
+      allOf:
+        - $ref: '#/components/schemas/EventEnvelope'
+        - properties:
+            type:
+              const: RequestCancelled
+            version:
+              const: 1
+            producer:
+              const: request-service
+            data:
+              $ref: '#/components/schemas/RequestCancelledData'
+    RequestExpiredData:
+      type: object
+      required:
+        - request
+        - trigger
+      properties:
+        request:
+          $ref: '#/components/schemas/RequestSnapshot'
+        trigger:
+          type: string
+          enum:
+            - cleanup_job
+            - assignment_cancelled
+            - overdue_on_action
+          description: |
+            `cleanup_job`: the Request Service confirmed a CleanupRequest. `assignment_cancelled`: an
+            assignment was cancelled after `expiresAt`. `overdue_on_action`: an edit, cancel or accept
+            found the Open request already overdue (README 12.6).
+    RequestExpiredPayload:
+      allOf:
+        - $ref: '#/components/schemas/EventEnvelope'
+        - properties:
+            type:
+              const: RequestExpired
+            version:
+              const: 1
+            producer:
+              const: request-service
+            data:
+              $ref: '#/components/schemas/RequestExpiredData'
+    PointsAwardedDeliveryData:
+      type: object
+      required:
+        - requestId
+        - assignmentId
+        - categoryName
+        - quantity
+        - estimatedWeightKg
+        - awards
+      properties:
+        requestId:
+          type: string
+          format: uuid
+        assignmentId:
+          type: string
+          minLength: 1
+        categoryName:
+          type: string
+          minLength: 1
+        quantity:
+          type: integer
+          minimum: 1
+        estimatedWeightKg:
+          $ref: ./schemas/common.yaml#/Decimal
+        awards:
+          type: array
+          minItems: 2
+          maxItems: 2
+          items:
+            $ref: '#/components/schemas/PointsAward'
+          description: One award for the volunteer and one for the resident.
+    PointsAwardedDeliveryPayload:
+      allOf:
+        - $ref: '#/components/schemas/EventEnvelope'
+        - properties:
+            type:
+              const: PointsAwardedDelivery
+            version:
+              const: 1
+            producer:
+              const: reward-service
+            data:
+              $ref: '#/components/schemas/PointsAwardedDeliveryData'
+    PointsAwardedCancellationData:
+      type: object
+      required:
+        - requestId
+        - assignmentId
+        - categoryName
+        - quantity
+        - estimatedWeightKg
+        - awards
+      properties:
+        requestId:
+          type: string
+          format: uuid
+        assignmentId:
+          type: string
+          minLength: 1
+        categoryName:
+          type: string
+          minLength: 1
+        quantity:
+          type: integer
+          minimum: 1
+        estimatedWeightKg:
+          $ref: ./schemas/common.yaml#/Decimal
+        awards:
+          type: array
+          minItems: 1
+          maxItems: 1
+          items:
+            $ref: '#/components/schemas/PointsAward'
+          description: One award, for the volunteer.
+    PointsAwardedCancellationPayload:
+      allOf:
+        - $ref: '#/components/schemas/EventEnvelope'
+        - properties:
+            type:
+              const: PointsAwardedCancellation
+            version:
+              const: 1
+            producer:
+              const: reward-service
+            data:
+              $ref: '#/components/schemas/PointsAwardedCancellationData'
+    CleanupRequestData:
+      type: object
+      required:
+        - requestId
+        - requestSeq
+        - expiresAt
+      properties:
+        requestId:
+          type: string
+          format: uuid
+        requestSeq:
+          type: integer
+          minimum: 1
+        expiresAt:
+          $ref: ./schemas/common.yaml#/Timestamp
+      description: 'Only a nudge. `requestSeq` and `expiresAt` are for logs: the Request Service locks the request
+        and checks it again.'
+    CleanupRequestPayload:
+      allOf:
+        - $ref: '#/components/schemas/EventEnvelope'
+        - properties:
+            type:
+              const: CleanupRequest
+            version:
+              const: 1
+            producer:
+              const: cleanup-service
+            data:
+              $ref: '#/components/schemas/CleanupRequestData'
+    NotificationCleanupRequestedData:
+      type: object
+      required:
+        - requestedAt
+      properties:
+        requestedAt:
+          $ref: ./schemas/common.yaml#/Timestamp
+    NotificationCleanupRequestedPayload:
+      allOf:
+        - $ref: '#/components/schemas/EventEnvelope'
+        - properties:
+            type:
+              const: NotificationCleanupRequested
+            version:
+              const: 1
+            producer:
+              const: cleanup-service
+            data:
+              $ref: '#/components/schemas/NotificationCleanupRequestedData'
+    ProfileUpdatedData:
+      type: object
+      required:
+        - accountId
+        - changed
+        - publicName
+        - roles
+      properties:
+        accountId:
+          $ref: ./schemas/common.yaml#/AccountId
+        changed:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: string
+            enum:
+              - publicName
+              - address
+              - preferredPostalCodes
+              - roles
+        publicName:
+          type: string
+          minLength: 1
+        roles:
+          $ref: ./schemas/common.yaml#/Roles
+      description: Says that the address changed, never what it is.
+    ProfileUpdatedPayload:
+      allOf:
+        - $ref: '#/components/schemas/EventEnvelope'
+        - properties:
+            type:
+              const: ProfileUpdated
+            version:
+              const: 1
+            producer:
+              const: user-service
+            data:
+              $ref: '#/components/schemas/ProfileUpdatedData'
+    AccountDeactivatedData:
+      type: object
+      required:
+        - accountId
+        - deactivatedAt
+      properties:
+        accountId:
+          $ref: ./schemas/common.yaml#/AccountId
+        deactivatedAt:
+          $ref: ./schemas/common.yaml#/Timestamp
+    AccountDeactivatedPayload:
+      allOf:
+        - $ref: '#/components/schemas/EventEnvelope'
+        - properties:
+            type:
+              const: AccountDeactivated
+            version:
+              const: 1
+            producer:
+              const: user-service
+            data:
+              $ref: '#/components/schemas/AccountDeactivatedData'
     SseReadyPayload:
       type: object
       additionalProperties: false
       description: Empty on purpose. Nothing is sent with the ready event.
-
     SseSignalPayload:
       type: object
       additionalProperties: false
-      required: [type, requestId]
+      required:
+        - type
+        - requestId
       properties:
         type:
           type: string
-          enum: [REQUEST_CREATED, NEW_MATCHING_REQUEST]
-          description: >
-            `REQUEST_CREATED` is the confirmation to the resident.
-            `NEW_MATCHING_REQUEST` is the alert to a volunteer.
+          enum:
+            - REQUEST_CREATED
+            - NEW_MATCHING_REQUEST
+          description: |
+            `REQUEST_CREATED` is the confirmation to the resident. `NEW_MATCHING_REQUEST` is the alert to a volunteer.
         requestId:
           type: string
           format: uuid
