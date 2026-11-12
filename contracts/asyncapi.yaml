@@ -283,7 +283,7 @@ components:
               minItems: 1
               maxItems: 3
               items:
-                $ref: ./schemas/common.yaml#/PickupWindow
+                $ref: ./schemas/common.yaml#/PickupWindowInput
             expiresAt:
               $ref: ./schemas/common.yaml#/Timestamp
             matchedVolunteerUids:
