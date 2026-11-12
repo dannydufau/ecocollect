@@ -43,6 +43,8 @@ What goes in and out of every component. No SQL schema: tables are named only to
 | Item photos visible to volunteers; delivery photos private; GPS data removed before upload | NFR03, FR06 user story |
 | Demo mode runs as a separate copy of the real system | No duplicated business logic; real SSE and push |
 | Volunteers whose assignment was cancelled or missed get 404 on the request page and see no request details; Q7 keeps their own assignment history | NFR03: no access to a request they no longer work on |
+| The Notification Service runs as **one instance**; the per-instance SSE queue is removed | SSE connections live in that instance's memory, and one instance receives every event from the shared queue (13.0). Scaling out is deferred (19) |
+| Queues are **quorum queues**; RabbitMQ dead-letters a message after 5 failed attempts | The broker counts attempts and dead-letters, so no service counts retries itself (9.5) |
 
 ## 1. Components and what they own
 
@@ -67,7 +69,7 @@ What goes in and out of every component. No SQL schema: tables are named only to
 | 2.2 | Setup → User Service env | Firebase Admin key file | `secrets/firebase-admin.json` | Admin SDK ready | Only the User Service mounts it |
 | 2.3 | Setup → Notification Service env | VAPID key pair | Private key in the Notification Service env; public key to the frontend as `NEXT_PUBLIC_VAPID_KEY` | Ready to send push | Same as Oct 28 |
 | 2.4 | Setup → Request Service env | ImageKit keys | `IMAGEKIT_PRIVATE_KEY`, `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_URL_ENDPOINT` | Ready to sign uploads and URLs | The frontend needs no ImageKit config |
-| 2.5 | Setup → RabbitMQ | Each service declares what it uses on start | Exchange, queues, bindings (section 9) | Topology | Declarations are idempotent |
+| 2.5 | Setup → RabbitMQ | Each service declares what it uses on start | Exchanges, queues with their arguments, dead-letter queues, bindings (section 9) | Topology | Declarations are idempotent only if the arguments match exactly; a mismatch fails with `PRECONDITION_FAILED`. A queue's type can't be changed in place: when moving from the Oct 28 classic queues, delete the old queues once (or remove the RabbitMQ volume with `docker compose down -v`) |
 
 ## 3. Frontend ↔ Firebase Auth (client SDK)
 
@@ -263,18 +265,31 @@ Known race, accepted: a resident could create a request at the same instant as c
 
 | # | Item | Value |
 |---|---|---|
-| 9.1 | Exchange | `ecocollect.events`, `topic`, durable |
+| 9.1 | Exchanges | `ecocollect.events`, `topic`, durable. `ecocollect.dlx`, `direct`, durable (dead letters only) |
 | 9.2 | Message properties | `messageId = eventId`, `type = <event type>`, `contentType = application/json`, persistent |
-| 9.3 | Publishing | Every producer writes the event to its own outbox table in the same transaction as the change. A publisher loop in the same process sends unpublished rows in order (`created_at`, then insertion order), with publisher confirms; `published_at` is set only after the confirm |
-| 9.4 | Consuming | Manual ack after the DB work commits. Each consumer records `eventId` in its own processed-events table in the same transaction and skips duplicates. `prefetch = 1` per queue keeps events for the same request in order in the normal case |
-| 9.5 | Poison messages | After 5 failed attempts, reject without requeue to `<queue>.dlq` (dead-letter exchange `ecocollect.dlx`) and log it |
+| 9.3 | Publishing | Every producer writes the event to its own outbox table in the same transaction as the change. A publisher loop in the same process sends unpublished rows in order (`created_at`, then insertion order), with publisher confirms; `published_at` is set only after the confirmation |
+| 9.4 | Consuming | Manual ack after the DB work commits. Each consumer records `eventId` in its own processed-events table in the same transaction and skips duplicates. `prefetch = 1` per consumer keeps events for the same request in order in the normal case. Never use global QoS: quorum queues refuse it |
+| 9.5 | Processing fails | Roll back, then `basic.reject` with `requeue = true`. Use `reject`, **not** `basic.nack`: in RabbitMQ 4.x only `reject` (or a lost connection) adds to the message's delivery count; `nack` doesn't. RabbitMQ moves the message to `<queue>.dlq` once it has failed 5 times (`x-delivery-limit = 4`, below). No service counts attempts itself. A redelivered event can arrive after newer ones; section 11 covers that |
+| 9.6 | Unusable message | Invalid JSON, unknown `type`, or an envelope that fails validation: `basic.reject` with `requeue = false`. It goes straight to the DLQ, since retrying can't fix it |
+| 9.7 | Logging | Before every reject, log `eventId`, `type`, queue, the error and the `x-delivery-count` header (absent on the first attempt). A failure with `x-delivery-count = 4`, or a 9.6 reject, is logged as an error: the message is being dead-lettered |
 
-| Queue (durable) | Bindings | Consumer |
+| Queue (quorum) | Bindings on `ecocollect.events` | Consumer |
 |---|---|---|
 | `notification.events` | `request.#`, `reward.#`, `user.#`, `cleanup.notifications.due` | Notification Service |
 | `cleanup.request-events` | `request.created`, `request.updated`, `request.assigned`, `request.cancelled`, `request.expired` | Cleanup Service |
 | `reward.request-events` | `request.assignment.delivered`, `request.assignment.cancelled.resident` | Reward Service |
 | `request.cleanup-events` | `cleanup.request.due` | Request Service |
+
+Arguments on each queue above (declared by its consumer, exactly as written):
+
+| Argument | Value |
+|---|---|
+| `x-queue-type` | `quorum` |
+| `x-delivery-limit` | `4` (dead-lettered on the 5th failure; RabbitMQ's default would be 20) |
+| `x-dead-letter-exchange` | `ecocollect.dlx` |
+| `x-dead-letter-routing-key` | the queue's own name, e.g. `reward.request-events` |
+
+Dead-letter queues: the same consumer also declares `<queue>.dlq` (`x-queue-type = quorum`, no other arguments) and binds it to `ecocollect.dlx` with routing key `<queue>`.
 
 ## 10. Events
 
@@ -465,6 +480,10 @@ A resident cancelling the assignment can send new `windows` in Q12, which move `
 
 ## 13. Notification Service internals and outputs
 
+### 13.0 One instance
+
+The Notification Service runs as exactly one container: no `deploy.replicas`, no `docker compose --scale` (the demo stack, 17.1, also has one). That instance holds every SSE connection (`/api/events` and `/api/public/events`) in memory and is the only consumer of `notification.events`, so every event reaches the process that holds the recipient's connections. A second instance would take only some of the events from the shared queue, and users connected to it would miss live updates. A restart drops all streams; the frontend reconnects and refetches (16.5). Scaling out is deferred (19).
+
 ### 13.1 Notification types
 
 The Push column is decided by type: the side that performed the action gets no push, the other side does. An account on both sides (self-accept, self-delivery) gets the other side's push. Tag for push: `request-<requestId>` (request types) or `award-<awardId>` (award types). The `url` opens the relevant page: the request page, except for `ASSIGNMENT_CANCELLED_BY_RESIDENT_VOLUNTEER`, `ASSIGNMENT_CANCELLED_BY_VOLUNTEER_VOLUNTEER` and `ASSIGNMENT_MISSED_VOLUNTEER`, which open the volunteer's assignment history (the recipient can no longer open the request, Q8), and award types, which open the EcoPoints page.
@@ -620,3 +639,4 @@ The changes needed in the requirements, user stories, business rules, diagrams a
 | Email change, password change in-app | Firebase client SDK flows; not in FRs |
 | Reactivating a deactivated account | Not in FRs |
 | Retention of old status changes, processed events, outbox rows | Scheduled deletion of published outbox rows and processed events older than 30 days |
+| More than one Notification Service instance | Needs more than a second queue. (1) The shared `notification.events` consumer stays the only one that stores notifications and sends web push, once. (2) After commit, it publishes a `NotificationsStored` event (recipients, notification ids, SSE payloads) through a new Notification Service outbox. (3) Each instance declares its own classic queue (server-named, exclusive, auto-delete; quorum queues can't be exclusive) bound to that event, and only writes SSE to the connections it holds: no DB writes, failures dropped. (4) Every other SSE message (13.3, 13.5), including `notification-read` and `account-deactivated`, goes through the broker the same way, because the connections it targets may be on another instance |
