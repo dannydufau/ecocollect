@@ -162,12 +162,16 @@ test('both roles are told apart: wrong role is a 403', () => {
   assert.ok(openapi.paths['/api/requests'].get.responses['403']);
 });
 
-test('the example on the event stream is a signal the other spec accepts', () => {
+test('the example on the event stream starts with the ready event, then a signal the other spec accepts', () => {
   const example = openapi.paths['/api/events'].get.responses['200'].content['text/event-stream'].example;
-  const lines = Object.fromEntries(example.trim().split('\n').map((l) => [l.slice(0, l.indexOf(':')), l.slice(l.indexOf(':') + 2)]));
-  assert.equal(lines.event, 'signal');
-  assert.deepEqual(Object.keys(lines), ['event', 'data'], 'nothing is stored, so there is no id line');
-  assert.ok(validator(asyncapi, 'SseSignalPayload')(JSON.parse(lines.data)));
+  const parse = (message) => Object.fromEntries(message.split('\n').map((l) => [l.slice(0, l.indexOf(':')), l.slice(l.indexOf(':') + 2)]));
+  const [ready, signal] = example.trim().split('\n\n').map(parse);
+  assert.equal(ready.event, 'ready', 'the first thing on the wire, so the browser opens the stream right away');
+  assert.deepEqual(Object.keys(ready), ['event', 'data']);
+  assert.ok(validator(asyncapi, 'SseReadyPayload')(JSON.parse(ready.data)));
+  assert.equal(signal.event, 'signal');
+  assert.deepEqual(Object.keys(signal), ['event', 'data'], 'nothing is stored, so there is no id line');
+  assert.ok(validator(asyncapi, 'SseSignalPayload')(JSON.parse(signal.data)));
 });
 
 test('session: the token comes in the body and the cookie comes back', () => {
