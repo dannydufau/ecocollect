@@ -14,13 +14,13 @@ What goes in and out of every component. No SQL schema: tables are named only to
   - The frontend formats real timestamps with `timeZone: 'America/Edmonton'` explicitly, not the device's zone.
   - "Today" and "in the future" are decided in Calgary time. Containers run in UTC, so after 18:00 in Calgary the UTC date is already tomorrow.
   - Window instants and `expiresAt` are derived when needed, never stored. The only stored copy is the Cleanup Service's job time, set from every `RequestCreated` and `RequestUpdated`.
-  - Every "now" in a decision (due jobs, expiry, "in the future", "window ended", the available list) is Postgres `now()` from the same transaction, never the container clock. All services use one Postgres, so they agree on the time. `now()` is the transaction's start time, so a wait on a row lock can only make expiry slightly late, and the next refire covers that.
+  - Every "now" in a decision (due jobs, expiry, "in the future", "window ended", the available list) is Postgres `now()` from the same transaction, never the container clock. All services use one Postgres, so they agree on the time. `now()` is the transaction's start time, not the moment of the check.
   - Keep time zone data current: recent Node, Postgres and browser versions. Keep one test per side with known dates before and after March 2026.
 - Decimals (`estimatedWeightKg`, `points`) are JSON numbers with at most 2 decimals. `node-postgres` returns `numeric` as a string: convert it before sending, and do points arithmetic in hundredths (integers) to avoid float errors.
-- `accountId` is the username, also the Firebase uid: 3–50 characters, `a-z 0-9 _ -`, stored lowercase, never changes.
+- `accountId` is the username and is also used as the Firebase uid. Our rule: 3–50 characters, `a-z 0-9 _ -`, stored lowercase, never changes.
 - Postal codes are 6 characters, uppercase, no space (`T2P1J9`), Calgary only. Every endpoint normalizes input (uppercase, spaces removed) before validating.
 - Roles live in Firebase custom claims: `{ roles: ["resident"] | ["volunteer"] | ["resident","volunteer"] }`. The active role is chosen in the frontend only; services authorize by the roles claim plus ownership of the resource.
-- Privacy (NFR03): a street address appears only in `GET /api/profile` (your own) and `GET /api/requests/:id` (owner, or the volunteer with the active assignment). Photo URLs appear only in `GET /api/requests/:id`. Neither ever appears in events, SSE messages, push payloads, notifications or lists.
+- Privacy (NFR03): A street address appears only in your own profile (U6, and the U7 response) and in the request detail (Q8 and the responses of Q9–Q15), following the visibility table (5.2). Photo URLs appear only in the request detail. Neither ever appears in events, SSE messages, push payloads, notifications or lists.
 - One Postgres instance, one schema per service. Every service can read every table; each table has exactly one service that writes it (section 8). Tables are normalized to 3NF; events and API responses are messages, not tables, so they can carry copied data.
 - Caddy is the gateway and the only publicly exposed service. It serves the Next.js frontend and `/api/*` on one origin. The User Service is the only backend component that talks to Firebase. The Request Service is the only one that holds the ImageKit private key.
 
@@ -90,11 +90,11 @@ There is no `createUserWithEmailAndPassword` in the frontend: it would give the 
 | 4.1 | Strip client headers | Delete incoming `X-User-*` and `X-Request-Id` before anything else (already done) |
 | 4.2 | Request id | `X-Request-Id` from `{http.request.uuid}`; services put it in logs and in events as `traceId` |
 | 4.3 | `forward_auth` | `GET /verify` on the User Service with the original `Authorization` and `Cookie`. `200` + `X-User-Id`, `X-User-Roles` → copied onto the request. Any other status goes back to the browser as is |
-| 4.4 | Routes **without** `forward_auth` | `/api/session` → User · `POST /api/accounts` → User · `GET /api/terms` → User · `/api/public/profiles/*/stats` → Reward · `/api/public/profiles/*` → User · `/api/public/stats` → Reward · `/api/public/events` → Notification. Order matters: the `/stats` matcher goes before `/api/public/profiles/*` |
+| 4.4 | Routes **without** `forward_auth` | `/api/session` → User · `POST /api/accounts` → User · `GET /api/terms` → User · `/api/public/profiles/*/stats` → Reward · `/api/public/profiles/*` → User · `/api/public/stats` → Reward · `/api/public/events` → Notification. Order matters: `/api/public/profiles/*/stats` must be matched before `/api/public/profiles/*`, which would otherwise catch it. |
 | 4.5 | Routes **with** `forward_auth` | `/api/profile`, `/api/profile/*` → User · `/api/categories`, `/api/facilities`, `/api/uploads`, `/api/requests`, `/api/requests/*` → Request · `/api/ecopoints` → Reward · `/api/events`, `/api/notifications`, `/api/notifications/*`, `/api/push/*` → Notification |
 | 4.6 | Everything else under `/api/*` | `404` JSON. `/verify` is never routed publicly |
 | 4.7 | SSE routes | `/api/events` and `/api/public/events` stream immediately; keep both out of any `encode` rule. Heartbeat every ~25 s |
-| 4.8 | Trust | Only Caddy is exposed. Services trust `X-User-*` without re-verifying. Public routes ignore `X-User-*` |
+| 4.8 | Trust | Only Caddy is exposed. Services trust `X-User-*` without re-verifying. Public route handlers never read `X-User-*` |
 | 4.9 | Rate limit (optional) | Limit `POST /api/accounts` and `/api/public/events` connections per IP if time allows |
 
 ## 5. Public API
@@ -103,7 +103,7 @@ There is no `createUserWithEmailAndPassword` in the frontend: it would give the 
 
 | # | Method + path | Auth | Request | Success response | Errors | Notes |
 |---|---|---|---|---|---|---|
-| U1 | `POST /api/session` | Bearer | `{ idToken }` | `204`, `Set-Cookie: session=…; HttpOnly; Secure; SameSite=Lax` | 401 | Same as Oct 28. Exists only for SSE |
+| U1 | `POST /api/session` | none (ID token in body)| `{ idToken }` | `204`, `Set-Cookie: session=…; HttpOnly; Secure; SameSite=Lax` | 401 | Same as Oct 28. Exists only for SSE |
 | U2 | `DELETE /api/session` | Cookie | – | `204`, cookie cleared | – | |
 | U3 | `GET /verify` (internal) | Bearer or cookie | – | `200` + `X-User-Id`, `X-User-Roles` | 401 | Bearer first, else cookie. Both checks reject disabled (deactivated) users |
 | U4 | `POST /api/accounts` | none | `{ username, email, password, firstName, lastName, publicName, dateOfBirth, role: "resident"\|"volunteer", address?: { street, postalCode }, preferredPostalCodes?: [..], termsDocumentId }` | `201 { accountId, roles }` | 400 validation (age < 18, birth date in the future, non-Calgary postal code, address missing for resident, > 3 or duplicate postal codes), 409 `username_taken` / `email_taken` / `terms_outdated` | FR01. See 7.1 for the steps. Then the frontend signs in (3.1) and calls U1 |
@@ -221,7 +221,7 @@ sequenceDiagram
 | 6.3 | Browser upload | `POST https://upload.imagekit.io/api/v2/files/upload`, multipart, with the file, the token and the same parameter values. One file per call |
 | 6.4 | Attach | The browser sends only `{ fileId }` (Q4 items, Q9, Q15) |
 | 6.5 | Verify | Request Service fetches the file details with the private key and rejects (400 `invalid_photo`) unless: `filePath` starts with the folder 6.2 pins for this caller and purpose, `isPrivateFile` is true, MIME and size are allowed. It stores `fileId` and `filePath` |
-| 6.6 | Read | Q8 builds a signed URL with the ImageKit SDK (`signed: true`, ~600 s) only for the people in the visibility table. The URL is never stored or put in events |
+| 6.6 | Read | Q8 builds a signed URL with the ImageKit SDK (`signed: true`, ~600 s) only for the people in the visibility table (5.2). The URL is never stored or put in events |
 | 6.7 | Replace/remove | Q9 with a new photo or `null` detaches the old file from that request. After commit, the Request Service deletes the file from ImageKit **only if no other request still references it** (a rescheduled request shares its photo with the missed one, 12.5). Deletion is best effort and logged on failure. Files are never deleted because a request reaches a final status: they are part of its history. Evidence photos are never shared (6.5) or deleted |
 | 6.8 | Orphans | Files uploaded but never attached stay in ImageKit. Cleaning them up is deferred (section 18) |
 
@@ -425,7 +425,7 @@ An event says what was true when it happened, not what is true now. It can be ol
 |---|---|---|
 | Reward | Points computed from changed data | Inputs are facts frozen at the moment (quantity and weight come from the event, as they were at that moment; `outsideCancellationWindow` is decided by the Request Service at cancel time). At most one award per assignment per role makes retries harmless (NFR06) |
 | Cleanup | An old `RequestUpdated` arrives after `RequestAssigned` and re-creates a job | Each job stores the `requestSeq` it came from. Upsert only if the incoming `requestSeq` is higher. Non-Open events leave a "no job" marker with their `requestSeq` instead of deleting the row, so an older event cannot bring the job back. A job ends only on a non-Open event, never by firing |
-| Request (`CleanupRequest`) | The job fires after the request changed | Lock the request row and re-check: still Open and `now() ≥ expiresAt` (database clock, current value) → mark Expired and publish E10. Otherwise ack and do nothing. `data.requestSeq` and `expiresAt` are for logs only |
+| Request (`CleanupRequest`) | The job fires after the request changed | Lock the request row and re-check: still Open and `now() ≥ expiresAt` → mark Expired and publish E10. Otherwise ack and do nothing. `data.requestSeq` and `expiresAt` are for logs only |
 | Notification | An old event pushes a misleading alert, or expires newer notifications | Keeps the highest `requestSeq` per request. An event with a lower `requestSeq` is stored as already expired: no SSE `notification`, no push. Expiry rules (13.2) only expire notifications with a lower `requestSeq`. Recipients whose account has `Deactivated_At` set are skipped |
 | Notification (matching) | `matchedVolunteerUids` is a snapshot | Accepted. A volunteer who changed preferences seconds earlier might get one notification more or less |
 | Frontend | Old data on screen | SSE and push are only signals. Data always comes fresh from REST (unchanged from Oct 28). After an `EventSource` reconnect, refetch everything on screen |
