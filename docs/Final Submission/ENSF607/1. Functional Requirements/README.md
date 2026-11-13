@@ -14,7 +14,7 @@ The system shall allow registered users to activate an additional Resident or Vo
 
 #### FR04 - Profile Management
 
-The system shall provide a profile management page where authenticated users can view their information and modify permitted account settings. Residents cannot change their address if they have any uncollected (Open or Assigned) pickup requests. Users can deactivate their account when they own no Open, Assigned or Collected requests and have no active assignment.
+The system shall provide a profile management page where authenticated users can view their information and modify permitted account settings. Residents cannot change their address if they have any uncollected (Open or Assigned) pickup requests. Users can deactivate their account when they own no Open, Assigned or Collected requests and are not the assigned Volunteer of any Assigned or Collected request.
 
 ### Public User Information
 
@@ -26,7 +26,7 @@ The system shall provide publicly accessible user profiles displaying a user’s
 
 #### FR06 - Create Pickup Requests
 
-The system shall allow Residents to create pickup requests by selecting one or more predefined electronic waste categories, specifying a quantity for each selected category, and optionally uploading a photograph for each selected category. Photos are visible to the request owner and to Volunteers while the request is Open, then to the owner and the assigned Volunteer. Location data is removed from photos before upload.  
+The system shall allow Residents to create pickup requests by selecting one or more distinct predefined electronic waste categories (each category at most once per submission), specifying a quantity for each selected category, and optionally uploading a photograph for each selected category. Photos are visible to the request owner and to Volunteers while the request is Open, then to the owner and the assigned Volunteer. Location data is removed from photos before upload.  
 The system shall automatically calculate the estimated total weight for each category by multiplying the category's predefined standard weight by the entered quantity. Residents shall not be allowed to enter or manually modify the calculated weight.
 Each selected category shall generate a separate pickup request using the common pickup information provided during submission.
 The system shall accept the optional photographs in JPEG, PNG, and WEBP formats, with a maximum file size of 10 MB per photograph.
@@ -47,14 +47,14 @@ The system shall allow Residents to view their own pickup requests, filter them 
 
 The system shall allow Residents to edit pickup requests they own while those requests remain Open, including requests reopened after an assignment cancellation.  
 When a Resident changes the item category or quantity of an Open request, the system shall automatically recalculate its estimated total weight using the category's predefined standard weight.  
-A Resident cannot change the address of their pickup requests directly because the address is linked to their profile. To change the address, they must cancel any existing uncollected (Open or Assigned) pickup requests they own, update their profile address and create new pickup requests.
-The system shall allow Residents to replace the active pickup windows of an Open request with future valid new windows as per FR07. The request's expiration deadline shall be recalculated based on the updated windows and the original creation date as per FR20.
+A Resident cannot change the address of their pickup requests directly because the address is linked to their profile. To change the address, they must end every uncollected (Open or Assigned) pickup request they own, by cancelling it or, once an Assigned request's selected pickup window has ended, by reporting a missed pickup (FR16). They then update their profile address and create new pickup requests.
+The system shall allow Residents to replace the active pickup windows of an Open request with future valid new windows as per FR07. The request's expiration time shall be recalculated from the updated windows as per FR20.
 
 #### FR11 - Cancel Pickup Requests
 
-The system shall allow Residents to cancel their own Open or Assigned pickup requests. Cancelling an Open request shall change its status to Cancelled. Cancelling an Assigned request shall revoke the active Volunteer assignment and change the request’s status to Cancelled.
-The system shall also allow Residents to cancel an active Volunteer assignment before collection is confirmed, without cancelling the pickup request. The Resident can give future valid new windows as per FR07 when cancelling an assignment. After the assignment is cancelled, the request shall return to Open if valid future pickup windows remain. Otherwise, it shall become Expired.
-To recognize the Volunteer’s preparation, the cancellation window is the period ending 24 hours before the selected pickup window starts. If either Resident cancellation action ends an active assignment during this window, no cancellation EcoPoints shall be awarded. If the assignment is cancelled after the window ends, the Volunteer shall receive cancellation EcoPoints in accordance with FR18.
+The system shall allow Residents to cancel their own Open pickup requests, and their own Assigned pickup requests until the selected pickup window ends. Cancelling an Open request shall change its status to Cancelled. Cancelling an Assigned request shall revoke the active Volunteer assignment and change the request’s status to Cancelled.
+The system shall also allow Residents to cancel an active Volunteer assignment before collection is confirmed and before the selected pickup window ends, without cancelling the pickup request. The Resident can give future valid new windows as per FR07 when cancelling an assignment. After the assignment is cancelled, the request shall return to Open if valid future pickup windows remain. Otherwise, it shall become Expired. After the selected pickup window ends, the Resident can no longer cancel the request or the assignment; they confirm collection (FR15) or report a missed pickup (FR16) instead.
+To recognize the Volunteer’s preparation, the cancellation window is the period ending 24 hours before the selected pickup window starts. If either Resident cancellation action ends an active assignment during this window, no cancellation EcoPoints shall be awarded. If the assignment is cancelled after the cancellation window ends and before the selected pickup window ends, the Volunteer shall receive cancellation EcoPoints in accordance with FR18.
 
 ### Volunteer Pickup Management
 
@@ -64,7 +64,7 @@ The system shall allow Volunteers to browse Open pickup requests filtered by the
 
 #### FR13 - Accept Pickup Requests
 
-The system shall allow a Volunteer to accept an Open request by selecting one of the Resident's offered future pickup windows. A Volunteer can accept a request created by their own account.
+The system shall allow a Volunteer to accept an Open request by selecting one of the Resident's offered future pickup windows, meaning windows that have not started yet. A Volunteer can accept a request created by their own account.
 
 #### FR14 - Cancel Volunteer Assignment
 
@@ -90,7 +90,7 @@ The system shall allow the assigned Volunteer to record delivery of a Collected 
 
 The system shall calculate and award EcoPoints to the assigned Volunteer and the request-owning Resident when a pickup request is successfully delivered.
 Volunteer Points = (3 × Quantity) + (4 × Estimated_Weight_Kg). Resident Points = Volunteer Points ÷ 2, with no rounding. 
-The system shall award EcoPoints only to the assigned Volunteer if the Resident cancels a volunteer assignment or the whole Assigned request outside the cancellation window as per FR11. A cancellation awards the same points to the Volunteer as delivery.
+The system shall award EcoPoints only to the assigned Volunteer if the Resident cancels a volunteer assignment or the whole Assigned request outside the cancellation window as per FR11. A cancellation awards the same points to the Volunteer as delivery. No cancellation EcoPoints are awarded when the Volunteer is also the request's Resident.
 
 #### FR19 - In-App Notifications and Push Notifications
 
@@ -100,7 +100,7 @@ The system shall generate and display in-app and push notifications for relevant
 
 #### FR20 - Automatic Request Expiration
 
-The system shall automatically mark an Open request as Expired when either its expiration period (as per FR07) elapses or its final scheduled pickup window ends, whichever occurs first.
+The system shall automatically mark an Open request as Expired when its last active pickup window starts, because no Volunteer can accept a window that has started (FR13). Since every window ends within the expiration period (FR07), a request never stays Open past that period.
 
 #### FR21 - Volunteer Pickup History
 
@@ -114,7 +114,7 @@ The system shall display terms and conditions, including safety guidelines, and 
 
 #### FR23 - Public Community Impact Statistics
 
-The system shall display community impact statistics on a publicly accessible page calculated from successfully recorded Delivered requests.
+The system shall display community impact statistics on a publicly accessible page calculated from successfully recorded Delivered requests for which EcoPoints were awarded.
 
 ### Interactive Demo Mode
 

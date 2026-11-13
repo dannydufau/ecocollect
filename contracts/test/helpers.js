@@ -23,7 +23,7 @@ const fixRefs = (value) =>
   );
 
 function compile(schema, spec) {
-  const ajv = new Ajv({ strict: false, allErrors: true });
+  const ajv = new Ajv({ strict: false, allErrors: true, multipleOfPrecision: 8 });
   addFormats(ajv);
   const defs = fixRefs({ ...common, ...spec?.components.schemas });
   return ajv.compile({ ...fixRefs(schema), $defs: defs });
