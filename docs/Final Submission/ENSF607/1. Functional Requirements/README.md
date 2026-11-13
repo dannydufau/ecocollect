@@ -89,7 +89,7 @@ The system shall allow the assigned Volunteer to record delivery of a Collected 
 #### FR18 - EcoPoints Calculation and Awarding
 
 The system shall calculate and award EcoPoints to the assigned Volunteer and the request-owning Resident when a pickup request is successfully delivered.
-Volunteer Points = (3 × Quantity) + (4 × Estimated_Weight_Kg). Resident Points = Volunteer Points ÷ 2, with no rounding. 
+Volunteer Points = (3 * Quantity) + (4 * Estimated_Weight_Kg). Resident Points = Volunteer Points ÷ 2, with no rounding. 
 The system shall award EcoPoints only to the assigned Volunteer if the Resident cancels a volunteer assignment or the whole Assigned request outside the cancellation window as per FR11. A cancellation awards the same points to the Volunteer as delivery. No cancellation EcoPoints are awarded when the Volunteer is also the request's Resident.
 
 #### FR19 - In-App Notifications and Push Notifications
