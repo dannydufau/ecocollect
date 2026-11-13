@@ -567,6 +567,8 @@ When one account is both sides (self-accept, self-delivery, FR13), it gets both 
 
 A notification stores its type, recipient, the request or award it is about, and metadata holding only facts not stored in any table: `requestSeq`, `transitionId`, and for E2 `reason` and `changed`. Title and body are built when read, by joining the request, category, assignment (window, volunteer's public name) or award (points). A request's details can change only while it is Open, and any change expires its older notifications (13.2), so the joined values always match what a live notification describes. It also stores when a push for it was actually sent (`Pushed_At`, null if none: the type said no push, the recipient has no subscription, or the event was stale), for 13.2. Example titles: "New pickup near you" / "2 × Computers/Laptops in T2P1J9"; "Pickup accepted" / "Danny will come on Nov 22, 14:00–15:00"; "You earned 26 EcoPoints". Notifications to a volunteer whose assignment ended without delivery (`ASSIGNMENT_CANCELLED_BY_RESIDENT_VOLUNTEER`, `ASSIGNMENT_CANCELLED_BY_VOLUNTEER_VOLUNTEER`, `ASSIGNMENT_MISSED_VOLUNTEER`, `ECOPOINTS_AWARDED_ON_ASSIGNMENT_CANCELLATION_VOLUNTEER`) show no request details, only the assignment's window and the points: "Pickup cancelled" / "Your pickup on Nov 22, 14:00–15:00 was cancelled".
 
+SSE `notification` messages and pushes build their title and body from the event’s snapshots, not the tables (which may already be ahead of a late event); only public names are read from ACCOUNT, as current values (section 8).
+
 ### 13.2 Expiry rules (`Is_Expired`)
 
 A notification expires when the request it describes has moved past that state. Award notifications never expire.
@@ -597,6 +599,8 @@ Effects of an expiry:
 
 `Last-Event-ID` resume is not supported: after a reconnect the frontend refetches (11). The server writes `ready` as soon as it registers a connection, so `onopen` fires right away instead of when the first `: ping` arrives (up to ~25 s later).
 
+The `title` and `body` of a `notification` message are built from the event, not the tables; only public names are read from ACCOUNT (13.1).
+
 ### 13.4 Push
 
 Payload (encrypted with the subscription keys):
@@ -605,8 +609,8 @@ Payload (encrypted with the subscription keys):
 { "notificationId": "n_789", "title": "New pickup near you", "body": "2 × Computers/Laptops in T2P1J9",
   "url": "/volunteer/requests/6c0f…", "tag": "request-6c0f…", "silent": false }
 ```
-
-A replacement is the same shape with `"silent": true` and the replacement text. `404`/`410` from the push service → delete that subscription.
+`title` and `body` are built the same way as the SSE `notification` message (13.1). A replacement push (13.2: the expired notification was pushed and is unread, and no new push for the request is sent in this action) has `silent: true`, the same `tag`, and text for the new state, built the same way from the event that caused the expiry. 
+`404`/`410` from the push service → delete that subscription.
 
 ### 13.5 Public stream `/api/public/events`
 
