@@ -131,5 +131,3 @@ module.exports = {
   queueArguments,
   deadLetterQueueName
 };
-
-module.exports = { exchange, events };
