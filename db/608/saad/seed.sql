@@ -1,5 +1,5 @@
-SET
-    search_path TO ecocollect608;
+-- SET
+    -- search_path TO ecocollect608;
 
 -- What happens to each request:
 --   R1: Open

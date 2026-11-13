@@ -1,5 +1,5 @@
-SET
-    search_path TO ecocollect608;
+-- SET
+--     search_path TO ecocollect608;
 
 -- Q1. What is the current status of each pickup request?
 -- The current status is the latest status_change row, shown by the pickup_request_current_status view.

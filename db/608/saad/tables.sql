@@ -1,5 +1,5 @@
-SET
-    search_path TO ecocollect608;
+-- SET
+--     search_path TO ecocollect608;
 
 -- Needs: volunteer, pickup_request, pickup_window, terms_acceptance, recycling_facility.
 
