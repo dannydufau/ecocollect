@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net">
+  <diagram name="#85 EDA Final" id="4FlgJwFhjVEwNDwN_aRh">
+    <mxGraphModel dx="2877" dy="2014" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="aIpOoPL3M61nN_0gYB39-0" />
+        <mxCell id="aIpOoPL3M61nN_0gYB39-1" parent="aIpOoPL3M61nN_0gYB39-0" />
+        <mxCell id="erEpX6iextVsw_6WMR4p-0" parent="aIpOoPL3M61nN_0gYB39-1" style="html=1;whiteSpace=wrap;fontSize=12;align=left;verticalAlign=top;spacing=8;fontFamily=Helvetica;rounded=1;arcSize=6;fillColor=none;strokeColor=none" value="&lt;b style=&quot;font-size:20px&quot;&gt;EcoCollect: Event-Driven Architecture&amp;nbsp;&lt;/b&gt;&lt;br&gt;Trigger → Producer → Event → Channel (outbox → RabbitMQ exchange → queue) → Consumer → Action" vertex="1">
+          <mxGeometry height="40" width="1600" x="20" y="-17" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-1" parent="aIpOoPL3M61nN_0gYB39-1" style="html=1;whiteSpace=wrap;fontSize=11;align=left;verticalAlign=top;spacing=8;fontFamily=Helvetica;rounded=1;arcSize=6;fillColor=#FFFBEA;strokeColor=#E0C46C" value="&lt;b style=&quot;font-size:16px&quot;&gt;Triggers&lt;/b&gt;&lt;br&gt;What causes an event to be produced (→ the event)" vertex="1">
+          <mxGeometry height="960" width="440" x="20" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-2" parent="aIpOoPL3M61nN_0gYB39-1" style="html=1;whiteSpace=wrap;fontSize=11;align=left;verticalAlign=top;spacing=8;fontFamily=Helvetica;rounded=1;arcSize=6;fillColor=#F5F5F5;strokeColor=#9E9E9E" value="&lt;b style=&quot;font-size:13px&quot;&gt;👤 User (web app)&lt;/b&gt;&lt;br&gt;• Updates their profile&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;→ &lt;b&gt;ProfileUpdated&lt;/b&gt;&lt;br&gt;• Activates a second role&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;→ &lt;b&gt;ProfileUpdated&lt;/b&gt;&lt;br&gt;• Deactivates their account&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;→ &lt;b&gt;AccountDeactivated&lt;/b&gt;" vertex="1">
+          <mxGeometry height="116" width="400" x="40" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-3" parent="aIpOoPL3M61nN_0gYB39-1" style="html=1;whiteSpace=wrap;fontSize=11;align=left;verticalAlign=top;spacing=8;fontFamily=Helvetica;rounded=1;arcSize=6;fillColor=#F5F5F5;strokeColor=#9E9E9E" value="&lt;b style=&quot;font-size:13px&quot;&gt;👤 Resident (web app)&lt;/b&gt;&lt;br&gt;• Creates a request&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;→ &lt;b&gt;RequestCreated&lt;/b&gt;&lt;br&gt;• Edits an Open request&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;→ &lt;b&gt;RequestUpdated&lt;/b&gt;&lt;br&gt;• Cancels a pickup request *&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;→ &lt;b&gt;RequestCancelled&lt;/b&gt;&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;(if Assigned: &lt;b&gt;RequestAssignmentCancelledResident&lt;/b&gt; first)&lt;br&gt;• Cancels an assignment *&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;→ &lt;b&gt;RequestAssignmentCancelledResident&lt;/b&gt;&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;then &lt;b&gt;RequestUpdated&lt;/b&gt; (reopened) or &lt;b&gt;RequestExpired&lt;/b&gt;&lt;br&gt;• Marks pickup as Collected&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;→ &lt;b&gt;RequestAssignmentCollected&lt;/b&gt;&lt;br&gt;• Reports a missed pickup&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;→ &lt;b&gt;RequestAssignmentMissed&lt;/b&gt;&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;(+ &lt;b&gt;RequestCreated&lt;/b&gt; if rescheduled)&lt;br&gt;• Edits / cancels an overdue Open request&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;→ &lt;b&gt;RequestExpired&lt;/b&gt;&lt;br&gt;&lt;i&gt;* only until the selected window ends&lt;/i&gt;" vertex="1">
+          <mxGeometry height="280" width="400" x="40" y="248" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-4" parent="aIpOoPL3M61nN_0gYB39-1" style="html=1;whiteSpace=wrap;fontSize=11;align=left;verticalAlign=top;spacing=8;fontFamily=Helvetica;rounded=1;arcSize=6;fillColor=#F5F5F5;strokeColor=#9E9E9E" value="&lt;b style=&quot;font-size:13px&quot;&gt;🚚 Volunteer (web app)&lt;/b&gt;&lt;br&gt;• Accepts a pickup request&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;→ &lt;b&gt;RequestAssigned&lt;/b&gt;&lt;br&gt;• Marks pickup as Delivered&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;→ &lt;b&gt;RequestAssignmentDelivered&lt;/b&gt;&lt;br&gt;• Cancels an assignment&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;→ &lt;b&gt;RequestAssignmentCancelledVolunteer&lt;/b&gt;&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;then &lt;b&gt;RequestUpdated&lt;/b&gt; (reopened) or &lt;b&gt;RequestExpired&lt;/b&gt;&lt;br&gt;• Accepts an overdue Open request&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;→ &lt;b&gt;RequestExpired&lt;/b&gt;" vertex="1">
+          <mxGeometry height="160" width="400" x="40" y="540" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-5" parent="aIpOoPL3M61nN_0gYB39-1" style="html=1;whiteSpace=wrap;fontSize=11;align=left;verticalAlign=top;spacing=8;fontFamily=Helvetica;rounded=1;arcSize=6;fillColor=#F5F5F5;strokeColor=#9E9E9E" value="&lt;b style=&quot;font-size:13px&quot;&gt;⚙ Request Service (internal)&lt;/b&gt;&lt;br&gt;• Confirms an Open request has expired after CleanupRequest&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;→ &lt;b&gt;RequestExpired&lt;/b&gt;" vertex="1">
+          <mxGeometry height="62" width="400" x="40" y="724" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-6" parent="aIpOoPL3M61nN_0gYB39-1" style="html=1;whiteSpace=wrap;fontSize=11;align=left;verticalAlign=top;spacing=8;fontFamily=Helvetica;rounded=1;arcSize=6;fillColor=#F5F5F5;strokeColor=#9E9E9E" value="&lt;b style=&quot;font-size:13px&quot;&gt;⚙ Reward created (internal)&lt;/b&gt;&lt;br&gt;• After a successful delivery&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;→ &lt;b&gt;PointsAwardedDelivery&lt;/b&gt;&lt;br&gt;• After a late resident cancellation (volunteer ≠ resident)&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;→ &lt;b&gt;PointsAwardedCancellation&lt;/b&gt;" vertex="1">
+          <mxGeometry height="90" width="400" x="40" y="802" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-7" parent="aIpOoPL3M61nN_0gYB39-1" style="html=1;whiteSpace=wrap;fontSize=11;align=left;verticalAlign=top;spacing=8;fontFamily=Helvetica;rounded=1;arcSize=6;fillColor=#F5F5F5;strokeColor=#9E9E9E" value="&lt;b style=&quot;font-size:13px&quot;&gt;⏰ Scheduled jobs fire (internal)&lt;/b&gt;&lt;br&gt;• A request&#39;s cleanup job is due (expiry, then every 5 min)&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;→ &lt;b&gt;CleanupRequest&lt;/b&gt;&lt;br&gt;• Daily at 03:00 Calgary&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;→ &lt;b&gt;NotificationCleanupRequested&lt;/b&gt;" vertex="1">
+          <mxGeometry height="90" width="400" x="40" y="908" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-8" parent="aIpOoPL3M61nN_0gYB39-1" style="html=1;whiteSpace=wrap;fontSize=11;align=center;verticalAlign=middle;spacing=8;fontFamily=Helvetica;rounded=1;arcSize=6;fillColor=#EEEEEE;strokeColor=#BDBDBD" value="&lt;b style=&quot;font-size:13px&quot;&gt;🛡 Caddy&lt;/b&gt;&lt;br&gt;API Gateway&lt;br&gt;&lt;br&gt;The only public service;&lt;br&gt;serves the frontend and&lt;br&gt;/api/* on one origin&lt;br&gt;&lt;br&gt;Checks auth with&lt;br&gt;forward_auth →&lt;br&gt;User Service /verify&lt;br&gt;&lt;br&gt;Routes each user action&lt;br&gt;as a REST call to the&lt;br&gt;service that owns it" vertex="1">
+          <mxGeometry height="580" width="170" x="500" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-9" parent="aIpOoPL3M61nN_0gYB39-1" style="html=1;whiteSpace=wrap;fontSize=11;align=left;verticalAlign=top;spacing=8;fontFamily=Helvetica;rounded=1;arcSize=6;fillColor=#EEF5FD;strokeColor=#9CC3E6" value="&lt;b style=&quot;font-size:16px&quot;&gt;Event Producers&lt;/b&gt;&lt;br&gt;Publish events to the broker" vertex="1">
+          <mxGeometry height="960" width="290" x="700" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-10" parent="aIpOoPL3M61nN_0gYB39-1" style="html=1;whiteSpace=wrap;fontSize=11;align=left;verticalAlign=middle;spacing=8;fontFamily=Helvetica;rounded=1;arcSize=6;fillColor=#D0EFEF;strokeColor=#3E9C9C" value="&lt;b style=&quot;font-size:13px&quot;&gt;👤 User Service&lt;/b&gt;&lt;br&gt;Owns accounts and profiles;&lt;br&gt;the only service that talks to Firebase" vertex="1">
+          <mxGeometry height="116" width="250" x="720" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-11" parent="aIpOoPL3M61nN_0gYB39-1" style="html=1;whiteSpace=wrap;fontSize=11;align=left;verticalAlign=middle;spacing=8;fontFamily=Helvetica;rounded=1;arcSize=6;fillColor=#DAE8FC;strokeColor=#6C8EBF" value="&lt;b style=&quot;font-size:13px&quot;&gt;📋 Request Service&lt;/b&gt;&lt;br&gt;Owns pickup requests, windows,&lt;br&gt;assignments, deliveries and photos;&lt;br&gt;saves each state change together&lt;br&gt;with its event in one DB transaction" vertex="1">
+          <mxGeometry height="538" width="250" x="720" y="248" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-12" parent="aIpOoPL3M61nN_0gYB39-1" style="html=1;whiteSpace=wrap;fontSize=11;align=left;verticalAlign=middle;spacing=8;fontFamily=Helvetica;rounded=1;arcSize=6;fillColor=#E1D5E7;strokeColor=#9673A6" value="&lt;b style=&quot;font-size:13px&quot;&gt;⭐ Reward Service&lt;/b&gt;&lt;br&gt;Creates EcoPoints rewards" vertex="1">
+          <mxGeometry height="90" width="250" x="720" y="802" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-13" parent="aIpOoPL3M61nN_0gYB39-1" style="html=1;whiteSpace=wrap;fontSize=11;align=left;verticalAlign=middle;spacing=8;fontFamily=Helvetica;rounded=1;arcSize=6;fillColor=#FFE6CC;strokeColor=#D79B00" value="&lt;b style=&quot;font-size:13px&quot;&gt;⏰ Cleanup Service&lt;/b&gt;&lt;br&gt;Reports expired Open requests;&lt;br&gt;requests the daily notification cleanup" vertex="1">
+          <mxGeometry height="90" width="250" x="720" y="908" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-14" parent="aIpOoPL3M61nN_0gYB39-1" style="html=1;whiteSpace=wrap;fontSize=11;align=left;verticalAlign=top;spacing=8;fontFamily=Helvetica;rounded=1;arcSize=6;fillColor=#EEF5FD;strokeColor=#9CC3E6" value="&lt;b style=&quot;font-size:16px&quot;&gt;Transactional Outboxes&lt;/b&gt;&lt;br&gt;One per producer, in its own schema" vertex="1">
+          <mxGeometry height="960" width="220" x="1030" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-15" parent="aIpOoPL3M61nN_0gYB39-1" style="html=1;whiteSpace=wrap;fontSize=11;align=left;verticalAlign=middle;spacing=8;fontFamily=Helvetica;rounded=1;arcSize=6;fillColor=#DAE8FC;strokeColor=#6C8EBF;align=center" value="&lt;b style=&quot;font-size:13px&quot;&gt;📤 User outbox&lt;/b&gt;&lt;br&gt;(users schema)" vertex="1">
+          <mxGeometry height="64" width="180" x="1050" y="146" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-16" parent="aIpOoPL3M61nN_0gYB39-1" style="html=1;whiteSpace=wrap;fontSize=11;align=left;verticalAlign=middle;spacing=8;fontFamily=Helvetica;rounded=1;arcSize=6;fillColor=#DAE8FC;strokeColor=#6C8EBF;align=center" value="&lt;b style=&quot;font-size:13px&quot;&gt;📤 Request outbox&lt;/b&gt;&lt;br&gt;(requests schema)" vertex="1">
+          <mxGeometry height="64" width="180" x="1050" y="485" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-17" parent="aIpOoPL3M61nN_0gYB39-1" style="html=1;whiteSpace=wrap;fontSize=11;align=left;verticalAlign=middle;spacing=8;fontFamily=Helvetica;rounded=1;arcSize=6;fillColor=#DAE8FC;strokeColor=#6C8EBF;align=center" value="&lt;b style=&quot;font-size:13px&quot;&gt;📤 Reward outbox&lt;/b&gt;&lt;br&gt;(rewards schema)" vertex="1">
+          <mxGeometry height="64" width="180" x="1050" y="815" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-18" parent="aIpOoPL3M61nN_0gYB39-1" style="html=1;whiteSpace=wrap;fontSize=11;align=left;verticalAlign=middle;spacing=8;fontFamily=Helvetica;rounded=1;arcSize=6;fillColor=#DAE8FC;strokeColor=#6C8EBF;align=center" value="&lt;b style=&quot;font-size:13px&quot;&gt;📤 Cleanup outbox&lt;/b&gt;&lt;br&gt;(cleanup schema)" vertex="1">
+          <mxGeometry height="64" width="180" x="1050" y="921" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-19" parent="aIpOoPL3M61nN_0gYB39-1" style="html=1;whiteSpace=wrap;fontSize=11;align=left;verticalAlign=top;spacing=8;fontFamily=Helvetica;rounded=1;arcSize=6;fillColor=#FFFFFF;strokeColor=#9CC3E6;dashed=1" value="&lt;b style=&quot;font-size:12px&quot;&gt;How each outbox works&lt;/b&gt;&lt;br&gt;1. The producer saves the state&lt;br&gt;&amp;nbsp;&amp;nbsp; change and its event in one&lt;br&gt;&amp;nbsp;&amp;nbsp; DB transaction&lt;br&gt;2. A publisher loop in the same&lt;br&gt;&amp;nbsp;&amp;nbsp; service sends unpublished&lt;br&gt;&amp;nbsp;&amp;nbsp; rows in order to RabbitMQ,&lt;br&gt;&amp;nbsp;&amp;nbsp; with publisher confirms;&lt;br&gt;&amp;nbsp;&amp;nbsp; published_at is set only&lt;br&gt;&amp;nbsp;&amp;nbsp; after the confirm&lt;br&gt;&lt;br&gt;No saved change loses its event.&lt;br&gt;The Notification Service&lt;br&gt;publishes nothing, so it&lt;br&gt;has no outbox." vertex="1">
+          <mxGeometry height="236" width="180" x="1050" y="230" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-20" parent="aIpOoPL3M61nN_0gYB39-1" style="html=1;whiteSpace=wrap;fontSize=12;align=center;verticalAlign=middle;spacing=8;fontFamily=Helvetica;rounded=1;arcSize=6;fillColor=#EADCF8;strokeColor=#8E6CC0" value="&lt;b style=&quot;font-size:18px&quot;&gt;Event Broker&lt;/b&gt;&lt;br&gt;&lt;br&gt;RabbitMQ&lt;br&gt;&lt;br&gt;&lt;b&gt;ecocollect.events&lt;/b&gt;&lt;br&gt;(topic exchange, durable)&lt;br&gt;&lt;br&gt;Receives every event from&lt;br&gt;the four outboxes and&lt;br&gt;routes it to the&lt;br&gt;queue of each service&lt;br&gt;subscribed to it&lt;br&gt;&lt;br&gt;Quorum queues: a message&lt;br&gt;that fails 5 times is&lt;br&gt;dead-lettered through&lt;br&gt;&lt;b&gt;ecocollect.dlx&lt;/b&gt; (direct)&lt;br&gt;to &amp;lt;queue&amp;gt;.dlq" vertex="1">
+          <mxGeometry height="878" width="220" x="1470" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-21" parent="aIpOoPL3M61nN_0gYB39-1" style="html=1;whiteSpace=wrap;fontSize=11;align=left;verticalAlign=top;spacing=8;fontFamily=Helvetica;rounded=1;arcSize=6;fillColor=#EEF5FD;strokeColor=#9CC3E6" value="&lt;b style=&quot;font-size:16px&quot;&gt;Event Consumers&lt;/b&gt;&lt;br&gt;React to events and perform actions" vertex="1">
+          <mxGeometry height="960" width="400" x="1910" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-22" parent="aIpOoPL3M61nN_0gYB39-1" style="html=1;whiteSpace=wrap;fontSize=11;align=left;verticalAlign=top;spacing=8;fontFamily=Helvetica;rounded=1;arcSize=6;fillColor=#D5E8D4;strokeColor=#82B366" value="&lt;b style=&quot;font-size:13px&quot;&gt;🔔 Notification Service&lt;/b&gt; &lt;i&gt;(one instance)&lt;/i&gt;&lt;br&gt;• Request*, Points*: saves a notification per recipient;&lt;br&gt;&amp;nbsp;&amp;nbsp;skips stale events (lower requestSeq) and&lt;br&gt;&amp;nbsp;&amp;nbsp;deactivated recipients&lt;br&gt;• Sends SSE updates so dashboards refresh, and&lt;br&gt;&amp;nbsp;&amp;nbsp;public profile / stats updates on the public stream&lt;br&gt;• Sends web push to the resident / volunteers&lt;br&gt;• Marks outdated notifications as expired and&lt;br&gt;&amp;nbsp;&amp;nbsp;removes them on the client (via the push, or&lt;br&gt;&amp;nbsp;&amp;nbsp;a silent push when no push is needed)&lt;br&gt;• ProfileUpdated: sends profile-updated over SSE&lt;br&gt;• AccountDeactivated: deletes the account&#39;s&lt;br&gt;&amp;nbsp;&amp;nbsp;notifications and push subscriptions, closes&lt;br&gt;&amp;nbsp;&amp;nbsp;its streams&lt;br&gt;• NotificationCleanupRequested: deletes expired&lt;br&gt;&amp;nbsp;&amp;nbsp;notifications" vertex="1">
+          <mxGeometry height="340" width="360" x="1930" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-23" parent="aIpOoPL3M61nN_0gYB39-1" style="html=1;whiteSpace=wrap;fontSize=11;align=left;verticalAlign=top;spacing=8;fontFamily=Helvetica;rounded=1;arcSize=6;fillColor=#FFE6CC;strokeColor=#D79B00" value="&lt;b style=&quot;font-size:13px&quot;&gt;⏰ Cleanup Service&lt;/b&gt;&lt;br&gt;• RequestCreated, RequestUpdated: schedules (upserts)&lt;br&gt;&amp;nbsp;&amp;nbsp;a job at the request&#39;s expiry, only if requestSeq&lt;br&gt;&amp;nbsp;&amp;nbsp;is higher&lt;br&gt;• A due job stays pending and re-fires&lt;br&gt;&amp;nbsp;&amp;nbsp;CleanupRequest every 5 min&lt;br&gt;• RequestAssigned, RequestCancelled, RequestExpired:&lt;br&gt;&amp;nbsp;&amp;nbsp;marks &quot;no job&quot; with that requestSeq (the only&lt;br&gt;&amp;nbsp;&amp;nbsp;way a job ends)" vertex="1">
+          <mxGeometry height="160" width="360" x="1930" y="490" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-24" parent="aIpOoPL3M61nN_0gYB39-1" style="html=1;whiteSpace=wrap;fontSize=11;align=left;verticalAlign=top;spacing=8;fontFamily=Helvetica;rounded=1;arcSize=6;fillColor=#E1D5E7;strokeColor=#9673A6" value="&lt;b style=&quot;font-size:13px&quot;&gt;⭐ Reward Service&lt;/b&gt;&lt;br&gt;• RequestAssignmentDelivered: creates rewards for&lt;br&gt;&amp;nbsp;&amp;nbsp;the resident and the volunteer&lt;br&gt;• RequestAssignmentCancelledResident, late and&lt;br&gt;&amp;nbsp;&amp;nbsp;volunteer ≠ resident: creates a reward for the&lt;br&gt;&amp;nbsp;&amp;nbsp;volunteer (otherwise nothing)" vertex="1">
+          <mxGeometry height="130" width="360" x="1930" y="680" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-25" parent="aIpOoPL3M61nN_0gYB39-1" style="html=1;whiteSpace=wrap;fontSize=11;align=left;verticalAlign=top;spacing=8;fontFamily=Helvetica;rounded=1;arcSize=6;fillColor=#DAE8FC;strokeColor=#6C8EBF" value="&lt;b style=&quot;font-size:13px&quot;&gt;📋 Request Service&lt;/b&gt;&lt;br&gt;• CleanupRequest: locks the request; if it is still&lt;br&gt;&amp;nbsp;&amp;nbsp;Open and expired, marks it Expired;&lt;br&gt;&amp;nbsp;&amp;nbsp;otherwise does nothing" vertex="1">
+          <mxGeometry height="110" width="360" x="1930" y="840" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-26" parent="aIpOoPL3M61nN_0gYB39-1" style="html=1;whiteSpace=wrap;fontSize=11;align=left;verticalAlign=top;spacing=8;fontFamily=Helvetica;rounded=1;arcSize=6;fillColor=#FFFFFF;strokeColor=#BBBBBB;dashed=1" value="&lt;b style=&quot;font-size:14px&quot;&gt;Database (one shared instance, one schema per service)&lt;/b&gt;" vertex="1">
+          <mxGeometry height="150" width="1860" x="20" y="1050" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-27" parent="aIpOoPL3M61nN_0gYB39-1" style="shape=cylinder3;boundedLbl=1;backgroundOutline=1;size=12;html=1;whiteSpace=wrap;fontSize=11;align=center;verticalAlign=middle;spacing=8;fontFamily=Helvetica;fillColor=#DAE8FC;strokeColor=#6C8EBF" value="&lt;b style=&quot;font-size:13px&quot;&gt;PostgreSQL&lt;/b&gt;&lt;br&gt;One instance, one schema per service" vertex="1">
+          <mxGeometry height="95" width="260" x="900" y="1090" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-28" parent="aIpOoPL3M61nN_0gYB39-1" style="html=1;whiteSpace=wrap;fontSize=12;align=left;verticalAlign=middle;spacing=8;fontFamily=Helvetica;rounded=1;arcSize=6;fillColor=none;strokeColor=none" value="Schemas: users · requests · rewards · notifications · cleanup&lt;br&gt;Each table has one writer, except TERMS_ACCEPTANCE (insert-only, User + Request)&lt;div&gt;Every service can read every schema&lt;/div&gt;" vertex="1">
+          <mxGeometry height="80" width="600" x="1220" y="1100" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-29" parent="aIpOoPL3M61nN_0gYB39-1" style="html=1;whiteSpace=wrap;fontSize=12;align=left;verticalAlign=middle;spacing=8;fontFamily=Helvetica;rounded=1;arcSize=6;fillColor=none;strokeColor=none" value="User · Request · Reward · Cleanup · Notification services&lt;br&gt;→ one PostgreSQL instance&lt;br&gt;(each producer&#39;s outbox table lives in its own schema)" vertex="1">
+          <mxGeometry height="80" width="600" x="40" y="1100" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-30" parent="aIpOoPL3M61nN_0gYB39-1" style="html=1;whiteSpace=wrap;fontSize=11;align=left;verticalAlign=top;spacing=8;fontFamily=Helvetica;rounded=1;arcSize=6;fillColor=#EEEEEE;strokeColor=#BDBDBD" value="&lt;b style=&quot;font-size:14px&quot;&gt;External Services&lt;/b&gt;" vertex="1">
+          <mxGeometry height="100" width="1860" x="20" y="1220" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-31" parent="aIpOoPL3M61nN_0gYB39-1" style="html=1;whiteSpace=wrap;fontSize=11;align=left;verticalAlign=middle;spacing=8;fontFamily=Helvetica;rounded=1;arcSize=6;fillColor=#FFFFFF;strokeColor=#BBBBBB" value="&lt;b style=&quot;font-size:13px&quot;&gt;🔐 Firebase Auth&lt;/b&gt;&lt;br&gt;User sign-in (client SDK) and token checks;&lt;br&gt;only the User Service calls Admin SDK" vertex="1">
+          <mxGeometry height="64" width="340" x="240" y="1245" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-32" parent="aIpOoPL3M61nN_0gYB39-1" style="html=1;whiteSpace=wrap;fontSize=11;align=left;verticalAlign=middle;spacing=8;fontFamily=Helvetica;rounded=1;arcSize=6;fillColor=#FFFFFF;strokeColor=#BBBBBB" value="&lt;b style=&quot;font-size:13px&quot;&gt;🖼 ImageKit&lt;/b&gt;&lt;br&gt;Photo storage: the browser uploads directly;&lt;br&gt;the Request Service signs uploads and URLs" vertex="1">
+          <mxGeometry height="64" width="340" x="620" y="1245" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-33" parent="aIpOoPL3M61nN_0gYB39-1" style="html=1;whiteSpace=wrap;fontSize=11;align=left;verticalAlign=top;spacing=8;fontFamily=Helvetica;rounded=1;arcSize=6;fillColor=#FFFFFF;strokeColor=#BBBBBB;dashed=1" value="&lt;b style=&quot;font-size:13px&quot;&gt;All Events (16)&lt;/b&gt;&lt;br&gt;• RequestCreated&amp;nbsp;&amp;nbsp;(Request)&lt;br&gt;• RequestUpdated&amp;nbsp;&amp;nbsp;(Request)&lt;br&gt;• RequestAssigned&amp;nbsp;&amp;nbsp;(Request)&lt;br&gt;• RequestAssignmentCollected&amp;nbsp;&amp;nbsp;(Request)&lt;br&gt;• RequestAssignmentDelivered&amp;nbsp;&amp;nbsp;(Request)&lt;br&gt;• RequestAssignmentCancelledResident&amp;nbsp;&amp;nbsp;(Request)&lt;br&gt;• RequestAssignmentCancelledVolunteer&amp;nbsp;&amp;nbsp;(Request)&lt;br&gt;• RequestAssignmentMissed&amp;nbsp;&amp;nbsp;(Request)&lt;br&gt;• RequestCancelled&amp;nbsp;&amp;nbsp;(Request)&lt;br&gt;• RequestExpired&amp;nbsp;&amp;nbsp;(Request)&lt;br&gt;• PointsAwardedDelivery&amp;nbsp;&amp;nbsp;(Reward)&lt;br&gt;• PointsAwardedCancellation&amp;nbsp;&amp;nbsp;(Reward)&lt;br&gt;• CleanupRequest&amp;nbsp;&amp;nbsp;(Cleanup)&lt;br&gt;• NotificationCleanupRequested&amp;nbsp;&amp;nbsp;(Cleanup)&lt;br&gt;• ProfileUpdated&amp;nbsp;&amp;nbsp;(User)&lt;br&gt;• AccountDeactivated&amp;nbsp;&amp;nbsp;(User)" vertex="1">
+          <mxGeometry height="270" width="400" x="1910" y="1050" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-34" edge="1" parent="aIpOoPL3M61nN_0gYB39-1" source="erEpX6iextVsw_6WMR4p-2" style="endArrow=block;endFill=1;html=1;rounded=0;strokeWidth=1.5;strokeColor=#555555;fontSize=10;labelBackgroundColor=#FFFFFF;align=center;exitX=1;exitY=0.5000;entryX=0;entryY=0.1000;exitDx=0;exitDy=0;entryDx=0;entryDy=0" target="erEpX6iextVsw_6WMR4p-8" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-35" edge="1" parent="aIpOoPL3M61nN_0gYB39-1" source="erEpX6iextVsw_6WMR4p-3" style="endArrow=block;endFill=1;html=1;rounded=0;strokeWidth=1.5;strokeColor=#555555;fontSize=10;labelBackgroundColor=#FFFFFF;align=center;exitX=1;exitY=0.5000;entryX=0;entryY=0.4621;exitDx=0;exitDy=0;entryDx=0;entryDy=0" target="erEpX6iextVsw_6WMR4p-8" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-36" edge="1" parent="aIpOoPL3M61nN_0gYB39-1" source="erEpX6iextVsw_6WMR4p-4" style="endArrow=block;endFill=1;html=1;rounded=0;strokeWidth=1.5;strokeColor=#555555;fontSize=10;labelBackgroundColor=#FFFFFF;align=center;exitX=1;exitY=0.5000;entryX=0;entryY=0.8621;exitDx=0;exitDy=0;entryDx=0;entryDy=0" target="erEpX6iextVsw_6WMR4p-8" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-37" edge="1" parent="aIpOoPL3M61nN_0gYB39-1" source="erEpX6iextVsw_6WMR4p-8" style="endArrow=block;endFill=1;html=1;rounded=0;strokeWidth=1.5;strokeColor=#555555;fontSize=10;labelBackgroundColor=#FFFFFF;align=center;exitX=1;exitY=0.1000;entryX=0;entryY=0.5000;exitDx=0;exitDy=0;entryDx=0;entryDy=0" target="erEpX6iextVsw_6WMR4p-10" value="REST">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-38" edge="1" parent="aIpOoPL3M61nN_0gYB39-1" source="erEpX6iextVsw_6WMR4p-8" style="endArrow=block;endFill=1;html=1;rounded=0;strokeWidth=1.5;strokeColor=#555555;fontSize=10;labelBackgroundColor=#FFFFFF;align=center;exitX=1;exitY=0.4990;entryX=0;entryY=0.3000;exitDx=0;exitDy=0;entryDx=0;entryDy=0" target="erEpX6iextVsw_6WMR4p-11" value="REST">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-39" edge="1" parent="aIpOoPL3M61nN_0gYB39-1" source="erEpX6iextVsw_6WMR4p-5" style="endArrow=block;endFill=1;html=1;rounded=0;strokeWidth=1.5;strokeColor=#555555;fontSize=10;labelBackgroundColor=#FFFFFF;align=center;exitX=1;exitY=0.5000;entryX=0;entryY=0.9424;exitDx=0;exitDy=0;entryDx=0;entryDy=0" target="erEpX6iextVsw_6WMR4p-11" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-40" edge="1" parent="aIpOoPL3M61nN_0gYB39-1" source="erEpX6iextVsw_6WMR4p-6" style="endArrow=block;endFill=1;html=1;rounded=0;strokeWidth=1.5;strokeColor=#555555;fontSize=10;labelBackgroundColor=#FFFFFF;align=center;exitX=1;exitY=0.5000;entryX=0;entryY=0.5000;exitDx=0;exitDy=0;entryDx=0;entryDy=0" target="erEpX6iextVsw_6WMR4p-12" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-41" edge="1" parent="aIpOoPL3M61nN_0gYB39-1" source="erEpX6iextVsw_6WMR4p-7" style="endArrow=block;endFill=1;html=1;rounded=0;strokeWidth=1.5;strokeColor=#555555;fontSize=10;labelBackgroundColor=#FFFFFF;align=center;exitX=1;exitY=0.5000;entryX=0;entryY=0.5000;exitDx=0;exitDy=0;entryDx=0;entryDy=0" target="erEpX6iextVsw_6WMR4p-13" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-42" edge="1" parent="aIpOoPL3M61nN_0gYB39-1" source="erEpX6iextVsw_6WMR4p-10" style="endArrow=block;endFill=1;html=1;rounded=0;strokeWidth=1.5;strokeColor=#555555;fontSize=10;labelBackgroundColor=#FFFFFF;align=center;exitX=1;exitY=0.5000;entryX=0;entryY=0.5000;exitDx=0;exitDy=0;entryDx=0;entryDy=0" target="erEpX6iextVsw_6WMR4p-15" value="same DB&lt;br&gt;transaction">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-43" edge="1" parent="aIpOoPL3M61nN_0gYB39-1" source="erEpX6iextVsw_6WMR4p-11" style="endArrow=block;endFill=1;html=1;rounded=0;strokeWidth=1.5;strokeColor=#555555;fontSize=10;labelBackgroundColor=#FFFFFF;align=center;exitX=1;exitY=0.5000;entryX=0;entryY=0.5000;exitDx=0;exitDy=0;entryDx=0;entryDy=0" target="erEpX6iextVsw_6WMR4p-16" value="same DB&lt;br&gt;transaction">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-44" edge="1" parent="aIpOoPL3M61nN_0gYB39-1" source="erEpX6iextVsw_6WMR4p-12" style="endArrow=block;endFill=1;html=1;rounded=0;strokeWidth=1.5;strokeColor=#555555;fontSize=10;labelBackgroundColor=#FFFFFF;align=center;exitX=1;exitY=0.5000;entryX=0;entryY=0.5000;exitDx=0;exitDy=0;entryDx=0;entryDy=0" target="erEpX6iextVsw_6WMR4p-17" value="same DB&lt;br&gt;transaction">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-45" edge="1" parent="aIpOoPL3M61nN_0gYB39-1" source="erEpX6iextVsw_6WMR4p-13" style="endArrow=block;endFill=1;html=1;rounded=0;strokeWidth=1.5;strokeColor=#555555;fontSize=10;labelBackgroundColor=#FFFFFF;align=center;exitX=1;exitY=0.5000;entryX=0;entryY=0.5000;exitDx=0;exitDy=0;entryDx=0;entryDy=0" target="erEpX6iextVsw_6WMR4p-18" value="same DB&lt;br&gt;transaction">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-46" edge="1" parent="aIpOoPL3M61nN_0gYB39-1" source="erEpX6iextVsw_6WMR4p-15" style="endArrow=block;endFill=1;html=1;rounded=0;strokeWidth=1.5;strokeColor=#555555;fontSize=10;labelBackgroundColor=#FFFFFF;align=center;exitX=1;exitY=0.5000;entryX=0;entryY=0.0661;exitDx=0;exitDy=0;entryDx=0;entryDy=0" target="erEpX6iextVsw_6WMR4p-20" value="ProfileUpdated&lt;br&gt;AccountDeactivated">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-47" edge="1" parent="aIpOoPL3M61nN_0gYB39-1" source="erEpX6iextVsw_6WMR4p-16" style="endArrow=block;endFill=1;html=1;rounded=0;strokeWidth=1.5;strokeColor=#555555;fontSize=10;labelBackgroundColor=#FFFFFF;align=center;exitX=1;exitY=0.5000;entryX=0;entryY=0.4522;exitDx=0;exitDy=0;entryDx=0;entryDy=0" target="erEpX6iextVsw_6WMR4p-20" value="RequestCreated&lt;br&gt;RequestUpdated&lt;br&gt;RequestAssigned&lt;br&gt;RequestAssignmentCollected&lt;br&gt;RequestAssignmentDelivered&lt;br&gt;RequestAssignmentCancelledResident&lt;br&gt;RequestAssignmentCancelledVolunteer&lt;br&gt;RequestAssignmentMissed&lt;br&gt;RequestCancelled&lt;br&gt;RequestExpired">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-48" edge="1" parent="aIpOoPL3M61nN_0gYB39-1" source="erEpX6iextVsw_6WMR4p-17" style="endArrow=block;endFill=1;html=1;rounded=0;strokeWidth=1.5;strokeColor=#555555;fontSize=10;labelBackgroundColor=#FFFFFF;align=center;exitX=1;exitY=0.5000;entryX=0;entryY=0.8280;exitDx=0;exitDy=0;entryDx=0;entryDy=0" target="erEpX6iextVsw_6WMR4p-20" value="PointsAwardedDelivery&lt;br&gt;PointsAwardedCancellation">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-49" edge="1" parent="aIpOoPL3M61nN_0gYB39-1" source="erEpX6iextVsw_6WMR4p-18" style="endArrow=block;endFill=1;html=1;rounded=0;strokeWidth=1.5;strokeColor=#555555;fontSize=10;labelBackgroundColor=#FFFFFF;align=center;exitX=1;exitY=0.5000;entryX=0;entryY=0.9487;exitDx=0;exitDy=0;entryDx=0;entryDy=0" target="erEpX6iextVsw_6WMR4p-20" value="CleanupRequest&lt;br&gt;NotificationCleanupRequested">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-50" edge="1" parent="aIpOoPL3M61nN_0gYB39-1" source="erEpX6iextVsw_6WMR4p-20" style="endArrow=block;endFill=1;html=1;rounded=0;strokeWidth=1.5;strokeColor=#555555;fontSize=10;labelBackgroundColor=#FFFFFF;align=center;exitX=1;exitY=0.1936;entryX=0;entryY=0.5000;exitDx=0;exitDy=0;entryDx=0;entryDy=0" target="erEpX6iextVsw_6WMR4p-22" value="&lt;b&gt;queue notification.events&lt;/b&gt; (15)&lt;br&gt;RequestCreated&lt;br&gt;RequestUpdated&lt;br&gt;RequestAssigned&lt;br&gt;RequestAssignmentCollected&lt;br&gt;RequestAssignmentDelivered&lt;br&gt;RequestAssignmentCancelledResident&lt;br&gt;RequestAssignmentCancelledVolunteer&lt;br&gt;RequestAssignmentMissed&lt;br&gt;RequestCancelled&lt;br&gt;RequestExpired&lt;br&gt;PointsAwardedDelivery&lt;br&gt;PointsAwardedCancellation&lt;br&gt;NotificationCleanupRequested&lt;br&gt;ProfileUpdated&lt;br&gt;AccountDeactivated">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-51" edge="1" parent="aIpOoPL3M61nN_0gYB39-1" source="erEpX6iextVsw_6WMR4p-20" style="endArrow=block;endFill=1;html=1;rounded=0;strokeWidth=1.5;strokeColor=#555555;fontSize=10;labelBackgroundColor=#FFFFFF;align=center;exitX=1;exitY=0.5125;entryX=0;entryY=0.5000;exitDx=0;exitDy=0;entryDx=0;entryDy=0" target="erEpX6iextVsw_6WMR4p-23" value="&lt;b&gt;queue cleanup.request-events&lt;/b&gt;&lt;br&gt;RequestCreated&lt;br&gt;RequestUpdated&lt;br&gt;RequestAssigned&lt;br&gt;RequestCancelled&lt;br&gt;RequestExpired">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-52" edge="1" parent="aIpOoPL3M61nN_0gYB39-1" source="erEpX6iextVsw_6WMR4p-20" style="endArrow=block;endFill=1;html=1;rounded=0;strokeWidth=1.5;strokeColor=#555555;fontSize=10;labelBackgroundColor=#FFFFFF;align=center;exitX=1;exitY=0.7118;entryX=0;entryY=0.5000;exitDx=0;exitDy=0;entryDx=0;entryDy=0" target="erEpX6iextVsw_6WMR4p-24" value="&lt;b&gt;queue reward.request-events&lt;/b&gt;&lt;br&gt;RequestAssignmentDelivered&lt;br&gt;RequestAssignmentCancelledResident">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="erEpX6iextVsw_6WMR4p-53" edge="1" parent="aIpOoPL3M61nN_0gYB39-1" source="erEpX6iextVsw_6WMR4p-20" style="endArrow=block;endFill=1;html=1;rounded=0;strokeWidth=1.5;strokeColor=#555555;fontSize=10;labelBackgroundColor=#FFFFFF;align=center;exitX=1;exitY=0.8827;entryX=0;entryY=0.5000;exitDx=0;exitDy=0;entryDx=0;entryDy=0" target="erEpX6iextVsw_6WMR4p-25" value="&lt;b&gt;queue request.cleanup-events&lt;/b&gt;&lt;br&gt;CleanupRequest">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
