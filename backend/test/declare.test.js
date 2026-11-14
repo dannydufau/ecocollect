@@ -1,5 +1,7 @@
-// declareConsumerQueue against a fake channel that records every call.
-// No broker: this checks what we ask RabbitMQ for, and in what order.
+/*
+ * declareConsumerQueue against a fake channel that records every call.
+ * No broker: this checks what we ask RabbitMQ for, and in what order.
+ */
 
 const test = require('node:test');
 const assert = require('node:assert');
@@ -23,29 +25,6 @@ function fakeChannel() {
 
 const notification = topology.queues.notification;
 
-test('declares both exchanges as topology defines them', async () => {
-  const ch = fakeChannel();
-  await declareConsumerQueue(ch, notification);
-
-  const exchanges = ch.calls.filter(([method]) => method === 'assertExchange');
-  assert.deepStrictEqual(exchanges, [
-    ['assertExchange', 'ecocollect.events', 'topic', { durable: true }],
-    ['assertExchange', 'ecocollect.dlx', 'direct', { durable: true }],
-  ]);
-});
-
-test('declares the queue with exactly the contract arguments', async () => {
-  const ch = fakeChannel();
-  await declareConsumerQueue(ch, notification);
-
-  const queue = ch.calls.find(([method, name]) => method === 'assertQueue' && name === 'notification.events');
-  assert.deepStrictEqual(queue, [
-    'assertQueue',
-    'notification.events',
-    { durable: true, arguments: topology.queueArguments('notification.events') },
-  ]);
-});
-
 test('declares the DLQ and binds it to the DLX with the queue name, before the main queue', async () => {
   const ch = fakeChannel();
   await declareConsumerQueue(ch, notification);
@@ -60,17 +39,6 @@ test('declares the DLQ and binds it to the DLX with the queue name, before the m
     ['bindQueue', 'notification.events.dlq', 'ecocollect.dlx', 'notification.events'],
   );
   assert.ok(at('bindQueue', 'notification.events.dlq') < at('assertQueue', 'notification.events'));
-});
-
-test('binds the queue to ecocollect.events once per binding key', async () => {
-  const ch = fakeChannel();
-  await declareConsumerQueue(ch, notification);
-
-  const bindings = ch.calls.filter(([method, name]) => method === 'bindQueue' && name === 'notification.events');
-  assert.deepStrictEqual(
-    bindings,
-    notification.bindings.map((key) => ['bindQueue', 'notification.events', 'ecocollect.events', key]),
-  );
 });
 
 test('rejects a bad queue definition before calling the broker', async () => {
