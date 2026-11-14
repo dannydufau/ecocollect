@@ -1,11 +1,10 @@
 'use strict';
 
-// Consumes one service's queue from ecocollect.events.
-//
-// The queue is a topology.queues entry: a durable quorum queue shared by the
-// service, declared (with its DLQ) by declare.js on every connect. Events wait
-// in the queue while the service is down. Run one instance per queue: a second
-// would split the events between them.
+/*
+ * Consumes one service's durable quorum queue (a topology.queues entry),
+ * declared with its DLQ by declare.js on every connect. Run one instance per
+ * queue: a second would split the events between them.
+ */
 
 const amqp = require('amqplib');
 const { events, DELIVERY_LIMIT } = require('./topology');
@@ -15,10 +14,10 @@ const DEFAULT_RETRY_MS = 5000;
 const DEFAULT_PREFETCH = 1; // one message at a time keeps each request's events in order
 
 /**
- * Start consuming one queue
+ * Start consuming one queue.
  *
  * @param {object}   opts
- * @param {object}   opts.queue       topology.queues.notification
+ * @param {object}   opts.queue       a topology.queues entry, e.g. topology.queues.notification
  * @param {string}   [opts.url]       AMQP URL (defaults to RABBITMQ_URL)
  * @param {object}   opts.handlers    { [eventType]: (envelope, fields) => void|Promise };
  *                                    keys must be event names from topology.events
@@ -71,8 +70,10 @@ function startSubscriber({
       });
 
       const ch = await attempt.createChannel();
-      // A channel-level failure leaves the connection up but stops delivery.
-      // Close the connection so the normal reconnect path rebuilds everything.
+      /*
+       * A channel-level failure leaves the connection up but stops delivery.
+       * Close the connection so the normal reconnect path rebuilds everything.
+       */
       ch.on('error', (err) => log.error('[subscriber] channel error:', err.message));
       ch.on('close', () => {
         if (!stopped) attempt.close().catch(() => {});
@@ -92,7 +93,7 @@ function startSubscriber({
 
   function onMessage(ch, connection, msg) {
     if (msg === null) {
-      // Broker cancelled the consumer with null (e.g. queue deleted). Start over.
+      // The broker cancelled the consumer (e.g. queue deleted): start over.
       log.warn('[subscriber] consumer cancelled by broker');
       connection.close().catch(() => {});
       return;
@@ -103,15 +104,12 @@ function startSubscriber({
       envelope = JSON.parse(msg.content.toString('utf8'));
     } catch (err) {
       log.error(`[subscriber] unparseable message, dead-lettering: ${err.message}`);
-      // requeue set false -> dlx
       safeReject(ch, msg, false);
       return;
     }
 
     const type = eventTypeOf(envelope);
-
     if (typeof type !== 'string' || type === '') {
-      // Broken msg -> dlx
       log.error(`[subscriber] message without an event type, dead-lettering (${msg.fields.routingKey})`);
       safeReject(ch, msg, false);
       return;
@@ -129,8 +127,10 @@ function startSubscriber({
       .then(
         () => safeAck(ch, msg),
         (err) => {
-          // Retry: RabbitMQ counts the reject and dead-letters the message
-          // on its 5th failure (x-delivery-limit), so this can't loop forever.
+          /*
+           * Retry: RabbitMQ counts the reject and dead-letters the message
+           * on its 5th failure (x-delivery-limit), so this can't loop forever.
+           */
           const attempt = deliveryCount(msg);
           const dying = attempt >= DELIVERY_LIMIT;
           (dying ? log.error : log.warn)(
@@ -143,9 +143,10 @@ function startSubscriber({
       );
   }
 
-  // If the channel closed mid-handler, ack/reject throws. Nothing is lost: the
-  // unacked message stays in the queue, and RabbitMQ redelivers it after we
-  // reconnect (counted as a delivery attempt).
+  /*
+   * If the channel closed mid-handler, ack/reject throws. Nothing is lost: the
+   * unacked message is redelivered after we reconnect.
+   */
   function safeAck(ch, msg) {
     try { ch.ack(msg); } catch { /* channel closed */ }
   }
@@ -173,9 +174,11 @@ function startSubscriber({
   return { stop };
 }
 
-// Fail fast on startup: a misspelled event name would otherwise just never
-// fire. A Map (not the plain object) also means a message whose type is
-// "constructor" or "toString" can't reach an inherited Object method.
+/*
+ * Fail fast on startup: a misspelled event name would otherwise never fire.
+ * A Map (not a plain object) means a type like "constructor" can't reach an
+ * inherited Object method.
+ */
 function buildHandlerMap(handlers) {
   const map = new Map();
   for (const [type, fn] of Object.entries(handlers)) {
@@ -192,7 +195,7 @@ function buildHandlerMap(handlers) {
   return map;
 }
 
-// Envelope field that names the event. Adjust if asyncapi.yaml uses another name.
+// The envelope field that names the event.
 function eventTypeOf(envelope) {
   return envelope && envelope.type;
 }

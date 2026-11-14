@@ -1,5 +1,7 @@
-// Declares a consumer's queue, its DLQ and both exchanges, exactly as topology.js
-// defines them. Separate from subscriber.js so setup can be tested on its own.
+/*
+ * Declares a consumer's queue, its DLQ and both exchanges, exactly as topology.js
+ * defines them. Separate from subscriber.js so setup can be tested on its own.
+ */
 
 const { exchange, deadLetterExchange, queueArguments, deadLetterQueueName } = require('./topology');
 

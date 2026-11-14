@@ -27,19 +27,19 @@ if (!process.env.RABBITMQ_URL) {
 // One hub per process: the route adds and removes tabs, deliveries write to them.
 const hub = createHub();
 
-// --- HTTP: the SSE endpoint ---------------------------------------------------
+// HTTP: the SSE endpoint
 
 const app = express();
 app.use(createEventsRouter(hub));
 
-// Compose sets PORT=80 (Caddy proxies to "notification" without a port).
-// Locally, default to 3002 so it doesn't clash with the API server on 3001.
+/*
+ * Compose sets PORT=80 (Caddy proxies to "notification" without a port).
+ * Locally, default to 3002 so it doesn't clash with the API server on 3001.
+ */
 const port = Number(process.env.PORT || 3002);
 const server = app.listen(port, () => console.log(`Notification service listening on port ${port}`));
 
-// The adapter between the subscriber and the hub. requestCreated decides who
-// gets which signal; this delivers them. If requestCreated throws (a broken
-// event), the subscriber logs it and nacks the message.
+// requestCreated decides who gets which signal; this delivers them to open tabs.
 function deliverRequestCreated(envelope) {
   for (const { uid, signal } of requestCreated(envelope)) {
     const tabs = hub.send(uid, signal);
@@ -53,8 +53,7 @@ const subscriber = startSubscriber({
   handlers: { RequestCreated: deliverRequestCreated },
 });
 
-// --- Shutdown ---------------------------------------------------------------------
-// `docker compose stop` sends SIGTERM, then kills the process after 10 s.
+// Shutdown: `docker compose stop` sends SIGTERM, then kills after 10 s
 
 let stopping = false;
 
