@@ -7,7 +7,7 @@ const resident: Record<Status, string> = {
     Collected: "Your items were collected and are on their way to a facility.",
     Delivered: "Your items were delivered.",
     Cancelled: "This request was cancelled.",
-    Expired: "No volunteer accepted this request before its last window started.",
+    Expired: "This request has expired.",
     Missed: "The pickup was reported as missed.",
 };
 
