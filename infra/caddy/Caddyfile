@@ -19,44 +19,44 @@
 }
 
 localhost {
-	@verify-path path /verify
-
 	# strip any headers, that would be used internally by the services
 	import strip-headers-add-request-id
 
 	handle /api/* {
-		# for ordered matching, reward public paths must come first to avoid conflicts with user public paths
-		route {
-			@reward-public-paths {
-				method GET
-				path /api/public/profiles/*/stats /api/public/stats
-			}
+		# reward paths, public
+		@reward-public-paths <<CEL
+			(method('GET') && (path('/api/public/stats') || path_regexp('^/api/public/profiles/[^/]+/stats$')))
+			CEL
 
-			handle @reward-public-paths {
-				reverse_proxy reward
-			}
-
-			@user-public-paths <<CEL
-				(method('POST') && path('/api/session', '/api/accounts')) ||
-				(method('DELETE') && path('/api/session')) ||
-				(method('GET') && path('/api/terms', '/api/public/profiles/*'))
-				CEL
-
-			handle @user-public-paths {
-				reverse_proxy user
-			}
-
-			# goes inside route because a `handle` sibling to a `route` always uses `handle` first 
-			handle {
-				error "Not found" 404
-			}
+		handle @reward-public-paths {
+			reverse_proxy reward
 		}
 
+		# reward paths, auth
+		@reward-paths <<CEL
+			(method('GET') && path('/api/ecopoints'))
+			CEL
+
+		handle @reward-paths {
+			import verify-auth
+			reverse_proxy reward
+		}
+
+		# user paths, public
+		@user-public-paths <<CEL
+			(method('POST', 'DELETE') && path('/api/session')) ||
+			(method('POST') && path('/api/accounts')) ||
+			(method('GET') && (path('/api/terms') || path_regexp('^/api/public/profiles/[^/]+$')))
+			CEL
+
+		handle @user-public-paths {
+			reverse_proxy user
+		}
+
+		# user paths, auth
 		@user-paths <<CEL
-			(method('GET') && path('/api/profile')) ||
-			(method('PATCH') && path('/api/profile')) ||
-			(method('POST') && path('/api/profile/roles')) ||
-			(method('DELETE') && path('/api/profile'))
+			(method('GET', 'PATCH', 'DELETE') && path('/api/profile')) ||
+			(method('POST') && path('/api/profile/roles'))
 			CEL
 
 		handle @user-paths {
@@ -64,22 +64,46 @@ localhost {
 			reverse_proxy user
 		}
 
-		@request-paths path /api/categories /api/categories/* /api/requests /api/requests/* /api/profile /api/profile/*
+		# request paths, auth
+		@request-paths <<CEL
+			(method('GET') && (path('/api/categories', '/api/facilities', '/api/requests') || path_regexp('^/api/requests/[^/]+$'))) ||
+			(method('POST') && (path('/api/uploads', '/api/requests') || path_regexp('^/api/requests/[^/]+/(cancel|assignment|assignment/(cancel|collected|missed|delivery))$'))) ||
+			(method('PATCH') && path_regexp('^/api/requests/[^/]+$'))
+			CEL
 
 		handle @request-paths {
 			import verify-auth
 			reverse_proxy request
 		}
 
-		@notification-public-paths path /api/public/events
+		# notification paths, public
 
-		@notification-paths path /api/events /api/notifications /api/notifications/* /api/push/subscriptions
+		@notification-public-paths <<CEL
+			(method('GET') && path('/api/public/events'))
+			CEL
+
+		handle @notification-public-paths {
+			reverse_proxy notification
+		}
+
+		@notification-paths <<CEL
+			(method('GET') && path('/api/events', '/api/notifications')) ||
+			(method('PATCH') && path_regexp('^/api/notifications/[^/]+/read$')) ||
+			(method('POST') && path('/api/notifications/read-all', '/api/push/subscriptions')) ||
+			(method('DELETE') && path('/api/push/subscriptions'))
+			CEL
 
 		handle @notification-paths {
 			import verify-auth
 			reverse_proxy notification
 		}
+
+		handle {
+			error "Not found" 404
+		}
 	}
+
+	@verify-path path /verify
 
 	handle @verify-path {
 		error "Not found" 404
@@ -92,7 +116,7 @@ localhost {
 	handle_errors {
 		handle /api/* {
 			header Content-Type application/json
-			respond `{"status": {err.status_code}, "error": "{err.message}"}`
+			respond `{"status": {err.status_code}, "error": "{err.message}"}` {err.status_code}
 		}
 	}
 }

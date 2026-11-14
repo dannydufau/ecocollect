@@ -58,11 +58,11 @@
 	handle /api/session {
 		handle @user-post {
 			header Set-Cookie "session=good-resident; Path=/; SameSite=Lax"
-			respond "Name: user" 204
+			respond 204
 		}
 		handle @user-delete {
 			header Set-Cookie "session=; Max-Age=0; Path=/; SameSite=Lax"
-			respond "Name: user" 204
+			respond 204
 		}
 	}
 
@@ -92,7 +92,7 @@
 			respond "Name: user. User updated" 200
 		}
 		handle @user-delete {
-			respond "Name: user. User deactivated" 204
+			respond 204
 		}
 	}
 
@@ -103,7 +103,7 @@
 	}
 
 	handle {
-		error "Unauthorized" 401
+		error "Not found" 404
 	}
 
 	handle_errors {
