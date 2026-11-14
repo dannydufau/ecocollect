@@ -9,7 +9,7 @@
 }
 
 (verify-auth) {
-	forward_auth auth {
+	forward_auth user {
 		uri /verify
 		copy_headers {
 			X-User-Id
@@ -25,27 +25,59 @@ localhost {
 	import strip-headers-add-request-id
 
 	handle /api/* {
-		# to configure cookies
-		handle /api/session {
-			reverse_proxy auth
+		# for ordered matching, reward public paths must come first to avoid conflicts with user public paths
+		route {
+			@reward-public-paths {
+				method GET
+				path /api/public/profiles/*/stats /api/public/stats
+			}
+
+			handle @reward-public-paths {
+				reverse_proxy reward
+			}
+
+			@user-public-paths <<CEL
+				(method('POST') && path('/api/session', '/api/accounts')) ||
+				(method('DELETE') && path('/api/session')) ||
+				(method('GET') && path('/api/terms', '/api/public/profiles/*'))
+				CEL
+
+			handle @user-public-paths {
+				reverse_proxy user
+			}
+
+			# goes inside route because a `handle` sibling to a `route` always uses `handle` first 
+			handle {
+				error "Not found" 404
+			}
 		}
 
-		@pickup-paths path /api/categories /api/categories/* /api/requests /api/requests/* /api/profile /api/profile/*
+		@user-paths <<CEL
+			(method('GET') && path('/api/profile')) ||
+			(method('PATCH') && path('/api/profile')) ||
+			(method('POST') && path('/api/profile/roles')) ||
+			(method('DELETE') && path('/api/profile'))
+			CEL
 
-		handle @pickup-paths {
+		handle @user-paths {
 			import verify-auth
-			reverse_proxy pickup
+			reverse_proxy user
 		}
+
+		@request-paths path /api/categories /api/categories/* /api/requests /api/requests/* /api/profile /api/profile/*
+
+		handle @request-paths {
+			import verify-auth
+			reverse_proxy request
+		}
+
+		@notification-public-paths path /api/public/events
 
 		@notification-paths path /api/events /api/notifications /api/notifications/* /api/push/subscriptions
 
 		handle @notification-paths {
 			import verify-auth
 			reverse_proxy notification
-		}
-
-		handle {
-			error "Not found" 404
 		}
 	}
 

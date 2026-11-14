@@ -2,7 +2,7 @@
 
 Automated tests for the Caddy gateway (`infra/caddy/Caddyfile`). They run the real gateway config against stand-in services, so the gateway can be tested and reviewed before the auth, pickup, notification and frontend services are ready.
 
-The tests cover the gateway rules in section 5 of the communication contracts (`messages_details.md`): routing, `forward_auth`, header stripping, `X-Request-Id`, and SSE streaming.
+<!-- The tests cover the gateway rules: routing, `forward_auth`, header stripping, `X-Request-Id`, and SSE streaming. -->
 
 ## Prerequisites
 
