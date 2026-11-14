@@ -44,6 +44,14 @@ Save the Firebase admin key as `secrets/firebase-admin.json` in the repo root (k
 | `PORT` | Defaults to `3001`. |
 | `NODE_ENV` | Set to `production` when deployed. Otherwise Express puts stack traces in error responses (e.g. a body that is too large). `npm start` does not set it. |
 
+After pulling the quorum-queue change (#104), reset the broker once. RabbitMQ can't change an existing queue's type, so old queues make the services fail with `PRECONDITION_FAILED`:
+
+```bash
+docker compose down && docker volume rm ecocollect_rabbitmqdata
+```
+
+This deletes only the RabbitMQ volume, so the Postgres demo data survives.
+
 ## Tests
 
 ```bash
