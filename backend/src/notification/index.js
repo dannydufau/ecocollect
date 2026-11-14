@@ -1,14 +1,16 @@
 'use strict';
 
-// Notification service entry point: the one place that wires the pieces
-// together. The pieces don't know about each other.
-//
-//   RabbitMQ --> subscriber --> handlers (event -> signals) --> hub --> SSE tabs
-//                                                                ^
-//   browser --> Caddy (/verify adds X-User-Id) --> GET /api/events
-//
-// Run locally:   RABBITMQ_URL=amqp://user:pass@localhost:5672 node src/notification/index.js
-// In Compose:    same image as the backend, started with this file (PORT=80).
+/*
+ * Notification service entry point: the one place that wires the pieces
+ * together. The pieces don't know about each other.
+ *
+ *   RabbitMQ (notification.events) --> subscriber --> handlers (event -> signals) --> hub --> SSE tabs
+ *                                                                                      ^
+ *   browser --> Caddy (/verify adds X-User-Id) --> GET /api/events
+ *
+ * Run locally:   RABBITMQ_URL=amqp://user:pass@localhost:5672 node src/notification/index.js
+ * In Compose:    same image as the backend, started with this file (PORT=80).
+ */
 
 const express = require('express');
 
@@ -16,7 +18,7 @@ const { createHub } = require('./hub');
 const { createEventsRouter } = require('./events');
 const { requestCreated } = require('./handlers');
 const { startSubscriber } = require('../messaging/subscriber');
-const { queues } = require('../messaging/topology'); 
+const { queues } = require('../messaging/topology');
 
 if (!process.env.RABBITMQ_URL) {
   throw new Error('RABBITMQ_URL is not set, see backend/README.md');
@@ -41,13 +43,12 @@ const server = app.listen(port, () => console.log(`Notification service listenin
 function deliverRequestCreated(envelope) {
   for (const { uid, signal } of requestCreated(envelope)) {
     const tabs = hub.send(uid, signal);
-    // 0 tabs is normal: that user isn't connected to this instance right now.
     console.log(`[notification] ${signal.type} ${signal.requestId} -> ${uid} (${tabs} open tab${tabs === 1 ? '' : 's'})`);
   }
 }
 
 const subscriber = startSubscriber({
-  queue: queues.notification,   
+  queue: queues.notification,
   url: process.env.RABBITMQ_URL,
   handlers: { RequestCreated: deliverRequestCreated },
 });
@@ -61,15 +62,10 @@ async function shutdown(signalName) {
   if (stopping) return;
   stopping = true;
   console.log(`[notification] ${signalName}: shutting down`);
-
-  // 1. End every stream, so browsers reconnect (to another instance, if one
-  //    is running) and refetch. Also lets server.close() finish below.
   hub.closeAll();
-  // 2. Leave the broker. Our queue stays: events published meanwhile wait in it.
+  // Leave the broker. Our queue stays: events published meanwhile wait in it.
   await subscriber.stop();
-  // 3. Stop accepting new connections, then exit.
   server.close(() => process.exit(0));
-  // Safety net if something still holds the server open.
   setTimeout(() => process.exit(1), 5000).unref();
 }
 
