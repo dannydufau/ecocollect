@@ -21,16 +21,16 @@ function fakeChannel({ refuse } = {}) {
 }
 
 test('sending to the broker', async (t) => {
-  const row = { event_id: 'e1', routing_key: 'request.created', payload: { type: 'RequestCreated' } };
-
-  await t.test('the message is persistent JSON on the events exchange, with the event id as its id', async () => {
+  const row = { event_id: 'e1', event_type: 'RequestCreated', routing_key: 'request.created', payload: { type: 'RequestCreated' } };
+  
+  await t.test('the message is persistent JSON on the events exchange, with the event id and type', async () => {
     const channel = fakeChannel();
     await sendConfirmed(channel)(row);
     assert.deepStrictEqual(channel.sent, [{
       exchange: exchange.name,
       key: 'request.created',
       body: { type: 'RequestCreated' },
-      options: { persistent: true, contentType: 'application/json', messageId: 'e1' },
+      options: { persistent: true, contentType: 'application/json', messageId: 'e1', type: 'RequestCreated' },
     }]);
     assert.strictEqual(exchange.name, 'ecocollect.events');
   });

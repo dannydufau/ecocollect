@@ -10,7 +10,7 @@ async function publishNext(pool, send) {
   try {
     await client.query('BEGIN');
     const { rows } = await client.query(
-      `SELECT event_id, routing_key, payload FROM outbox
+      `SELECT event_id, event_type, routing_key, payload FROM outbox
        WHERE published_at IS NULL ORDER BY created_at, event_id
        LIMIT 1 FOR UPDATE SKIP LOCKED`,
     );
@@ -37,7 +37,12 @@ function sendConfirmed(channel, timeoutMs = CONFIRM_TIMEOUT_MS) {
   return (row) =>
     new Promise((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error('RabbitMQ did not confirm in time')), timeoutMs);
-      const options = { persistent: true, contentType: 'application/json', messageId: row.event_id };
+      const options = {
+        persistent: true,
+        contentType: 'application/json',
+        messageId: row.event_id,
+        type: row.event_type,
+      };
       channel.publish(exchange.name, row.routing_key, Buffer.from(JSON.stringify(row.payload)), options, (err) => {
         clearTimeout(timer);
         err ? reject(err) : resolve();
