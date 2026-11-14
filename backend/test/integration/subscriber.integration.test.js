@@ -85,6 +85,22 @@ async function publish(type, data) {
   await pubCh.waitForConfirms();
 }
 
+// Publish raw bytes (not an envelope), e.g. to test what happens to a broken message.
+async function publishRaw(routingKey, text) {
+  pubCh.publish(exchange.name, routingKey, Buffer.from(text), { contentType: 'application/json' });
+  await pubCh.waitForConfirms();
+}
+
+// Wait for a message to show up in a queue and return it (acked, so it's removed).
+async function getOne(queueName) {
+  let msg = false;
+  await waitFor(async () => {
+    msg = await pubCh.get(queueName, { noAck: true });
+    return msg !== false;
+  }, `a message in ${queueName}`);
+  return msg;
+}
+
 // Management HTTP API. Node's fetch refuses credentials in the URL, so use Basic auth.
 function mgmt(path, init = {}) {
   const base = new URL(URL_MGMT);
@@ -210,6 +226,39 @@ test('reconnects and keeps receiving after the broker drops the connection', { s
     const requestId = randomUUID();
     await publish('RequestCreated', { requestId, residentUid: 'r1', matchedVolunteerUids: [] });
     await waitFor(() => seen.some((e) => e.data.requestId === requestId), 'the event after reconnect');
+  } finally {
+    await sub.stop();
+  }
+});
+
+test('a message whose handler keeps failing is retried, then dead-lettered on the 5th failure', { skip }, async () => {
+  let calls = 0;
+  const { sub, queue } = await startTestSubscriber({
+    RequestCreated: () => { calls += 1; throw new Error('handler always fails'); },
+  });
+  try {
+    const requestId = randomUUID();
+    await publish('RequestCreated', { requestId, residentUid: 'r1', matchedVolunteerUids: [] });
+
+    const dead = await getOne(`${queue.name}.dlq`);
+    assert.equal(JSON.parse(dead.content.toString()).data.requestId, requestId);
+    assert.equal(calls, 5); // 1 delivery + 4 redeliveries (x-delivery-limit = 4)
+    assert.equal(dead.properties.headers['x-first-death-reason'], 'delivery_limit');
+  } finally {
+    await sub.stop();
+  }
+});
+
+test('an unparseable message goes straight to the DLQ, without retries', { skip }, async () => {
+  let calls = 0;
+  const { sub, queue } = await startTestSubscriber({ RequestCreated: () => { calls += 1; } });
+  try {
+    await publishRaw('request.created', '{not json');
+
+    const dead = await getOne(`${queue.name}.dlq`);
+    assert.equal(dead.content.toString(), '{not json');
+    assert.equal(dead.properties.headers['x-first-death-reason'], 'rejected');
+    assert.equal(calls, 0);
   } finally {
     await sub.stop();
   }

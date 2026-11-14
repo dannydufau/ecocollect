@@ -8,7 +8,7 @@
 // would split the events between them.
 
 const amqp = require('amqplib');
-const { events } = require('./topology');
+const { events, DELIVERY_LIMIT } = require('./topology');
 const { declareConsumerQueue } = require('./declare');
 
 const DEFAULT_RETRY_MS = 5000;
@@ -92,7 +92,7 @@ function startSubscriber({
 
   function onMessage(ch, connection, msg) {
     if (msg === null) {
-      // Broker cancelled the consumer (e.g. queue deleted). Start over.
+      // Broker cancelled the consumer with null (e.g. queue deleted). Start over.
       log.warn('[subscriber] consumer cancelled by broker');
       connection.close().catch(() => {});
       return;
@@ -102,15 +102,24 @@ function startSubscriber({
     try {
       envelope = JSON.parse(msg.content.toString('utf8'));
     } catch (err) {
-      log.error('[subscriber] dropping unparseable message:', err.message);
-      safeAck(ch, msg);
+      log.error(`[subscriber] unparseable message, dead-lettering: ${err.message}`);
+      // requeue set false -> dlx
+      safeReject(ch, msg, false);
       return;
     }
 
     const type = eventTypeOf(envelope);
+
+    if (typeof type !== 'string' || type === '') {
+      // Broken msg -> dlx
+      log.error(`[subscriber] message without an event type, dead-lettering (${msg.fields.routingKey})`);
+      safeReject(ch, msg, false);
+      return;
+    }
+
     const handler = handlerByType.get(type);
     if (!handler) {
-      // Tolerant reader: other request.* events are not ours to handle.
+      // Tolerant reader: the bindings bring in events this service doesn't handle.
       log.debug?.(`[subscriber] no handler for ${type} (${msg.fields.routingKey}); skipping`);
       safeAck(ch, msg);
       return;
@@ -120,22 +129,35 @@ function startSubscriber({
       .then(
         () => safeAck(ch, msg),
         (err) => {
-          // No requeue: a handler bug would otherwise loop forever, and a
-          // dropped signal only costs a missed refresh.
-          log.error(`[subscriber] handler for ${type} failed:`, err);
-          safeNack(ch, msg);
+          // Retry: RabbitMQ counts the reject and dead-letters the message
+          // on its 5th failure (x-delivery-limit), so this can't loop forever.
+          const attempt = deliveryCount(msg);
+          const dying = attempt >= DELIVERY_LIMIT;
+          (dying ? log.error : log.warn)(
+            `[subscriber] handler failed${dying ? ', dead-lettering' : ', will retry'}:`
+              + ` eventId=${envelope.eventId} type=${type} queue=${queueDef.name}`
+              + ` x-delivery-count=${attempt}: ${err && err.message}`,
+          );
+          safeReject(ch, msg, true);
         },
       );
   }
 
-  // If the channel closed mid-handler, ack/nack throws. The message dies with
-  // the exclusive queue anyway, so there is nothing to recover.
+  // If the channel closed mid-handler, ack/reject throws. Nothing is lost: the
+  // unacked message stays in the queue, and RabbitMQ redelivers it after we
+  // reconnect (counted as a delivery attempt).
   function safeAck(ch, msg) {
     try { ch.ack(msg); } catch { /* channel closed */ }
   }
 
-  function safeNack(ch, msg) {
-    try { ch.nack(msg, false, false); } catch { /* channel closed */ }
+  function safeReject(ch, msg, requeue) {
+    try { ch.reject(msg, requeue); } catch { /* channel closed */ }
+  }
+
+  // RabbitMQ sets x-delivery-count on redeliveries; absent on the first attempt.
+  function deliveryCount(msg) {
+    const headers = msg.properties && msg.properties.headers;
+    return (headers && headers['x-delivery-count']) || 0;
   }
 
   async function stop() {

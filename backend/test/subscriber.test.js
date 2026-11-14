@@ -29,7 +29,7 @@ function fakeChannel() {
     return Promise.resolve({ consumerTag: 'ctag-test' });
   };
   ch.ack = (msg) => ch.calls.push(['ack', msg]);
-  ch.nack = (msg, allUpTo, requeue) => ch.calls.push(['nack', msg, allUpTo, requeue]);
+  ch.reject = (msg, requeue) => ch.calls.push(['reject', msg, requeue]);
   return ch;
 }
 
@@ -202,9 +202,9 @@ test('rejects a handler that is not a function', () => {
 
 // --- dispatch ---------------------------------------------------------------
 
-function message(body, routingKey = 'request.created') {
+function message(body, routingKey = 'request.created', headers = {}) {
   const content = Buffer.from(typeof body === 'string' ? body : JSON.stringify(body));
-  return { content, fields: { routingKey, deliveryTag: 1 }, properties: {} };
+  return { content, fields: { routingKey, deliveryTag: 1 }, properties: { headers } };
 }
 
 async function startedWith(handlers, extra = {}) {
@@ -215,7 +215,7 @@ async function startedWith(handlers, extra = {}) {
 }
 
 const settled = (ch, msg) =>
-  ch.calls.find(([name, m]) => (name === 'ack' || name === 'nack') && m === msg);
+  ch.calls.find(([name, m]) => (name === 'ack' || name === 'reject') && m === msg);
 
 test('dispatches by envelope.type and acks when the handler returns', async () => {
   const seen = [];
@@ -231,7 +231,7 @@ test('dispatches by envelope.type and acks when the handler returns', async () =
   await sub.stop();
 });
 
-test('nacks without requeue when the handler throws', async () => {
+test('rejects with requeue when the handler throws, so RabbitMQ retries it', async () => {
   const { sub, ch } = await startedWith({
     RequestCreated: () => { throw new Error('boom'); },
   });
@@ -240,21 +240,45 @@ test('nacks without requeue when the handler throws', async () => {
   ch.deliver(msg);
   await waitFor(() => settled(ch, msg));
 
-  assert.deepEqual(settled(ch, msg), ['nack', msg, false, false]);
+  assert.deepEqual(settled(ch, msg), ['reject', msg, true]);
   await sub.stop();
 });
 
-test('acks and skips unparseable JSON and unknown types', async () => {
+test('logs a retry as a warning, and the 5th failure as an error', async () => {
+  const lines = { warn: [], error: [] };
+  const log = { ...quietLog, warn: (l) => lines.warn.push(l), error: (l) => lines.error.push(l) };
+  const { sub, ch } = await startedWith({ RequestCreated: () => { throw new Error('boom'); } }, { log });
+
+  const first = message({ type: 'RequestCreated', eventId: 'e-1', data: {} });
+  const fifth = message({ type: 'RequestCreated', eventId: 'e-5', data: {} }, 'request.created', { 'x-delivery-count': 4 });
+  ch.deliver(first);
+  ch.deliver(fifth);
+  await waitFor(() => settled(ch, first) && settled(ch, fifth));
+
+  assert.ok(lines.warn.some((l) => l.includes('will retry') && l.includes('eventId=e-1') && l.includes('x-delivery-count=0')));
+  assert.ok(lines.error.some((l) => l.includes('dead-lettering') && l.includes('eventId=e-5') && l.includes('x-delivery-count=4')));
+  await sub.stop();
+});
+
+test('dead-letters unparseable JSON and messages without an event type', async () => {
   const { sub, ch } = await startedWith({ RequestCreated: () => {} });
 
-  const bad = message('{not json');
-  const unknown = message({ type: 'RequestAccepted', data: {} }, 'request.accepted');
-  ch.deliver(bad);
-  ch.deliver(unknown);
-  await waitFor(() => settled(ch, bad) && settled(ch, unknown));
+  const bad = ['{not json', '42', 'null', '{}', { type: '' }].map((body) => message(body));
+  bad.forEach((msg) => ch.deliver(msg));
+  await waitFor(() => bad.every((msg) => settled(ch, msg)));
 
-  assert.equal(settled(ch, bad)[0], 'ack');
-  assert.equal(settled(ch, unknown)[0], 'ack');
+  for (const msg of bad) assert.deepEqual(settled(ch, msg), ['reject', msg, false]);
+  await sub.stop();
+});
+
+test('acks and skips a valid event with no handler', async () => {
+  const { sub, ch } = await startedWith({ RequestCreated: () => {} });
+
+  const unknown = message({ type: 'RequestUpdated', data: {} }, 'request.updated');
+  ch.deliver(unknown);
+  await waitFor(() => settled(ch, unknown));
+
+  assert.deepEqual(settled(ch, unknown), ['ack', unknown]);
   await sub.stop();
 });
 
