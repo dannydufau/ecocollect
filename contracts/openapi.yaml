@@ -1496,7 +1496,7 @@ paths:
                     kind: DELIVERY
                     earnedAs: volunteer
                     points: 26.0
-                    formula: VOLUNTEER
+                    formula: "3 * quantity + 4 * estimatedWeightKg"
                     requestId: 6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11
                     assignmentId: a_9
                     categoryName: Computers/Laptops
@@ -2599,9 +2599,8 @@ components:
           $ref: ./schemas/common.yaml#/Decimal
         formula:
           type: string
-          enum:
-            - VOLUNTEER
-            - RESIDENT
+          minLength: 1
+          description: Copy of the formula used when the award was created.
         requestId:
           type: string
           format: uuid

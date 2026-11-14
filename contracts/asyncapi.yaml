@@ -1356,12 +1356,12 @@ components:
                   accountId: danny
                   earnedAs: volunteer
                   points: 26.0
-                  formula: VOLUNTEER
+                  formula: "3 * quantity + 4 * estimatedWeightKg"
                 - awardId: aw_2
                   accountId: jasdeep
                   earnedAs: resident
                   points: 13.0
-                  formula: RESIDENT
+                  formula: "(3 * quantity + 4 * estimatedWeightKg) / 2"
     PointsAwardedCancellation:
       name: PointsAwardedCancellation
       title: EcoPoints were awarded to a volunteer for a late resident cancellation (after E6)
@@ -1395,7 +1395,7 @@ components:
                   accountId: danny
                   earnedAs: volunteer
                   points: 26.0
-                  formula: VOLUNTEER
+                  formula: "3 * quantity + 4 * estimatedWeightKg"
     CleanupRequest:
       name: CleanupRequest
       title: 'A pending expiry job is due: the Request Service should check the request'
@@ -1855,9 +1855,8 @@ components:
           $ref: ./schemas/common.yaml#/Decimal
         formula:
           type: string
-          enum:
-            - VOLUNTEER
-            - RESIDENT
+          minLength: 1
+          description: Copy of the formula used when the award was created.
     RequestCreatedData:
       type: object
       required:
