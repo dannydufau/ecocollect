@@ -15,7 +15,8 @@ const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const amqp = require('amqplib');
 
-const { exchange, events } = require('../../src/messaging/topology');
+const { exchange, events, queues } = require('../../src/messaging/topology');
+const { declareConsumerQueue } = require('../../src/messaging/declare');
 
 const URL_AMQP = process.env.RABBITMQ_URL;
 const skip = URL_AMQP ? false : 'RABBITMQ_URL not set';
@@ -118,7 +119,11 @@ before(async () => {
   if (skip) return;
   pubConn = await amqp.connect(URL_AMQP);
   pubCh = await pubConn.createConfirmChannel();
-  await pubCh.assertExchange(exchange.name, exchange.type, { durable: exchange.durable });
+  // The service uses the real notification.events queue, which is durable: empty it so
+  // events left over from earlier runs or manual demos can't reach this run.
+  // Declare first: purging a queue that doesn't exist yet closes the channel.
+  await declareConsumerQueue(pubCh, queues.notification);
+  await pubCh.purgeQueue(queues.notification.name);
 });
 
 after(async () => {

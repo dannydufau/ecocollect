@@ -1,24 +1,24 @@
 'use strict';
 
-// Per-instance subscriber for ecocollect.events.
+// Consumes one service's queue from ecocollect.events.
 //
-// Each process declares its own server-named, exclusive, auto-delete queue,
-// so every running instance receives every event (signals fan out to whichever
-// instance holds the user's SSE connection). Nothing here is durable: events
-// published while no instance is running are dropped, which is fine for
-// refresh signals.
+// The queue is a topology.queues entry: a durable quorum queue shared by the
+// service, declared (with its DLQ) by declare.js on every connect. Events wait
+// in the queue while the service is down. Run one instance per queue: a second
+// would split the events between them.
 
 const amqp = require('amqplib');
-const { exchange, events } = require('./topology');
+const { events } = require('./topology');
+const { declareConsumerQueue } = require('./declare');
 
-const BINDING_KEY = 'request.*';
 const DEFAULT_RETRY_MS = 5000;
-const DEFAULT_PREFETCH = 20;
+const DEFAULT_PREFETCH = 1; // one message at a time keeps each request's events in order
 
 /**
- * Start consuming request.* events.
+ * Start consuming one queue
  *
  * @param {object}   opts
+ * @param {object}   opts.queue       topology.queues.notification
  * @param {string}   [opts.url]       AMQP URL (defaults to RABBITMQ_URL)
  * @param {object}   opts.handlers    { [eventType]: (envelope, fields) => void|Promise };
  *                                    keys must be event names from topology.events
@@ -29,6 +29,7 @@ const DEFAULT_PREFETCH = 20;
  * @returns {{ stop: () => Promise<void> }}
  */
 function startSubscriber({
+  queue: queueDef,
   url = process.env.RABBITMQ_URL,
   handlers = {},
   connect: openConnection = amqp.connect,
@@ -37,6 +38,7 @@ function startSubscriber({
   prefetch = DEFAULT_PREFETCH,
 } = {}) {
   if (!url) throw new Error('RABBITMQ_URL is not set');
+  if (!queueDef) throw new Error('queue is required (a topology.queues entry)');
   const handlerByType = buildHandlerMap(handlers);
 
   let current = null;  // the AMQP connection in use right now, or null
@@ -76,19 +78,11 @@ function startSubscriber({
         if (!stopped) attempt.close().catch(() => {});
       });
 
-      // Idempotent: creates the exchange if missing; errors (closing the
-      // channel) if it exists with different settings.
-      await ch.assertExchange(exchange.name, exchange.type, { durable: exchange.durable });
-      const { queue } = await ch.assertQueue('', {
-        exclusive: true,
-        autoDelete: true,
-        durable: false,
-      });
-      await ch.bindQueue(queue, exchange.name, BINDING_KEY);
+      const { queue } = await declareConsumerQueue(ch, queueDef);
       await ch.prefetch(prefetch);
       await ch.consume(queue, (msg) => onMessage(ch, attempt, msg), { noAck: false });
 
-      log.info(`[subscriber] consuming ${exchange.name} '${BINDING_KEY}' on ${queue}`);
+      log.info(`[subscriber] consuming ${queue}`);
     } catch (err) {
       if (current === attempt) current = null;
       scheduleReconnect(`connect failed: ${err.message}`);
@@ -181,4 +175,4 @@ function eventTypeOf(envelope) {
   return envelope && envelope.type;
 }
 
-module.exports = { startSubscriber, BINDING_KEY };
+module.exports = { startSubscriber };
