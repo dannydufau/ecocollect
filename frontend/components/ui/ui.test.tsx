@@ -1,6 +1,9 @@
-import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { Alert, ConfirmDialog, StatusBadge } from "./index";
+afterEach(() => {
+    cleanup();
+});
 
 // jsdom does not implement the native dialog methods.
 HTMLDialogElement.prototype.showModal = function () { this.setAttribute("open", ""); };
