@@ -16,6 +16,7 @@ const { createHub } = require('./hub');
 const { createEventsRouter } = require('./events');
 const { requestCreated } = require('./handlers');
 const { startSubscriber } = require('../messaging/subscriber');
+const { queues } = require('../messaging/topology'); 
 
 if (!process.env.RABBITMQ_URL) {
   throw new Error('RABBITMQ_URL is not set, see backend/README.md');
@@ -34,8 +35,6 @@ app.use(createEventsRouter(hub));
 const port = Number(process.env.PORT || 3002);
 const server = app.listen(port, () => console.log(`Notification service listening on port ${port}`));
 
-// --- Broker: events in, signals out ----------------------------------------------
-
 // The adapter between the subscriber and the hub. requestCreated decides who
 // gets which signal; this delivers them. If requestCreated throws (a broken
 // event), the subscriber logs it and nacks the message.
@@ -48,6 +47,7 @@ function deliverRequestCreated(envelope) {
 }
 
 const subscriber = startSubscriber({
+  queue: queues.notification,   
   url: process.env.RABBITMQ_URL,
   handlers: { RequestCreated: deliverRequestCreated },
 });
@@ -65,7 +65,7 @@ async function shutdown(signalName) {
   // 1. End every stream, so browsers reconnect (to another instance, if one
   //    is running) and refetch. Also lets server.close() finish below.
   hub.closeAll();
-  // 2. Leave the broker; our exclusive queue goes away with the connection.
+  // 2. Leave the broker. Our queue stays: events published meanwhile wait in it.
   await subscriber.stop();
   // 3. Stop accepting new connections, then exit.
   server.close(() => process.exit(0));

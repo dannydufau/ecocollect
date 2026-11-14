@@ -7,8 +7,8 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
 
-const { startSubscriber, BINDING_KEY } = require('../src/messaging/subscriber');
-const { exchange } = require('../src/messaging/topology');
+const { startSubscriber } = require('../src/messaging/subscriber');
+const { queues } = require('../src/messaging/topology');
 
 // --- fakes ------------------------------------------------------------------
 
@@ -80,6 +80,7 @@ async function waitFor(condition, ms = 500) {
 
 function start(connector, extra = {}) {
   return startSubscriber({
+    queue: queues.notification,
     url: 'amqp://test',
     connect: connector.connect,
     log: quietLog,
@@ -92,30 +93,28 @@ const consumed = (conn) => conn.channel.calls.some(([name]) => name === 'consume
 
 // --- tests ------------------------------------------------------------------
 
-test('sets up a private queue bound to request.* and starts consuming', async () => {
+test('declares its queue, then sets prefetch and consumes from it', async () => {
   const connector = fakeConnector();
-  const sub = start(connector, { prefetch: 7 });
+  const sub = start(connector);
   await waitFor(() => connector.connections[0] && consumed(connector.connections[0]));
 
   const calls = connector.connections[0].channel.calls;
   const find = (name) => calls.find(([n]) => n === name);
 
-  assert.deepEqual(find('assertExchange'), ['assertExchange', exchange.name, exchange.type, {
-    durable: exchange.durable,
-  }]);
-  assert.deepEqual(find('assertQueue'), ['assertQueue', '', {
-    exclusive: true, autoDelete: true, durable: false,
-  }]);
-  assert.deepEqual(find('bindQueue'), ['bindQueue', 'amq.gen-test', exchange.name, BINDING_KEY]);
-  assert.deepEqual(find('prefetch'), ['prefetch', 7]);
-  assert.deepEqual(find('consume'), ['consume', 'amq.gen-test', { noAck: false }]);
+  // declare.js has its own tests; here: it ran for our queue, before prefetch and consume.
+  assert.ok(calls.some(([n, name]) => n === 'assertQueue' && name === 'notification.events'));
+  assert.deepEqual(find('prefetch'), ['prefetch', 1]);
+  assert.deepEqual(find('consume'), ['consume', 'notification.events', { noAck: false }]);
 
-  // Order matters: the exchange must exist before binding, and the binding
-  // and prefetch before consuming.
   const order = calls.map(([n]) => n);
-  assert.deepEqual(order, ['assertExchange', 'assertQueue', 'bindQueue', 'prefetch', 'consume']);
+  assert.ok(order.lastIndexOf('bindQueue') < order.indexOf('prefetch'));
+  assert.ok(order.indexOf('prefetch') < order.indexOf('consume'));
 
   await sub.stop();
+});
+
+test('requires a queue', () => {
+  assert.throws(() => startSubscriber({ url: 'amqp://test' }), /queue is required/);
 });
 
 test('reconnects and rebuilds the queue after the connection closes', async () => {
@@ -180,6 +179,7 @@ test('requires a URL', () => {
 test('rejects a handler for an event not in topology.events', () => {
   assert.throws(
     () => startSubscriber({
+      queue: queues.notification,
       url: 'amqp://test',
       log: quietLog,
       handlers: { RequestCreatd: () => {} }, // typo
@@ -191,6 +191,7 @@ test('rejects a handler for an event not in topology.events', () => {
 test('rejects a handler that is not a function', () => {
   assert.throws(
     () => startSubscriber({
+      queue: queues.notification,
       url: 'amqp://test',
       log: quietLog,
       handlers: { RequestCreated: 'oops' },
