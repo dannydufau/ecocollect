@@ -2,7 +2,8 @@ const test = require('node:test');
 const assert = require('node:assert');
 const { skip, openPool, addFixtures, removeFixtures } = require('./db');
 const { createStore } = require('../src/api/requests/store');
-const { publishNext, sendConfirmed, EXCHANGE } = require('../src/messaging/outbox');
+const { publishNext, sendConfirmed } = require('../src/messaging/outbox');
+const { exchange } = require('../src/messaging/topology');
 
 const windows = [{ date: '2030-01-15', startHour: 14 }];
 
@@ -26,12 +27,12 @@ test('sending to the broker', async (t) => {
     const channel = fakeChannel();
     await sendConfirmed(channel)(row);
     assert.deepStrictEqual(channel.sent, [{
-      exchange: EXCHANGE,
+      exchange: exchange.name,
       key: 'request.created',
       body: { type: 'RequestCreated' },
       options: { persistent: true, contentType: 'application/json', messageId: 'e1' },
     }]);
-    assert.strictEqual(EXCHANGE, 'ecocollect.events');
+    assert.strictEqual(exchange.name, 'ecocollect.events');
   });
 
   await t.test('a message the broker refuses is an error', async () => {

@@ -1,6 +1,6 @@
 const amqp = require('amqplib');
+const { exchange } = require('./topology');
 
-const EXCHANGE = 'ecocollect.events';
 const CONFIRM_TIMEOUT_MS = 5000;
 
 // Takes one unsent event, hands it to `send`, and marks it sent only if `send` worked.
@@ -38,7 +38,7 @@ function sendConfirmed(channel, timeoutMs = CONFIRM_TIMEOUT_MS) {
     new Promise((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error('RabbitMQ did not confirm in time')), timeoutMs);
       const options = { persistent: true, contentType: 'application/json', messageId: row.event_id };
-      channel.publish(EXCHANGE, row.routing_key, Buffer.from(JSON.stringify(row.payload)), options, (err) => {
+      channel.publish(exchange.name, row.routing_key, Buffer.from(JSON.stringify(row.payload)), options, (err) => {
         clearTimeout(timer);
         err ? reject(err) : resolve();
       });
@@ -67,7 +67,7 @@ function startOutboxPublisher({ pool, url, intervalMs = 1000 }) {
         connection.on('error', (err) => console.error('RabbitMQ connection:', err.message));
         connection.on('close', () => (channel = undefined));
         channel = await connection.createConfirmChannel();
-        await channel.assertExchange(EXCHANGE, 'topic', { durable: true });
+        await channel.assertExchange(exchange.name, exchange.type, { durable: exchange.durable });
       }
       const send = sendConfirmed(channel);
       while (await publishNext(pool, send));
@@ -86,4 +86,4 @@ function startOutboxPublisher({ pool, url, intervalMs = 1000 }) {
   };
 }
 
-module.exports = { publishNext, sendConfirmed, startOutboxPublisher, EXCHANGE };
+module.exports = { publishNext, sendConfirmed, startOutboxPublisher };
