@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
 
 type Props = {
     open: boolean;
@@ -18,6 +18,7 @@ type Props = {
 export function ConfirmDialog({ open, title, children, confirmLabel, confirmDisabled = false,
     busy = false, error, danger = false, onConfirm, onCancel }: Props) {
     const ref = useRef<HTMLDialogElement>(null);
+    const titleId = useId();
 
     useEffect(() => {
         const dialog = ref.current;
@@ -29,9 +30,9 @@ export function ConfirmDialog({ open, title, children, confirmLabel, confirmDisa
     return (
         <dialog ref={ref} onCancel={(event) => { event.preventDefault(); if (!busy) onCancel(); }}
             className="m-auto w-[calc(100%-2rem)] max-w-md rounded-xl border border-stone-200 bg-white p-6 text-stone-900 shadow-xl backdrop:bg-black/50"
-            aria-labelledby="confirm-dialog-title">
-            <h2 id="confirm-dialog-title" className="text-lg font-semibold">{title}</h2>
-            <div className="mt-3 text-sm">{children}</div>
+            aria-labelledby={titleId} aria-busy={busy}>
+            <h2 id={titleId} className="text-lg font-semibold">{title}</h2>
+            <div className="mt-3 text-sm">{open && children}</div>
             {error && <p role="alert" className="mt-3 text-sm text-red-700">{error}</p>}
             <div className="mt-5 flex flex-wrap justify-end gap-3">
                 <button type="button" onClick={onCancel} disabled={busy}

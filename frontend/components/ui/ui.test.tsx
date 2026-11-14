@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { useEffect } from "react";
 import { Alert, ConfirmDialog, StatusBadge } from "./index";
 afterEach(() => {
     cleanup();
@@ -42,5 +43,63 @@ describe("UI components", () => {
         render(<ConfirmDialog open title="Confirm" confirmLabel="Yes" onConfirm={vi.fn()}
             onCancel={vi.fn()} {...flags}>Text</ConfirmDialog>);
         expect((screen.getByRole("button", { name: "Yes" }) as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    it("gives each dialog its own accessible heading", () => {
+        render(<>
+            <ConfirmDialog open title="Cancel pickup" confirmLabel="Confirm cancel"
+                onConfirm={vi.fn()} onCancel={vi.fn()}>Cancel this pickup?</ConfirmDialog>
+            <ConfirmDialog open title="Record delivery" confirmLabel="Confirm delivery"
+                onConfirm={vi.fn()} onCancel={vi.fn()}>Record this delivery?</ConfirmDialog>
+        </>);
+        const cancelDialog = screen.getByRole("dialog", { name: "Cancel pickup" });
+        const deliveryDialog = screen.getByRole("dialog", { name: "Record delivery" });
+        expect(cancelDialog.getAttribute("aria-labelledby")).not.toBe(deliveryDialog.getAttribute("aria-labelledby"));
+    });
+
+    it("handles Escape through onCancel and prevents dismissal while busy", () => {
+        const onCancel = vi.fn();
+        const { rerender } = render(<ConfirmDialog open title="Confirm" confirmLabel="Yes"
+            onConfirm={vi.fn()} onCancel={onCancel}>Text</ConfirmDialog>);
+        fireEvent(screen.getByRole("dialog"), new Event("cancel", { cancelable: true }));
+        expect(onCancel).toHaveBeenCalledOnce();
+        rerender(<ConfirmDialog open busy title="Confirm" confirmLabel="Yes"
+            onConfirm={vi.fn()} onCancel={onCancel}>Text</ConfirmDialog>);
+        fireEvent(screen.getByRole("dialog"), new Event("cancel", { cancelable: true }));
+        expect(onCancel).toHaveBeenCalledOnce();
+    });
+
+    it("mounts children only while open and cleans them up on close", () => {
+        const onMount = vi.fn();
+        const onUnmount = vi.fn();
+        function DialogContent() {
+            useEffect(() => {
+                onMount();
+                return onUnmount;
+            }, []);
+            return <p>Facility picker</p>;
+        }
+        const props = {
+            title: "Record delivery",
+            confirmLabel: "Save",
+            onConfirm: vi.fn(),
+            onCancel: vi.fn(),
+            children: <DialogContent />,
+        };
+        const { rerender } = render(<ConfirmDialog {...props} open={false} />);
+        expect(onMount).not.toHaveBeenCalled();
+        expect(screen.queryByText("Facility picker")).toBeNull();
+
+        rerender(<ConfirmDialog {...props} open />);
+        expect(onMount).toHaveBeenCalledOnce();
+        expect(screen.getByText("Facility picker")).toBeInTheDocument();
+
+        rerender(<ConfirmDialog {...props} open={false} />);
+        expect(onUnmount).toHaveBeenCalledOnce();
+        expect(screen.queryByText("Facility picker")).toBeNull();
+
+        rerender(<ConfirmDialog {...props} open />);
+        expect(onMount).toHaveBeenCalledTimes(2);
+        expect(screen.getByText("Facility picker")).toBeInTheDocument();
     });
 });
