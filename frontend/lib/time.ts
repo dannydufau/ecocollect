@@ -45,16 +45,56 @@ function isRealDate(date: string): boolean {
 
 // "Fri, Oct 30, 14:00 to 15:00". A window with a bad date or hour is shown as the date it came with, like formatTimestamp.
 export function formatWindow(window: PickupWindow): string {
-    const goodHour = Number.isInteger(window.startHour) && window.startHour >= 0 && window.startHour <= 23;
+    const goodHour = Number.isInteger(window.startHour) &&
+        window.startHour >= 0 && window.startHour <= 23;
+
     if (!isRealDate(window.date) || !goodHour) {
         return String(window.date);
     }
-    const day = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, weekday: "short", month: "short", day: "numeric" }).format(
-        calgaryInstant(window.date, window.startHour),
-    );
+
+    const day = new Intl.DateTimeFormat("en-US", {
+        timeZone: "UTC",
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+    }).format(new Date(`${window.date}T12:00:00Z`));
+
     return `${day}, ${formatHour(window.startHour)} to ${formatHour((window.startHour + 1) % 24)}`;
 }
 
 export function formatHour(hour: number): string {
     return `${String(hour).padStart(2, "0")}:00`;
+}
+
+export function friendlyWindow(window: PickupWindow): string {
+    const full = formatWindow(window);
+
+    if (!isRealDate(window.date) ||
+        !Number.isInteger(window.startHour) ||
+        window.startHour < 0 ||
+        window.startHour > 23) {
+        return full;
+    }
+
+    const today = calgaryToday();
+    const tomorrow = new Date(`${today}T12:00:00Z`);
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+    const nextDate = tomorrow.toISOString().slice(0, 10);
+
+    const label = window.date === today
+        ? "Today"
+        : window.date === nextDate
+            ? "Tomorrow"
+            : full.split(", ").slice(0, 2).join(", ");
+
+    const start = window.startHour;
+    const end = (start + 1) % 24;
+    const clock = (hour: number) => hour % 12 || 12;
+    const period = (hour: number) => hour < 12 ? "a.m." : "p.m.";
+
+    const hours = period(start) === period(end)
+        ? `${clock(start)} to ${clock(end)} ${period(end)}`
+        : `${clock(start)} ${period(start)} to ${clock(end)} ${period(end)}`;
+
+    return `${label}, ${hours}`;
 }
