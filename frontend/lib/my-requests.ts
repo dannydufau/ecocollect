@@ -1,7 +1,6 @@
 import { api } from "@/lib/api";
-import type { OldMyRequest } from "@/lib/types";
+import type { MyRequest, RequestStatus } from "@/lib/types";
 
-// Newest first, as the API returns it.
-export function fetchMyRequests(): Promise<OldMyRequest[]> {
-    return api.get<OldMyRequest[]>("/api/requests?view=mine");
+export function fetchMyRequests(status?: RequestStatus): Promise<MyRequest[]> {
+    return api.get<MyRequest[]>(`/api/requests?view=mine${status ? `&status=${encodeURIComponent(status)}` : ""}`);
 }
