@@ -60,7 +60,7 @@ The mapping represents repeated and multivalued information as individual rows:
 
 The former notification JSON metadata combined sequence, action identity, update reason and a collection of changed fields. Under Lecture 8's atomic-value interpretation, storing a list of field names in one attribute does not demonstrate 1NF. The adopted mapping uses scalar `request_event` and `request_update_event` attributes plus the separate changed-field relation.
 
-The full event key is `(pickup_request_id, request_seq)`. Contract section 10.2 establishes that several events can share a `transition_id`, including the old/new request pair during rescheduling. Therefore, the action ID is not used as an event key. Field rows reference the complete update-event key, which removes the earlier proposal's reliance on an additional edit-action identity assumption.
+The full event key is `(pickup_request_id, request_seq)`. Contract section 10.2 establishes that several events can share a `transition_id`, including the old/new request pair during rescheduling. Field rows reference the complete update-event key so each changed field belongs to one specific event.
 
 Notes, terms content and formula descriptions are single text values for the operations supported by this system. Their individual words are not relationship members. All relation attributes now have single values in their stated domains, and keys identify distinct rows.
 

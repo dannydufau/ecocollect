@@ -2,7 +2,7 @@
 
 This logical schema contains 25 relations and 100 attributes. Open `Logical Database Model.drawio` for the relationship overview, four pages of relation definitions, and the integrity-rules page. The [normalization document](<../3. Normalization/README.md>) explains the functional dependencies and the decompositions adopted in this mapping.
 
-The [conceptual model](<../1. Conceptual Model(ER diagram)/ER-Diagram.drawio>) supplies the business rules. Normalization maps some conceptual relationships through existing keys and introduces role/source subtypes and relations for multivalued event facts. The additional relations represent those mappings; they do not add application features.
+The [conceptual model](<../1. Conceptual Model(ER diagram)/ER-Diagram.drawio>) supplies the business rules. Normalization maps ownership and assignment participation through existing keys, uses role/source subtypes, and separates multivalued event facts into relations.
 
 ## Conceptual-to-relational mapping
 
@@ -490,8 +490,8 @@ Request status, assignment status, request expiry, delivery time, award kind/tim
 | `small-appliances` | Small Appliances | Small Appliances | 3.00 |
 | `cables-chargers` | Cables and Chargers | Accessories | 0.30 |
 
-## Physical implementation handoff
+## Physical implementation
 
-The SQL implementation must follow this 25-relation mapping. The earlier physical-model draft and existing application initialization schema need revision before they implement this logical design. Update service joins, seed scripts, operations and tests together. Contract section 8 identifies the affected readers in User, Request, Reward and Notification services; compatibility views or service projections can retain API fields while storing each dependency once.
+The SQL implementation must follow this 25-relation mapping, including its keys, domains and cross-row constraints. Service joins, seed scripts, operations and tests must use the same relations. Contract section 8 identifies the User, Request, Reward and Notification readers. Compatibility views or service projections can supply their API fields from the normalized relations.
 
-The notification event/detail/source relations are owned by the Notification Service as the relational representation of its consumed event facts. Request Service remains the source of request sequences and transition IDs. This mapping does not make notifications an authoritative request-event log or change which service publishes events.
+The Notification Service owns the event/detail/source relations that store its consumed event facts. Request Service publishes the request sequences and transition IDs used by these relations.
