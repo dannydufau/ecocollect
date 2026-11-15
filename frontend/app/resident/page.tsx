@@ -1,16 +1,14 @@
-import Link from "next/link";
 import LogoutButton from "@/components/logout-button";
-import MyRequests from "@/components/my-requests";
+import MyRequests from "@/components/resident/my-requests";
 
-export default function ResidentPage() {
+export default async function ResidentPage({ searchParams }: {
+    searchParams: Promise<{ created?: string | string[] }>;
+}) {
+    const { created } = await searchParams;
     return (
-        <main className="flex flex-col gap-8 p-8">
-            <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-semibold">Resident view</h1>
-                <LogoutButton />
-            </div>
-            <Link href="/resident/requests/new" className="inline-flex min-h-11 items-center self-start rounded-lg bg-[#9e5220] px-4 text-white focus-visible:outline-2 focus-visible:outline-offset-2">New pickup request</Link>
-            <MyRequests />
+        <main className="mx-auto flex w-full max-w-4xl min-w-0 flex-col gap-6 p-4 sm:p-8">
+            <div className="flex justify-end"><LogoutButton /></div>
+            <MyRequests created={typeof created === "string" ? created : undefined} />
         </main>
     );
 }
