@@ -8,7 +8,7 @@ import { logout } from "@/lib/auth";
 import { CATEGORIES, OTHER_CATEGORY_ID } from "@/lib/categories";
 import { queryKeys } from "@/lib/query-keys";
 import { calgaryInstant, calgaryToday, formatHour } from "@/lib/time";
-import type { CreateRequestsBody, CreatedRequest } from "@/lib/types";
+import type { CreateRequestsBody, OldCreatedRequest } from "@/lib/types";
 
 type ItemRow = { categoryId: string; quantity: string; description: string };
 type WindowRow = { date: string; startHour: string };
@@ -67,7 +67,7 @@ export default function CreateRequestForm() {
     const [success, setSuccess] = useState<string | null>(null);
 
     const mutation = useMutation({
-        mutationFn: (body: CreateRequestsBody) => api.post<{ requests: CreatedRequest[] }>("/api/requests", body),
+        mutationFn: (body: CreateRequestsBody) => api.post<{ requests: OldCreatedRequest[] }>("/api/requests", body),
         onSuccess: (data) => {
             const count = data.requests.length;
             setSuccess(`Pickup request submitted (${count} ${count === 1 ? "item" : "items"}).`);
