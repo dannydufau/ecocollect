@@ -107,6 +107,22 @@ export function register(route, store) {
     return user.account;
   }
 
+  route("POST", "/api/session", (req, res, { body }) => {
+    if (typeof body?.idToken !== "string" || !body.idToken) {
+      return sendError(res, 400, "validation_error", "Send the ID token.", { idToken: "This is required." });
+    }
+    // The mock cannot check a token, so only a deactivated account is turned away. A Firebase user the mock does not know still gets a cookie.
+    const user = currentUser({ headers: { authorization: `Bearer ${body.idToken}` } });
+    if (user.account?.deactivatedAt) return sendError(res, 401, "unauthorized", "This account is deactivated.");
+    res.setHeader("Set-Cookie", `session=${encodeURIComponent(body.idToken)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=432000`);
+    res.writeHead(204).end();
+  });
+
+  route("DELETE", "/api/session", (req, res) => {
+    res.setHeader("Set-Cookie", "session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0");
+    res.writeHead(204).end();
+  });
+
   route("GET", "/api/profile", (req, res) => {
     const account = signedIn(req, res);
     if (account) send(res, 200, profileOf(account));

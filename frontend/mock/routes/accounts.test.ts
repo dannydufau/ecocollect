@@ -187,3 +187,26 @@ it("deactivates an account without work, clears the cookie and hides the public 
     expect(call("GET", "/api/profile", { user: "demo-resident-3" }).status).toBe(401);
     expect(call("GET", "/api/public/profiles/:accountId", { user: "", params: { accountId: "demo-resident-3" } }).status).toBe(404);
 });
+
+const startSession = (body: unknown) => call("POST", "/api/session", { user: "", body });
+
+it("starts a session by setting an HttpOnly cookie with the ID token", () => {
+    const result = startSession({ idToken: "demo-resident-1" });
+    expect(result.status).toBe(204);
+    expect(result.headers["Set-Cookie"]).toMatch(/^session=demo-resident-1; .*HttpOnly/);
+});
+
+it("gives a cookie to a Firebase user the mock does not know", () => {
+    expect(startSession({ idToken: "someone-new" }).status).toBe(204);
+});
+
+it("refuses a session without a token or for a deactivated account", () => {
+    expect(startSession({}).body.error.details.fields).toHaveProperty("idToken");
+    expect(startSession({ idToken: "demo-deactivated-1" }).status).toBe(401);
+});
+
+it("ends the session by clearing the cookie", () => {
+    const result = call("DELETE", "/api/session", { user: "" });
+    expect(result.status).toBe(204);
+    expect(result.headers["Set-Cookie"]).toMatch(/^session=; .*Max-Age=0/);
+});
