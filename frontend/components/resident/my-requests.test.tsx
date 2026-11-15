@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { api } from "@/lib/api";
 import type { MyRequest } from "@/lib/types";
 import { renderWithClient } from "@/test/utils";
@@ -58,4 +58,27 @@ it.each(["0", "-1", "oops", "2.5"])("ignores invalid created=%s", async created 
     renderWithClient(<MyRequests created={created} />);
     await screen.findByRole("link", { name: "Computers/Laptops" });
     expect(screen.queryByText(/requests? (was|were) created/)).not.toBeInTheDocument();
+});
+
+it("shows the shared loading indicator until the first response", async () => {
+    let resolve!: (value: MyRequest[]) => void;
+    vi.mocked(api.get).mockReturnValueOnce(new Promise<MyRequest[]>(done => { resolve = done; }));
+    renderWithClient(<MyRequests />);
+    expect(screen.getByRole("status")).toHaveTextContent("Loading your requests...");
+    await act(async () => resolve([request()]));
+    await screen.findByRole("link", { name: "Computers/Laptops" });
+    expect(screen.queryByText("Loading your requests...")).not.toBeInTheDocument();
+});
+it("keeps rows visible while a different filter loads, then replaces them", async () => {
+    let resolve!: (value: MyRequest[]) => void;
+    vi.mocked(api.get).mockResolvedValueOnce([request()]).mockReturnValueOnce(new Promise<MyRequest[]>(done => { resolve = done; }));
+    renderWithClient(<MyRequests />);
+    await screen.findByRole("link", { name: "Computers/Laptops" });
+    fireEvent.click(screen.getByRole("button", { name: "Missed" }));
+    await waitFor(() => expect(api.get).toHaveBeenLastCalledWith("/api/requests?view=mine&status=Missed"));
+    expect(screen.getByRole("link", { name: "Computers/Laptops" })).toBeInTheDocument();
+    expect(screen.queryByText("Loading your requests...")).not.toBeInTheDocument();
+    await act(async () => resolve([]));
+    expect(await screen.findByText("You have no missed requests.")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Computers/Laptops" })).not.toBeInTheDocument();
 });
