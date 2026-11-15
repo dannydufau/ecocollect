@@ -21,7 +21,9 @@ afterEach(() => {
 });
 
 function stubBitmap(width: number, height: number) {
-    vi.stubGlobal("createImageBitmap", vi.fn().mockResolvedValue({ width, height, close: vi.fn() }));
+    const close = vi.fn();
+    vi.stubGlobal("createImageBitmap", vi.fn().mockResolvedValue({ width, height, close }));
+    return close;
 }
 
 const photo = (name: string, type: string) => new File(["x"], name, { type });
@@ -64,4 +66,22 @@ it("returns a JPEG blob", async () => {
 
     expect(blob.type).toBe("image/jpeg");
     expect(blob.size).toBeGreaterThan(0);
+});
+
+it("says the photo could not be read when the browser cannot decode it", async () => {
+    vi.stubGlobal("createImageBitmap", vi.fn().mockRejectedValue(new Error("bad image")));
+    await expect(prepareImage(photo("a.jpg", "image/jpeg"))).rejects.toThrow("could not read");
+});
+
+it("fails when the canvas gives back no blob", async () => {
+    stubBitmap(100, 100);
+    vi.spyOn(HTMLCanvasElement.prototype, "toBlob").mockImplementation(callback => callback(null));
+    await expect(prepareImage(photo("a.jpg", "image/jpeg"))).rejects.toThrow("could not prepare");
+});
+
+it("frees the decoded photo when there is no canvas context", async () => {
+    const close = stubBitmap(100, 100);
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+    await expect(prepareImage(photo("a.jpg", "image/jpeg"))).rejects.toThrow("could not prepare");
+    expect(close).toHaveBeenCalledOnce();
 });

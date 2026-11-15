@@ -15,19 +15,21 @@ export async function prepareImage(file: File): Promise<Blob> {
         throw new Error("We could not read the photo. Please try another one.");
     }
 
-    const scale = Math.min(1, MAX_SIDE / Math.max(bitmap.width, bitmap.height));
-    const width = Math.max(1, Math.round(bitmap.width * scale));
-    const height = Math.max(1, Math.round(bitmap.height * scale));
-
     const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("We could not prepare the photo. Please try another one.");
-    ctx.fillStyle = "#ffffff"; // a transparent PNG would turn black as a JPEG
-    ctx.fillRect(0, 0, width, height);
-    ctx.drawImage(bitmap, 0, 0, width, height);
-    bitmap.close();
+    try {
+        const scale = Math.min(1, MAX_SIDE / Math.max(bitmap.width, bitmap.height));
+        const width = Math.max(1, Math.round(bitmap.width * scale));
+        const height = Math.max(1, Math.round(bitmap.height * scale));
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("We could not prepare the photo. Please try another one.");
+        ctx.fillStyle = "#ffffff"; // a transparent PNG would turn black as a JPEG
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(bitmap, 0, 0, width, height);
+    } finally {
+        bitmap.close(); // free the decoded photo even if drawing failed
+    }
 
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.85));
     if (!blob) throw new Error("We could not prepare the photo. Please try another one.");
