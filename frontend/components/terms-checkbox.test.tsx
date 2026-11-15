@@ -36,7 +36,7 @@ it("calls onChange with the terms id when ticked", async () => {
     const onChange = vi.fn();
     renderWithClient(<Form onChange={onChange} />);
 
-    await userEvent.click(await screen.findByRole("checkbox", { name: "I accept the terms" }));
+    await userEvent.click(await screen.findByRole("checkbox", { name: "I have read and accept the terms and safety guidelines" }));
     expect(onChange).toHaveBeenCalledWith("t1");
 });
 
@@ -72,4 +72,13 @@ it("shows loading text and no checkbox while loading", () => {
 
     expect(screen.getByText("Loading terms...")).toBeInTheDocument();
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+});
+
+it("shows an error and lets the user try again", async () => {
+    vi.mocked(api.get).mockRejectedValueOnce(new Error("down")).mockResolvedValueOnce(terms("t1"));
+    renderWithClient(<Form onChange={() => {}} />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("We could not load the terms. Please try again.");
+    await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(await screen.findByRole("checkbox")).toBeInTheDocument();
 });
