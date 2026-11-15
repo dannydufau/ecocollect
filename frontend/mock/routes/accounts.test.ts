@@ -72,3 +72,51 @@ it("adds up the EcoPoints of an account and gives zero for an unknown one", () =
     expect(call("GET", "/api/public/profiles/:accountId/stats", { user: "", params: { accountId: "demo-volunteer-1" } }).body).toEqual({ accountId: "demo-volunteer-1", ecopoints: 13.3 });
     expect(call("GET", "/api/public/profiles/:accountId/stats", { user: "", params: { accountId: "nobody" } }).body).toEqual({ accountId: "nobody", ecopoints: 0 });
 });
+
+const termsId = () => (store as unknown as { terms: { termsDocumentId: string }[] }).terms.at(-1)!.termsDocumentId;
+const newResident = (overrides = {}) => ({
+    username: "sam_s", email: "sam@example.test", password: "secret1", firstName: "Sam", lastName: "S", publicName: "Sam S.",
+    dateOfBirth: "1995-06-15", role: "resident", address: { street: "5 6 St SW", postalCode: "T2P1J9" }, termsDocumentId: termsId(), ...overrides,
+});
+const signUp = (body: unknown) => call("POST", "/api/accounts", { user: "", body });
+
+it("registers a resident, who can then read their own profile", () => {
+    expect(signUp(newResident())).toMatchObject({ status: 201, body: { accountId: "sam_s", roles: ["resident"] } });
+    expect(call("GET", "/api/profile", { user: "sam_s" }).body).toMatchObject({ email: "sam@example.test", address: { postalCode: "T2P1J9" }, preferredPostalCodes: [] });
+});
+
+it("registers a volunteer with preferred postal codes and no address", () => {
+    const result = signUp(newResident({ username: "vol_v", role: "volunteer", address: undefined, preferredPostalCodes: ["T2P1J9", "T3A0B1"] }));
+    expect(result.status).toBe(201);
+    expect(call("GET", "/api/profile", { user: "vol_v" }).body).toMatchObject({ address: null, preferredPostalCodes: ["T2P1J9", "T3A0B1"] });
+});
+
+it("refuses a taken username or email with 409", () => {
+    expect(signUp(newResident({ username: "demo-resident-1" })).body.error.code).toBe("username_taken");
+    expect(signUp(newResident({ email: "DEMO-RESIDENT-1@example.test" })).body.error.code).toBe("email_taken");
+});
+
+it("refuses outdated terms with 409", () => {
+    expect(signUp(newResident({ termsDocumentId: "old" })).body.error.code).toBe("terms_outdated");
+});
+
+it("gives 400 with a message per field for age under 18, a non-Calgary postal code and a future birth date", () => {
+    const under18 = new Date(Date.now() - 17 * 365 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+    expect(signUp(newResident({ dateOfBirth: under18 })).body.error.details.fields).toHaveProperty("dateOfBirth");
+    expect(signUp(newResident({ dateOfBirth: "2999-01-01" })).body.error.details.fields.dateOfBirth).toMatch(/future/);
+    expect(signUp(newResident({ address: { street: "5 6 St SW", postalCode: "M5V2T6" } })).body.error.details.fields).toHaveProperty("address.postalCode");
+});
+
+it("gives 400 for a resident without an address, a bad username, a short password and 4 postal codes", () => {
+    const fields = signUp(newResident({ address: undefined, username: "Sam S", password: "123", role: "resident", preferredPostalCodes: ["T2P1J9", "T2P1J9"] })).body.error.details.fields;
+    expect(Object.keys(fields).sort()).toEqual(["address", "password", "preferredPostalCodes", "username"]);
+    const four = signUp(newResident({ role: "volunteer", preferredPostalCodes: ["T2P1J9", "T2P1J8", "T2P1J7", "T2P1J6"] }));
+    expect(four.body.error.details.fields).toHaveProperty("preferredPostalCodes");
+});
+
+it("does not create an account when the checks fail", () => {
+    const before = data.accounts.length;
+    signUp(newResident({ password: "1" }));
+    signUp(newResident({ username: "demo-resident-1" }));
+    expect(data.accounts).toHaveLength(before);
+});
