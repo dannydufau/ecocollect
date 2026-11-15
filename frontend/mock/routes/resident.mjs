@@ -1,7 +1,7 @@
-import { registerResidentActions } from "../resident-actions.mjs";
 import { randomUUID } from "node:crypto";
 import { currentUser, now, sendError } from "../store.mjs";
 import { buildDetail, requestSummary, windowStart } from "../detail.mjs";
+import { registerResidentActions } from "../resident-actions.mjs";
 import { register as registerLegacy } from "./legacy.mjs";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -226,5 +226,4 @@ export function register(route, store, { notify } = {}) {
     send(res, 200, detail);
   });
   registerResidentActions(route, store, { authenticate, send, validate, notify });
-
 }
