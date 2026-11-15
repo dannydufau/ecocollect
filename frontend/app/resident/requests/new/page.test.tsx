@@ -16,6 +16,7 @@ describe("new request access", () => {
         vi.mocked(useAuth).mockReturnValue({ user: { uid: "resident" } as NonNullable<ReturnType<typeof useAuth>["user"]>, roles: ["resident"], loading: false });
         render(<NewRequestPage />);
         expect(screen.getByText("Request form")).toBeInTheDocument();
+        expect(screen.getByText("Add the items you want collected. Each item becomes its own request.")).toBeInTheDocument();
         expect(replace).not.toHaveBeenCalled();
     });
     it("redirects volunteers without exposing the form", () => {
