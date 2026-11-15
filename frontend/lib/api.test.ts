@@ -107,6 +107,16 @@ it("signs out and goes to the login page when a protected call gets a 401", asyn
     expect(assign).toHaveBeenCalledWith("/login?expired=1");
 });
 
+it("signs out only once when two protected calls get a 401 together", async () => {
+    mocks.auth.currentUser = { getIdToken: () => Promise.resolve("token") };
+    mocks.signOut.mockImplementation(() => new Promise(done => setTimeout(done, 10)));
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ error: { code: "unauthorized", message: "Please log in again." } }), { status: 401 }))));
+    const results = await Promise.all([caught(api.get("/api/requests?view=mine")), caught(api.get("/api/ecopoints"))]);
+    expect(results.map(err => err.status)).toEqual([401, 401]);
+    expect(mocks.signOut).toHaveBeenCalledOnce();
+    expect(assign).toHaveBeenCalledOnce();
+});
+
 it("leaves a 401 from the session call alone, because that is the login itself", async () => {
     mocks.auth.currentUser = { getIdToken: () => Promise.resolve("token") };
     reply(401, { error: { code: "unauthorized", message: "Wrong login." } });

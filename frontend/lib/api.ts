@@ -71,13 +71,18 @@ async function getToken(): Promise<string | null> {
     return user ? user.getIdToken() : null;
 }
 
-async function endExpiredSession() {
-    // Several calls can fail at once. One trip to the login page is enough.
-    if (window.location.pathname.startsWith("/login")) return;
-    await signOut(auth).catch(() => {});
-    // A full page load on purpose: this file has no router, and it also drops everything cached for the old session.
-    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-    window.location.assign("/login?expired=1");
+let endingSession: Promise<void> | undefined;
+
+// Several calls can fail with 401 at once. They all wait for the same sign-out, so it and the redirect happen once.
+function endExpiredSession(): Promise<void> {
+    if (window.location.pathname.startsWith("/login")) return Promise.resolve();
+    endingSession ??= (async () => {
+        await signOut(auth).catch(() => {});
+        // A full page load on purpose: this file has no router, and it also drops everything cached for the old session.
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+        window.location.assign("/login?expired=1");
+    })().finally(() => { endingSession = undefined; });
+    return endingSession;
 }
 
 async function request<T>(path: string, init: RequestInit): Promise<{ data: T; res: Response }> {
