@@ -10,10 +10,11 @@ import { formatTimestamp } from "@/lib/time";
 
 type EcoPoints = operations["getMyEcopoints"]["responses"][200]["content"]["application/json"];
 
-const formulas = {
-    VOLUNTEER: "3 × quantity + 4 × estimated weight (kg)",
-    RESIDENT: "(3 × quantity + 4 × estimated weight (kg)) ÷ 2",
-};
+function formulaText(award: EcoPoints["awards"][number]): string {
+    if (award.kind === "CANCELLATION") return "Late cancellation by the resident";
+    if (award.earnedAs === "resident") return `Half of ${(award.points * 2).toFixed(2)}`;
+    return `3 × ${award.quantity} items + 4 × ${award.estimatedWeightKg?.toFixed(2)} kg`;
+}
 
 export default function EcoPointsPage() {
     const { data, isPending, isError, error, refetch, isFetching } = useQuery({
@@ -28,7 +29,7 @@ export default function EcoPointsPage() {
                 {isPending && <Spinner label="Loading EcoPoints..." />}
                 {isError && <div className="space-y-2">
                     <Alert variant="error">
-                        {isAuthError(error) ? "Please log in to view your EcoPoints." : "Could not load your EcoPoints. Please try again."}
+                        {isAuthError(error) ? "Please log in to view your EcoPoints." : "We could not load this page. Check your connection and try again."}
                     </Alert>
                     <button type="button" onClick={() => refetch()} disabled={isFetching}
                         className="min-h-11 rounded-lg border border-stone-400 px-4 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50">
@@ -48,26 +49,24 @@ export default function EcoPointsPage() {
                             </div>
                         ))}
                     </dl>
+                    <p className="text-stone-800">Volunteers earn 3 points per item plus 4 per kg. Residents earn half of that when their request is delivered.</p>
                     <section className="space-y-3" aria-labelledby="award-history">
-                        <h2 id="award-history" className="text-xl font-semibold">Award history</h2>
-                        {!data.awards.length ? <EmptyState title="No awards yet" /> : (
+                        <h2 id="award-history" className="text-xl font-semibold">Your awards</h2>
+                        {!data.awards.length ? <EmptyState title="No EcoPoints yet.">Points are awarded when a pickup is delivered.</EmptyState> : (
                             <ul className="space-y-3">
                                 {data.awards.map(award => (
-                                    <li key={award.awardId} className="min-w-0 rounded-xl border border-stone-200 bg-white p-4">
-                                        <div className="flex flex-wrap items-baseline justify-between gap-2">
-                                            <h3 className="font-semibold">{award.kind === "DELIVERY" ? "Delivery" : "Cancellation"}</h3>
-                                            <p className="break-all font-semibold tabular-nums">{award.points.toFixed(2)} points</p>
+                                    <li key={award.awardId} className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-stone-200 bg-white p-4">
+                                        <p className="min-w-24 text-2xl font-semibold tabular-nums">+{award.points.toFixed(2)}</p>
+                                        <div className="min-w-0 flex-1 basis-60">
+                                            <p><strong>{award.kind === "DELIVERY" ? "Delivery" : "Cancellation"}</strong> as {award.earnedAs}</p>
+                                            <p className="break-words">
+                                                {award.categoryName ? `${award.quantity} × ${award.categoryName}, ${award.estimatedWeightKg?.toFixed(2)} kg` : "—"}
+                                            </p>
+                                            <p className="text-sm text-stone-700">{formulaText(award)} · <time dateTime={award.awardedAt}>{formatTimestamp(award.awardedAt)}</time></p>
                                         </div>
-                                        <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-                                            <div><dt className="text-stone-600">Earned as</dt><dd>{award.earnedAs === "resident" ? "Resident" : "Volunteer"}</dd></div>
-                                            <div><dt className="text-stone-600">Category</dt><dd className="break-words">{award.categoryName ?? "—"}</dd></div>
-                                            <div><dt className="text-stone-600">Quantity</dt><dd>{award.quantity ?? "—"}</dd></div>
-                                            <div><dt className="text-stone-600">Awarded</dt><dd><time dateTime={award.awardedAt}>{formatTimestamp(award.awardedAt)}</time></dd></div>
-                                            <div className="sm:col-span-2"><dt className="text-stone-600">Formula</dt><dd>{formulas[award.formula]}</dd></div>
-                                        </dl>
                                         {award.kind === "DELIVERY" && <Link
                                             href={`/${award.earnedAs}/requests/${award.requestId}`}
-                                            className="mt-3 inline-flex min-h-11 items-center rounded text-[#8c491a] underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2">
+                                            className="inline-flex min-h-11 items-center rounded text-[#8c491a] underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2">
                                             View request
                                         </Link>}
                                     </li>

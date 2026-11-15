@@ -42,12 +42,30 @@ describe("EcoPoints page", () => {
         vi.mocked(api.get).mockResolvedValue(response);
         renderWithClient(<EcoPointsPage />);
         const rows = await screen.findAllByRole("listitem");
-        expect(rows.map(row => within(row).getByRole("heading").textContent)).toEqual(["Cancellation", "Delivery", "Delivery"]);
         expect(rows.map(row => row.querySelector("time")?.dateTime)).toEqual(response.awards.map(award => award.awardedAt));
-        expect(within(rows[0]).getAllByText("—")).toHaveLength(2);
-        expect(within(rows[0]).getByText("26.00 points")).toBeInTheDocument();
-        expect(within(rows[0]).getByText("3 × quantity + 4 × estimated weight (kg)")).toBeInTheDocument();
+        expect(rows[0]).toHaveTextContent("+26.00");
+        expect(rows[0]).toHaveTextContent("Cancellation as volunteer");
+        expect(rows[0]).toHaveTextContent("—");
+        expect(rows[0]).toHaveTextContent("Late cancellation by the resident");
         expect(within(rows[0]).queryByRole("link")).not.toBeInTheDocument();
+    });
+
+    it("shows the item line and the formula for each delivery award", async () => {
+        vi.mocked(api.get).mockResolvedValue(response);
+        renderWithClient(<EcoPointsPage />);
+        const rows = await screen.findAllByRole("listitem");
+        expect(rows[1]).toHaveTextContent("Delivery as volunteer");
+        expect(rows[1]).toHaveTextContent("2 × Computers/Laptops, 5.00 kg");
+        expect(rows[1]).toHaveTextContent("3 × 2 items + 4 × 5.00 kg");
+        expect(rows[2]).toHaveTextContent("+13.00");
+        expect(rows[2]).toHaveTextContent("Half of 26.00");
+    });
+
+    it("explains how points are earned under the totals", async () => {
+        vi.mocked(api.get).mockResolvedValue(response);
+        renderWithClient(<EcoPointsPage />);
+        expect(await screen.findByText(/Volunteers earn 3 points per item plus 4 per kg/)).toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: "Your awards" })).toBeInTheDocument();
     });
 
     it("links delivery awards to the page for the role that earned them", async () => {
@@ -61,7 +79,8 @@ describe("EcoPoints page", () => {
     it("shows No awards yet for an empty history", async () => {
         vi.mocked(api.get).mockResolvedValue({ total: 0, asResident: 0, asVolunteer: 0, awards: [] });
         renderWithClient(<EcoPointsPage />);
-        expect(await screen.findByText("No awards yet")).toBeInTheDocument();
+        expect(await screen.findByText("No EcoPoints yet.")).toBeInTheDocument();
+        expect(screen.getByText("Points are awarded when a pickup is delivered.")).toBeInTheDocument();
         expect(screen.queryByRole("list")).not.toBeInTheDocument();
     });
 
@@ -74,7 +93,7 @@ describe("EcoPoints page", () => {
     it("shows an error and lets the user retry", async () => {
         vi.mocked(api.get).mockRejectedValueOnce(new Error("Unavailable")).mockResolvedValueOnce(response);
         renderWithClient(<EcoPointsPage />);
-        expect(await screen.findByRole("alert")).toHaveTextContent("Could not load your EcoPoints. Please try again.");
+        expect(await screen.findByRole("alert")).toHaveTextContent("We could not load this page. Check your connection and try again.");
         fireEvent.click(screen.getByRole("button", { name: "Try again" }));
         expect(await screen.findByText("Total")).toBeInTheDocument();
         expect(api.get).toHaveBeenCalledTimes(2);
