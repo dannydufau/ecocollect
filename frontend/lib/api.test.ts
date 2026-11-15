@@ -48,3 +48,25 @@ it("returns undefined for a 204", async () => {
     reply(204);
     expect(await api.delete("/api/session")).toBeUndefined();
 });
+
+it("sends PATCH with a JSON body", async () => {
+    reply(200, { ok: true });
+    await api.patch("/api/requests/1", { quantity: 3 });
+    expect(fetch).toHaveBeenCalledWith("/api/requests/1", expect.objectContaining({ method: "PATCH", body: '{"quantity":3}' }));
+});
+
+it("getWithMeta returns the Date header of the response as a Date", async () => {
+    reply(200, { id: 1 }, { Date: "Sun, 15 Nov 2026 18:00:00 GMT" });
+    const { data, serverDate } = await api.getWithMeta("/api/requests/1");
+    expect(data).toEqual({ id: 1 });
+    expect(serverDate).toEqual(new Date("2026-11-15T18:00:00Z"));
+});
+
+it("getWithMeta falls back to the device clock when there is no Date header", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-15T12:00:00Z"));
+    reply(200, { id: 1 });
+    const { serverDate } = await api.getWithMeta("/api/requests/1");
+    expect(serverDate).toEqual(new Date("2026-11-15T12:00:00Z"));
+    vi.useRealTimers();
+});

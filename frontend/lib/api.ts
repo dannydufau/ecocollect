@@ -43,7 +43,7 @@ async function getToken(): Promise<string | null> {
     return user ? user.getIdToken() : null;
 }
 
-export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+async function request<T>(path: string, init: RequestInit): Promise<{ data: T; res: Response }> {
     const headers = new Headers(init.headers);
 
     const token = await getToken();
@@ -69,15 +69,29 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
     if (!res.ok) {
         throw new ApiError(res.status, data);
     }
-    return data as T;
+    return { data: data as T, res };
+}
 
+export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+    return (await request<T>(path, init)).data;
 }
 
 export const api = {
     get: <T>(path: string) => apiFetch<T>(path),
+    // The request page times its refresh by the server clock (16.12), because the device clock can be wrong.
+    getWithMeta: async <T>(path: string) => {
+        const { data, res } = await request<T>(path, {});
+        const date = new Date(res.headers.get("Date") ?? "");
+        return { data, serverDate: Number.isNaN(date.getTime()) ? new Date() : date };
+    },
     post: <T>(path: string, body?: unknown) =>
         apiFetch<T>(path, {
             method: "POST",
+            body: body === undefined ? undefined : JSON.stringify(body),
+        }),
+    patch: <T>(path: string, body?: unknown) =>
+        apiFetch<T>(path, {
+            method: "PATCH",
             body: body === undefined ? undefined : JSON.stringify(body),
         }),
     delete: <T>(path: string, body?: unknown) =>
