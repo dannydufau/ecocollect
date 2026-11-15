@@ -4,26 +4,11 @@
 
 This document explains how the [logical schema with 25 tables](<../2. Logical model/README.md>) meets First, Second and Third Normal Form (1NF, 2NF and 3NF). Business-rule references come from the [conceptual model](<../1. Conceptual Model(ER diagram)/ER-Diagram.drawio>) and the rules for events come from the [implementation contract](../../../../contracts/README.md).
 
-The logical diagram and its README use the table changes explained here. SQL scripts, sample data and service queries still need to be updated to match. This document checks the table design and its dependencies.
-
 ## Functional dependencies and keys
 
-A functional dependency describes how one value identifies another. `X → Y` means that rows with the same `X` must also have the same `Y`. For example, a category ID identifies its name and standard weight. These rules come from the business requirements, rather than patterns that happen to appear in sample data.
+`X → Y` means that rows with the same `X` must also have the same `Y`. These dependencies follow the business rules. A **candidate key** uniquely identifies a row using only the columns it needs. A **composite key** contains two or more columns. In this document, a **non-key column** means a column that belongs to no candidate key.
 
-The following key terms are used in this document:
-
-- **Candidate key:** a column, or group of columns, that uniquely identifies a row. Every column in the key is needed.
-- **Primary key (PK):** the candidate key chosen as the main identifier for a table.
-- **Composite key:** a key made up of two or more columns. A candidate key can be a single column or a composite key.
-- **Superkey:** any column or group of columns that uniquely identifies a row, even if some of those columns are unnecessary.
-- **Key column (prime attribute):** a column that belongs to at least one candidate key. A non-key column belongs to none of the candidate keys.
-- **Foreign key (FK):** a column or group of columns that references a key in another table, or in the same table.
-
-For **2NF**, every non-key column must depend on the whole of each candidate key. If a candidate key contains several columns, a non-key column must not depend on just part of that composite key.
-
-For **3NF**, whenever `X → A` and `A` is not already part of `X`, either `X` must uniquely identify the row, or `A` must belong to a candidate key. For the tables discussed below, this means removing cases where the key identifies one non-key column, which then identifies another non-key column in the same table. Adding a generated ID as the primary key does not, by itself, make a table satisfy 3NF.
-
-Each primary key below identifies all other values in its table. The logical README lists all columns, allowed values and types, optional fields, keys and uniqueness rules.
+The following summary lists the keys and dependencies. The [logical model](<../2. Logical model/README.md>) provides the complete column definitions and constraints.
 
 | Table | Candidate keys and important dependencies |
 |---|---|
@@ -53,7 +38,7 @@ Each primary key below identifies all other values in its table. The logical REA
 | `request_update_event` | `(pickup_request_id, request_seq) → reason`. Both key columns are needed to identify the reason. |
 | `request_changed_field` | All three columns, `(pickup_request_id, request_seq, field_name)`, form the key. |
 
-`rescheduled_from_request_id` is unique when present, but it is empty for requests that were not rescheduled. It therefore does not identify every row in the request table. Similarly, rules for active slots and unfinished assignments do not identify all historical rows. Names, timestamps, addresses and formula text can repeat. One account can also have several subscriptions.
+`rescheduled_from_request_id` is unique only when present, so it is not a candidate key for the whole table. Rules that apply only to active slots or unfinished assignments also do not identify every historical row.
 
 ## First Normal Form
 
@@ -69,30 +54,31 @@ Each primary key below identifies all other values in its table. The logical REA
 | Selected item categories | One request per category in a Q4 submission. |
 | Changed request fields | One `request_changed_field` row per event/field pair. |
 
-The previous notification metadata stored the event sequence, action ID, update reason and a list of changed fields together in JSON. Lecture 8 treats a value as atomic when it is stored as one value rather than as a list of separate facts. To follow that approach, the design stores the event details in `request_event`, the update reason in `request_update_event`, and each changed field in its own `request_changed_field` row.
+The previous notification JSON combined event details with a list of changed fields. Following Lecture 8, these are separated into `request_event`, `request_update_event`, and one `request_changed_field` row for each changed field.
 
-An event is identified by both `pickup_request_id` and `request_seq`. Under contract section 10.2, several events can share one `transition_id`, including events for the old and new requests during rescheduling. Each changed-field row references both event-key columns so it points to exactly one update event.
+An event needs both `pickup_request_id` and `request_seq` to identify it. A `transition_id` is not unique because one action can produce several events, including events for both requests during rescheduling (contract 10.2).
 
-Notes, terms content and formula descriptions remain single text values because the system uses each as a whole. It does not treat individual words as separate records. Every column now holds one value of its defined type, and each row has a key.
+Notes, terms content and formula descriptions remain single text values because the system uses each as a whole. Each table has a key that identifies its rows.
 
 ## Second Normal Form
 
-For tables with composite candidate keys, check whether each non-key column depends on the whole key:
+2NF requires 1NF and requires every non-key column to depend on the whole of each candidate key. For a composite candidate key, depending on just part of the key is a **partial dependency**.
 
 | Table | Why the whole key is needed |
 |---|---|
-| Preferred postal code | Both key columns identify the preference. There are no non-key columns. |
-| Facility accepts | Both key columns identify the facility/category pair. There are no non-key columns. |
-| Status change | A request has several changes and timestamps can repeat across requests. The complete request/time pair determines status and reason. |
-| Request event | One request has many events and the same sequence can occur on different requests. The complete request/sequence pair determines its transition. |
-| Request update event | Update reasons can vary across one request's history and across different requests with the same sequence number. The complete pair determines the reason. |
-| Request changed field | All three columns belong to the key. There are no non-key columns. |
+| `status_change` | A request has several status changes, and different requests can share a timestamp. Both `pickup_request_id` and `changed_at` identify the status and reason. |
+| `request_event` | A request has several events, and sequence numbers repeat across requests. Both `pickup_request_id` and `request_seq` identify the transition. |
+| `request_update_event` | Update reasons vary across events. Both `pickup_request_id` and `request_seq` identify the reason. |
+
+`volunteer_preferred_postal_code`, `facility_accepts` and `request_changed_field` contain only key columns, so they have no non-key columns with partial dependencies.
 
 For example, the key of `facility_accepts` is `(facility_id, category_id)`. If this table also stored the facility name, that name would depend only on `facility_id`, not on the whole key. This is a **partial dependency**, which breaks 2NF. A category name stored here would have the same problem. These descriptions stay in `recycling_facility` and `item_category` instead.
 
-The other candidate keys each contain just one column, so they cannot have a dependency on only part of the key. Together with the 1NF checks above, these checks show that the tables meet 2NF.
+The remaining candidate keys each contain one column, so they cannot have dependencies on just part of a key. These checks establish 2NF.
 
 ## Third Normal Form
+
+3NF requires 2NF. In the cases below, a non-key column must not identify another non-key column in the same table. The design removes these **transitive dependencies** by storing each fact with the key that identifies it.
 
 ### Request owner
 
@@ -102,9 +88,9 @@ The previous request table stored both its terms acceptance ID and its resident 
 pickup_request_id → terms_acceptance_id → account_id
 ```
 
-Q4 allows several item requests to share one terms acceptance, so the acceptance ID does not uniquely identify a request. However, each acceptance identifies one account (BR43). Storing both IDs in the request creates a **transitive dependency**: the request ID identifies the acceptance, and the acceptance identifies the account.
+Several item requests can share one terms acceptance, so it is not a candidate key for a request. Each acceptance identifies one account (BR43). Storing the account ID in the request would repeat a value already identified by its acceptance.
 
-The request keeps `terms_acceptance_id`. Its owner is found through `terms_acceptance.account_id`. Each request must reference exactly one existing acceptance. Joining the two tables therefore recovers the owner without losing or duplicating request rows; this is called a **lossless join**. Business checks must still confirm that the account is a resident and that the acceptance was for request creation.
+The request keeps `terms_acceptance_id` and finds its owner through `terms_acceptance.account_id`. Each request references exactly one acceptance, so the join recovers the owner without losing or duplicating request rows. This is a **lossless join**.
 
 ### Assignment request and volunteer
 
@@ -114,17 +100,13 @@ The previous assignment stored a request ID beside its selected window:
 assignment_id → pickup_window_id → pickup_request_id
 ```
 
-Each window belongs to one request, and multiple ended assignments can refer to the same offered window over time. A composite FK ensured that the request ID matched the selected window, but the same request ID was still stored twice.
+Each window belongs to one request, but can appear in several past assignments. The window ID therefore identifies the request without uniquely identifying an assignment.
 
-The assignment keeps its selected window ID and finds the request through `pickup_window`. It finds the volunteer through its required terms acceptance (BR29). The assignment stores its own acceptance, collection and ending details. Each FK points to exactly one parent row, so these joins recover the details without duplicating assignments.
-
-The design does not require each assignment to have a unique terms acceptance ID. If that uniqueness rule were added, the acceptance ID could be another candidate key. Either way, the acceptance identifies the volunteer.
-
-A request may still have only one unfinished assignment. This rule involves several rows, so the SQL implementation must lock the request while checking its assignments through their windows. The earlier index relied on storing the request ID directly in `assignment`. After removing that column, another check must prevent simultaneous actions from creating two unfinished assignments.
+The assignment keeps the window ID and finds the request through `pickup_window`. Similarly, `assignment_id → terms_acceptance_id → account_id` identifies the volunteer (BR29), so the volunteer ID is not repeated in `assignment`. Both joins point to exactly one parent row and recover the details without duplicating assignments.
 
 ### Award role and recipient
 
-The earlier award table had separate resident and volunteer recipient columns, with one left empty depending on the role. Within each role, an assignment could have only one award. The assignment and role already identified the recipient, so checking only the award ID was not enough to justify 3NF.
+The assignment and earned role already identify an award recipient. Storing the recipient again in the award would repeat that information. The role must remain explicit because one person can earn awards as both a resident and a volunteer.
 
 The design uses these three tables:
 
@@ -134,9 +116,9 @@ resident_award(ecopoints_award_id)
 volunteer_award(ecopoints_award_id)
 ```
 
-Each award has a row in exactly one of `resident_award` or `volunteer_award`. These role tables contain only the award ID, which is both their PK and an FK to `ecopoints_award`. The role table identifies which role earned the award. Joining through the assignment identifies that role's recipient, so the recipient ID does not need to be stored again in the award.
+Each award has a row in exactly one role table: `resident_award` or `volunteer_award`. Its award ID is both the primary key and a foreign key. The role table and assignment together identify the recipient without repeating the recipient ID in the award.
 
-The award and role tables must be checked together to allow at most one award per assignment for each role. Self-delivery still has two award IDs, one per role. Eligible resident cancellation has only the volunteer award and excludes self-cancellation (BR11, BR55).
+Exactly one role row is required per award, with at most one award per assignment and role. Self-delivery can still produce two awards, one per role. Eligible resident cancellation gives only a volunteer award and excludes self-cancellation (BR11, BR55).
 
 ### Notification source and event facts
 
@@ -144,7 +126,7 @@ Request notifications require an explicit recipient because one event can notify
 
 The `notification` table stores the type, times, and read/expiry state. Each notification has a row in exactly one of the two source tables. In `award_notification`, `ecopoints_award_id` is required and unique, so either column can identify the row. A `request_notification` stores its recipient and both columns of the event key.
 
-The event table stores `request_seq` and `transition_id` once for each event. An update event also has a row containing its reason, with one separate row per changed field. Several notifications can reference the same event without repeating these details. Requiring exactly one source row per notification and one role row per award makes it possible to recover the source, recipient and metadata without losing or duplicating rows.
+Event details are stored once and referenced by notifications. This removes dependencies such as `notification_id → (pickup_request_id, request_seq) → transition_id`. The update reason is stored once in `request_update_event`, rather than repeated for each changed field. Joining on the complete event key recovers these details without duplicating them in storage.
 
 ### Descriptions remain with their identifiers
 
@@ -160,21 +142,10 @@ Normalization must preserve the meaning of historical values:
 - Category standard weight can change while earlier requests retain their estimates (BR31). Therefore, the same category and quantity can have different estimates on requests created at different times. `(category_id, quantity) → estimated_weight_kg` does not hold across the full request history. The system calculates the estimate when a request is created or edited.
 - Award points and the formula used are frozen facts (BR41). A request may be edited after a cancellation award, and later formulas can affect new awards. Current request values must not overwrite an old award's meaning. Repeating the same formula text does not mean that a role must always use that formula.
 
-Request status, assignment status, expiry, delivery time, award kind/time, totals, eligible facilities and notification title/body are calculated or read from their stored source records, as specified by BR12, BR24, BR33, BR44–BR45 and BR57–BR59.
+## Conclusion
 
-## Conclusion and implementation checks
+Under the stated business rules, the 25-table logical schema satisfies:
 
-The 25 tables meet the normal forms under the stated business rules:
-
-- **1NF:** each column holds one value, and lists are stored as separate rows.
+- **1NF:** each column holds one value, with repeated information stored in separate rows.
 - **2NF:** non-key columns depend on the whole candidate key, including every part of a composite key.
-- **3NF:** descriptions, people and event details are stored with the IDs that identify them, instead of being repeated in related tables in ways that create transitive dependencies.
-
-The logical README and diagram list the tables, keys, allowed values and rules involving several rows. Implementing the design also requires:
-
-1. Queries or database views that follow the required FKs to find request owners, assignment participants, award roles and notification recipients.
-2. Checks for exactly one role row per award, exactly one source row per notification, at most one award per assignment and role, one notification per award, and no repeated changed field within an event.
-3. A check that prevents two simultaneous actions from creating more than one unfinished assignment for a request, after removing the repeated request ID from `assignment`.
-4. Data-loading scripts, service queries, database operations and tests that use these tables and preserve historical values.
-
-These changes reorganize how the existing conceptual relationships are stored in tables. The SQL scripts and the services listed in contract section 8 must use the updated tables and joins, or views that provide the expected fields. Normalization checks how values depend on keys. Allowed values, timing rules, required relationships and simultaneous actions still need the constraints and transactions described in the logical model.
+- **3NF:** the request, assignment, award and notification changes remove the transitive dependencies described above. Shared descriptions remain in their own tables.
