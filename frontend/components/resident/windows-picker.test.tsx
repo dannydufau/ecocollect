@@ -59,15 +59,15 @@ describe("WindowsPicker", () => {
     });
 
     it.each([
-        ["2026-02-15T19:00:00Z", "2026-03-17", "2026-03-18"],
-        ["2026-04-15T18:00:00Z", "2026-05-15", "2026-05-16"],
-    ])("checks the 30-day date limit at %s", (now, lastDate, invalidDate) => {
+        ["2026-02-15T19:00:00Z", "2026-03-17", "2026-03-18", "Sun, Feb 15", "Tue, Mar 17"],
+        ["2026-04-15T18:00:00Z", "2026-05-15", "2026-05-16", "Wed, Apr 15", "Fri, May 15"],
+    ])("checks the 30-day date limit at %s", (now, lastDate, invalidDate, firstLabel, lastLabel) => {
         vi.setSystemTime(new Date(now));
         render(<Picker />);
         const date = screen.getByLabelText("Date 1");
         expect(date).toHaveAttribute("max", lastDate);
         fireEvent.change(date, { target: { value: invalidDate } });
-        expect(screen.getByRole("alert")).toHaveTextContent(`Choose a date from ${now.slice(0, 10)} to ${lastDate}.`);
+        expect(screen.getByRole("alert")).toHaveTextContent(`Choose a date from ${firstLabel} to ${lastLabel}.`);
         fireEvent.change(date, { target: { value: lastDate } });
         expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     });
@@ -91,6 +91,40 @@ describe("WindowsPicker", () => {
         rerender(<WindowsPicker value={[{ date: "2026-12-01", startHour: 0 }]} onChange={vi.fn()} />);
         expect(screen.getByLabelText("Date 1")).toHaveValue("2026-12-01");
         expect(screen.getByLabelText("Start hour 1")).toHaveValue("0");
+    });
+
+    it.each(["date", "hour"])("clears a half-filled %s row when the parent resets", (field) => {
+        function ResettablePicker() {
+            const [windows, setWindows] = useState<PickupWindow[]>([]);
+            return <>
+                <WindowsPicker value={windows} onChange={setWindows} />
+                <button onClick={() => setWindows([])}>Clear</button>
+            </>;
+        }
+        render(<ResettablePicker />);
+        const label = field === "date" ? "Date 1" : "Start hour 1";
+        const value = field === "date" ? "2026-12-01" : "9";
+        fireEvent.change(screen.getByLabelText(label), { target: { value } });
+        expect(screen.getByLabelText(label)).toHaveValue(value);
+        fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+        expect(screen.getByLabelText("Date 1")).toHaveValue("");
+        expect(screen.getByLabelText("Start hour 1")).toHaveValue("");
+    });
+
+    it("clears partial rows when rerendered with a new empty value", () => {
+        const { rerender } = render(<WindowsPicker value={[]} onChange={vi.fn()} />);
+        fireEvent.change(screen.getByLabelText("Date 1"), { target: { value: "2026-12-01" } });
+        expect(screen.getByLabelText("Date 1")).toHaveValue("2026-12-01");
+        rerender(<WindowsPicker value={[]} onChange={vi.fn()} />);
+        expect(screen.getByLabelText("Date 1")).toHaveValue("");
+    });
+
+    it("keeps a partial row when the parent value has not changed", () => {
+        const value: PickupWindow[] = [];
+        const { rerender } = render(<WindowsPicker value={value} onChange={vi.fn()} />);
+        fireEvent.change(screen.getByLabelText("Date 1"), { target: { value: "2026-12-01" } });
+        rerender(<WindowsPicker value={value} onChange={vi.fn()} />);
+        expect(screen.getByLabelText("Date 1")).toHaveValue("2026-12-01");
     });
 
     it("shows errors for past dates and hours in Calgary", () => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
-import { calgaryToday, formatHour } from "@/lib/time";
+import { calgaryToday, formatHour, formatWindow } from "@/lib/time";
 import type { PickupWindow } from "@/lib/types";
 
 type Row = { date: string; startHour: string };
@@ -12,16 +12,19 @@ function rowsFrom(windows: PickupWindow[]): Row[] {
         : [{ date: "", startHour: "" }];
 }
 
+function dateLabel(date: string): string {
+    return formatWindow({ date, startHour: 0 }).split(", ").slice(0, 2).join(", ");
+}
+
 export function WindowsPicker({ value, onChange, createdAt }: {
     value: PickupWindow[];
     onChange: (windows: PickupWindow[]) => void;
     createdAt?: string;
 }) {
     const id = useId();
-    const valueKey = JSON.stringify(value.map(({ date, startHour }) => ({ date, startHour })));
-    const [draft, setDraft] = useState(() => ({ valueKey, rows: rowsFrom(value) }));
-    if (draft.valueKey !== valueKey) {
-        setDraft({ valueKey, rows: rowsFrom(value) });
+    const [draft, setDraft] = useState(() => ({ value, emitted: value, rows: rowsFrom(value) }));
+    if (draft.value !== value) {
+        setDraft({ value, emitted: value, rows: value === draft.emitted ? draft.rows : rowsFrom(value) });
     }
 
     const today = calgaryToday();
@@ -36,7 +39,7 @@ export function WindowsPicker({ value, onChange, createdAt }: {
         const windows = rows
             .filter(row => row.date && row.startHour !== "")
             .map(row => ({ date: row.date, startHour: Number(row.startHour) }));
-        setDraft({ valueKey: JSON.stringify(windows), rows });
+        setDraft({ value, emitted: windows, rows });
         onChange(windows);
     }
 
@@ -50,7 +53,7 @@ export function WindowsPicker({ value, onChange, createdAt }: {
             {draft.rows.map((row, index) => {
                 let error = "";
                 if (row.date && (row.date < today || row.date > maxDate)) {
-                    error = `Choose a date from ${today} to ${maxDate}.`;
+                    error = `Choose a date from ${dateLabel(today)} to ${dateLabel(maxDate)}.`;
                 } else if (row.date === today && row.startHour !== "" && Number(row.startHour) <= currentHour) {
                     error = "Choose a pickup time in the future.";
                 } else if (row.date && row.startHour !== "" && draft.rows.some((other, otherIndex) =>
