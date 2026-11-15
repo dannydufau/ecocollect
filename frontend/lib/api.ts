@@ -1,12 +1,28 @@
 import { auth } from "@/lib/firebase";
 
+// The error body the contract promises: { error: { code, message, details: { fields } } }
+type ErrorBody = { error?: { code?: unknown; message?: unknown; details?: { fields?: unknown } } };
+
 export class ApiError extends Error {
+    code: string;
+    fields: Record<string, string>;
+
     constructor(
         public status: number,
         public body: unknown,
     ) {
-        super(`API request failed with status ${status}`);
+        const error = (body as ErrorBody | null | undefined)?.error;
+        super(typeof error?.message === "string" ? error.message : `API request failed with status ${status}`);
         this.name = "ApiError";
+        // A proxy or a crashed service can answer with something that is not our error body.
+        this.code = typeof error?.code === "string" ? error.code : "unknown";
+        this.fields = {};
+        const fields = error?.details?.fields;
+        if (fields && typeof fields === "object") {
+            for (const [name, text] of Object.entries(fields)) {
+                if (typeof text === "string") this.fields[name] = text;
+            }
+        }
     }
 }
 
