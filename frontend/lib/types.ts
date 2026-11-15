@@ -24,6 +24,12 @@ export type TermsDocument = Schemas["TermsDocument"];
 export type Notification = Schemas["Notification"];
 export type PushSubscription = Schemas["PushSubscription"];
 export type Award = Schemas["Award"];
+export type WasteTypeStats = Schemas["WasteTypeStats"];
+export type CategoryWithWeight = Schemas["CategoryWithWeight"];
+export type Facility = Schemas["Facility"];
+export type PhotoRef = Schemas["PhotoRef"];
+export type UploadRequest = Schemas["UploadRequest"];
+export type UploadTicket = Schemas["UploadTicket"];
 
 export type RequestStatus = Schemas["RequestStatus"];
 export type Role = Schemas["Role"];

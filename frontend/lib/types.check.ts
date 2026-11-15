@@ -1,5 +1,7 @@
 // Not run. `npx tsc --noEmit` fails if the generated types stop matching these.
-import type { ProfileEdit, RequestDetail } from "@/lib/types";
+import type {
+    CategoryWithWeight, Facility, PhotoRef, ProfileEdit, RequestDetail, UploadRequest, UploadTicket, WasteTypeStats,
+} from "@/lib/types";
 
 export const detail: RequestDetail = {
     requestId: "1b4e28ba-2fa1-11d2-883f-0016d3cca427",
@@ -17,3 +19,10 @@ export const detail: RequestDetail = {
 };
 
 export const edit: ProfileEdit = { publicName: "Sam B." };
+
+export const category: CategoryWithWeight = { categoryId: "laptops", name: "Computers/Laptops", wasteType: "Electronics", standardWeightKg: 2.5 };
+
+export const upload: UploadRequest = { purpose: "item_photo", fileName: "laptop.jpg", contentType: "image/jpeg", sizeBytes: 120000 };
+
+// Only here so a rename in the contract breaks the build.
+export type Others = [WasteTypeStats, Facility, PhotoRef, UploadTicket];
