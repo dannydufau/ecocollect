@@ -62,7 +62,8 @@ const friendlyMessages: Record<string, string> = {
 // A sentence for people. The code decides the wording; the server message is the fallback because it can name the problem.
 export function friendlyError(err: unknown): string {
     if (!(err instanceof ApiError)) return "We could not reach the server. Check your connection and try again.";
-    return friendlyMessages[err.code] ?? err.message;
+    // Own property only: a code like "toString" must not pick up a function from Object.prototype.
+    return Object.hasOwn(friendlyMessages, err.code) ? friendlyMessages[err.code] : err.message;
 }
 
 async function getToken(): Promise<string | null> {

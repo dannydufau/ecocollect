@@ -94,6 +94,10 @@ it("friendlyError uses the server message for a code it does not know", () => {
     expect(friendlyError(new ApiError(409, { error: { code: "something_new", message: "Try later." } }))).toBe("Try later.");
 });
 
+it.each(["toString", "constructor", "__proto__"])("friendlyError uses the server message for the inherited name %s", code => {
+    expect(friendlyError(new ApiError(409, { error: { code, message: "Server says no." } }))).toBe("Server says no.");
+});
+
 it("friendlyError does not blame the user when the call never reached the server", () => {
     expect(friendlyError(new TypeError("Failed to fetch"))).toMatch(/could not reach the server/);
 });
