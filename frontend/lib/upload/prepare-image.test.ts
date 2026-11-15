@@ -40,6 +40,13 @@ it("keeps a 100x100 photo at 100x100", async () => {
     expect(drawImage).toHaveBeenCalledWith(expect.anything(), 0, 0, 100, 100);
 });
 
+it("keeps a very narrow 1x5000 photo at least 1 px wide", async () => {
+    stubBitmap(1, 5000);
+    await prepareImage(photo("a.jpg", "image/jpeg"));
+
+    expect(drawImage).toHaveBeenCalledWith(expect.anything(), 0, 0, 1, 2048);
+});
+
 it("throws for a gif", async () => {
     stubBitmap(100, 100);
     await expect(prepareImage(photo("a.gif", "image/gif"))).rejects.toThrow("JPEG, PNG or WebP");

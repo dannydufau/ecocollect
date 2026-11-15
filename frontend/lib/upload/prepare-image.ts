@@ -16,8 +16,8 @@ export async function prepareImage(file: File): Promise<Blob> {
     }
 
     const scale = Math.min(1, MAX_SIDE / Math.max(bitmap.width, bitmap.height));
-    const width = Math.round(bitmap.width * scale);
-    const height = Math.round(bitmap.height * scale);
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
 
     const canvas = document.createElement("canvas");
     canvas.width = width;
