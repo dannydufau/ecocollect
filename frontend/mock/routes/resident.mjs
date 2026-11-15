@@ -1,3 +1,4 @@
+import { registerResidentActions } from "../resident-actions.mjs";
 import { randomUUID } from "node:crypto";
 import { currentUser, now, sendError } from "../store.mjs";
 import { buildDetail, requestSummary, windowStart } from "../detail.mjs";
@@ -30,7 +31,7 @@ function extraFields(value, allowed, prefix, fields) {
   }
 }
 
-function validate(body, timestamp, categories) {
+function validate(body, timestamp, categories, createdAt = timestamp) {
   const fields = Object.create(null);
   if (!body || typeof body !== "object" || Array.isArray(body)) return { body: "Send a request body." };
   extraFields(body, ["items", "windows", "notes", "termsDocumentId"], "", fields);
@@ -81,7 +82,7 @@ function validate(body, timestamp, categories) {
       const slot = `${window.date}-${window.startHour}`;
       if (slots.has(slot)) fields[path] = "Choose a different date or hour.";
       else if (start <= timestamp) fields[path] = "Choose a future pickup window.";
-      else if (start + HOUR > timestamp + 30 * DAY) fields[path] = "The window must end within 30 days.";
+      else if (start + HOUR > createdAt + 30 * DAY) fields[path] = "The window must end within 30 days.";
       slots.add(slot);
     });
   }
@@ -134,7 +135,7 @@ function seedRequests(store) {
   }
 }
 
-export function register(route, store) {
+export function register(route, store, { notify } = {}) {
   store.categories = [
     ["laptops", "Computers/Laptops", "Electronics", 2.5],
     ["desktops", "Computers/Desktops", "Electronics", 8],
@@ -224,4 +225,6 @@ export function register(route, store) {
     if (!detail) return sendError(res, 404, "request_unavailable", "This request is no longer available.");
     send(res, 200, detail);
   });
+  registerResidentActions(route, store, { authenticate, send, validate, notify });
+
 }
