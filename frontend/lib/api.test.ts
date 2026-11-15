@@ -1,9 +1,12 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { api, ApiError, friendlyError } from "./api";
 
-vi.mock("@/lib/firebase", () => ({
-    auth: { authStateReady: () => Promise.resolve(), currentUser: null },
+const mocks = vi.hoisted(() => ({
+    auth: { authStateReady: () => Promise.resolve(), currentUser: null as { getIdToken: () => Promise<string> } | null },
+    signOut: vi.fn(),
 }));
+vi.mock("@/lib/firebase", () => ({ auth: mocks.auth }));
+vi.mock("firebase/auth", () => ({ signOut: mocks.signOut }));
 
 function reply(status: number, body?: unknown, headers: Record<string, string> = {}) {
     const text = body === undefined ? "" : typeof body === "string" ? body : JSON.stringify(body);
@@ -19,7 +22,14 @@ async function caught(call: Promise<unknown>) {
     throw new Error("expected the call to fail");
 }
 
-beforeEach(() => vi.spyOn(console, "warn").mockImplementation(() => {}));
+const assign = vi.fn();
+beforeEach(() => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    mocks.auth.currentUser = null;
+    mocks.signOut.mockReset().mockResolvedValue(undefined);
+    assign.mockClear();
+    vi.stubGlobal("location", { pathname: "/resident", assign });
+});
 afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
@@ -86,4 +96,35 @@ it("friendlyError uses the server message for a code it does not know", () => {
 
 it("friendlyError does not blame the user when the call never reached the server", () => {
     expect(friendlyError(new TypeError("Failed to fetch"))).toMatch(/could not reach the server/);
+});
+
+it("signs out and goes to the login page when a protected call gets a 401", async () => {
+    mocks.auth.currentUser = { getIdToken: () => Promise.resolve("token") };
+    reply(401, { error: { code: "unauthorized", message: "Please log in again." } });
+    const err = await caught(api.get("/api/requests?view=mine"));
+    expect(err.status).toBe(401);
+    expect(mocks.signOut).toHaveBeenCalledOnce();
+    expect(assign).toHaveBeenCalledWith("/login?expired=1");
+});
+
+it("leaves a 401 from the session call alone, because that is the login itself", async () => {
+    mocks.auth.currentUser = { getIdToken: () => Promise.resolve("token") };
+    reply(401, { error: { code: "unauthorized", message: "Wrong login." } });
+    await caught(api.post("/api/session", { idToken: "x" }));
+    expect(mocks.signOut).not.toHaveBeenCalled();
+    expect(assign).not.toHaveBeenCalled();
+});
+
+it("does not send a signed-out visitor to the login page for a 401", async () => {
+    reply(401, { error: { code: "unauthorized", message: "Please log in." } });
+    await caught(api.get("/api/public/stats"));
+    expect(assign).not.toHaveBeenCalled();
+});
+
+it("does not redirect again when the visitor is already on the login page", async () => {
+    vi.stubGlobal("location", { pathname: "/login", assign });
+    mocks.auth.currentUser = { getIdToken: () => Promise.resolve("token") };
+    reply(401, { error: { code: "unauthorized", message: "Please log in again." } });
+    await caught(api.get("/api/requests?view=mine"));
+    expect(assign).not.toHaveBeenCalled();
 });

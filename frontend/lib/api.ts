@@ -1,3 +1,4 @@
+import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 
 // The error body the contract promises: { error: { code, message, details: { fields } } }
@@ -70,6 +71,15 @@ async function getToken(): Promise<string | null> {
     return user ? user.getIdToken() : null;
 }
 
+async function endExpiredSession() {
+    // Several calls can fail at once. One trip to the login page is enough.
+    if (window.location.pathname.startsWith("/login")) return;
+    await signOut(auth).catch(() => {});
+    // A full page load on purpose: this file has no router, and it also drops everything cached for the old session.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+    window.location.assign("/login?expired=1");
+}
+
 async function request<T>(path: string, init: RequestInit): Promise<{ data: T; res: Response }> {
     const headers = new Headers(init.headers);
 
@@ -94,6 +104,8 @@ async function request<T>(path: string, init: RequestInit): Promise<{ data: T; r
     }
 
     if (!res.ok) {
+        // The session ran out. /api/session is the login call itself, so a 401 there only means a wrong login.
+        if (res.status === 401 && token && !path.startsWith("/api/session")) await endExpiredSession();
         throw new ApiError(res.status, data);
     }
     return { data: data as T, res };
