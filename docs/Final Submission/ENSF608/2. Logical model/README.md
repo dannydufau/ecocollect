@@ -1,6 +1,6 @@
 # Logical database model
 
-This logical schema contains 25 relations and 100 attributes. Open `Logical Database Model.drawio` for the relationship overview, four pages of relation definitions, and the integrity-rules page. The [normalization document](<../3. Normalization/README.md>) explains the functional dependencies and the decompositions adopted in this mapping.
+This logical schema contains 25 relations and 100 attributes. Open `Logical Database Model.drawio` for the horizontal relation tables and foreign-key arrows, with the relational schema in the yellow notes panel. The additional pages cover conceptual mapping, nullability, domains, integrity rules and derived data. The [normalization document](<../3. Normalization/README.md>) explains the functional dependencies and the decompositions adopted in this mapping.
 
 The [conceptual model](<../1. Conceptual Model(ER diagram)/ER-Diagram.drawio>) supplies the business rules. Normalization maps ownership and assignment participation through existing keys, uses role/source subtypes, and separates multivalued event facts into relations.
 
