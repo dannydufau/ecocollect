@@ -53,7 +53,7 @@ All primary-key columns are required. Every column is `NOT NULL` except the colu
 - Postal codes use `CHAR(6)`, uppercase with no spaces, in Canadian letter-digit-letter-digit-letter-digit form. Calgary validity is checked during account/profile validation (BR7).
 - `pickup_request.quantity` is an integer greater than zero. Category standard weight and request estimated weight are positive exact decimals. The stored request weight is calculated from quantity and the category weight when created or edited (BR30–BR31).
 - `pickup_window.start_hour` is an integer from 0 through 23. A window stores its Calgary date and hour directly. The server validates future start times and the original creation-time limit, retaining inactive history (BR32–BR36).
-- `status_change.status` is one of `Open`, `Assigned`, `Collected`, `Delivered`, `Cancelled`, `Expired`, `Missed`. `reason` is optional free text, with no invented enumeration (BR17–BR18).
+- `status_change.status` is one of `Open`, `Assigned`, `Collected`, `Delivered`, `Cancelled`, `Expired`, `Missed`. `reason` is optional free text (BR17–BR18).
 - Non-null `assignment.end_reason` is one of `Delivered`, `Resident_Cancelled`, `Volunteer_Cancelled`, `Missed_Pickup`. Collection cannot precede acceptance, and ending cannot precede acceptance or collection. A Delivered assignment must have been collected (BR21–BR26).
 - `terms_acceptance.type` is one of `AT_RESIDENT_REGISTRATION_OR_ACTIVATION`, `AT_VOLUNTEER_REGISTRATION_OR_ACTIVATION`, `AT_RESIDENT_REQUEST_CREATION`, `AT_VOLUNTEER_ACCEPTANCE`.
 - `notification.type` uses the closed list from contract section 13.1, reproduced in the diagram's domain-rules panel. `is_read`, `is_expired` and window `is_active` are required booleans.
