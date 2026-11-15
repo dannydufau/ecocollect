@@ -41,8 +41,23 @@ it("filters by Missed and returns to the unfiltered list with one active button"
 it("shows an empty state and a new request link", async () => {
     vi.mocked(api.get).mockResolvedValue([]);
     renderWithClient(<MyRequests />);
-    expect(await screen.findByText("You have not made any requests yet.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "New request" })).toHaveAttribute("href", "/resident/requests/new");
+    expect(await screen.findByText("You have no requests yet.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Create your first request" })).toHaveAttribute("href", "/resident/requests/new");
+});
+it("says which status has no requests when a filter is empty", async () => {
+    renderWithClient(<MyRequests />);
+    await screen.findByRole("link", { name: "2 × Computers/Laptops" });
+    vi.mocked(api.get).mockResolvedValue([]);
+    fireEvent.click(screen.getByRole("button", { name: "Expired" }));
+    expect(await screen.findByText("You have no expired requests.")).toBeInTheDocument();
+});
+it("keeps the old rows on screen while a new filter loads", async () => {
+    renderWithClient(<MyRequests />);
+    await screen.findByRole("link", { name: "2 × Computers/Laptops" });
+    vi.mocked(api.get).mockReturnValue(new Promise(() => {}));
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+    await waitFor(() => expect(api.get).toHaveBeenLastCalledWith("/api/requests?view=mine&status=Open"));
+    expect(screen.getByRole("link", { name: "2 × Computers/Laptops" })).toBeInTheDocument();
 });
 it("shows an API error and lets the resident retry", async () => {
     vi.mocked(api.get).mockRejectedValueOnce(new Error("Unavailable"));

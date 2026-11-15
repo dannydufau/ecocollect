@@ -9,6 +9,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { formatTimestamp } from "@/lib/time";
 import type { RequestStatus } from "@/lib/types";
 import { Alert } from "@/components/ui/alert";
+import { Spinner } from "@/components/ui/spinner";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Spinner } from "@/components/ui/spinner";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -18,9 +19,10 @@ const linkStyle = "inline-flex min-h-11 items-center rounded-lg bg-[#9e5220] px-
 
 export default function MyRequests({ created }: { created?: string }) {
     const [status, setStatus] = useState<RequestStatus>();
-    const { data, isPending, isError, error, refetch, isFetching } = useQuery({
+    const { data, isPending, isError, isPlaceholderData, error, refetch, isFetching } = useQuery({
         queryKey: [...queryKeys.myRequests, status ?? "All"],
         queryFn: () => fetchMyRequests(status),
+        // Keep the old rows on screen while a new filter loads, so the list does not jump
         placeholderData: keepPreviousData,
     });
     const count = created && /^[1-9]\d*$/.test(created) ? Number(created) : 0;
@@ -40,7 +42,7 @@ export default function MyRequests({ created }: { created?: string }) {
                     </button>
                 ))}
             </div>
-            {isPending && <p role="status">Loading your requests...</p>}
+            {isPending && <Spinner label="Loading your requests..." />}
             {isError && <>
                 <Alert variant="error">{isAuthError(error) ? "You are not allowed to see this list. Please log in again as a resident." : "We could not load your requests. Please try again."}</Alert>
                 <button type="button" onClick={() => refetch()} disabled={isFetching}
@@ -48,7 +50,12 @@ export default function MyRequests({ created }: { created?: string }) {
                     {isFetching ? "Trying..." : "Try again"}
                 </button>
             </>}
-            {!isPending && !isError && data?.length === 0 && <p>{status ? `You have no ${status.toLowerCase()} requests.` : "You have not made any requests yet."}</p>}
+            {!isPlaceholderData && data?.length === 0 && (status
+                ? <p>You have no {status.toLowerCase()} requests.</p>
+                : <div className="flex flex-col items-start gap-3 py-6">
+                    <h2 className="text-2xl font-semibold">You have no requests yet.</h2>
+                    <Link href="/resident/requests/new" className={linkStyle}>Create your first request</Link>
+                </div>)}
             {data && data.length > 0 && <ul className="space-y-3">
                 {data.map(request => <li key={request.requestId} className="relative min-w-0 rounded-lg border border-stone-300 bg-white p-4 text-stone-900 has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2">
                     <div className="flex flex-wrap items-start justify-between gap-3">
