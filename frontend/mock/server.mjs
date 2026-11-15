@@ -59,7 +59,13 @@ export async function startServer({ port = Number(process.env.MOCK_PORT ?? 8080)
 
   async function handle(req, res) {
     const url = new URL(req.url, "http://localhost");
-    const found = find(req.method, url.pathname);
+    let found;
+    try {
+      found = find(req.method, url.pathname);
+    } catch {
+      // decodeURIComponent throws on a bad % escape like /api/things/%E0
+      return sendError(res, 400, "invalid_path", "The path has a bad % escape");
+    }
     if (!found) return sendError(res, 404, "not_found", "Not found");
 
     const raw = await readBody(req);

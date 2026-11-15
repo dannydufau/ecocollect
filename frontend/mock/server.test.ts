@@ -66,6 +66,13 @@ describe("mock server", () => {
     expect((await res.json()).error.code).toBe("invalid_json");
   });
 
+  it("returns 400 for a bad % escape in a :id path", async () => {
+    const base = await start();
+    const res = await fetch(`${base}/api/things/%E0`);
+    expect(res.status).toBe(400);
+    expect((await res.json()).error.code).toBe("invalid_path");
+  });
+
   it("lets a new route beat legacy.mjs on the same path", async () => {
     const base = await start(true);
     const res = await fetch(`${base}/api/session`, { method: "DELETE" });
