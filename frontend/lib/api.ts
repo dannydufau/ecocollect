@@ -37,6 +37,33 @@ export function isClientError(err: unknown): boolean {
     return err instanceof ApiError && err.status >= 400 && err.status < 500 && err.status !== 408 && err.status !== 429;
 }
 
+// Sentences for the 409 codes in the contract. The wording of the first four is README 16.13.
+const friendlyMessages: Record<string, string> = {
+    window_ended: "The pickup window has ended. Confirm the collection or report a missed pickup.",
+    expired: "This request has expired.",
+    already_assigned: "Another volunteer accepted this request first.",
+    terms_outdated: "The terms have changed. Please read and accept them again.",
+    not_open: "This request is no longer open, so it can't be changed.",
+    not_cancellable: "This request can't be cancelled now.",
+    no_active_assignment: "This request has no active pickup.",
+    already_collected: "The items have already been collected.",
+    not_assigned: "This request is no longer assigned.",
+    window_not_ended: "The pickup window hasn't ended yet.",
+    not_collected: "Confirm the collection before recording a delivery.",
+    already_delivered: "This delivery has already been recorded.",
+    address_locked: "You can't change your address while you have an Open or Assigned request.",
+    role_already_active: "You already have this role.",
+    active_work: "You can't deactivate your account while you have requests or pickups in progress.",
+    username_taken: "This username is already taken.",
+    email_taken: "An account with this email already exists.",
+};
+
+// A sentence for people. The code decides the wording; the server message is the fallback because it can name the problem.
+export function friendlyError(err: unknown): string {
+    if (!(err instanceof ApiError)) return "We could not reach the server. Check your connection and try again.";
+    return friendlyMessages[err.code] ?? err.message;
+}
+
 async function getToken(): Promise<string | null> {
     await auth.authStateReady();
     const user = auth.currentUser;

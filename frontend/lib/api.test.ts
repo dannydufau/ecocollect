@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { api, ApiError } from "./api";
+import { api, ApiError, friendlyError } from "./api";
 
 vi.mock("@/lib/firebase", () => ({
     auth: { authStateReady: () => Promise.resolve(), currentUser: null },
@@ -69,4 +69,21 @@ it("getWithMeta falls back to the device clock when there is no Date header", as
     const { serverDate } = await api.getWithMeta("/api/requests/1");
     expect(serverDate).toEqual(new Date("2026-11-15T12:00:00Z"));
     vi.useRealTimers();
+});
+
+it.each([
+    ["window_ended", "The pickup window has ended. Confirm the collection or report a missed pickup."],
+    ["expired", "This request has expired."],
+    ["already_assigned", "Another volunteer accepted this request first."],
+    ["terms_outdated", "The terms have changed. Please read and accept them again."],
+])("friendlyError gives a plain sentence for %s", (code, sentence) => {
+    expect(friendlyError(new ApiError(409, { error: { code, message: "server text" } }))).toBe(sentence);
+});
+
+it("friendlyError uses the server message for a code it does not know", () => {
+    expect(friendlyError(new ApiError(409, { error: { code: "something_new", message: "Try later." } }))).toBe("Try later.");
+});
+
+it("friendlyError does not blame the user when the call never reached the server", () => {
+    expect(friendlyError(new TypeError("Failed to fetch"))).toMatch(/could not reach the server/);
 });
