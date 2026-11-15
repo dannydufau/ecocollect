@@ -182,6 +182,16 @@ it("sends the other party a notification without private request fields", () => 
         expect(payload).not.toHaveProperty("photoUrl");
     }
 });
+it("sends both cancellation notifications when Q10 cancels an Assigned request", () => {
+    const { request, assignment } = assigned();
+    expect(call("POST", request, "/cancel", {}).status).toBe(200);
+    const sent = notify.mock.calls.map(([account, payload]) => [account, payload.type]);
+    expect(sent).toEqual([
+        ["demo-resident-1", "ASSIGNMENT_CANCELLED_BY_RESIDENT_RESIDENT"],
+        [assignment.volunteerId, "ASSIGNMENT_CANCELLED_BY_RESIDENT_VOLUNTEER"],
+        ["demo-resident-1", "REQUEST_CANCELLED_RESIDENT"],
+    ]);
+});
 it("rejects a volunteer role cancellation without exposing the owner's detail", () => {
     const { request } = assigned();
     const result = call("POST", request, "/assignment/cancel", { as: "volunteer" }, "demo-volunteer-1");

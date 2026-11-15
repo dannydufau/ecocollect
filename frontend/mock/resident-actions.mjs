@@ -108,6 +108,7 @@ export function registerResidentActions(route, store, { authenticate, send, vali
     if (invalid(res, input(body, ["reason"]))) return;
     if (assignment) {
       endAssignment(assignment, timestamp, "Resident_Cancelled");
+      notifyResident(request, "ASSIGNMENT_CANCELLED_BY_RESIDENT_RESIDENT");
       notifyVolunteer(request, assignment, "ASSIGNMENT_CANCELLED_BY_RESIDENT_VOLUNTEER", true);
     }
     status(request, "Cancelled", timestamp, body.reason ?? null);
