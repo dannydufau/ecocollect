@@ -444,23 +444,23 @@ ECOPOINTS_AWARDED_ON_ASSIGNMENT_CANCELLATION_VOLUNTEER
 | Rule | Required enforcement |
 |---|---|
 | Total account specialization | Every account has a resident row, a volunteer row or both. Serialize role changes on the account row and check the final state (BR1). |
-| Preferred-code limit | Composite PK prevents duplicates; lock the volunteer while enforcing at most three rows (BR9). |
-| Request and assignment actors | A request uses a resident's request-creation acceptance. An assignment uses a volunteer's acceptance. Check the action type, actor role and current terms document when inserting (BR29, BR38, BR43, BR54). Actor and acceptance links remain immutable. |
+| Preferred-code limit | Composite PK prevents duplicates. In a transaction, lock the volunteer row with `SELECT ... FOR UPDATE`, then check that the resulting list has at most three postal codes (BR9). |
+| Request and assignment actors | In the insertion transaction, check that a request uses its resident's request-creation acceptance and an assignment uses its volunteer's acceptance. Check the account role, acceptance type and current terms document. Actor and acceptance links remain unchanged (BR29, BR38, BR43, BR54). |
 | Request history | Each request has its initial Open entry. Later entries append in time order and are retained (BR16–BR18). |
-| Active pickup slots | One to three active windows per request, no duplicate `(pickup_request_id, pickup_date, start_hour)` among active rows. Future start and end no later than the original creation time plus 30 days (BR32–BR36). |
+| Active pickup slots | In a transaction, lock the request row with `SELECT ... FOR UPDATE`, then require one to three active windows and no duplicate `(pickup_request_id, pickup_date, start_hour)` among them. Each new window starts in the future and ends within 30 days of the original creation time (BR32–BR36). |
 | Window history | Retain replaced windows as inactive. Assignments retain their selected window reference (BR36). |
-| One unfinished assignment per request | Lock the request before accepting, derive its assignments through `pickup_window`, and reject a second row with `ended_at IS NULL`. A deferred constraint trigger or equivalent transaction guard must check the same invariant under concurrent writes (BR20). |
+| One unfinished assignment per request | In the Q11 transaction, first lock the request row with `SELECT ... FOR UPDATE`. Find its assignments through `pickup_window` and reject a new assignment if any has `ended_at IS NULL` (BR20). |
 | Assignment ending | Ending fields are null together or set together. Collection follows acceptance; ending follows acceptance and collection. A Delivered ending requires collection and one delivery (BR21–BR26). |
 | Delivery | Unique assignment and evidence photo; the facility accepts the request's category. Use a transaction for assignment ending and delivery insertion (BR25–BR28, BR44). |
-| Award role | Every award has exactly one resident/volunteer subtype row. Lock its assignment and enforce at most one award per assignment and subtype across the joins. Self-delivery creates one of each; eligible resident cancellation creates only a volunteer award, excluding self-cancellation (BR11, BR55). |
-| Notification source | Every notification has exactly one request/award subtype row. Type agrees with the selected source. One award has at most one notification, enforced by the required unique award FK (BR48). |
+| Award role | Insert the award and exactly one `resident_award` or `volunteer_award` row in the same transaction. Insert the processed-event ID first; its primary key rejects repeat processing. Check at most one award per assignment and role in this transaction. Self-delivery creates one award per role; eligible resident cancellation creates only a volunteer award, excluding self-cancellation (BR11, BR55). |
+| Notification source | Insert the notification and exactly one `request_notification` or `award_notification` row in the same transaction, checking that its type matches the source. The required unique award FK allows at most one notification per award (BR48). |
 | Event identity | `(pickup_request_id, request_seq)` identifies an event. `transition_id` is not unique: cancellation/reopening and missed/rescheduled pairs share an action ID (contract 10.2). |
 | Event details | An update-event subtype has reason `edited` or `reopened`. Its changed-field rows are distinct and permitted only for `edited`. Request notifications reference the whole event key (BR58). |
-| Photos | Item photos can be shared by requests after rescheduling. A photo used by a delivery cannot be used by a request; lock the photo while checking cross-table exclusivity (BR51, BR60). |
+| Photos | Item photos may be shared by requests after rescheduling. In the transaction that attaches a photo, lock its row with `SELECT ... FOR UPDATE` and check that it is not used by both a delivery and a request (BR51, BR60). |
 | Rescheduling | Predecessor reference is unique when present, is not self-referential, belongs to the same owner and points to a Missed request. Copy the specified item facts and record new terms/windows/address/creation time (BR50). |
 | Deactivation and history | Apply active-work guards; retain historical requests, assignments and awards. Remove the account's notifications and subscriptions as specified (BR40, BR42, BR47, BR53). |
 
-These are logical enforcement requirements. Cross-row participation, subtype exclusivity and per-role uniqueness require transactions or constraint triggers; ordinary single-row CHECK expressions cannot enforce them alone.
+Rules involving several rows are checked in a transaction. Lock the relevant parent row with `SELECT ... FOR UPDATE` before reading and changing related rows. Use the lecture SQL features and transactions for these checks; do not rely on database triggers or partial indexes.
 
 ## Derived data and service reads
 

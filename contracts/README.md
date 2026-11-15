@@ -141,7 +141,7 @@ There is no `createUserWithEmailAndPassword` in the frontend: it would give the 
 | Q8 | `GET /api/requests/:id` | Bearer | – | `200` request detail (below) | 401, 404 `request_unavailable` | What the caller sees depends on how they relate to the request (table below). Once a request leaves Open, only the owner, the assigned volunteer (until the assignment ends) and the delivering volunteer can open it. Anyone else, including a volunteer whose assignment was cancelled or reported missed, gets `404 request_unavailable`: the page says the request is gone (graceful handling of old push notifications) |
 | Q9 | `PATCH /api/requests/:id` | Bearer, owner | Any of `{ categoryId, quantity, notes, windows, photo: { fileId } \| null }` | `200` request detail | 400, 403, 409 `not_open` / `expired` | FR10. Weight recalculated. New `windows` follow the Q4 window rules, checked against the original `createdAt` (FR07), and replace the active ones (old ones kept inactive for assignment history); `expiresAt` recalculated (12.2). Replacing or removing the photo follows 6.7. On success, publishes `RequestUpdated` (`reason: "edited"`). An overdue Open request is expired instead of edited: only `RequestExpired` (`trigger: "overdue_on_action"`) is published, and the call returns `409 expired` (12.6) |
 | Q10 | `POST /api/requests/:id/cancel` | Bearer, owner | `{ reason? }` | `200` request detail | 403, 409 `not_cancellable` (not Open or Assigned) / `window_ended` (Assigned and the selected window has ended) / `expired` (overdue Open request, 12.6) | FR11. On success: if Assigned, publishes `RequestAssignmentCancelledResident` then `RequestCancelled` (one transaction); otherwise `RequestCancelled`. An overdue Open request is expired instead of cancelled: only `RequestExpired` (`trigger: "overdue_on_action"`) is published, and the call returns `409 expired` (12.6). Once the selected window has ended, the resident reports a missed pickup (Q14) instead (12.4) |
-| Q11 | `POST /api/requests/:id/assignment` | Bearer, volunteer | `{ windowId, termsDocumentId }` | `201` request detail (now with address) | 400 (window not one of this request's active future windows), 409 `not_open` / `already_assigned` / `expired` / `terms_outdated` | FR13, FR22. Row lock on the request (Conventions), backed by the one-unfinished-assignment index (12.7, NFR06). A window is future while `now() < window start` (database clock), the same comparison as expiry (12.2). On success, publishes `RequestAssigned`. An overdue Open request is expired instead of accepted: only `RequestExpired` (`trigger: "overdue_on_action"`) is published, and the call returns `409 expired` (12.6) |
+| Q11 | `POST /api/requests/:id/assignment` | Bearer, volunteer | `{ windowId, termsDocumentId }` | `201` request detail (now with address) | 400 (window not one of this request's active future windows), 409 `not_open` / `already_assigned` / `expired` / `terms_outdated` | FR13, FR22. Row lock on the request (Conventions), with the unfinished-assignment check in the same transaction (12.7, NFR06). A window is future while `now() < window start` (database clock), the same comparison as expiry (12.2). On success, publishes `RequestAssigned`. An overdue Open request is expired instead of accepted: only `RequestExpired` (`trigger: "overdue_on_action"`) is published, and the call returns `409 expired` (12.6) |
 | Q12 | `POST /api/requests/:id/assignment/cancel` | Bearer, owner or assigned volunteer | `{ as?: "resident"\|"volunteer", reason?, windows?: [..] }` | `200` request detail | 400, 403, 409 `no_active_assignment` / `already_collected` / `window_ended` (resident only, selected window has ended) | FR11 (resident), FR14 (volunteer). `as` is required only when the caller is both owner and assigned volunteer. A resident (including `as: "resident"`) can cancel only until the selected window ends (12.4); after that, Q14. A volunteer can cancel any time before collection. `windows` (resident only) follow the Q4 window rules, checked against the original `createdAt` (FR07), and replace the active windows before reopening (12.2). Publishes `RequestAssignmentCancelledResident` or `…Volunteer`, then `RequestUpdated` (reopened) or `RequestExpired` (12.3) |
 | Q13 | `POST /api/requests/:id/assignment/collected` | Bearer, owner | – | `200` request detail | 403, 409 `not_assigned` | FR15. Publishes `RequestAssignmentCollected` |
 | Q14 | `POST /api/requests/:id/assignment/missed` | Bearer, owner | `{ reason?, reschedule?: { windows: [..], termsDocumentId } }` | `200 { request: <detail of the missed request>, rescheduledRequest: { requestId, category, quantity, estimatedWeightKg, status: "Open", createdAt, expiresAt } \| null }` | 400 (windows), 403, 409 `not_assigned` / `window_not_ended` / `terms_outdated` | FR16. Allowed after the selected window ends. The request becomes **Missed** (terminal). With `reschedule`, the same transaction creates a new Open request linked to the missed one (12.5). Publishes `RequestAssignmentMissed`, then `RequestCreated` for the new request if rescheduled |
@@ -261,8 +261,8 @@ Each service's DB user has full rights on its own schema and `SELECT` on every o
 |---|---|
 | User Service | ACCOUNT, RESIDENT, VOLUNTEER, preferred postal codes, TERMS_DOCUMENT |
 | Request Service | ITEM_CATEGORY, RECYCLING_FACILITY, facility–category link, PICKUP_REQUEST, PICKUP_WINDOW, PHOTO, STATUS_CHANGE, ASSIGNMENT, DELIVERY |
-| Reward Service | ECOPOINTS_AWARD |
-| Notification Service | NOTIFICATION, PUSH_SUBSCRIPTION |
+| Reward Service | ECOPOINTS_AWARD, `resident_award`, `volunteer_award` |
+| Notification Service | NOTIFICATION, PUSH_SUBSCRIPTION, `request_event`, `request_update_event`, `request_changed_field`, `request_notification`, `award_notification` |
 | User **and** Request Service | TERMS_ACCEPTANCE: the one exception. It is insert-only; the User Service inserts registration and activation acceptances, the Request Service inserts request-creation and volunteer-acceptance ones. Neither updates or deletes rows |
 | Each service | Its own operational tables, outside the ER model: outbox (producers), processed events (consumers), Cleanup's expiry jobs, Notification's request progress, Request's idempotency keys (Q4) |
 
@@ -275,6 +275,14 @@ Main reads across services:
 | Reward Service | Assignments, requests, categories | Award lists and statistics (R1–R3) |
 | Notification Service | Requests, categories, assignments, awards, accounts (public name, `Deactivated_At`) | Building titles and bodies; skipping deactivated recipients |
 
+
+The normalized read paths are:
+
+- Request owner: `pickup_request.terms_acceptance_id → terms_acceptance.account_id`.
+- Assignment volunteer: `assignment.terms_acceptance_id → terms_acceptance.account_id`.
+- Assignment request: `assignment.pickup_window_id → pickup_window.pickup_request_id`.
+- Award role: the row in `resident_award` or `volunteer_award`. A resident recipient is found through the assignment, window, request and request terms acceptance; a volunteer recipient through the assignment terms acceptance.
+- Notification source: `request_notification` or `award_notification`. Request notifications store their recipient and event reference; award notifications obtain their recipient through the award's role and assignment.
 
 These reads are the only dependencies between services. A change to a table or column listed here must be agreed with the service that reads it; everything else in a service's schema can change freely (NFR01). Sharing one database this way is a deliberate tradeoff: it keeps the data in 3NF with no copies, at the cost of this short list of shared columns.
 
@@ -519,16 +527,21 @@ An Open request is **overdue** when `now() ≥ expiresAt` but its `CleanupReques
 
 ### 12.7 Database guards (NFR06)
 
-The row lock handles the normal case. These constraints make a missed check fail instead of writing a duplicate:
+Use the lecture SQL features and transactions. Rules involving several rows are checked in a transaction, with `SELECT ... FOR UPDATE` on the parent row before reading or changing the related rows. Database triggers and partial indexes are outside this implementation scope.
 
-| Guard | Constraint |
+| Guard | Transaction check or constraint |
 |---|---|
-| One unfinished assignment per request | Partial unique index on ASSIGNMENT (`Request_ID`) `WHERE Ended_At IS NULL` |
+| One unfinished assignment per request | In the Q11 transaction, lock the PICKUP_REQUEST row with `SELECT ... FOR UPDATE`, find assignments through PICKUP_WINDOW, and reject insertion if one has `Ended_At IS NULL` |
+| One to three distinct active windows per request | Lock the request in the window-change transaction, then check the final active count and request/date/hour combinations |
+| At most three preferred postal codes | Lock the volunteer in the update transaction before checking the final count |
+| Item/evidence photo exclusivity | Lock the PHOTO row in the attachment transaction before checking request and delivery references |
+| Exactly one role row per award | Insert ECOPOINTS_AWARD and one resident_award or volunteer_award row in the same transaction |
+| Exactly one source row per notification | Insert NOTIFICATION and one request_notification or award_notification row in the same transaction |
 | One delivery per assignment | `UNIQUE (Assignment_ID)` on DELIVERY |
 | A missed request is rescheduled once | `UNIQUE (Rescheduled_From_Request_ID)` on PICKUP_REQUEST (12.5.3) |
 | One stored Q4 response per idempotency key | Primary key `(Resident_ID, Idempotency_Key)` on the idempotency table (section 8) |
 
-A violation means a bug, or a race the lock missed: roll back and return the `409` the endpoint gives for the new state.
+If a state check fails, roll back and return the endpoint's documented `409`. Every write path must use the same parent-row lock and checks; a single-row constraint cannot replace the transaction checks above.
 
 ## 13. Notification Service internals and outputs
 
@@ -565,7 +578,15 @@ The Push column is decided by type: the side that performed the action gets no p
 
 When one account is both sides (self-accept, self-delivery, FR13), it gets both notifications.
 
-A notification stores its type, recipient, the request or award it is about, and metadata holding only facts not stored in any table: `requestSeq`, `transitionId`, and for E2 `reason` and `changed`. Title and body are built when read, by joining the request, category, assignment (window, volunteer's public name) or award (points). A request's details can change only while it is Open, and any change expires its older notifications (13.2), so the joined values always match what a live notification describes. It also stores when a push for it was actually sent (`Pushed_At`, null if none: the type said no push, the recipient has no subscription, or the event was stale), for 13.2. Example titles: "New pickup near you" / "2 * Computers/Laptops in T2P1J9"; "Pickup accepted" / "Danny will come on Nov 22, 14:00–15:00"; "You earned 26 EcoPoints". Notifications to a volunteer whose assignment ended without delivery (`ASSIGNMENT_CANCELLED_BY_RESIDENT_VOLUNTEER`, `ASSIGNMENT_CANCELLED_BY_VOLUNTEER_VOLUNTEER`, `ASSIGNMENT_MISSED_VOLUNTEER`, `ECOPOINTS_AWARDED_ON_ASSIGNMENT_CANCELLATION_VOLUNTEER`) show no request details, only the assignment's window and the points: "Pickup cancelled" / "Your pickup on Nov 22, 14:00–15:00 was cancelled".
+`notification` stores its type, creation/push times and read/expiry state. Insert it and exactly one source row in the same transaction:
+
+- `request_notification` stores the recipient account and the complete event key `(pickup_request_id, request_seq)`.
+- `award_notification` references one required unique award. Its recipient is found through the award's role and assignment.
+- `request_event` stores the event key and `transition_id`. An update event also has one `request_update_event` row for its reason, and one `request_changed_field` row per changed field. Several notifications can reference the same event.
+
+The API metadata object is assembled from these event tables: `requestSeq`, `transitionId`, and for E2 `reason` and `changed`. It is not stored as a JSON list in `notification`.
+
+Title and body are built when read, by joining the request, category, assignment (window, volunteer's public name) or award (points). A request's details can change only while it is Open, and any change expires its older notifications (13.2), so the joined values always match what a live notification describes. It also stores when a push for it was actually sent (`Pushed_At`, null if none: the type said no push, the recipient has no subscription, or the event was stale), for 13.2. Example titles: "New pickup near you" / "2 * Computers/Laptops in T2P1J9"; "Pickup accepted" / "Danny will come on Nov 22, 14:00–15:00"; "You earned 26 EcoPoints". Notifications to a volunteer whose assignment ended without delivery (`ASSIGNMENT_CANCELLED_BY_RESIDENT_VOLUNTEER`, `ASSIGNMENT_CANCELLED_BY_VOLUNTEER_VOLUNTEER`, `ASSIGNMENT_MISSED_VOLUNTEER`, `ECOPOINTS_AWARDED_ON_ASSIGNMENT_CANCELLATION_VOLUNTEER`) show no request details, only the assignment's window and the points: "Pickup cancelled" / "Your pickup on Nov 22, 14:00–15:00 was cancelled".
 
 SSE `notification` messages and pushes build their title and body from the event’s snapshots, not the tables (which may already be ahead of a late event); only public names are read from ACCOUNT, as current values (section 8).
 
@@ -643,11 +664,11 @@ The page refetches U10 + R3 or R2. No other data travels on this stream.
 
 | # | Trigger | Action |
 |---|---|---|
-| 15.1 | E5 | Two awards: volunteer `3 * quantity + 4 * estimatedWeightKg`, resident `(3 * quantity + 4 * estimatedWeightKg) / 2`, no rounding (FR18). Inputs come from the event; the award stores only its assignment, account, role relationship, points and a copy of the formula text used. Publishes E11 |
+| 15.1 | E5 | Two awards: volunteer `3 * quantity + 4 * estimatedWeightKg`, resident `(3 * quantity + 4 * estimatedWeightKg) / 2`, no rounding (FR18). Inputs come from the event; `ecopoints_award` stores its assignment, points and a copy of the formula text used. Each award has exactly one role row in `resident_award` or `volunteer_award`, inserted in the same transaction. The role row identifies the earned role; the recipient account is read through the assignment paths in section 8, not stored again in the award. Publishes E11 |
 | 15.2 | E6 with `outsideCancellationWindow: true` and a volunteer who is not the resident | One volunteer award with the volunteer formula (its text copied the same way as 15.1). Publishes E12 |
 | 15.3 | E6 with `false` | Nothing (still recorded as processed) |
-| 15.4 | Duplicates | At most one award per assignment per role (resident, volunteer) + processed events. An assignment ends once, so it can't get both a delivery and a cancellation award |
-| 15.5 | R1–R3 | Read by joining awards with assignments, requests and categories (section 8) |
+| 15.4 | Duplicates | Insert the processed-event row first (primary key on `eventId`) in the same transaction as the award, its role row and the outbox event. If the event ID is already present, skip processing without creating an award. A failure rolls back all of these inserts. An assignment ends once, so repeat processing of that ending event cannot create another award per role. Check at most one award per assignment and role in this transaction; delivery creates both role awards together |
+| 15.5 | R1–R3 | Read awards with their role rows, assignments, windows, requests, terms acceptances and categories, using the recipient paths in section 8 |
 
 ## 16. Frontend internals
 
