@@ -72,6 +72,15 @@ export function registerResidentActions(route, store, { authenticate, send, vali
     assignment.endReason = reason;
     if (reason === "Resident_Cancelled") awardCancellation(store, assignment);
   }
+  function weightFor(request) {
+    const category = store.categories.find(item => item.categoryId === request.categoryId);
+    return Math.round(request.quantity * category.standardWeightKg * 100) / 100;
+  }
+  function validPhoto(photo) {
+    if (photo === null) return true;
+    if (typeof photo !== "object" || Array.isArray(photo)) return false;
+    return typeof photo.fileId === "string" && photo.fileId.trim() !== "" && Object.keys(photo).length === 1;
+  }
   function windowEnded(res) {
     sendError(res, 409, "window_ended", "The pickup window has ended. Confirm the collection or report a missed pickup.");
   }
@@ -88,11 +97,11 @@ export function registerResidentActions(route, store, { authenticate, send, vali
       if (body.quantity !== undefined && (!Number.isSafeInteger(body.quantity) || body.quantity < 1)) fields.quantity = "Enter a positive whole number.";
       if (body.notes !== undefined && body.notes !== null && typeof body.notes !== "string") fields.notes = "Enter text.";
       if (body.windows !== undefined) Object.assign(fields, windowErrors(request, body.windows, time));
-      if (body.photo !== undefined && body.photo !== null && (typeof body.photo !== "object" || Array.isArray(body.photo) || typeof body.photo.fileId !== "string" || !body.photo.fileId.trim() || Object.keys(body.photo).some(key => key !== "fileId"))) fields.photo = "Choose an uploaded photo.";
+      if (body.photo !== undefined && !validPhoto(body.photo)) fields.photo = "Choose an uploaded photo.";
     }
     if (invalid(res, fields)) return;
     for (const key of ["categoryId", "quantity", "notes", "photo"]) if (body[key] !== undefined) request[key] = body[key];
-    if (body.categoryId !== undefined || body.quantity !== undefined) request.estimatedWeightKg = Math.round(request.quantity * store.categories.find(category => category.categoryId === request.categoryId).standardWeightKg * 100) / 100;
+    if (body.categoryId !== undefined || body.quantity !== undefined) request.estimatedWeightKg = weightFor(request);
     if (body.windows !== undefined) replaceWindows(request, body.windows);
     notifyResident(request, "REQUEST_UPDATED_RESIDENT");
     send(res, 200, buildDetail(store, request, ctx.user.uid));
@@ -178,7 +187,7 @@ export function registerResidentActions(route, store, { authenticate, send, vali
       const acceptanceId = randomUUID();
       replacement = {
         requestId: randomUUID(), residentUid: request.residentUid, categoryId: request.categoryId, quantity: request.quantity,
-        estimatedWeightKg: Math.round(request.quantity * store.categories.find(category => category.categoryId === request.categoryId).standardWeightKg * 100) / 100,
+        estimatedWeightKg: weightFor(request),
         notes: request.notes ?? null, photo: request.photo ? { ...request.photo } : null,
         address: { ...user.account.address }, postalCode: user.account.address.postalCode,
         createdAt: timestamp, status: "Open", windows: reschedule.windows.map(({ date, startHour }) => ({ windowId: randomUUID(), date, startHour })),
