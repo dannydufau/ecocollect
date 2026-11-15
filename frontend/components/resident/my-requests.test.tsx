@@ -48,7 +48,7 @@ it("shows an API error and lets the resident retry", async () => {
     vi.mocked(api.get).mockRejectedValueOnce(new Error("Unavailable"));
     renderWithClient(<MyRequests />);
     expect(await screen.findByRole("alert")).toHaveTextContent("We could not load your requests.");
-    fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(await screen.findByRole("link", { name: "2 × Computers/Laptops" })).toBeInTheDocument();
 });
 it.each([["1", "Your request was created."], ["2", "2 requests were created."]])("shows confirmation for created=%s", async (created, message) => {
