@@ -120,3 +120,70 @@ it("does not create an account when the checks fail", () => {
     signUp(newResident({ username: "demo-resident-1" }));
     expect(data.accounts).toHaveLength(before);
 });
+
+const patch = (body: unknown, user = "demo-resident-2") => call("PATCH", "/api/profile", { user, body });
+
+it("changes only the fields that are sent", () => {
+    expect(patch({ publicName: "Rosa the Great" })).toMatchObject({ status: 200, body: { publicName: "Rosa the Great", address: { postalCode: "T3A0B1" } } });
+    expect(patch({ address: { street: "9 10 Ave SE", postalCode: "T2G0A1" } }).body.address).toEqual({ street: "9 10 Ave SE", city: "Calgary", postalCode: "T2G0A1" });
+    expect(call("GET", "/api/public/profiles/:accountId", { user: "", params: { accountId: "demo-resident-2" } }).body.publicName).toBe("Rosa the Great");
+});
+
+it("replaces the preferred postal codes of a volunteer and refuses a fourth one", () => {
+    expect(patch({ preferredPostalCodes: ["T2P1J9", "T3A0B1"] }, "demo-volunteer-1").body.preferredPostalCodes).toEqual(["T2P1J9", "T3A0B1"]);
+    const fourth = patch({ preferredPostalCodes: ["T2P1J9", "T2P1J8", "T2P1J7", "T2P1J6"] }, "demo-volunteer-1");
+    expect(fourth.status).toBe(400);
+    expect(fourth.body.error.details.fields).toHaveProperty("preferredPostalCodes");
+});
+
+it("gives 403 role_required for an address on a volunteer or codes on a resident", () => {
+    expect(patch({ address: { street: "1 2 St", postalCode: "T2P1J9" } }, "demo-volunteer-1")).toMatchObject({ status: 403, body: { error: { code: "role_required" } } });
+    expect(patch({ preferredPostalCodes: [] }).body.error.code).toBe("role_required");
+});
+
+it("locks the address while the resident has an Open or Assigned request", () => {
+    const result = patch({ address: { street: "9 10 Ave SE", postalCode: "T2G0A1" } }, "demo-resident-1");
+    expect(result).toMatchObject({ status: 409, body: { error: { code: "address_locked" } } });
+    expect(patch({ publicName: "Riley" }, "demo-resident-1").status).toBe(200);
+});
+
+it("gives 400 for an unknown field, an empty name and a bad address", () => {
+    expect(patch({ email: "x@example.test" }).body.error.details.fields).toHaveProperty("email");
+    expect(patch({ publicName: " " }).status).toBe(400);
+    expect(patch({ address: { street: "", postalCode: "m5v2t6" } }).body.error.details.fields).toHaveProperty("address.postalCode");
+});
+
+const addRole = (body: unknown, user: string) => call("POST", "/api/profile/roles", { user, body });
+
+it("adds the volunteer role to a resident and the resident role to a volunteer", () => {
+    expect(addRole({ role: "volunteer", termsDocumentId: termsId(), preferredPostalCodes: ["T2P1J9"] }, "demo-resident-2").body).toEqual({ roles: ["resident", "volunteer"] });
+    expect(call("GET", "/api/profile", { user: "demo-resident-2" }).body.preferredPostalCodes).toEqual(["T2P1J9"]);
+    const resident = addRole({ role: "resident", termsDocumentId: termsId(), address: { street: "1 2 St SW", postalCode: "T2P1J9" } }, "demo-volunteer-2");
+    expect(resident.body.roles).toEqual(["volunteer", "resident"]);
+    expect(call("GET", "/api/profile", { user: "demo-volunteer-2" }).body.address).toMatchObject({ street: "1 2 St SW" });
+});
+
+it("needs an address to activate the resident role, and refuses a role the account has or old terms", () => {
+    expect(addRole({ role: "resident", termsDocumentId: termsId() }, "demo-volunteer-2").body.error.details.fields).toHaveProperty("address");
+    expect(addRole({ role: "resident", termsDocumentId: termsId(), address: { street: "1 2 St", postalCode: "T2P1J9" } }, "demo-resident-2").body.error.code).toBe("role_already_active");
+    expect(addRole({ role: "volunteer", termsDocumentId: "old" }, "demo-resident-2").body.error.code).toBe("terms_outdated");
+});
+
+it("does not change the demo accounts for the next test", () => {
+    expect(call("GET", "/api/profile", { user: "demo-resident-2" }).body.roles).toEqual(["resident"]);
+});
+
+const deactivate = (user: string) => call("DELETE", "/api/profile", { user });
+
+it("refuses to deactivate an account that owns an Open request or has an unfinished pickup", () => {
+    expect(deactivate("demo-resident-1")).toMatchObject({ status: 409, body: { error: { code: "active_work" } } });
+    expect(deactivate("demo-volunteer-1").body.error.code).toBe("active_work");
+});
+
+it("deactivates an account without work, clears the cookie and hides the public profile", () => {
+    const result = deactivate("demo-resident-3");
+    expect(result.status).toBe(204);
+    expect(result.headers["Set-Cookie"]).toMatch(/Max-Age=0/);
+    expect(call("GET", "/api/profile", { user: "demo-resident-3" }).status).toBe(401);
+    expect(call("GET", "/api/public/profiles/:accountId", { user: "", params: { accountId: "demo-resident-3" } }).status).toBe(404);
+});

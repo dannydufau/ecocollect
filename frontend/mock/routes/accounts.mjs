@@ -148,4 +148,73 @@ export function register(route, store) {
     });
     send(res, 201, { accountId: body.username, roles: [body.role] });
   });
+
+  // PATCH changes only what is sent. The address is locked while the resident has an Open or Assigned request.
+  route("PATCH", "/api/profile", (req, res, { body }) => {
+    const account = signedIn(req, res);
+    if (!account) return;
+    const fields = {};
+    if (!body || typeof body !== "object" || Array.isArray(body)) return sendError(res, 400, "validation_error", "Send the profile fields.", { body: "Send an object." });
+    for (const key of Object.keys(body)) if (!["publicName", "address", "preferredPostalCodes"].includes(key)) fields[key] = "This field can't be changed.";
+    if (body.publicName !== undefined && !isText(body.publicName)) fields.publicName = "Enter a public name.";
+    if (body.address !== undefined) checkAddress(body.address, fields);
+    if (body.preferredPostalCodes !== undefined) checkCodes(body.preferredPostalCodes, fields);
+    if (Object.keys(fields).length) return sendError(res, 400, "validation_error", "Check the profile fields.", fields);
+
+    if (body.address !== undefined && !account.roles.includes("resident")) return sendError(res, 403, "role_required", "Only residents have an address.");
+    if (body.preferredPostalCodes !== undefined && !account.roles.includes("volunteer")) return sendError(res, 403, "role_required", "Only volunteers have preferred postal codes.");
+    const openRequest = store.requests.some((request) => request.residentUid === account.uid && ["Open", "Assigned"].includes(request.status));
+    if (body.address !== undefined && openRequest) return sendError(res, 409, "address_locked", "You can't change your address while you have an Open or Assigned request.");
+
+    if (body.publicName !== undefined) account.displayName = body.publicName;
+    if (body.address !== undefined) {
+      account.address = { street: body.address.street, postalCode: body.address.postalCode };
+      account.postalCode = body.address.postalCode;
+    }
+    if (body.preferredPostalCodes !== undefined) account.preferredPostalCodes = body.preferredPostalCodes;
+    send(res, 200, profileOf(account));
+  });
+
+  route("POST", "/api/profile/roles", (req, res, { body }) => {
+    const account = signedIn(req, res);
+    if (!account) return;
+    const fields = {};
+    if (!body || typeof body !== "object" || Array.isArray(body)) return sendError(res, 400, "validation_error", "Send the role details.", { body: "Send an object." });
+    if (!["resident", "volunteer"].includes(body.role)) fields.role = "Choose resident or volunteer.";
+    if (!isText(body.termsDocumentId)) fields.termsDocumentId = "This is required.";
+    if (body.role === "resident") checkAddress(body.address, fields);
+    if (body.preferredPostalCodes !== undefined) checkCodes(body.preferredPostalCodes, fields);
+    if (Object.keys(fields).length) return sendError(res, 400, "validation_error", "Check the role details.", fields);
+
+    if (account.roles.includes(body.role)) return sendError(res, 409, "role_already_active", "You already have this role.");
+    if (body.termsDocumentId !== store.terms.at(-1)?.termsDocumentId) {
+      return sendError(res, 409, "terms_outdated", "The terms have changed. Please read and accept them again.");
+    }
+    account.roles = [...account.roles, body.role]; // a new array: the demo accounts share theirs
+    if (body.role === "resident") {
+      account.address = { street: body.address.street, postalCode: body.address.postalCode };
+      account.postalCode = body.address.postalCode;
+    } else {
+      account.preferredPostalCodes = body.preferredPostalCodes ?? [];
+    }
+    store.termsAcceptances ??= [];
+    store.termsAcceptances.push({
+      termsAcceptanceId: randomUUID(), accountId: account.uid, termsDocumentId: body.termsDocumentId,
+      type: "AT_ROLE_ACTIVATION", acceptedAt: now().toISOString(),
+    });
+    send(res, 200, { roles: account.roles });
+  });
+
+  route("DELETE", "/api/profile", (req, res) => {
+    const account = signedIn(req, res);
+    if (!account) return;
+    const ownsRequest = store.requests.some((request) => request.residentUid === account.uid && ["Open", "Assigned", "Collected"].includes(request.status));
+    const unfinished = store.assignments.some((assignment) => assignment.volunteerId === account.uid && !assignment.endedAt);
+    if (ownsRequest || unfinished) {
+      return sendError(res, 409, "active_work", "Finish or cancel your requests and pickups before deactivating your account.");
+    }
+    account.deactivatedAt = now().toISOString();
+    res.setHeader("Set-Cookie", "session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0");
+    res.writeHead(204).end();
+  });
 }
