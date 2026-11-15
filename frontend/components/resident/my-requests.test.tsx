@@ -26,6 +26,7 @@ it("renders the current contract fields and keeps server order", async () => {
     expect(within(rows[0]).getByText(/Expires/)).toBeInTheDocument();
     expect(within(rows[1]).queryByText(/Expires/)).not.toBeInTheDocument();
     expect(within(rows[0]).getByText(/Has photo/)).toBeInTheDocument();
+    expect(screen.getByText("Times are Calgary time.")).toBeInTheDocument();
     expect(within(rows[1]).queryByText(/Has photo/)).not.toBeInTheDocument();
 });
 it("filters by Missed and returns to the unfiltered list with one active button", async () => {

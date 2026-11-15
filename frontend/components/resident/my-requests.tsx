@@ -56,7 +56,8 @@ export default function MyRequests({ created }: { created?: string }) {
                     <h2 className="text-2xl font-semibold">You have no requests yet.</h2>
                     <Link href="/resident/requests/new" className={linkStyle}>Create your first request</Link>
                 </div>)}
-            {data && data.length > 0 && <ul className="space-y-3">
+            {data && data.length > 0 && <>
+            <ul className="space-y-3">
                 {data.map(request => <li key={request.requestId} className="relative min-w-0 rounded-lg border border-stone-300 bg-white p-4 text-stone-900 has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                         {/* The empty ::after stretches the link over the whole card so it is easy to tap */}
@@ -71,8 +72,9 @@ export default function MyRequests({ created }: { created?: string }) {
                     </p>
                     {request.status === "Open" && <p className="mt-1 text-sm">Expires <time dateTime={request.expiresAt}>{formatTimestamp(request.expiresAt)}</time></p>}
                 </li>)}
-            </ul>}
+            </ul>
             <p className="text-sm">Times are Calgary time.</p>
+            </>}
         </section>
     );
 }
