@@ -48,18 +48,22 @@ export default function MyRequests({ created }: { created?: string }) {
             {isError && <Alert variant="error">{isAuthError(error) ? "You are not allowed to see this list. Please log in again as a resident." : "We could not load your requests. Please try again."}</Alert>}
             {!isPending && !isError && data?.length === 0 && <EmptyState title={status ? `You have no ${status.toLowerCase()} requests.` : "You have not made any requests yet."} />}
             {data && data.length > 0 && <ul className="space-y-3">
-                {data.map(request => <li key={request.requestId} className="min-w-0 rounded-lg border border-stone-300 bg-white p-4 text-stone-900">
+                {data.map(request => <li key={request.requestId} className="relative min-w-0 rounded-lg border border-stone-300 bg-white p-4 text-stone-900 has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2">
                     <div className="flex flex-wrap items-start justify-between gap-3">
-                        <Link href={`/resident/requests/${encodeURIComponent(request.requestId)}`} className="min-w-0 break-words text-lg font-medium underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2">
-                            {request.category.name}
+                        {/* The empty ::after stretches the link over the whole card so it is easy to tap */}
+                        <Link href={`/resident/requests/${encodeURIComponent(request.requestId)}`} className="min-w-0 break-words text-lg font-medium after:absolute after:inset-0 after:content-[''] focus-visible:outline-none">
+                            {request.quantity} × {request.category.name}
                         </Link>
                         <StatusBadge status={request.status} />
                     </div>
-                    <p className="mt-2">Quantity: {request.quantity} · Estimated weight: {request.estimatedWeightKg.toFixed(2)} kg</p>
-                    <p className="mt-1 text-sm">Created <time dateTime={request.createdAt}>{formatTimestamp(request.createdAt)}</time> (Calgary time)</p>
-                    {request.hasPhoto && <p className="mt-1 text-sm">Has photo</p>}
+                    <p className="mt-2 text-sm">
+                        {request.estimatedWeightKg.toFixed(2)} kg · Created <time dateTime={request.createdAt}>{formatTimestamp(request.createdAt)}</time>
+                        {request.hasPhoto && " · Has photo"}
+                    </p>
+                    {request.status === "Open" && <p className="mt-1 text-sm">Expires <time dateTime={request.expiresAt}>{formatTimestamp(request.expiresAt)}</time></p>}
                 </li>)}
             </ul>}
+            <p className="text-sm">Times are Calgary time.</p>
         </section>
     );
 }

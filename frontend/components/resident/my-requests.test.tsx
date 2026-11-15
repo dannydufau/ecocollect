@@ -17,18 +17,20 @@ afterEach(() => { cleanup(); vi.resetAllMocks(); });
 it("renders the current contract fields and keeps server order", async () => {
     vi.mocked(api.get).mockResolvedValue([request(), request({ requestId: "r2", status: "Delivered", hasPhoto: false, createdAt: "2026-11-16T15:00:00Z" })]);
     renderWithClient(<MyRequests />);
-    await screen.findAllByRole("link", { name: "Computers/Laptops" });
+    await screen.findAllByRole("link", { name: "2 × Computers/Laptops" });
     const rows = screen.getAllByRole("listitem");
     expect(within(rows[0]).getByRole("link")).toHaveAttribute("href", "/resident/requests/r1");
     expect(within(rows[1]).getByRole("link")).toHaveAttribute("href", "/resident/requests/r2");
     expect(within(rows[0]).getByText("Open")).toBeInTheDocument();
-    expect(within(rows[0]).getByText(/Quantity: 2.*5.00 kg/)).toBeInTheDocument();
-    expect(within(rows[0]).getByText("Has photo")).toBeInTheDocument();
-    expect(within(rows[1]).queryByText("Has photo")).not.toBeInTheDocument();
+    expect(within(rows[0]).getByText(/5.00 kg · Created/)).toBeInTheDocument();
+    expect(within(rows[0]).getByText(/Expires/)).toBeInTheDocument();
+    expect(within(rows[1]).queryByText(/Expires/)).not.toBeInTheDocument();
+    expect(within(rows[0]).getByText(/Has photo/)).toBeInTheDocument();
+    expect(within(rows[1]).queryByText(/Has photo/)).not.toBeInTheDocument();
 });
 it("filters by Missed and returns to the unfiltered list with one active button", async () => {
     renderWithClient(<MyRequests />);
-    await screen.findByRole("link", { name: "Computers/Laptops" });
+    await screen.findByRole("link", { name: "2 × Computers/Laptops" });
     fireEvent.click(screen.getByRole("button", { name: "Missed" }));
     await waitFor(() => expect(api.get).toHaveBeenLastCalledWith("/api/requests?view=mine&status=Missed"));
     expect(screen.getAllByRole("button", { pressed: true })).toHaveLength(1);
@@ -47,16 +49,16 @@ it("shows an API error and lets the resident retry", async () => {
     renderWithClient(<MyRequests />);
     expect(await screen.findByRole("alert")).toHaveTextContent("We could not load your requests.");
     fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
-    expect(await screen.findByRole("link", { name: "Computers/Laptops" })).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "2 × Computers/Laptops" })).toBeInTheDocument();
 });
 it.each([["1", "Your request was created."], ["2", "2 requests were created."]])("shows confirmation for created=%s", async (created, message) => {
     renderWithClient(<MyRequests created={created} />);
     expect(screen.getByText(message)).toBeInTheDocument();
-    await screen.findByRole("link", { name: "Computers/Laptops" });
+    await screen.findByRole("link", { name: "2 × Computers/Laptops" });
 });
 it.each(["0", "-1", "oops", "2.5"])("ignores invalid created=%s", async created => {
     renderWithClient(<MyRequests created={created} />);
-    await screen.findByRole("link", { name: "Computers/Laptops" });
+    await screen.findByRole("link", { name: "2 × Computers/Laptops" });
     expect(screen.queryByText(/requests? (was|were) created/)).not.toBeInTheDocument();
 });
 
