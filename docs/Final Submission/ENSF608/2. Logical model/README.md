@@ -1,90 +1,499 @@
 # Logical database model
 
-Open `Logical Database Model.drawio` in draw.io. It contains the relational schema, attribute types, primary keys and foreign-key arrows. The rules below complete the model with nullability, constraints and the explanation of how the conceptual model maps to relations.
+This logical schema contains 25 relations and 100 attributes. Open `Logical Database Model.drawio` for the horizontal relation tables and foreign-key arrows, with the relational schema in the yellow notes panel. The additional pages cover conceptual mapping, nullability, domains, integrity rules and derived data. The [normalization document](<../3. Normalization/README.md>) explains the functional dependencies and the decompositions adopted in this mapping.
 
-The sources are the conceptual ER diagram in `../1. Conceptual Model(ER diagram)/ER-Diagram.drawio`, its business rules, the ENSF607 requirements, and `contracts/README.md`. This document specifies the logical model. Database migrations implement these constraints in the physical model.
+The [conceptual model](<../1. Conceptual Model(ER diagram)/ER-Diagram.drawio>) supplies the business rules. Normalization maps ownership and assignment participation through existing keys, uses role/source subtypes, and separates multivalued event facts into relations.
 
-## Mapping from the conceptual model
+Service-support tables for outbox messages, idempotency keys, processed events and expiry jobs are outside this course model; they are specified separately in the implementation contract.
 
-| Conceptual element | Relational mapping |
+## Conceptual-to-relational mapping
+
+| Conceptual information | Relational representation |
 |---|---|
-| ACCOUNT, RESIDENT and VOLUNTEER | Each has its own table. `resident.account_id` and `volunteer.account_id` are both primary keys and foreign keys to `account.account_id`. An account may occur in both subtype tables and must occur in at least one (BR1). The account ID is the immutable username and Firebase UID. Email is held by Firebase (BR56). |
-| Preferred postal codes | The multivalued volunteer attribute becomes `volunteer_preferred_postal_code(account_id, postal_code)`. Its composite primary key prevents repeated codes for one volunteer (BR9). |
-| Facility acceptance | The many-to-many relationship between facilities and categories becomes `facility_accepts(facility_id, category_id)`. Both columns form its primary key and reference their parent tables. |
-| STATUS_CHANGE | This weak entity uses `(pickup_request_id, changed_at)` as its composite primary key. The request ID is also a foreign key. Every request starts with an Open history entry, and later entries are append-only (BR16–BR18). |
-| Request owner and category | `pickup_request.account_id` references `resident.account_id`, and `category_id` references `item_category.category_id`. Each request has one owner and one category. The pickup address is copied at creation (BR13, BR34). |
-| Pickup windows and assignments | Each window references its request. Each assignment references a request, volunteer, offered window and terms acceptance. The window and request must agree (BR19). Ended assignments and inactive windows remain as history. |
-| Delivery | `delivery.assignment_id` references an assignment and is unique. Each delivery references one facility and one required evidence photo. This maps the assignment's optional one-to-one delivery relationship (BR25). |
-| EcoPoints recipient | `ecopoints_award` references its assignment and either a resident or a volunteer. Exactly one recipient foreign key is populated (BR11). A self-delivery creates two award rows, one for each role. |
-| Notifications | Each notification references one account and exactly one source, either a pickup request or an EcoPoints award (BR10, BR48). |
-| Photos | `photo.file_id` is the ImageKit key. An optional request foreign key permits item photos to be reused by rescheduled requests. A delivery has one required evidence photo. A photo belongs to the request-photo relationship or the delivery-photo relationship (BR51, BR60). |
-| Terms and push subscriptions | Each acceptance references an account and a terms document. Each subscription references an account and is identified by its endpoint. Request and assignment acceptances must belong to their respective actors (BR29, BR43). |
-| Rescheduling | The nullable self-reference `rescheduled_from_request_id` links a new request to its missed predecessor. Its uniqueness allows each missed request to be rescheduled once (BR50). |
-| Derived attributes | Request status comes from the latest status change. Assignment status comes from collection and ending fields. Delivery time comes from assignment ending time. Award kind and time come from its assignment. EcoPoints totals, expiry and eligible facilities are computed from their source relations (BR12, BR24, BR33, BR44–BR45, BR57, BR59). |
+| Account and roles | `account` stores shared facts. `resident` and `volunteer` use its key as both PK and FK. Membership is overlapping and total: every account has one or both roles (BR1). |
+| Preferred postal codes | `volunteer_preferred_postal_code` has one row per volunteer/code pair, with no repeated codes and at most three per volunteer (BR9). |
+| Resident owns a request | `pickup_request.terms_acceptance_id` identifies the request-creation acceptance and its resident account. Q4 can share that acceptance across several item requests. Ownership is obtained through this required relationship (BR13, BR43). |
+| Request address and item | Each request stores one category, quantity, historical estimated weight and pickup-address snapshot. The category reference supplies its description and current standard weight (BR30–BR35). |
+| Windows and status history | Window rows contain individual Calgary slots. `status_change` uses `(pickup_request_id, changed_at)` for append-only history. A request starts Open (BR16–BR18, BR32, BR36). |
+| Assignment participation | The selected window identifies the request. The volunteer-acceptance row identifies the volunteer. `assignment` stores its own acceptance, collection and ending facts (BR19–BR29). |
+| Delivery and facilities | `delivery` has unique assignment and evidence-photo references. `facility_accepts` maps the facility/category relationship (BR25–BR28). |
+| Award earned through a role | `ecopoints_award` stores assignment, points and the formula used. Exactly one of `resident_award` or `volunteer_award` contains its key. The corresponding actor is derived through the assignment (BR11, BR41, BR55). |
+| Notification source | Exactly one of `request_notification` or `award_notification` contains each notification key. Request notifications store their recipient. Award notifications derive their recipient through the award (BR10, BR48). |
+| Event metadata | `request_event` stores request sequence and action identity. `request_update_event` stores the update reason. `request_changed_field` stores one changed field per row. Notifications reference their event (BR58, BR61). |
+| Photos | `photo.file_id` is the ImageKit key. Requests may share an item photo after rescheduling. One delivery has one unique evidence photo, and item and evidence use are exclusive (BR51, BR60). |
+| Terms and subscriptions | Each acceptance identifies one account, document, action and time. Each subscription endpoint identifies one browser subscription (BR2, BR29, BR38, BR40, BR43, BR54). |
+| Rescheduling | A nullable unique predecessor reference links a replacement request to one Missed request. Each predecessor has at most one replacement (BR50). |
 
-## Nullability
+## Complete relational schema
 
-All primary-key columns are required. Every column is `NOT NULL` except the columns explicitly listed below. Composite foreign keys require all their columns.
+All attributes are required except those marked `NULL`. `PK` identifies the primary key. `UQ` identifies declared uniqueness, with the nullable predecessor qualification stated below. All foreign keys reference the listed parent keys. Account identifiers use `VARCHAR(50)` throughout.
 
-| Relation | Nullable columns and meaning |
+### `account`
+
+```text
+account(
+    account_id VARCHAR(50) NOT NULL,
+    first_name VARCHAR(80) NOT NULL,
+    last_name VARCHAR(80) NOT NULL,
+    public_name VARCHAR(80) NOT NULL,
+    date_of_birth DATE NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    deactivated_at TIMESTAMPTZ NULL
+)
+```
+
+- PK `(account_id)`.
+
+### `resident`
+
+```text
+resident(
+    account_id VARCHAR(50) NOT NULL,
+    street VARCHAR(255) NOT NULL,
+    postal_code CHAR(6) NOT NULL
+)
+```
+
+- PK `(account_id)`.
+- FK `(account_id)` → `account(account_id)`.
+
+### `volunteer`
+
+```text
+volunteer(
+    account_id VARCHAR(50) NOT NULL
+)
+```
+
+- PK `(account_id)`.
+- FK `(account_id)` → `account(account_id)`.
+
+### `volunteer_preferred_postal_code`
+
+```text
+volunteer_preferred_postal_code(
+    account_id VARCHAR(50) NOT NULL,
+    postal_code CHAR(6) NOT NULL
+)
+```
+
+- PK `(account_id, postal_code)`.
+- FK `(account_id)` → `volunteer(account_id)`.
+
+### `push_subscription`
+
+```text
+push_subscription(
+    endpoint TEXT NOT NULL,
+    account_id VARCHAR(50) NOT NULL,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    expiration_time TIMESTAMPTZ NULL,
+    user_agent TEXT NULL,
+    updated_at TIMESTAMPTZ NOT NULL
+)
+```
+
+- PK `(endpoint)`.
+- FK `(account_id)` → `account(account_id)`.
+
+### `terms_document`
+
+```text
+terms_document(
+    terms_document_id UUID NOT NULL,
+    content TEXT NOT NULL,
+    published_at TIMESTAMPTZ NOT NULL
+)
+```
+
+- PK `(terms_document_id)`.
+
+### `terms_acceptance`
+
+```text
+terms_acceptance(
+    terms_acceptance_id UUID NOT NULL,
+    terms_document_id UUID NOT NULL,
+    account_id VARCHAR(50) NOT NULL,
+    accepted_at TIMESTAMPTZ NOT NULL,
+    type VARCHAR(40) NOT NULL
+)
+```
+
+- PK `(terms_acceptance_id)`.
+- FK `(account_id)` → `account(account_id)`.
+- FK `(terms_document_id)` → `terms_document(terms_document_id)`.
+
+### `item_category`
+
+```text
+item_category(
+    category_id TEXT NOT NULL,
+    name VARCHAR(120) NOT NULL,
+    waste_type VARCHAR(120) NOT NULL,
+    standard_weight_kg NUMERIC(10,2) NOT NULL
+)
+```
+
+- PK `(category_id)`.
+
+### `photo`
+
+```text
+photo(
+    file_id TEXT NOT NULL,
+    file_path TEXT NOT NULL
+)
+```
+
+- PK `(file_id)`.
+
+### `pickup_request`
+
+```text
+pickup_request(
+    pickup_request_id UUID NOT NULL,
+    category_id TEXT NOT NULL,
+    terms_acceptance_id UUID NOT NULL,
+    quantity INTEGER NOT NULL,
+    estimated_weight_kg NUMERIC(22,2) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    request_seq BIGINT NOT NULL,
+    pickup_street VARCHAR(255) NOT NULL,
+    pickup_postal_code CHAR(6) NOT NULL,
+    notes TEXT NULL,
+    file_id TEXT NULL,
+    rescheduled_from_request_id UUID NULL
+)
+```
+
+- PK `(pickup_request_id)`.
+- UQ `(rescheduled_from_request_id)`.
+- FK `(category_id)` → `item_category(category_id)`.
+- FK `(file_id)` → `photo(file_id)`.
+- FK `(rescheduled_from_request_id)` → `pickup_request(pickup_request_id)`.
+- FK `(terms_acceptance_id)` → `terms_acceptance(terms_acceptance_id)`.
+
+### `pickup_window`
+
+```text
+pickup_window(
+    pickup_window_id UUID NOT NULL,
+    pickup_request_id UUID NOT NULL,
+    pickup_date DATE NOT NULL,
+    start_hour SMALLINT NOT NULL,
+    is_active BOOLEAN NOT NULL
+)
+```
+
+- PK `(pickup_window_id)`.
+- FK `(pickup_request_id)` → `pickup_request(pickup_request_id)`.
+
+### `status_change`
+
+```text
+status_change(
+    pickup_request_id UUID NOT NULL,
+    changed_at TIMESTAMPTZ NOT NULL,
+    status VARCHAR(30) NOT NULL,
+    reason TEXT NULL
+)
+```
+
+- PK `(pickup_request_id, changed_at)`.
+- FK `(pickup_request_id)` → `pickup_request(pickup_request_id)`.
+
+### `assignment`
+
+```text
+assignment(
+    assignment_id UUID NOT NULL,
+    pickup_window_id UUID NOT NULL,
+    terms_acceptance_id UUID NOT NULL,
+    accepted_at TIMESTAMPTZ NOT NULL,
+    collected_at TIMESTAMPTZ NULL,
+    ended_at TIMESTAMPTZ NULL,
+    end_reason VARCHAR(30) NULL
+)
+```
+
+- PK `(assignment_id)`.
+- FK `(terms_acceptance_id)` → `terms_acceptance(terms_acceptance_id)`.
+- FK `(pickup_window_id)` → `pickup_window(pickup_window_id)`.
+
+### `recycling_facility`
+
+```text
+recycling_facility(
+    facility_id UUID NOT NULL,
+    name VARCHAR(120) NOT NULL,
+    street VARCHAR(255) NOT NULL,
+    postal_code CHAR(6) NOT NULL,
+    special_instructions TEXT NULL
+)
+```
+
+- PK `(facility_id)`.
+
+### `facility_accepts`
+
+```text
+facility_accepts(
+    facility_id UUID NOT NULL,
+    category_id TEXT NOT NULL
+)
+```
+
+- PK `(facility_id, category_id)`.
+- FK `(category_id)` → `item_category(category_id)`.
+- FK `(facility_id)` → `recycling_facility(facility_id)`.
+
+### `delivery`
+
+```text
+delivery(
+    delivery_id UUID NOT NULL,
+    assignment_id UUID NOT NULL,
+    facility_id UUID NOT NULL,
+    file_id TEXT NOT NULL
+)
+```
+
+- PK `(delivery_id)`.
+- UQ `(assignment_id)`.
+- UQ `(file_id)`.
+- FK `(assignment_id)` → `assignment(assignment_id)`.
+- FK `(facility_id)` → `recycling_facility(facility_id)`.
+- FK `(file_id)` → `photo(file_id)`.
+
+### `ecopoints_award`
+
+```text
+ecopoints_award(
+    ecopoints_award_id UUID NOT NULL,
+    assignment_id UUID NOT NULL,
+    points NUMERIC(23,2) NOT NULL,
+    formula TEXT NOT NULL
+)
+```
+
+- PK `(ecopoints_award_id)`.
+- FK `(assignment_id)` → `assignment(assignment_id)`.
+
+### `resident_award`
+
+```text
+resident_award(
+    ecopoints_award_id UUID NOT NULL
+)
+```
+
+- PK `(ecopoints_award_id)`.
+- FK `(ecopoints_award_id)` → `ecopoints_award(ecopoints_award_id)`.
+
+### `volunteer_award`
+
+```text
+volunteer_award(
+    ecopoints_award_id UUID NOT NULL
+)
+```
+
+- PK `(ecopoints_award_id)`.
+- FK `(ecopoints_award_id)` → `ecopoints_award(ecopoints_award_id)`.
+
+### `notification`
+
+```text
+notification(
+    notification_id UUID NOT NULL,
+    type VARCHAR(80) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    pushed_at TIMESTAMPTZ NULL,
+    is_read BOOLEAN NOT NULL,
+    is_expired BOOLEAN NOT NULL
+)
+```
+
+- PK `(notification_id)`.
+
+### `request_event`
+
+```text
+request_event(
+    pickup_request_id UUID NOT NULL,
+    request_seq BIGINT NOT NULL,
+    transition_id UUID NOT NULL
+)
+```
+
+- PK `(pickup_request_id, request_seq)`.
+- FK `(pickup_request_id)` → `pickup_request(pickup_request_id)`.
+
+### `request_update_event`
+
+```text
+request_update_event(
+    pickup_request_id UUID NOT NULL,
+    request_seq BIGINT NOT NULL,
+    reason VARCHAR(10) NOT NULL
+)
+```
+
+- PK `(pickup_request_id, request_seq)`.
+- FK `(pickup_request_id, request_seq)` → `request_event(pickup_request_id, request_seq)`.
+
+### `request_changed_field`
+
+```text
+request_changed_field(
+    pickup_request_id UUID NOT NULL,
+    request_seq BIGINT NOT NULL,
+    field_name VARCHAR(20) NOT NULL
+)
+```
+
+- PK `(pickup_request_id, request_seq, field_name)`.
+- FK `(pickup_request_id, request_seq)` → `request_update_event(pickup_request_id, request_seq)`.
+
+### `request_notification`
+
+```text
+request_notification(
+    notification_id UUID NOT NULL,
+    account_id VARCHAR(50) NOT NULL,
+    pickup_request_id UUID NOT NULL,
+    request_seq BIGINT NOT NULL
+)
+```
+
+- PK `(notification_id)`.
+- FK `(notification_id)` → `notification(notification_id)`.
+- FK `(account_id)` → `account(account_id)`.
+- FK `(pickup_request_id, request_seq)` → `request_event(pickup_request_id, request_seq)`.
+
+### `award_notification`
+
+```text
+award_notification(
+    notification_id UUID NOT NULL,
+    ecopoints_award_id UUID NOT NULL
+)
+```
+
+- PK `(notification_id)`.
+- UQ `(ecopoints_award_id)`.
+- FK `(notification_id)` → `notification(notification_id)`.
+- FK `(ecopoints_award_id)` → `ecopoints_award(ecopoints_award_id)`.
+
+## Nullability and candidate keys
+
+Nullable attributes are `account.deactivated_at`; `push_subscription.expiration_time` and `user_agent`; `pickup_request.notes`, `file_id` and `rescheduled_from_request_id`; `status_change.reason`; `assignment.collected_at`, `ended_at` and `end_reason`; `recycling_facility.special_instructions`; and `notification.pushed_at`.
+
+All primary keys are candidate keys. `delivery.assignment_id` and `delivery.file_id` are additional candidate keys because each is required and unique. Both attributes of `award_notification` are candidate keys for the same reason. The nullable unique predecessor reference identifies a replacement only within the non-null subset, so it is not a candidate key for the whole request relation. Partial active-slot uniqueness also does not identify historical window rows globally.
+
+## Value domains
+
+| Attributes | Domain |
 |---|---|
-| `account` | `deactivated_at` until deactivation. |
-| `resident` | None. Street and Calgary postal code are required. |
-| `volunteer` | None. |
-| `volunteer_preferred_postal_code` | None. Zero saved codes is represented by zero rows. |
-| `push_subscription` | `expiration_time` when the push service supplies no expiry, and `user_agent` when unavailable. |
-| `terms_document` | None. |
-| `terms_acceptance` | None. |
-| `item_category` | None. |
-| `photo` | None. Both the ImageKit file ID and path are required. |
-| `pickup_request` | `notes`, `file_id` when there is no item photo, and `rescheduled_from_request_id` for an original request. |
-| `pickup_window` | None. |
-| `status_change` | `reason` when no explanation was supplied. |
-| `assignment` | `collected_at` before collection, and `ended_at` / `end_reason` until ending. Both ending fields must be null together or set together (BR23). |
-| `delivery` | None. The assignment, facility and evidence `file_id` are required. |
-| `recycling_facility` | `special_instructions` when absent. |
-| `facility_accepts` | None. |
-| `ecopoints_award` | `resident_id` and `volunteer_id`, with exactly one non-null. |
-| `notification` | `pushed_at` until a push is actually sent, plus `pickup_request_id` and `ecopoints_award_id`, with exactly one source non-null. Metadata is a required JSON object, which may be empty. |
+| Account IDs | 3–50 lowercase characters from `a-z`, `0-9`, `_` and `-`; immutable username and Firebase UID. Email is held by Firebase (BR3, BR56). |
+| Required names, IDs and file paths | Non-empty text. |
+| Postal codes | Six uppercase Canadian letter/digit characters with no space. Application validation checks the Calgary address (BR7). |
+| Date of birth | At least 18 at registration; birth date cannot be in the future (BR6). |
+| Quantity and weights | Positive integer quantity; positive exact standard and historical estimated weights. The system calculates the estimate at creation/edit (BR30–BR31). |
+| `start_hour` | Integer 0–23. Dates and hours are stored as Calgary local calendar values (BR32). |
+| Request/event sequences | Positive BIGINT. `pickup_request.request_seq` tracks the latest published event. `request_event.request_seq` is the historical sequence for the referenced event (BR61). |
+| Status | `Open`, `Assigned`, `Collected`, `Delivered`, `Cancelled`, `Expired`, `Missed` (BR18). |
+| End reason | `Delivered`, `Resident_Cancelled`, `Volunteer_Cancelled`, `Missed_Pickup` (BR23). |
+| Terms type | `AT_RESIDENT_REGISTRATION_OR_ACTIVATION`, `AT_VOLUNTEER_REGISTRATION_OR_ACTIVATION`, `AT_RESIDENT_REQUEST_CREATION`, `AT_VOLUNTEER_ACCEPTANCE`. |
+| Update reason | `edited` or `reopened`, from the RequestUpdated event. |
+| Changed field | `category`, `quantity`, `notes`, `windows` or `photo`; rows occur only for an `edited` update. |
+| Points and formula | Positive exact `NUMERIC(23,2)` points and the formula text used at award creation. Volunteer points are `3 * quantity + 4 * estimated_weight_kg`; resident points are half that amount (BR41). |
+| Booleans | Required `is_active`, `is_read` and `is_expired` values. |
 
-## Value constraints
+The request estimate uses `NUMERIC(22,2)` to accommodate an integer quantity multiplied by a `NUMERIC(10,2)` unit weight. Points use `NUMERIC(23,2)` to accommodate the reward formula while retaining exact decimals.
 
-- `account_id` uses `VARCHAR(50)` throughout. Account IDs are 3–50 lowercase characters from `a-z`, `0-9`, `_` and `-` (contract Conventions). Required names and IDs must contain text.
-- Postal codes use `CHAR(6)`, uppercase with no spaces, in Canadian letter-digit-letter-digit-letter-digit form. Calgary validity is checked during account/profile validation (BR7).
-- `pickup_request.quantity` is an integer greater than zero. Category standard weight and request estimated weight are positive exact decimals. The stored request weight is calculated from quantity and the category weight when created or edited (BR30–BR31).
-- `pickup_window.start_hour` is an integer from 0 through 23. A window stores its Calgary date and hour directly. The server validates future start times and the original creation-time limit, retaining inactive history (BR32–BR36).
-- `status_change.status` is one of `Open`, `Assigned`, `Collected`, `Delivered`, `Cancelled`, `Expired`, `Missed`. `reason` is optional free text (BR17–BR18).
-- Non-null `assignment.end_reason` is one of `Delivered`, `Resident_Cancelled`, `Volunteer_Cancelled`, `Missed_Pickup`. Collection cannot precede acceptance, and ending cannot precede acceptance or collection. A Delivered assignment must have been collected (BR21–BR26).
-- `terms_acceptance.type` is one of `AT_RESIDENT_REGISTRATION_OR_ACTIVATION`, `AT_VOLUNTEER_REGISTRATION_OR_ACTIVATION`, `AT_RESIDENT_REQUEST_CREATION`, `AT_VOLUNTEER_ACCEPTANCE`.
-- `notification.type` uses the closed list from contract section 13.1, reproduced in the diagram's domain-rules panel. `is_read`, `is_expired` and window `is_active` are required booleans.
-- EcoPoints use exact `NUMERIC(23,2)` values and store the formula text used at award time. Volunteer points are `3 * quantity + 4 * estimated_weight_kg`, and resident points are half the volunteer points, following BR41 and contract section 15.1.
+Notification type uses the closed list in [contract section 13.1](../../../../contracts/README.md#131-notification-types):
 
-## Relationship and uniqueness constraints
+```text
+REQUEST_CREATED
+NEW_MATCHING_REQUEST
+REQUEST_UPDATED_RESIDENT
+REQUEST_ASSIGNED_RESIDENT
+REQUEST_ASSIGNED_VOLUNTEER
+REQUEST_COLLECTED_RESIDENT
+REQUEST_COLLECTED_VOLUNTEER
+REQUEST_DELIVERED_RESIDENT
+REQUEST_DELIVERED_VOLUNTEER
+ASSIGNMENT_CANCELLED_BY_RESIDENT_RESIDENT
+ASSIGNMENT_CANCELLED_BY_RESIDENT_VOLUNTEER
+ASSIGNMENT_CANCELLED_BY_VOLUNTEER_RESIDENT
+ASSIGNMENT_CANCELLED_BY_VOLUNTEER_VOLUNTEER
+ASSIGNMENT_MISSED_RESIDENT
+ASSIGNMENT_MISSED_VOLUNTEER
+REQUEST_CANCELLED_RESIDENT
+REQUEST_EXPIRED_RESIDENT
+ECOPOINTS_AWARDED_ON_DELIVERY_RESIDENT
+ECOPOINTS_AWARDED_ON_DELIVERY_VOLUNTEER
+ECOPOINTS_AWARDED_ON_ASSIGNMENT_CANCELLATION_VOLUNTEER
+```
 
-| Rule | Logical constraint / enforcement |
+## Relationship and transaction constraints
+
+| Rule | Required enforcement |
 |---|---|
-| Assignment uses a window from its own request (BR19) | `UNIQUE (pickup_request_id, pickup_window_id)` on `pickup_window`, with composite foreign key `assignment(pickup_request_id, pickup_window_id)` referencing that pair. |
-| One unfinished assignment per request (BR20) | Partial unique index on `assignment(pickup_request_id)` where `ended_at IS NULL`. |
-| One delivery per assignment (BR25) | `UNIQUE (assignment_id)` on `delivery`. |
-| A missed request is rescheduled once (BR50) | `UNIQUE (rescheduled_from_request_id)` on `pickup_request`. The server also verifies that the referenced request was reported missed and prevents self-reference. |
-| Exactly one award recipient (BR11) | `CHECK ((resident_id IS NOT NULL) <> (volunteer_id IS NOT NULL))`. |
-| At most one award per assignment and role (BR55) | Separate partial unique indexes on `assignment_id`, one where `resident_id IS NOT NULL`, the other where `volunteer_id IS NOT NULL`. |
-| Exactly one notification source (BR48) | `CHECK ((pickup_request_id IS NOT NULL) <> (ecopoints_award_id IS NOT NULL))`. |
-| Ending fields agree (BR23) | `CHECK ((ended_at IS NULL) = (end_reason IS NULL))`, together with the allowed end-reason values. |
-| No repeated preferred code or facility/category pair | Composite primary keys on the two relationship tables. |
-| No repeated active pickup slot | Partial unique index on `(pickup_request_id, pickup_date, start_hour)` where `is_active = TRUE`. Historical inactive rows are retained. |
-| A delivery photo belongs to one delivery (BR60) | `UNIQUE (file_id)` on `delivery`. A transaction/trigger verifies that the photo is not also referenced by a pickup request. Multiple requests may share an item photo after rescheduling. |
+| Total account specialization | Every account has a resident row, a volunteer row or both. Serialize role changes on the account row and check the final state (BR1). |
+| Preferred-code limit | Composite PK prevents duplicates. In a transaction, lock the volunteer row with `SELECT ... FOR UPDATE`, then check that the resulting list has at most three postal codes (BR9). |
+| Request and assignment actors | In the insertion transaction, check that a request uses its resident's request-creation acceptance and an assignment uses its volunteer's acceptance. Check the account role, acceptance type and current terms document. Actor and acceptance links remain unchanged (BR29, BR38, BR43, BR54). |
+| Request history | Each request has its initial Open entry. Later entries append in time order and are retained (BR16–BR18). |
+| Active pickup slots | In a transaction, lock the request row with `SELECT ... FOR UPDATE`, then require one to three active windows and no duplicate `(pickup_request_id, pickup_date, start_hour)` among them. Each new window starts in the future and ends within 30 days of the original creation time (BR32–BR36). |
+| Window history | Retain replaced windows as inactive. Assignments retain their selected window reference (BR36). |
+| One unfinished assignment per request | In the Q11 transaction, first lock the request row with `SELECT ... FOR UPDATE`. Find its assignments through `pickup_window` and reject a new assignment if any has `ended_at IS NULL` (BR20). |
+| Assignment ending | Ending fields are null together or set together. Collection follows acceptance; ending follows acceptance and collection. A Delivered ending requires collection and one delivery (BR21–BR26). |
+| Delivery | Unique assignment and evidence photo; the facility accepts the request's category. Use a transaction for assignment ending and delivery insertion (BR25–BR28, BR44). |
+| Award role | Insert the award and exactly one `resident_award` or `volunteer_award` row in the same transaction. Insert the processed-event ID first; its primary key rejects repeat processing. Check at most one award per assignment and role in this transaction. Self-delivery creates one award per role; eligible resident cancellation creates only a volunteer award, excluding self-cancellation (BR11, BR55). |
+| Notification source | Insert the notification and exactly one `request_notification` or `award_notification` row in the same transaction, checking that its type matches the source. The required unique award FK allows at most one notification per award (BR48). |
+| Event identity | `(pickup_request_id, request_seq)` identifies an event. `transition_id` is not unique: cancellation/reopening and missed/rescheduled pairs share an action ID (contract 10.2). |
+| Event details | An update-event subtype has reason `edited` or `reopened`. Its changed-field rows are distinct and permitted only for `edited`. Request notifications reference the whole event key (BR58). |
+| Photos | Item photos may be shared by requests after rescheduling. In the transaction that attaches a photo, lock its row with `SELECT ... FOR UPDATE` and check that it is not used by both a delivery and a request (BR51, BR60). |
+| Rescheduling | Predecessor reference is unique when present, is not self-referential, belongs to the same owner and points to a Missed request. Copy the specified item facts and record new terms/windows/address/creation time (BR50). |
+| Deactivation and history | Apply active-work guards; retain historical requests, assignments and awards. Remove the account's notifications and subscriptions as specified (BR40, BR42, BR47, BR53). |
 
-The following rules involve several rows or time-dependent decisions. Enforce them in transactions that lock the relevant account/request/assignment, or with equivalent concurrency-safe database triggers. They cannot be expressed by an ordinary row-level check alone.
+Rules involving several rows are checked in a transaction. Lock the relevant parent row with `SELECT ... FOR UPDATE` before reading and changing related rows. Use the lecture SQL features and transactions for these checks; do not rely on database triggers or partial indexes.
 
-- Every account has at least one role and is at least 18 at registration (BR1, BR6).
-- A volunteer has at most three preferred postal codes (BR9).
-- A request has one to three active, valid pickup windows and an initial status-change entry (BR16, BR32).
-- Terms acceptances use the current document, correct actor and action type (BR29, BR38, BR43, BR54).
-- Delivery requires collection and a facility that accepts the request's category (BR25–BR28).
-- Award recipients match the assignment volunteer or request resident. Cancellation and self-delivery follow BR11 and contract section 15.
-- Address edits, cancellation, collection, missed-pickup reports, expiry and deactivation follow their server transition rules (BR8, BR22, BR35, BR53).
+## Derived data and service reads
 
-## Reference data
+The normalized read paths are:
 
-The category table uses predefined categories with a required name, waste type and standard weight (BR37).
+- Request owner: `pickup_request → terms_acceptance.account_id`.
+- Assignment request: `assignment → pickup_window.pickup_request_id`.
+- Assignment volunteer: `assignment → terms_acceptance.account_id`.
+- Award role: membership in `resident_award` or `volunteer_award`.
+- Resident award recipient: award → assignment → window → request → request acceptance → account.
+- Volunteer award recipient: award → assignment → volunteer acceptance → account.
+- Request notification recipient: `request_notification.account_id`.
+- Award notification recipient: award notification → award → role-specific recipient path.
+- Request notification metadata: its event's request sequence and transition ID, optional update reason, and the changed-field rows. Services can assemble the response metadata object from these scalar relations.
+
+Request status, assignment status, request expiry, delivery time, award kind/time, EcoPoints totals, eligible facilities and notification title/body continue to be derived from their documented source facts (BR12, BR24, BR33, BR44–BR45, BR57–BR59). Historical pickup addresses, estimates and award formulas retain their time-specific meaning.
+
+## Reference categories
+
+| Category ID | Name | Waste type | Standard weight (kg) |
+|---|---|---|---|
+| `laptops` | Computers/Laptops | Computers | 2.50 |
+| `desktops` | Computers/Desktops | Computers | 8.00 |
+| `monitors` | Monitors | Displays | 5.00 |
+| `tvs` | Televisions | Displays | 12.00 |
+| `phones` | Phones | Mobile Devices | 0.20 |
+| `tablets` | Tablets | Mobile Devices | 0.50 |
+| `printers` | Printers | Printers | 6.00 |
+| `small-appliances` | Small Appliances | Small Appliances | 3.00 |
+| `cables-chargers` | Cables and Chargers | Accessories | 0.30 |
+
+## Physical implementation
+
+The SQL implementation must follow this 25-relation mapping, including its keys, domains and cross-row constraints. Service joins, seed scripts, operations and tests must use the same relations. Contract section 8 identifies the User, Request, Reward and Notification readers. Compatibility views or service projections can supply their API fields from the normalized relations.
+
+The Notification Service owns the event/detail/source relations that store its consumed event facts. Request Service publishes the request sequences and transition IDs used by these relations.
