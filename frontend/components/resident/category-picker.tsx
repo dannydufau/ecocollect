@@ -20,10 +20,11 @@ export function useCategories() {
     });
 }
 
-export function CategoryPicker({ value, onChange, disabledIds = [] }: {
+export function CategoryPicker({ value, onChange, disabledIds = [], invalid = false }: {
     value: string;
     onChange: (categoryId: string) => void;
     disabledIds?: string[];
+    invalid?: boolean;
 }) {
     const id = useId();
     const { data, isPending, isError, refetch } = useCategories();
@@ -43,7 +44,7 @@ export function CategoryPicker({ value, onChange, disabledIds = [] }: {
         <div className="min-w-0">
             <label htmlFor={id} className="mb-1 block text-sm font-medium">Category</label>
             <select id={id} value={value} onChange={event => onChange(event.target.value)}
-                disabled={data.length === 0}
+                disabled={data.length === 0} aria-invalid={invalid}
                 className="min-h-11 w-full min-w-0 rounded-lg border border-stone-400 bg-white px-3 text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50">
                 <option value="" disabled>{data.length ? "Choose a category" : "No categories available"}</option>
                 {data.map(category => (

@@ -1,6 +1,7 @@
 "use client";
 
-import { useId, useState, type FormEvent } from "react";
+import Link from "next/link";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { CategoryPicker, useCategories } from "./category-picker";
 import { WindowsPicker } from "./windows-picker";
 import { calgaryInstant } from "@/lib/time";
@@ -22,7 +23,7 @@ export function validate(values: RequestValues, createdAt = new Date().toISOStri
         selected.add(item.categoryId);
         const quantity = Number(item.quantity);
         if (!item.quantity.trim() || !Number.isSafeInteger(quantity) || quantity < 1) {
-            errors[`items[${index}].quantity`] = "Enter a positive whole number.";
+            errors[`items[${index}].quantity`] = "Enter a whole number, 1 or more.";
         }
     });
     if (values.windows.length < 1 || values.windows.length > 3) errors.windows = "Choose one to three pickup windows.";
@@ -54,67 +55,72 @@ export default function RequestForm({ initialValues, createdAt, onValid }: {
     const [values, setValues] = useState<RequestValues>(() => initialValues ?? {
         items: [{ categoryId: "", quantity: "1" }], windows: [], notes: "",
     });
-    const [errors, setErrors] = useState<Record<string, string>>({});
-    const [checked, setChecked] = useState(false);
+    const [tried, setTried] = useState(false);
+    const [failedSubmits, setFailedSubmits] = useState(0);
+    const formRef = useRef<HTMLFormElement>(null);
+    // Errors only show after the first submit, then follow the values as the user types
+    const errors = tried ? validate(values, createdAt) : {};
 
-    function change(next: RequestValues) {
-        setValues(next);
-        setChecked(false);
-        setErrors({});
-    }
+    // Move focus to the first problem once the errors are on screen
+    useEffect(() => {
+        if (failedSubmits) formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"], [role="alert"]')?.focus();
+    }, [failedSubmits]);
 
     function submit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
-        const nextErrors = validate(values, createdAt);
-        setErrors(nextErrors);
-        setChecked(!Object.keys(nextErrors).length);
-        if (!Object.keys(nextErrors).length) onValid?.(values);
+        setTried(true);
+        if (Object.keys(validate(values, createdAt)).length) setFailedSubmits(count => count + 1);
+        else onValid?.(values);
     }
 
     return (
-        <form onSubmit={submit} className="min-w-0 max-w-2xl space-y-6 rounded-xl border border-stone-200 bg-white p-4 text-stone-900 sm:p-6">
+        <form ref={formRef} onSubmit={submit} noValidate className="min-w-0 max-w-2xl space-y-6 rounded-xl border border-stone-200 bg-white p-4 text-stone-900 sm:p-6">
             <fieldset className="min-w-0 space-y-4">
                 <legend className="mb-2 text-xl font-semibold">Items</legend>
-                {errors.items && <p role="alert" className="text-sm text-red-700">{errors.items}</p>}
+                {errors.items && <p role="alert" tabIndex={-1} className="text-sm text-red-700">{errors.items}</p>}
                 {values.items.map((item, index) => {
                     const categoryError = errors[`items[${index}].categoryId`];
                     const quantityError = errors[`items[${index}].quantity`];
                     const category = categories.find(category => category.categoryId === item.categoryId);
                     const weight = category && Number(item.quantity) > 0 && Number.isSafeInteger(Number(item.quantity))
                         ? (category.standardWeightKg * Number(item.quantity)).toFixed(2) : null;
-                    const update = (patch: Partial<typeof item>) => change({ ...values, items: values.items.map((row, rowIndex) => rowIndex === index ? { ...row, ...patch } : row) });
+                    const update = (patch: Partial<typeof item>) => setValues({ ...values, items: values.items.map((row, rowIndex) => rowIndex === index ? { ...row, ...patch } : row) });
                     return <fieldset key={index} className="min-w-0 space-y-3 rounded-lg border border-stone-300 p-3">
                         <legend className="px-1 font-medium">Item {index + 1}</legend>
-                        <CategoryPicker value={item.categoryId} onChange={categoryId => update({ categoryId })}
-                            disabledIds={values.items.filter((_, rowIndex) => rowIndex !== index).map(row => row.categoryId)} />
-                        {categoryError && <p role="alert" className="text-sm text-red-700">{categoryError}</p>}
-                        <div>
-                            <label htmlFor={`${id}-quantity-${index}`} className="mb-1 block text-sm font-medium">Quantity</label>
-                            <input id={`${id}-quantity-${index}`} type="number" min="1" step="1" value={item.quantity}
-                                onChange={event => update({ quantity: event.target.value })}
-                                aria-invalid={Boolean(quantityError)} aria-describedby={quantityError ? `${id}-quantity-error-${index}` : undefined}
-                                className="min-h-11 w-full min-w-0 rounded-lg border border-stone-400 px-3 focus-visible:outline-2 focus-visible:outline-offset-2" />
-                            {quantityError && <p id={`${id}-quantity-error-${index}`} role="alert" className="mt-1 text-sm text-red-700">{quantityError}</p>}
+                        <div className="grid min-w-0 gap-3 sm:grid-cols-[2fr_1fr] sm:items-start">
+                            <div className="min-w-0">
+                                <CategoryPicker value={item.categoryId} onChange={categoryId => update({ categoryId })} invalid={Boolean(categoryError)}
+                                    disabledIds={values.items.filter((_, rowIndex) => rowIndex !== index).map(row => row.categoryId)} />
+                                {categoryError && <p role="alert" className="mt-1 text-sm text-red-700">{categoryError}</p>}
+                            </div>
+                            <div>
+                                <label htmlFor={`${id}-quantity-${index}`} className="mb-1 block text-sm font-medium">Quantity</label>
+                                <input id={`${id}-quantity-${index}`} type="number" min="1" step="1" value={item.quantity}
+                                    onChange={event => update({ quantity: event.target.value })}
+                                    aria-invalid={Boolean(quantityError)} aria-describedby={quantityError ? `${id}-quantity-error-${index}` : undefined}
+                                    className="min-h-11 w-full min-w-0 rounded-lg border border-stone-400 px-3 focus-visible:outline-2 focus-visible:outline-offset-2" />
+                                {quantityError && <p id={`${id}-quantity-error-${index}`} role="alert" className="mt-1 text-sm text-red-700">{quantityError}</p>}
+                            </div>
                         </div>
                         <p className="text-sm text-stone-700">Estimated weight: {weight === null ? "—" : `${weight} kg`}</p>
                         {values.items.length > 1 && <button type="button" aria-label={`Remove item ${index + 1}`}
-                            onClick={() => change({ ...values, items: values.items.filter((_, rowIndex) => rowIndex !== index) })}
+                            onClick={() => setValues({ ...values, items: values.items.filter((_, rowIndex) => rowIndex !== index) })}
                             className="min-h-11 rounded-lg border border-stone-400 px-3 focus-visible:outline-2 focus-visible:outline-offset-2">Remove item</button>}
                     </fieldset>;
                 })}
                 <button type="button" disabled={!categories.length || values.items.length >= categories.length}
-                    onClick={() => change({ ...values, items: [...values.items, { categoryId: "", quantity: "1" }] })}
-                    className="min-h-11 rounded-lg border border-stone-400 px-3 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50">Add item</button>
+                    onClick={() => setValues({ ...values, items: [...values.items, { categoryId: "", quantity: "1" }] })}
+                    className="min-h-11 rounded-lg border border-stone-400 px-3 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50">Add another item</button>
             </fieldset>
-            <WindowsPicker value={values.windows} onChange={windows => change({ ...values, windows })} createdAt={createdAt} />
-            {errors.windows && <p role="alert" className="text-sm text-red-700">{errors.windows}</p>}
+            <WindowsPicker value={values.windows} onChange={windows => setValues({ ...values, windows })} createdAt={createdAt} />
+            {errors.windows && <p role="alert" tabIndex={-1} className="text-sm text-red-700">{errors.windows}</p>}
             <div>
                 <label htmlFor={`${id}-notes`} className="mb-1 block font-medium">Notes (optional)</label>
-                <textarea id={`${id}-notes`} value={values.notes} onChange={event => change({ ...values, notes: event.target.value })}
+                <textarea id={`${id}-notes`} value={values.notes} onChange={event => setValues({ ...values, notes: event.target.value })}
                     rows={3} className="w-full min-w-0 rounded-lg border border-stone-400 p-3 focus-visible:outline-2 focus-visible:outline-offset-2" />
             </div>
-            <button type="submit" className="min-h-11 rounded-lg bg-[#9e5220] px-4 text-white focus-visible:outline-2 focus-visible:outline-offset-2">Check details</button>
-            {checked && <p role="status">Details checked.</p>}
+            <p>We collect from the address in your profile. <Link href="/profile" className="text-[#8c491a] underline underline-offset-2">Change address</Link></p>
+            <button type="submit" className="min-h-11 rounded-lg bg-[#9e5220] px-4 text-white focus-visible:outline-2 focus-visible:outline-offset-2">Review request</button>
         </form>
     );
 }

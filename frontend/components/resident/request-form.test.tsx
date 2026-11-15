@@ -54,12 +54,12 @@ describe("RequestForm", () => {
     it("adds rows, disables chosen categories in other rows and limits rows to category count", async () => {
         renderWithClient(<RequestForm />);
         fireEvent.change(await screen.findByLabelText("Category"), { target: { value: "laptops" } });
-        fireEvent.click(screen.getByRole("button", { name: "Add item" }));
+        fireEvent.click(screen.getByRole("button", { name: "Add another item" }));
         const rows = screen.getAllByRole("group", { name: /^Item \d/ });
         expect(rows).toHaveLength(2);
         expect(within(rows[1]).getByRole("option", { name: "Computers/Laptops" })).toBeDisabled();
         expect(within(rows[0]).getByRole("option", { name: "Computers/Laptops" })).not.toBeDisabled();
-        expect(screen.getByRole("button", { name: "Add item" })).toBeDisabled();
+        expect(screen.getByRole("button", { name: "Add another item" })).toBeDisabled();
         fireEvent.click(screen.getByRole("button", { name: "Remove item 1" }));
         expect(screen.getByRole("option", { name: "Computers/Laptops" })).not.toBeDisabled();
     });
@@ -69,23 +69,43 @@ describe("RequestForm", () => {
         fireEvent.change(screen.getByLabelText("Quantity"), { target: { value: "3" } });
         expect(screen.getByText("Estimated weight: 7.50 kg")).toBeInTheDocument();
     });
+    it("shows no errors before the first submit", async () => {
+        renderWithClient(<RequestForm />);
+        await screen.findByLabelText("Category");
+        expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
     it("shows errors under the matching item and window fields", async () => {
         const values = valid(); values.items[0].quantity = "0"; values.windows = [];
         renderWithClient(<RequestForm initialValues={values} />);
         await screen.findByLabelText("Category");
-        fireEvent.submit(screen.getByRole("button", { name: "Check details" }).closest("form")!);
-        expect(screen.getByLabelText("Quantity")).toHaveAccessibleDescription("Enter a positive whole number.");
+        fireEvent.submit(screen.getByRole("button", { name: "Review request" }).closest("form")!);
+        expect(screen.getByLabelText("Quantity")).toHaveAccessibleDescription("Enter a whole number, 1 or more.");
         expect(screen.getByText("Choose one to three pickup windows.")).toBeInTheDocument();
     });
-    it("checks valid details without sending a request and clears the status after edits", async () => {
+    it("moves focus to the first field with an error", async () => {
+        renderWithClient(<RequestForm />);
+        await screen.findByLabelText("Category");
+        fireEvent.click(screen.getByRole("button", { name: "Review request" }));
+        expect(await screen.findByLabelText("Category")).toHaveFocus();
+    });
+    it("keeps the other errors while one is fixed and updates them as the user types", async () => {
+        const values = valid(); values.items[0].quantity = "0"; values.windows = [];
+        renderWithClient(<RequestForm initialValues={values} />);
+        await screen.findByLabelText("Category");
+        fireEvent.click(screen.getByRole("button", { name: "Review request" }));
+        expect(screen.getByLabelText("Quantity")).toHaveAccessibleDescription("Enter a whole number, 1 or more.");
+        fireEvent.change(screen.getByLabelText("Quantity"), { target: { value: "2" } });
+        expect(screen.getByLabelText("Quantity")).not.toHaveAccessibleDescription("Enter a whole number, 1 or more.");
+        expect(screen.getByText("Choose one to three pickup windows.")).toBeInTheDocument();
+    });
+    it("sends valid details to onValid and links to the profile for the address", async () => {
         const onValid = vi.fn();
         renderWithClient(<RequestForm initialValues={valid()} onValid={onValid} />);
         await screen.findByLabelText("Category");
-        fireEvent.click(screen.getByRole("button", { name: "Check details" }));
+        expect(screen.getByRole("link", { name: "Change address" })).toHaveAttribute("href", "/profile");
+        fireEvent.click(screen.getByRole("button", { name: "Review request" }));
         expect(onValid).toHaveBeenCalledWith(valid());
-        expect(screen.getByRole("status")).toHaveTextContent("Details checked.");
-        fireEvent.change(screen.getByLabelText("Notes (optional)"), { target: { value: "Back door" } });
-        expect(screen.queryByText("Details checked.")).not.toBeInTheDocument();
+        expect(screen.queryByRole("alert")).not.toBeInTheDocument();
         expect(api.get).toHaveBeenCalledWith("/api/categories");
     });
 });
