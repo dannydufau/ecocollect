@@ -1,0 +1,11 @@
+import RequireRole from "@/components/require-role";
+import RequestForm from "@/components/resident/request-form";
+
+export default function NewRequestPage() {
+    return <RequireRole role="resident">
+        <main className="min-h-screen space-y-6 bg-stone-50 p-4 text-stone-900 sm:p-8">
+            <h1 className="text-3xl font-semibold">New pickup request</h1>
+            <RequestForm />
+        </main>
+    </RequireRole>;
+}
