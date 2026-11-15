@@ -3,14 +3,26 @@ const { exchange } = require('./topology');
 
 const CONFIRM_TIMEOUT_MS = 5000;
 
+// A table name goes into the SQL text (it can't be a $1 parameter), so only plain names are allowed.
+const TABLE_NAME = /^[a-z_][a-z0-9_]*(\.[a-z_][a-z0-9_]*)?$/; // e.g. rewards.outbox
+
+function checkTable(table) {
+  if (typeof table !== 'string' || !TABLE_NAME.test(table)) {
+    throw new TypeError(`invalid outbox table name: ${table}`);
+  }
+  return table;
+}
+
 // Takes one unsent event, hands it to `send`, and marks it sent only if `send` worked.
 // The row stays locked until then, so two publishers never take the same event.
-async function publishNext(pool, send) {
+// `table` is the service's outbox, e.g. 'rewards.outbox' (contract 9.3).
+async function publishNext(pool, send, { table = 'outbox' } = {}) {
+  checkTable(table);
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     const { rows } = await client.query(
-      `SELECT event_id, event_type, routing_key, payload FROM outbox
+      `SELECT event_id, event_type, routing_key, payload FROM ${table}
        WHERE published_at IS NULL ORDER BY created_at, event_id
        LIMIT 1 FOR UPDATE SKIP LOCKED`,
     );
@@ -19,7 +31,7 @@ async function publishNext(pool, send) {
       return false;
     }
     await send(rows[0]);
-    await client.query('UPDATE outbox SET published_at = now() WHERE event_id = $1', [rows[0].event_id]);
+    await client.query(`UPDATE ${table} SET published_at = now() WHERE event_id = $1`, [rows[0].event_id]);
     await client.query('COMMIT');
     return true;
   } catch (err) {
@@ -52,7 +64,8 @@ function sendConfirmed(channel, timeoutMs = CONFIRM_TIMEOUT_MS) {
 
 // Keeps looking for unsent events. If the broker is down it just tries again on the next tick,
 // and the events wait safely in the database.
-function startOutboxPublisher({ pool, url, intervalMs = 1000 }) {
+function startOutboxPublisher({ pool, url, intervalMs = 1000, table = 'outbox' }) {
+  checkTable(table);
   let connection;
   let channel;
   let timer;
@@ -75,7 +88,7 @@ function startOutboxPublisher({ pool, url, intervalMs = 1000 }) {
         await channel.assertExchange(exchange.name, exchange.type, { durable: exchange.durable });
       }
       const send = sendConfirmed(channel);
-      while (await publishNext(pool, send));
+      while (await publishNext(pool, send, { table }));
     } catch (err) {
       console.error('Outbox publisher:', err.message);
       await drop();

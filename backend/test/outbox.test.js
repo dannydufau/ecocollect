@@ -45,6 +45,33 @@ test('sending to the broker', async (t) => {
   });
 });
 
+// A pool whose client records the SQL it runs and returns one unsent row.
+function recordingPool() {
+  const sql = [];
+  const row = { event_id: 'e1', event_type: 'PointsAwardedDelivery', routing_key: 'reward.points.delivery', payload: {} };
+  const client = {
+    query: async (text) => {
+      sql.push(text);
+      return { rows: text.startsWith('SELECT') ? [row] : [] };
+    },
+    release() {},
+  };
+  return { sql, connect: async () => client };
+}
+
+test('publishNext reads and marks the outbox table it is given', async () => {
+  const pool = recordingPool();
+  await publishNext(pool, async () => {}, { table: 'rewards.outbox' });
+  assert.ok(pool.sql.some((q) => q.includes('FROM rewards.outbox')));
+  assert.ok(pool.sql.some((q) => q.includes('UPDATE rewards.outbox')));
+});
+
+test('publishNext refuses a table name that is not a plain name, before any SQL runs', async () => {
+  const pool = recordingPool();
+  await assert.rejects(publishNext(pool, async () => {}, { table: 'outbox; DROP TABLE x' }), TypeError);
+  assert.strictEqual(pool.sql.length, 0);
+});
+
 test('the outbox', { skip }, async (t) => {
   const pool = openPool();
   const fx = await addFixtures(pool);
