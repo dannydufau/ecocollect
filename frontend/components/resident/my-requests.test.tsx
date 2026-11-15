@@ -52,14 +52,6 @@ it("says which status has no requests when a filter is empty", async () => {
     fireEvent.click(screen.getByRole("button", { name: "Expired" }));
     expect(await screen.findByText("You have no expired requests.")).toBeInTheDocument();
 });
-it("keeps the old rows on screen while a new filter loads", async () => {
-    renderWithClient(<MyRequests />);
-    await screen.findByRole("link", { name: "2 × Computers/Laptops" });
-    vi.mocked(api.get).mockReturnValue(new Promise(() => {}));
-    fireEvent.click(screen.getByRole("button", { name: "Open" }));
-    await waitFor(() => expect(api.get).toHaveBeenLastCalledWith("/api/requests?view=mine&status=Open"));
-    expect(screen.getByRole("link", { name: "2 × Computers/Laptops" })).toBeInTheDocument();
-});
 it("shows an API error and lets the resident retry", async () => {
     vi.mocked(api.get).mockRejectedValueOnce(new Error("Unavailable"));
     renderWithClient(<MyRequests />);
@@ -84,19 +76,19 @@ it("shows the shared loading indicator until the first response", async () => {
     renderWithClient(<MyRequests />);
     expect(screen.getByRole("status")).toHaveTextContent("Loading your requests...");
     await act(async () => resolve([request()]));
-    await screen.findByRole("link", { name: "Computers/Laptops" });
+    await screen.findByRole("link", { name: "2 × Computers/Laptops" });
     expect(screen.queryByText("Loading your requests...")).not.toBeInTheDocument();
 });
 it("keeps rows visible while a different filter loads, then replaces them", async () => {
     let resolve!: (value: MyRequest[]) => void;
     vi.mocked(api.get).mockResolvedValueOnce([request()]).mockReturnValueOnce(new Promise<MyRequest[]>(done => { resolve = done; }));
     renderWithClient(<MyRequests />);
-    await screen.findByRole("link", { name: "Computers/Laptops" });
+    await screen.findByRole("link", { name: "2 × Computers/Laptops" });
     fireEvent.click(screen.getByRole("button", { name: "Missed" }));
     await waitFor(() => expect(api.get).toHaveBeenLastCalledWith("/api/requests?view=mine&status=Missed"));
-    expect(screen.getByRole("link", { name: "Computers/Laptops" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "2 × Computers/Laptops" })).toBeInTheDocument();
     expect(screen.queryByText("Loading your requests...")).not.toBeInTheDocument();
     await act(async () => resolve([]));
     expect(await screen.findByText("You have no missed requests.")).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Computers/Laptops" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "2 × Computers/Laptops" })).not.toBeInTheDocument();
 });
