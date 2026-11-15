@@ -4,6 +4,8 @@ This logical schema contains 25 relations and 100 attributes. Open `Logical Data
 
 The [conceptual model](<../1. Conceptual Model(ER diagram)/ER-Diagram.drawio>) supplies the business rules. Normalization maps ownership and assignment participation through existing keys, uses role/source subtypes, and separates multivalued event facts into relations.
 
+Service-support tables for outbox messages, idempotency keys, processed events and expiry jobs are outside this course model; they are specified separately in the implementation contract.
+
 ## Conceptual-to-relational mapping
 
 | Conceptual information | Relational representation |
