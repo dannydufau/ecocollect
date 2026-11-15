@@ -2,7 +2,7 @@
 
 ## Scope and references
 
-This document explains the 1NF, 2NF and 3NF decisions in the [25-relation logical schema](<../2. Logical model/README.md>). It follows section 3 of the ENSF 608 Team Project Description and Dr. Ronnie de Souza Santos's Lecture 8, Database Normalization, slides 3–11. Business-rule references come from the [conceptual model](<../1. Conceptual Model(ER diagram)/ER-Diagram.drawio>) and event semantics from the [implementation contract](../../../../contracts/README.md).
+This document explains the 1NF, 2NF and 3NF decisions in the [25-relation logical schema](<../2. Logical model/README.md>). Business-rule references come from the [conceptual model](<../1. Conceptual Model(ER diagram)/ER-Diagram.drawio>) and event semantics from the [implementation contract](../../../../contracts/README.md).
 
 The logical diagram and its README use the decompositions described here. Physical implementation, data and service-query integration are subsequent deliverables. The normal-form conclusions concern the relation definitions and stated functional dependencies.
 
