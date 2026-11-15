@@ -87,4 +87,4 @@ The following rules involve several rows or time-dependent decisions. Enforce th
 
 ## Reference data
 
-The Oct 28 and Nov 5 seed submissions were provisional. `other-electronics` is excluded from the intended category list. The diagram's remaining category names, weights and waste-type classifications are provisional until the team confirms the final reference data. The category table uses predefined categories with a required name, waste type and standard weight (BR37). Final seed values do not alter that relational mapping.
+The category table uses predefined categories with a required name, waste type and standard weight (BR37).
