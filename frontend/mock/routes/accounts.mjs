@@ -59,11 +59,11 @@ function checkAddress(address, fields) {
     return;
   }
   if (!isText(address.street)) fields["address.street"] = "Enter your street.";
-  if (!POSTAL_CODE.test(address.postalCode)) fields["address.postalCode"] = "Enter a Calgary postal code like T2P1J9.";
+  if (!matches(POSTAL_CODE, address.postalCode)) fields["address.postalCode"] = "Enter a Calgary postal code like T2P1J9.";
 }
 
 function checkCodes(codes, fields) {
-  if (!Array.isArray(codes) || codes.length > 3 || new Set(codes).size !== codes.length || !codes.every((code) => POSTAL_CODE.test(code))) {
+  if (!Array.isArray(codes) || codes.length > 3 || new Set(codes).size !== codes.length || !codes.every((code) => matches(POSTAL_CODE, code))) {
     fields.preferredPostalCodes = "Give up to 3 different Calgary postal codes.";
   }
 }

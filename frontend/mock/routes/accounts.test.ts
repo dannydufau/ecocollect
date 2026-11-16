@@ -224,3 +224,16 @@ it.each(["1995-02-30", "1995-13-01", "2001-04-31", "1995-6-5", 19950615, null])(
 it("accepts 29 February of a leap year", () => {
     expect(signUp(newResident({ dateOfBirth: "1996-02-29" })).status).toBe(201);
 });
+
+it("gives 400 when a postal code is not a string, in the address or the preferred codes", () => {
+    const address = signUp(newResident({ address: { street: "5 6 St SW", postalCode: ["T2P1J9"] } }));
+    expect(address.body.error.details.fields).toHaveProperty("address.postalCode");
+    const codes = signUp(newResident({ role: "volunteer", address: undefined, preferredPostalCodes: [["T2P1J9"]] }));
+    expect(codes.body.error.details.fields).toHaveProperty("preferredPostalCodes");
+});
+
+it("applies the same postal code check when editing the profile or adding a role", () => {
+    expect(patch({ address: { street: "1 2 St", postalCode: ["T2P1J9"] } }).body.error.details.fields).toHaveProperty("address.postalCode");
+    expect(patch({ preferredPostalCodes: [["T2P1J9"]] }, "demo-volunteer-1").status).toBe(400);
+    expect(addRole({ role: "resident", termsDocumentId: termsId(), address: { street: "1 2 St", postalCode: ["T2P1J9"] } }, "demo-volunteer-2").status).toBe(400);
+});
