@@ -7,7 +7,7 @@ const { replace } = vi.hoisted(() => ({ replace: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace }) }));
 vi.mock("@/lib/auth-context", () => ({ useAuth: vi.fn() }));
 vi.mock("@/lib/auth", () => ({ homeFor: () => "/volunteer" }));
-vi.mock("@/components/resident/request-form", () => ({ default: () => <div>Request form</div> }));
+vi.mock("@/components/resident/new-request-form", () => ({ default: () => <div>Request form</div> }));
 
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
 
