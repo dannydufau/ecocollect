@@ -87,7 +87,7 @@ describe("notify", () => {
         const first = openStream("demo-resident-1");
         const second = openStream("demo-resident-1");
         const other = openStream("demo-volunteer-1");
-        const created = notify("demo-resident-1", { type: "REQUEST_CREATED", requestId: "r1", title: "Request sent", body: "2 × Phones", url: "/resident/requests/r1" });
+        const created = notify("demo-resident-1", { type: "REQUEST_CREATED", requestId: "r1", title: "Request sent", body: "2 × Phones", url: "/resident/requests/r1" })!;
         expect(stored()).toContainEqual(expect.objectContaining({ notificationId: created.notificationId, userId: "demo-resident-1", isRead: false }));
         for (const { response } of [first, second]) {
             const message = response.written.at(-1)!;
@@ -98,6 +98,14 @@ describe("notify", () => {
             });
         }
         expect(other.response.written).toHaveLength(1);
+    });
+
+    it("sends nothing to a deactivated account", () => {
+        const { response } = openStream("demo-volunteer-5");
+        (store.accounts as { uid: string; deactivatedAt?: string }[]).find((account) => account.uid === "demo-volunteer-5")!.deactivatedAt = "2026-11-19T10:00:00.000Z";
+        expect(notify("demo-volunteer-5", { type: "NEW_MATCHING_REQUEST", title: "t", body: "b", url: "/" })).toBeNull();
+        expect(stored().filter((item) => item.userId === "demo-volunteer-5")).toHaveLength(0);
+        expect(response.written).toHaveLength(1);
     });
 
     it("works with nobody connected", () => {

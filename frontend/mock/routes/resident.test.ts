@@ -85,6 +85,15 @@ describe("resident mock routes", () => {
         expect(notify.mock.calls.map(([uid]) => uid)).not.toContain("demo-volunteer-2");
     });
 
+    it("does not notify a deactivated volunteer about a new request", () => {
+        const notify = vi.fn();
+        register((method: string, path: string, handler: Handler) => handlers.set(`${method} ${path}`, handler), store, { notify });
+        const volunteer = (store.accounts as { uid: string; deactivatedAt?: string }[]).find((account) => account.uid === "demo-volunteer-1")!;
+        volunteer.deactivatedAt = "2026-11-19T10:00:00.000Z";
+        call("POST", "/api/requests", "demo-resident-1", createBody());
+        expect(notify.mock.calls.map(([uid]) => uid)).not.toContain("demo-volunteer-1");
+    });
+
     it("creates one request per item and uses the last window start as expiry", () => {
         const result = call("POST", "/api/requests", "demo-resident-1", createBody());
         expect(result.status).toBe(201);

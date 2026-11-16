@@ -25,9 +25,10 @@ function writeEvent(uid, name, data, id) {
   }
 }
 
-// Stores a notification for the user and sends it to every open stream of theirs (13.3)
+// Stores a notification for the user and sends it to every open stream of theirs (13.3). A deactivated account gets none.
 /** @param {string} userId @param {{ type: string, requestId?: string | null, awardId?: string | null, title: string, body: string, url: string }} data */
 export function notify(userId, { type, requestId = null, awardId = null, title, body, url }) {
+  if (store.accounts.find((account) => account.uid === userId)?.deactivatedAt) return null;
   const notification = {
     notificationId: randomUUID(), userId, type, requestId, awardId, title, body, url,
     isRead: false, createdAt: now().toISOString(),
