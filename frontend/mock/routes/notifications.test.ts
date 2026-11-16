@@ -35,8 +35,9 @@ function openStream(user: string | null = "demo-resident-1", cookie = false) {
         writeHead(status: number, head?: Record<string, string>) { this.status = status; this.headers = head ?? {}; return this; },
         write(text: string) { this.written.push(text); },
         end(text?: string) { this.text = text ?? ""; return this; },
+        on(name: string, fn: () => void) { if (name === "close") closers.push(fn); },
     };
-    const req = { headers, on: (name: string, fn: () => void) => { if (name === "close") closers.push(fn); } };
+    const req = { headers };
     handlers.get("GET /api/events")!(req as unknown as IncomingMessage, response as unknown as ServerResponse, { url: new URL("http://localhost/api/events"), params: {} });
     return { response, close: () => closers.forEach((fn) => fn()) };
 }

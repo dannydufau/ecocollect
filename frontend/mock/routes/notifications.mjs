@@ -80,7 +80,8 @@ export function register(route) {
     if (!store.sseConnections.has(user.uid)) store.sseConnections.set(user.uid, new Set());
     store.sseConnections.get(user.uid).add(connection);
     const ping = setInterval(() => res.write(": ping\n\n"), PING_MS);
-    req.on("close", () => {
+    // The request's own close event does not fire when the client leaves, the response's does
+    res.on("close", () => {
       clearInterval(ping);
       store.sseConnections.get(user.uid)?.delete(connection);
     });

@@ -2,8 +2,9 @@ import fs from "node:fs";
 import path from "node:path";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { startServer } from "./server.mjs";
+import { store } from "./store.mjs";
 
 const routeFile = `
 export function register(route, store, { notify }) {
@@ -30,6 +31,7 @@ async function start(withLegacy = false) {
   const dir = fs.mkdtempSync(path.join(__dirname, "tmp-routes-"));
   dirs.push(dir);
   fs.writeFileSync(path.join(dir, "things.mjs"), routeFile);
+  fs.copyFileSync(path.join(__dirname, "routes", "notifications.mjs"), path.join(dir, "notifications.mjs"));
   if (withLegacy) fs.copyFileSync(path.join(__dirname, "routes", "legacy.mjs"), path.join(dir, "legacy.mjs"));
   server = await startServer({ port: 0, routesDir: dir });
   return `http://localhost:${(server!.address() as AddressInfo).port}`;
@@ -87,5 +89,16 @@ describe("mock server", () => {
     const res = await fetch(`${base}/api/session`, { method: "DELETE" });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ from: "new route" });
+  });
+
+  it("forgets an event stream when the client disconnects", async () => {
+    const base = await start();
+    const controller = new AbortController();
+    const res = await fetch(`${base}/api/events`, { headers: { Authorization: "Bearer demo-resident-1" }, signal: controller.signal });
+    expect(res.status).toBe(200);
+    await res.body!.getReader().read();
+    expect(store.sseConnections.get("demo-resident-1")?.size).toBe(1);
+    controller.abort();
+    await vi.waitFor(() => expect(store.sseConnections.get("demo-resident-1")?.size).toBe(0));
   });
 });
