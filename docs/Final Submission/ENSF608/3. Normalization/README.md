@@ -54,7 +54,7 @@ The following summary lists the keys and dependencies. The [logical model](<../2
 | Selected item categories | One request per category in a Q4 submission. |
 | Changed request fields | One `request_changed_field` row per event/field pair. |
 
-The conceptual ER diagram shows these source records on its "Notification event details" page. Its multivalued Changed_Field becomes separate rows in `request_changed_field`.
+The conceptual ER diagram shows these source records. Its multivalued Changed_Field becomes separate rows in `request_changed_field`.
 
 The previous notification JSON combined event details with a list of changed fields. Following Lecture 8, these are separated into `request_event`, `request_update_event`, and one `request_changed_field` row for each changed field.
 
