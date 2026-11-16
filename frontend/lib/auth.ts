@@ -39,6 +39,18 @@ export async function logout(): Promise<void> {
     await signOut(auth);
 }
 
+// README 3.5: tell the server to forget this browser's push subscription before the login goes away.
+// Logging out must work even if this fails, so errors only get a warning.
+export async function removePushSubscription(): Promise<void> {
+    try {
+        const registration = await navigator.serviceWorker?.getRegistration();
+        const subscription = await registration?.pushManager.getSubscription();
+        if (subscription) await api.delete("/api/push/subscriptions", { endpoint: subscription.endpoint });
+    } catch (err) {
+        console.warn("Could not remove the push subscription", err);
+    }
+}
+
 export async function cleanupSession(): Promise<void> {
     try {
         await api.delete("/api/session");
