@@ -125,18 +125,6 @@ function matchedVolunteers(postalCode, residentUid) {
 }
 
 export function register(route) {
-  route("POST", "/api/session", (req, res, { body }) => {
-    const user = typeof body?.idToken === "string" ? decodeToken(body.idToken) : null;
-    if (!user) return send(res, 401, { error: "idToken missing or invalid" });
-    res.setHeader("Set-Cookie", `session=${encodeURIComponent(body.idToken)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=432000`);
-    return send(res, 204);
-  });
-
-  route("DELETE", "/api/session", (req, res) => {
-    res.setHeader("Set-Cookie", "session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0");
-    return send(res, 204);
-  });
-
   route("GET", "/api/events", (req, res) => {
     const user = userFromCookie(req);
     if (!user) return send(res, 401, { status: 401, error: "Unauthorized" });
