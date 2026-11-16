@@ -35,8 +35,10 @@ psql -X -v ON_ERROR_STOP=1 -d ecocollect608 -f verify.sql
 Run the concurrency checks on the freshly seeded database:
 
 ```sh
-python verify_concurrency.py ecocollect608
+python3 verify_concurrency.py ecocollect608
 ```
+
+On Windows, use `python` instead of `python3` if that is the command for your Python 3 installation.
 
 The check uses temporary test records and removes them afterward. Use `--psql` followed by the executable path if `psql` is not on your PATH.
 
