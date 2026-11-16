@@ -69,10 +69,11 @@ export default function RequestForm({ initialValues, createdAt, onValid, fieldEr
     const errors = { ...(tried ? validate(values, createdAt) : {}), ...fieldErrors };
     const windowErrors = [...new Set(Object.entries(errors).filter(([key]) => key === "windows" || key.startsWith("windows[") || key.startsWith("windows.")).map(([, message]) => message))];
 
-    // Move focus to the first problem once the errors are on screen
+    // Move focus to the first problem once the errors are on screen, for our own checks and for the server's
+    const serverErrorKeys = Object.keys(fieldErrors).join();
     useEffect(() => {
-        if (failedSubmits) formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"], [role="alert"]')?.focus();
-    }, [failedSubmits]);
+        if (failedSubmits || serverErrorKeys) formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"], [role="alert"]')?.focus();
+    }, [failedSubmits, serverErrorKeys]);
 
     function updateValues(next: RequestValues) {
         setValues(next);

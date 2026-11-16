@@ -107,6 +107,12 @@ it("says why Send is disabled until the terms are accepted", async () => {
     await accept();
     expect(screen.queryByText("Accept the terms above to send.")).not.toBeInTheDocument();
 });
+it("moves focus to the first field the server rejected", async () => {
+    vi.mocked(apiModule.apiFetch).mockRejectedValueOnce(failure(400, "validation_error", { "items[0].quantity": "Choose a smaller quantity." }));
+    mount(); await fill(); await accept(); fireEvent.click(button());
+    await screen.findByText("Choose a smaller quantity.");
+    await waitFor(() => expect(screen.getByLabelText("Quantity")).toHaveFocus());
+});
 it("shows a server quantity error on its row and clears it when edited", async () => {
     vi.mocked(apiModule.apiFetch).mockRejectedValueOnce(failure(400, "validation_error", { "items[0].quantity": "Choose a smaller quantity." }));
     mount(); await fill(); await accept(); fireEvent.click(button());
