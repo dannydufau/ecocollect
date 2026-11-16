@@ -22,7 +22,7 @@ export function Field({ label, hint, error, optional = false, children }: {
             </label>
             {hint && <p id={`${id}-hint`} className="text-neutral-700">{hint}</p>}
             {children({ id, "aria-describedby": describedBy, "aria-invalid": error ? true : undefined })}
-            {error && <p id={`${id}-error`} className="text-red-700">{error}</p>}
+            {error && <p id={`${id}-error`} role="alert" className="font-semibold text-red-700">{error}</p>}
         </div>
     );
 }
