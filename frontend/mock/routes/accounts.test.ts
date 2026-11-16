@@ -216,3 +216,11 @@ it("gives 400 when the username is missing or not a string", () => {
         expect(signUp(newResident({ username })).body.error.details.fields).toHaveProperty("username");
     }
 });
+
+it.each(["1995-02-30", "1995-13-01", "2001-04-31", "1995-6-5", 19950615, null])("gives 400 for the impossible birth date %s", dateOfBirth => {
+    expect(signUp(newResident({ dateOfBirth })).body.error.details.fields.dateOfBirth).toBe("Enter a valid date.");
+});
+
+it("accepts 29 February of a leap year", () => {
+    expect(signUp(newResident({ dateOfBirth: "1996-02-29" })).status).toBe(201);
+});

@@ -74,9 +74,16 @@ function ageOn(birth, today) {
   return today.getTime() < birthday ? years - 1 : years;
 }
 
+// A real calendar date as text, or null. Date rolls 1995-02-30 over to March 2, so the text must survive the round trip.
+function parseDate(value) {
+  if (!matches(/^\d{4}-\d{2}-\d{2}$/, value)) return null;
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value ? date : null;
+}
+
 function checkBirthDate(value, fields) {
-  const birth = new Date(`${value}T00:00:00Z`);
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(birth.getTime())) fields.dateOfBirth = "Enter a valid date.";
+  const birth = parseDate(value);
+  if (!birth) fields.dateOfBirth = "Enter a valid date.";
   else if (birth > now()) fields.dateOfBirth = "The birth date can't be in the future.";
   else if (ageOn(birth, now()) < 18) fields.dateOfBirth = "You must be 18 or older.";
 }
