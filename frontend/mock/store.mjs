@@ -23,6 +23,7 @@ export const store = {
   awards: [],
   terms: [],
   sseConnections: new Map(), // uid -> Set of open event streams
+  publicConnections: new Set(), // streams of the public pages: { res, profile, stats }
 };
 
 // Puts the store back to its starting data.
@@ -35,6 +36,7 @@ export function seed() {
   store.awards = [];
   store.terms = [];
   store.sseConnections = new Map();
+  store.publicConnections = new Set();
 }
 
 export function now() {
