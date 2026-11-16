@@ -1,11 +1,12 @@
 // Mock of the EcoCollect gateway API for local frontend development.
 // Run: npm run mock   (listens on http://localhost:8080, which GATEWAY_URL points to)
-// Every file in mock/routes/ exports register(route, store) and adds its own routes.
+// Every file in mock/routes/ exports register(route, store, { notify }) and adds its own routes.
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { store, seed, sendError } from "./store.mjs";
+import { notify } from "./routes/notifications.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -48,7 +49,7 @@ async function loadRoutes(routesDir, route) {
   files.sort((a, b) => (a === "legacy.mjs") - (b === "legacy.mjs"));
   for (const file of files) {
     const mod = await import(pathToFileURL(path.join(routesDir, file)).href);
-    mod.register(route, store);
+    mod.register(route, store, { notify });
   }
 }
 

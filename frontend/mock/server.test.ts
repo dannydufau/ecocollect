@@ -6,7 +6,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import { startServer } from "./server.mjs";
 
 const routeFile = `
-export function register(route) {
+export function register(route, store, { notify }) {
+  route("GET", "/api/notify-type", (req, res) => {
+    res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ type: typeof notify }));
+  });
   route("GET", "/api/things/:id", (req, res, { params }) => {
     res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ id: params.id }));
   });
@@ -51,6 +54,12 @@ describe("mock server", () => {
     const res = await fetch(`${base}/api/echo`, { method: "POST", body: JSON.stringify({ hello: "world" }) });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ hello: "world" });
+  });
+
+  it("gives every route file the notify helper", async () => {
+    const base = await start();
+    const res = await fetch(`${base}/api/notify-type`);
+    expect(await res.json()).toEqual({ type: "function" });
   });
 
   it("passes :id params to the handler", async () => {
