@@ -129,6 +129,20 @@ it("keeps the friendly 409 message while invalidating the request and lists", as
     expect(invalidate).toHaveBeenCalledTimes(3);
     expect(result.current.isPending).toBe(false);
 });
+it("invalidates the request when the action gets a 404", async () => {
+    const call = vi.fn().mockRejectedValue(new ApiError(404, { error: { code: "request_unavailable", message: "Gone" } }));
+    const invalidate = vi.spyOn(client, "invalidateQueries");
+    const { result } = renderHook(() => useRequestAction("r1", call), { wrapper });
+    act(() => result.current.run(undefined)); await tick();
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["request", "r1"] });
+});
+it("returns the error so forms can read the field errors", async () => {
+    const fields = { "windows.0.endAt": "Must be after the start" };
+    const call = vi.fn().mockRejectedValue(new ApiError(400, { error: { code: "validation_error", message: "Check the form.", details: { fields } } }));
+    const { result } = renderHook(() => useRequestAction("r1", call), { wrapper });
+    act(() => result.current.run(undefined)); await tick();
+    expect((result.current.error as ApiError).fields).toEqual(fields);
+});
 it("shows validation errors without invalidating data", async () => {
     const call = vi.fn().mockRejectedValue(new ApiError(400, { error: { code: "validation_error", message: "Check the quantity." } }));
     const invalidate = vi.spyOn(client, "invalidateQueries");

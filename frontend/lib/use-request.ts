@@ -48,13 +48,15 @@ export function useRequestAction<TBody = void>(id: string, call: (body: TBody) =
         mutationFn: call,
         onSuccess: invalidate,
         onError: async error => {
-            if (error instanceof ApiError && error.status === 409) await invalidate();
+            // 404 too: a cancelled assignment answers 404 request_unavailable, so the page should refetch and show that
+            if (error instanceof ApiError && (error.status === 409 || error.status === 404)) await invalidate();
         },
     });
 
     return {
         run: mutation.mutate,
         isPending: mutation.isPending,
+        error: mutation.error,
         message: mutation.error ? friendlyError(mutation.error) : null,
     };
 }
