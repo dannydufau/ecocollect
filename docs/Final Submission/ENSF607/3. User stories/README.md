@@ -1,129 +1,185 @@
-#### FR01 — Account Registration
+# User stories
 
-As a new user, I want to register as a Resident so I can participate in EcoCollect and submit e-waste pickup requests.
+## Functional requirements
 
-As a new user, I want to register as a Volunteer so that I can help with proper e-waste disposal and earn EcoPoints.
+#### FR01 - Account Registration
 
-#### FR02 — User Login, Logout, and Role Selection
+As a new user aged 18 or older, I want to register as a Resident or Volunteer with my personal and account details, so that I can participate in EcoCollect.
 
-As a registered user, I want to log in securely, select my activated role, and log out when finished, so that I can access the appropriate Resident or Volunteer functionality.
+As a Resident, I want to provide my Calgary address during registration, so that my pickup requests use the correct collection address.
 
-As a user who is both a Volunteer and a Resident, I want to easily switch between roles to perform appropriate tasks.
+As a Volunteer, I want to save up to three preferred postal codes, so that I can receive notifications about pickups in those areas.
 
-#### FR03 — Additional Role Activation
+#### FR02 - User Login, Logout, and Role Selection
 
-As a user who is either a Volunteer or a Resident, I want to activate the other role in my existing account so that I can manage both roles together.
+As a registered user, I want to log in with my email and password and choose one of my activated roles, so that I can access the appropriate Resident or Volunteer features.
 
-As a Resident, I want to activate the Volunteer role so that I can give back to the community and help with proper e-waste disposal.
+As a user with both roles, I want to switch between them, so that I can use both sets of features through the same account.
 
-As a Volunteer, I want to activate the Resident role so that I can create e-waste pickup requests when I can't volunteer.
+As a registered user, I want to log out and end my session, so that my account is protected when I finish using EcoCollect.
 
-#### FR04 — Profile Management
+#### FR03 - Additional Role Activation
 
-As a Volunteer, I want to update my preferred postal codes so that I can receive notifications for more or fewer pickup requests based on my availability.
+As a registered user, I want to activate the other role on my existing account, so that I can participate as both a Resident and a Volunteer without creating another account.
 
-As a Resident, I want to update my address and/or postal code so that I can easily create pickup requests with my new address.
+#### FR04 - Profile Management
 
-As a Resident, I want EcoCollect to block me from updating my profile address if I have uncollected pickup requests, so I don’t accidentally change the pickup address for my existing requests.
+As a registered user, I want to view my profile and update permitted settings, including my public name, so that my information stays current.
 
-As a Resident or Volunteer, I want to update my public name so that I can protect my account’s privacy.
+As a Volunteer, I want to update my preferred postal codes, so that pickup notifications reflect the areas I can serve.
 
-#### FR05 — Public User Profiles
+As a Resident, I want to update my profile address when I have no Open or Assigned requests, so that new requests use my new address without affecting ongoing pickups.
 
-As a user, I want a public profile so that I can share my EcoCollect contributions and my environmental impact with others.
+As a registered user, I want to deactivate my account when I own no Open, Assigned or Collected requests and have no Assigned or Collected volunteer pickups, so that I can stop using EcoCollect without leaving unfinished pickups.
 
-#### FR06 — Create Pickup Requests
+#### FR05 - Public User Profiles
 
-As a Resident, I want to create pickup requests for multiple electronic waste categories with quantities, automatically calculated estimated weights, and optional photographs, so that Volunteers can assess the items before accepting a pickup.
+As a public visitor, I want to view a user's participation information without seeing private account or pickup details, so that I can learn about their EcoCollect contributions while respecting their privacy.
 
-#### FR07 — Pickup Scheduling
+#### FR06 - Create Pickup Requests
 
-As a Resident, I want to offer up to three pickup times so that I’m more likely to be matched with an available Volunteer.
+As a Resident, I want to select distinct electronic waste categories and enter their quantities, so that I can create a separate request for each category using the same pickup information.
 
-#### FR08 — Review and Confirm Pickup Requests
+As a Resident, I want the system to calculate each request's estimated weight from its category and quantity, so that I do not have to estimate the weight myself.
 
-As a Resident, I want to review and confirm my pickup request information before submitting it, so I can correct mistakes.
+As a Resident, I want to optionally attach a JPEG, PNG or WEBP photo of up to 10 MB for each selected category, so that Volunteers can assess the items before accepting a pickup.
 
-#### FR09 — View Resident Pickup Requests
+#### FR07 - Pickup Scheduling
 
-As a Resident, I want to view and filter my pickup requests by status, so that I can track active requests, completed deliveries, cancellations, and expired requests.
+As a Resident, I want to offer one to three non-overlapping, one-hour pickup windows in Calgary time that start in the future and end within 30 days of request creation, so that a Volunteer can choose a suitable collection time.
 
-#### FR10 — Edit Open Pickup Requests
+As a Resident, I want my requests to use the address in my profile, so that I do not need to enter the collection address for every request.
 
-As a Resident, I want to update item information and pickup windows while my request is Open, so that I can correct details or reschedule if an assignment is cancelled.
+#### FR08 - Review and Confirm Pickup Requests
 
-#### FR11 — Cancel Pickup Requests
+As a Resident, I want to review and correct my pickup information before confirming submission, so that I can fix mistakes before creating requests.
 
-As a Resident, I want to cancel my pickup request, so that I can cancel a pickup I no longer need.
+#### FR09 - View Resident Pickup Requests
 
-As a Resident, I want to cancel my pickup request assignment before collection, so that I can cancel a pickup for a pickup time window that I am no longer available for.
+As a Resident, I want to view my own requests, filter them by status and open their details, so that I can track their progress and see what action is needed.
 
-As an assigned Volunteer, I want to be notified when the Resident cancels my assigned pickup, so that I don’t make an unnecessary trip.
+#### FR10 - Edit Open Pickup Requests
 
-As an assigned Volunteer, I want to receive full EcoPoints when the Resident cancels my assigned pickup outside the cancellation window, so that my time is recognized.
+As a Resident, I want to edit the item details of my Open requests, including requests reopened after an assignment cancellation, so that I can correct information before another Volunteer accepts them.
 
-#### FR12 — Volunteer Request Discovery
+As a Resident, I want the estimated weight recalculated when I change a category or quantity, so that the request continues to show the correct estimate.
 
-As a Volunteer, I want to browse Open requests and search by postal code, so that I can find pickups in my area or elsewhere.
+As a Resident, I want to replace an Open request's pickup windows with valid future windows within its original 30-day period, so that I can update my availability.
 
-#### FR13 — Accept Pickup Requests
+As a Resident, I want to end my Open or Assigned requests before changing my profile address and creating new requests, so that ongoing pickups keep their agreed collection address.
 
-As a Volunteer, I want to accept a request by choosing a pickup window and confirming the terms and conditions (including safety guidelines), so that I can commit to a pickup and receive the full address.
+#### FR11 - Cancel Pickup Requests
 
-As a Resident, I want to be notified when a volunteer accepts my request, so I know when to expect pickup.
+As a Resident, I want to cancel my Open request or my Assigned request before its selected pickup window ends, so that I can stop a pickup I no longer need.
 
-#### FR14 — Cancel Volunteer Assignment
+As a Resident, I want to cancel only an active assignment before collection is confirmed and before the selected window ends, with the option to provide new pickup windows, so that my request can reopen if valid future windows remain or expire otherwise.
 
-As a Volunteer, I want to cancel my assignment before collection so I can step back if I am unavailable.
+As an assigned Volunteer, I want to be notified when the Resident cancels my request or assignment, so that I do not make an unnecessary trip.
 
-As a Resident, I want to be notified and have my pickup request reopened or expired, so that another Volunteer can take it if it is still open.
+As an assigned Volunteer, I want eligible late cancellations by the Resident to award cancellation EcoPoints under FR18, so that my reserved time is recognized.
 
-#### FR15 — Confirm Item Collection
+#### FR12 - Volunteer Request Discovery
 
-As a Resident, I want to confirm in EcoCollect that the Volunteer has collected my items, so I can mark the request as Collected.
+As a Volunteer, I want to browse Open requests with my preferred postal codes applied by default, or without a default filter when I have none, so that I can find suitable pickups.
 
-As a Volunteer, I want to be notified when my assignment’s status is updated to Collected, so I know my pickup has been recorded.
+As a Volunteer, I want to see the category, quantity, estimated weight, postal code, pickup windows and optional photo while the street address stays hidden, so that I can assess a request without exposing the Resident's exact location.
 
-#### FR16 — Report Missed Pickup
+#### FR13 - Accept Pickup Requests
 
-As a Resident, I want to report a missed pickup and provide new available time windows, so that a new pickup request with the same items is created for another Volunteer.
+As a Volunteer, I want to accept an Open request by choosing an offered window that has not started, so that I can commit to an available pickup time.
 
-#### FR17 — Record Facility Delivery
+As a user with both roles, I want to accept a request created by my own account, so that I can record handling my own e-waste as a Volunteer.
 
-As a Volunteer, I want to select an eligible recycling facility and confirm that the facility accepted the collected items, so that the system can record the request as Delivered.  
- 
+#### FR14 - Cancel Volunteer Assignment
 
-#### FR18 — EcoPoints Calculation and Awarding
+As a Volunteer, I want to cancel my assignment before collection is confirmed, so that I can step back when I am unavailable without receiving cancellation EcoPoints.
 
-As a Resident or Volunteer, I want to view my earned EcoPoints and the points awarded for each Delivered request, so that I can understand the rewards associated with my participation.
+As a Resident, I want my request to reopen after a Volunteer cancels if valid future windows remain, or expire otherwise, so that its status reflects whether another pickup is possible.
 
-As a Volunteer, I want to view my earned EcoPoints and the points awarded for each cancelled request (outside the cancellation window), so that I can understand the rewards associated with my participation.
+#### FR15 - Confirm Item Collection
 
-#### FR19— In-App Notifications and Push Notifications
+As the Resident who owns an Assigned request, I want to confirm that the Volunteer collected my items, so that the request is recorded as Collected.
 
-As a registered user, I want to receive relevant in-app notifications about pickup requests, assignments, cancellations, missed pickups, and deliveries, so that I can stay informed about activities requiring my attention.
+#### FR16 - Report Missed Pickup
 
-As a registered user, I want to mark notifications as read, so that I can tell new updates from ones I've seen.  
- 
+As the Resident who owns an Assigned request, I want to report a missed pickup after the selected window ends, so that the request is recorded as Missed.
 
-#### FR20 — Automatic Request Expiration
+As a Resident, I want the option to provide one to three new pickup windows while reporting a missed pickup, so that I can create a replacement request with the same items linked to the missed request.
 
-As a Resident, I want Open pickup requests to expire automatically 30 days after they're created or after my last pickup window ends, so Volunteers don't accept expired requests and I can still see expired requests in my history.
+#### FR17 - Record Facility Delivery
 
-#### FR21 — Volunteer Pickup History
+As the assigned Volunteer, I want to record delivery of a Collected request to an eligible predefined recycling facility and submit a required evidence photo, so that the completed delivery is recorded.
 
-As a Volunteer, I want to view my Assigned, Collected, and Delivered requests, so that I can manage my current commitments and review previous pickups and earned EcoPoints.
+#### FR18 - EcoPoints Calculation and Awarding
 
-#### FR22 — Terms and Conditions, including Safety Guidelines
+As a Resident or Volunteer, I want delivery EcoPoints awarded using the request's quantity and estimated weight, with Resident points equal to half the Volunteer points, so that my contribution is recognized consistently.
 
-As a Resident or Volunteer, I want to review the applicable terms and safety guidelines before performing relevant activities, so that I understand any risks and safe-handling expectations.
+As an assigned Volunteer, I want to receive the same points as delivery when the Resident cancels my assignment or Assigned request after the cancellation window closes and before the pickup window ends, so that my reserved time is recognized.
 
-#### FR23 — Public Community Impact Statistics
+As a user handling my own request as a Volunteer, I want cancellation points excluded when I am also the Resident, so that cancelling my own pickup does not earn rewards.
 
-As a public visitor, I want to view totals for delivered e-waste, including the number of deliveries, item quantities, estimated weight, and total community EcoPoints, so I can understand EcoCollect’s recorded environmental participation and assess how useful this software is to the community.
+#### FR19 - In-App Notifications and Push Notifications
 
-#### FR24 — Interactive Demo Mode
+As a registered user, I want to receive relevant in-app and push notifications about pickup updates and EcoPoints awards, so that I can stay informed about my activity.
 
-As a public visitor, I want to explore sample Resident and Volunteer workflows without registering, so that I can understand how EcoCollect works without modifying real application data.
+As a Volunteer, I want notifications for new requests in my preferred postal codes, so that I can find pickups in the areas I serve.
 
-\[REMAINING\] NFR user stories  
+As a registered user, I want to mark notifications as read, so that I can distinguish new updates from ones I have seen.
+
+As a registered user, I want outdated request notifications removed from my list and device, so that I do not act on information that is no longer current.
+
+#### FR20 - Automatic Request Expiration
+
+As a Resident, I want my Open request to expire when its last active pickup window starts, so that Volunteers cannot accept pickup times that have already started.
+
+#### FR21 - Volunteer Pickup History
+
+As a Volunteer, I want to view my Assigned, Collected and Delivered requests and their history, so that I can manage my commitments and review previous pickups.
+
+#### FR22 - Terms and Conditions, including Safety Guidelines
+
+As a Resident or Volunteer, I want to review and accept the applicable terms and safety guidelines during registration, role activation, request creation and pickup acceptance, so that I understand the rules before participating.
+
+#### FR23 - Public Community Impact Statistics
+
+As a public visitor, I want to view community impact statistics based on delivered requests for which EcoPoints were awarded, so that I can understand EcoCollect's recorded contribution to e-waste disposal.
+
+#### FR24 - Interactive Demo Mode
+
+As a public visitor, I want to try the main Resident and Volunteer workflows with sample data without registering or logging in, so that I can understand EcoCollect without changing real application data.
+
+## Non-functional requirements
+
+#### NFR01 - Maintainability
+
+As a developer, I want clear responsibilities and interfaces between the user interface, user management, pickup requests, notifications, EcoPoints and cleanup components, so that I can update one part without unnecessarily changing unrelated parts.
+
+#### NFR02 - Usability
+
+As a Resident or Volunteer, I want consistent navigation, clearly labelled controls and visible request statuses, so that I can understand and complete my tasks easily.
+
+As a Resident or Volunteer, I want clear instructions and validation messages, so that I know how to correct mistakes.
+
+#### NFR03 - Privacy
+
+As a Resident, I want my exact pickup address visible only to me and the Volunteer whose assignment is accepted but not yet collected, so that my location is protected.
+
+As a Resident or Volunteer, I want item photos and delivery evidence visible only to permitted users, so that private images are not exposed to others.
+
+As a Resident or Volunteer, I want location metadata removed from uploaded photos and sensitive addresses and photo links kept out of public interfaces, events and notifications, so that private information is not shared unintentionally.
+
+#### NFR04 - Security
+
+As a registered user, I want my credentials and communication protected, so that other people cannot access my account or intercept private information.
+
+As a Resident or Volunteer, I want the system to check my identity, permissions, submitted data and uploaded files, so that unauthorized or invalid actions are rejected.
+
+#### NFR05 - Fairness
+
+As a Resident or Volunteer, I want the same discovery, acceptance and EcoPoints rules applied to all eligible users, so that account identity or preferred postal codes do not give anyone hidden priority or extra rewards.
+
+#### NFR06 - Reliability
+
+As a Resident or Volunteer, I want requests, assignments, deliveries, notifications and EcoPoints to remain consistent when actions are repeated, retried or performed at the same time, so that I can trust my records.
+
+As a Resident or Volunteer, I want duplicate assignments, deliveries and EcoPoints awards prevented, so that repeated actions or processing failures do not create incorrect results.
