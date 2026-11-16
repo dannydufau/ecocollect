@@ -17,6 +17,7 @@ beforeEach(() => {
     openWindow.mockReset();
     const self = {
         addEventListener: (name: string, fn: Handler) => (handlers[name] = fn),
+        location: { origin: "https://ecocollect.test" },
         registration: { showNotification },
         clients: { matchAll: () => Promise.resolve(windows), openWindow },
     };
@@ -76,4 +77,26 @@ it("click focuses an open window and navigates it, or opens a new one", async ()
     expect(notification.close).toHaveBeenCalledTimes(2);
     expect(win.navigate).toHaveBeenCalledWith("/volunteer/requests/1");
     expect(openWindow).toHaveBeenCalledTimes(1);
+});
+
+it("opens a new window when the tab cannot be focused or navigated", async () => {
+    const win = addWindow(false);
+    win.navigate.mockRejectedValue(new Error("not controlled"));
+    await fire("notificationclick", { notification: { close: vi.fn(), data: { url: "/volunteer/history" } } });
+    expect(openWindow).toHaveBeenCalledWith("/volunteer/history");
+});
+
+it("goes to the home page when the url is missing", async () => {
+    await fire("notificationclick", { notification: { close: vi.fn(), data: {} } });
+    expect(openWindow).toHaveBeenCalledWith("/");
+});
+
+it("does not follow a url on another site", async () => {
+    await fire("notificationclick", { notification: { close: vi.fn(), data: { url: "https://evil.example/login" } } });
+    expect(openWindow).toHaveBeenCalledWith("/");
+});
+
+it("keeps the path of a full url from our own site", async () => {
+    await fire("notificationclick", { notification: { close: vi.fn(), data: { url: "https://ecocollect.test/ecopoints?x=1" } } });
+    expect(openWindow).toHaveBeenCalledWith("/ecopoints?x=1");
 });

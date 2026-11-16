@@ -17,12 +17,14 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
     event.notification.close();
-    const url = event.notification.data.url;
+    // only our own pages (README 16.14), anything else or a missing url goes home
+    const target = new URL(event.notification.data?.url ?? "/", self.location.origin);
+    const url = target.origin === self.location.origin ? target.pathname + target.search + target.hash : "/";
     event.waitUntil(
         self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
             if (!list.length) return self.clients.openWindow(url);
-            // navigate fails on a tab the worker does not control yet, the tab is still focused
-            return list[0].focus().then((c) => c.navigate(url)).catch(() => {});
+            // navigate fails on a tab the worker does not control yet, so open a new window instead of doing nothing
+            return list[0].focus().then((c) => c.navigate(url)).catch(() => self.clients.openWindow(url));
         }),
     );
 });
