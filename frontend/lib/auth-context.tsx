@@ -159,7 +159,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user) return [];
     await user.getIdToken(true);
     const roles = await getRoles(user);
-    if (roles.length > 0 && (await beginSession(user, true))) {
+    // Somebody else may have signed in while we waited, these roles are not theirs
+    if (auth.currentUser?.uid !== user.uid) return [];
+    const sessionOk = roles.length > 0 && (await beginSession(user, true));
+    if (auth.currentUser?.uid !== user.uid) return [];
+    if (sessionOk) {
       sseStreamSource.current?.close();
       sseStreamSource.current = openSignalStream(queryClient);
     }

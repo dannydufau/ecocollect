@@ -173,6 +173,25 @@ it("refreshRoles asks for a new token, starts the session again and reopens the 
     expect(openSignalStream).toHaveBeenCalledTimes(2);
 });
 
+it("refreshRoles drops the answer when another account signed in meanwhile", async () => {
+    const alice = fakeUser("alice", ["resident", "volunteer"]);
+    const bob = fakeUser("bob", ["volunteer"]);
+    const { result } = await mount(alice);
+    let release = () => {};
+    alice.getIdToken.mockReturnValueOnce(new Promise<string>((resolve) => { release = () => resolve("fresh"); }));
+    let refresh!: Promise<string[]>;
+    act(() => { refresh = result.current.refreshRoles(); });
+    fb.auth.currentUser = bob;
+    await act(async () => { await listener(bob); });
+    vi.mocked(api.post).mockClear();
+    vi.mocked(openSignalStream).mockClear();
+    await act(async () => { release(); expect(await refresh).toEqual([]); });
+    expect(result.current.user).toBe(bob);
+    expect(result.current.roles).toEqual(["volunteer"]);
+    expect(api.post).not.toHaveBeenCalled();
+    expect(openSignalStream).not.toHaveBeenCalled();
+});
+
 it("refreshRoles does nothing when nobody is signed in", async () => {
     const { result } = await mount();
     await act(async () => { expect(await result.current.refreshRoles()).toEqual([]); });
