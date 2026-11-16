@@ -21,16 +21,22 @@ export async function uploadPhoto(
     const ticket = await api.post<UploadTicket>("/api/uploads", body);
 
     const form = new FormData();
-    form.append("file", blob);
+    form.append("file", blob, ticket.fields.fileName);
     form.append("token", ticket.token);
     for (const [name, value] of Object.entries(ticket.fields)) form.append(name, String(value));
 
     // plain fetch so our Firebase token never goes to ImageKit
-    let fileId: unknown;
+    const failed = (cause?: unknown) => new Error("The photo could not be uploaded, try again", { cause });
+    let res: Response;
     try {
-        const res = await fetch(ticket.uploadUrl, { method: "POST", body: form });
-        if (res.ok) fileId = (await res.json()).fileId;
-    } catch {}
-    if (typeof fileId !== "string" || !fileId) throw new Error("The photo could not be uploaded, try again");
+        res = await fetch(ticket.uploadUrl, { method: "POST", body: form });
+    } catch (cause) {
+        throw failed(cause);
+    }
+    // ImageKit V2 is still in beta, so keep the status and answer to see what it really sends
+    const answer = await res.json().catch(() => null);
+    if (!res.ok) throw failed({ status: res.status, answer });
+    const fileId = answer?.fileId;
+    if (typeof fileId !== "string" || !fileId) throw failed({ status: res.status, answer });
     return fileId;
 }
