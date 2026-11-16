@@ -210,3 +210,9 @@ it("ends the session by clearing the cookie", () => {
     expect(result.status).toBe(204);
     expect(result.headers["Set-Cookie"]).toMatch(/^session=; .*Max-Age=0/);
 });
+
+it("gives 400 when the username is missing or not a string", () => {
+    for (const username of [undefined, null, 12345, ["sam_s"]]) {
+        expect(signUp(newResident({ username })).body.error.details.fields).toHaveProperty("username");
+    }
+});

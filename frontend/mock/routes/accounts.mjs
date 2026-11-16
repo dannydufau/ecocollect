@@ -48,6 +48,11 @@ function isText(value) {
   return typeof value === "string" && value.trim() !== "";
 }
 
+// RegExp.test turns anything into text (undefined becomes "undefined", ["T2P1J9"] becomes "T2P1J9"), so check the type first
+function matches(pattern, value) {
+  return typeof value === "string" && pattern.test(value);
+}
+
 function checkAddress(address, fields) {
   if (!address || typeof address !== "object") {
     fields.address = "Enter your street address and postal code.";
@@ -79,7 +84,7 @@ function checkBirthDate(value, fields) {
 function checkNewAccount(body) {
   const fields = {};
   if (!body || typeof body !== "object" || Array.isArray(body)) return { body: "Send the registration details." };
-  if (!USERNAME.test(body.username)) fields.username = "Use 3 to 50 lowercase letters, digits, _ or -.";
+  if (!matches(USERNAME, body.username)) fields.username = "Use 3 to 50 lowercase letters, digits, _ or -.";
   if (typeof body.email !== "string" || !EMAIL.test(body.email)) fields.email = "Enter a valid email address.";
   if (typeof body.password !== "string" || body.password.length < 6) fields.password = "Use at least 6 characters.";
   for (const name of ["firstName", "lastName", "publicName", "termsDocumentId"]) if (!isText(body[name])) fields[name] = "This is required.";
