@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { api, ApiError } from "@/lib/api";
 import { nextStepText } from "@/lib/status-text";
@@ -42,6 +42,26 @@ const response = (data = detail()) => ({ data, serverDate: new Date("2026-11-16T
 
 beforeEach(() => { vi.spyOn(api, "getWithMeta").mockResolvedValue(response()); });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+
+it("includes owner history and the replacement link on the detail page", async () => {
+    vi.mocked(api.getWithMeta).mockResolvedValueOnce(response(detail({ status: "Missed", allowedActions: [],
+        statusHistory: [{ status: "Missed", changedAt: "2026-11-16T18:00:00Z", reason: "No collection." }],
+        rescheduledAs: { requestId: "r2" },
+    })));
+    renderWithClient(<ResidentRequestDetail requestId="r1" />);
+    const history = await screen.findByRole("region", { name: "Status history" });
+    expect(within(history).getByText("No collection.")).toBeInTheDocument();
+    expect(within(history).getByRole("link", { name: "Rescheduled as" })).toHaveAttribute("href", "/resident/requests/r2");
+});
+
+it("does not expose history or linked request IDs to a non-owner", () => {
+    render(<ResidentRequestView request={detail({ viewer: "volunteer",
+        statusHistory: [{ status: "Cancelled", changedAt: "2026-11-16T18:00:00Z", reason: "Private reason." }],
+        rescheduledFrom: { requestId: "private-request" },
+    })} onPhotoError={vi.fn()} />);
+    expect(screen.queryByText("Private reason.")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Rescheduled from" })).not.toBeInTheDocument();
+});
 
 it("loads the requested ID through the shared detail hook and shows the owner fields", async () => {
     renderWithClient(<ResidentRequestDetail requestId="r/1" />);
