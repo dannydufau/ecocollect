@@ -25,13 +25,19 @@ function writeEvent(uid, name, data, id) {
   }
 }
 
+// The paging cursor is only a timestamp (13.4), so two notifications must never share one
+function newTimestamp() {
+  const latest = Math.max(0, ...store.notifications.map((item) => Date.parse(item.createdAt)));
+  return new Date(Math.max(now().getTime(), latest + 1)).toISOString();
+}
+
 // Stores a notification for the user and sends it to every open stream of theirs (13.3). A deactivated account gets none.
 /** @param {string} userId @param {{ type: string, requestId?: string | null, awardId?: string | null, title: string, body: string, url: string }} data */
 export function notify(userId, { type, requestId = null, awardId = null, title, body, url }) {
   if (store.accounts.find((account) => account.uid === userId)?.deactivatedAt) return null;
   const notification = {
     notificationId: randomUUID(), userId, type, requestId, awardId, title, body, url,
-    isRead: false, createdAt: now().toISOString(),
+    isRead: false, createdAt: newTimestamp(),
   };
   store.notifications.push(notification);
   const notificationId = notification.notificationId;

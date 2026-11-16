@@ -100,6 +100,17 @@ describe("notify", () => {
         expect(other.response.written).toHaveLength(1);
     });
 
+    it("gives notifications created in the same millisecond different timestamps, so paging by time skips none", () => {
+        const data = { type: "REQUEST_CREATED", title: "t", body: "b", url: "/" };
+        const first = notify("demo-resident-4", data)!;
+        const second = notify("demo-resident-4", data)!;
+        expect(second.createdAt > first.createdAt).toBe(true);
+        const page = call("GET", "/api/notifications?limit=1", "demo-resident-4").body.notifications;
+        expect(page[0].notificationId).toBe(second.notificationId);
+        const next = call("GET", `/api/notifications?limit=1&before=${page[0].createdAt}`, "demo-resident-4").body.notifications;
+        expect(next[0].notificationId).toBe(first.notificationId);
+    });
+
     it("sends nothing to a deactivated account", () => {
         const { response } = openStream("demo-volunteer-5");
         (store.accounts as { uid: string; deactivatedAt?: string }[]).find((account) => account.uid === "demo-volunteer-5")!.deactivatedAt = "2026-11-19T10:00:00.000Z";
