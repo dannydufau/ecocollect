@@ -20,6 +20,10 @@ describe("keysFor", () => {
         expect(keysFor(type, "r1")).toEqual(expected);
     });
 
+    it.each(["UNKNOWN_RESIDENT", "UNKNOWN_VOLUNTEER", "ECOPOINTS_UNKNOWN"])("only refreshes the bell for %s", (type) => {
+        expect(keysFor(type, "r1")).toEqual([["notifications"]]);
+    });
+
     it("leaves out the request detail when the notification has no request", () => {
         expect(keysFor("REQUEST_ASSIGNED_RESIDENT", null)).toEqual([["notifications"], mine]);
         expect(keysFor("REQUEST_DELIVERED_VOLUNTEER", null)).toEqual([["notifications"], ["requests", "volunteer"]]);
