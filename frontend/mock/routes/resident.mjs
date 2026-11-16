@@ -135,7 +135,7 @@ function seedRequests(store) {
   }
 }
 
-export function register(route, store, { notify } = {}) {
+export function register(route, store, { notify = () => {} } = {}) {
   store.categories = [
     ["laptops", "Computers/Laptops", "Electronics", 2.5],
     ["desktops", "Computers/Desktops", "Electronics", 8],
@@ -194,6 +194,14 @@ export function register(route, store, { notify } = {}) {
     store.termsAcceptances.push({ termsAcceptanceId: acceptanceId, accountId: user.uid,
       termsDocumentId: body.termsDocumentId, type: "AT_RESIDENT_REQUEST_CREATION", acceptedAt: createdAt });
     store.requests.push(...created);
+    for (const request of created) {
+      const body = `${request.quantity} × ${store.categories.find((category) => category.categoryId === request.categoryId).name}`;
+      notify(user.uid, { type: "REQUEST_CREATED", requestId: request.requestId, title: "Request sent", body, url: `/resident/requests/${request.requestId}` });
+      const volunteers = store.accounts.filter((account) => account.uid !== user.uid && account.roles.includes("volunteer") && account.preferredPostalCodes?.includes(request.postalCode));
+      for (const volunteer of volunteers) {
+        notify(volunteer.uid, { type: "NEW_MATCHING_REQUEST", requestId: request.requestId, title: "New pickup near you", body: `${body} in ${request.postalCode}`, url: `/volunteer/requests/${request.requestId}` });
+      }
+    }
     const response = { requests: created.map((request) => requestSummary(store, request)) };
     if (key) savedResponses.set(cacheKey, { timestamp, body: response });
     send(res, 201, response);

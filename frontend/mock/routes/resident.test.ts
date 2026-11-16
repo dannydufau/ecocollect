@@ -70,6 +70,21 @@ describe("resident mock routes", () => {
         expect(result.body.some((category: { categoryId: string }) => category.categoryId === "other-electronics")).toBe(false);
     });
 
+    it("notifies the resident and the volunteers who prefer the postal code about each new request", () => {
+        const notify = vi.fn();
+        register((method: string, path: string, handler: Handler) => handlers.set(`${method} ${path}`, handler), store, { notify });
+        const result = call("POST", "/api/requests", "demo-resident-1", createBody());
+        const [laptops, phones] = result.body.requests;
+        expect(notify).toHaveBeenCalledTimes(4);
+        expect(notify).toHaveBeenCalledWith("demo-resident-1", expect.objectContaining({
+            type: "REQUEST_CREATED", requestId: laptops.requestId, body: "2 × Computers/Laptops", url: `/resident/requests/${laptops.requestId}`,
+        }));
+        expect(notify).toHaveBeenCalledWith("demo-volunteer-1", expect.objectContaining({
+            type: "NEW_MATCHING_REQUEST", requestId: phones.requestId, body: "3 × Phones in T2P1J9", url: `/volunteer/requests/${phones.requestId}`,
+        }));
+        expect(notify.mock.calls.map(([uid]) => uid)).not.toContain("demo-volunteer-2");
+    });
+
     it("creates one request per item and uses the last window start as expiry", () => {
         const result = call("POST", "/api/requests", "demo-resident-1", createBody());
         expect(result.status).toBe(201);
