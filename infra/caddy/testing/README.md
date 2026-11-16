@@ -2,7 +2,6 @@
 
 Automated tests for the Caddy gateway (`infra/caddy/Caddyfile`). They run the real gateway config against stand-in services, so the gateway can be tested and reviewed before the user, request, reward, notification and frontend services are ready.
 
-<!-- The tests cover the gateway rules: routing, `forward_auth`, header stripping, `X-Request-Id`, and SSE streaming. -->
 
 ## Prerequisites
 
@@ -55,7 +54,7 @@ There are two networks:
 - `internal` (`internal: true`): all stubs. No published ports and no outbound access.
 - `public`: the gateway only, so it can publish its port.
 
-The gateway is attached to both. This mirrors contract 5.8: only the gateway is reachable from outside.
+The gateway is attached to both. This mirrors contract 4.8: only the gateway is reachable from outside.
 
 The gateway uses Caddy's local certificate for `localhost`, so the tests call curl with `-k`.
 

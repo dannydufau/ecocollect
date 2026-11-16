@@ -13,6 +13,7 @@ docker run --rm -v "$PWD/../Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2 \
   caddy validate --config /etc/caddy/Caddyfile
 
 $COMPOSE_CMD up -d
+# Starts the stack and waits until both `/` (frontend) and `/api/terms` (user) answer successfully. (one -o per URL)
 curl -skf --retry 15 --retry-all-errors --retry-delay 1 -o /dev/null -o /dev/null "$BASE_URL/" "$BASE_URL/api/terms"
 
 PASS=0; FAIL=0
