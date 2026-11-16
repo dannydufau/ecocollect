@@ -7,9 +7,9 @@ import { startServer } from "./server.mjs";
 import { store } from "./store.mjs";
 
 const routeFile = `
-export function register(route, store, { notify }) {
+export function register(route, store, { notify, emitPublic }) {
   route("GET", "/api/notify-type", (req, res) => {
-    res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ type: typeof notify }));
+    res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ type: typeof notify, emit: typeof emitPublic }));
   });
   route("GET", "/api/things/:id", (req, res, { params }) => {
     res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ id: params.id }));
@@ -58,10 +58,10 @@ describe("mock server", () => {
     expect(await res.json()).toEqual({ hello: "world" });
   });
 
-  it("gives every route file the notify helper", async () => {
+  it("gives every route file the notify and emitPublic helpers", async () => {
     const base = await start();
     const res = await fetch(`${base}/api/notify-type`);
-    expect(await res.json()).toEqual({ type: "function" });
+    expect(await res.json()).toEqual({ type: "function", emit: "function" });
   });
 
   it("passes :id params to the handler", async () => {
