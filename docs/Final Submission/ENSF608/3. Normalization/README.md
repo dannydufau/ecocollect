@@ -54,6 +54,8 @@ The following summary lists the keys and dependencies. The [logical model](<../2
 | Selected item categories | One request per category in a Q4 submission. |
 | Changed request fields | One `request_changed_field` row per event/field pair. |
 
+The conceptual ER diagram shows these source records on its "Notification event details" page. Its multivalued Changed_Field becomes separate rows in `request_changed_field`.
+
 The previous notification JSON combined event details with a list of changed fields. Following Lecture 8, these are separated into `request_event`, `request_update_event`, and one `request_changed_field` row for each changed field.
 
 An event needs both `pickup_request_id` and `request_seq` to identify it. A `transition_id` is not unique because one action can produce several events, including events for both requests during rescheduling (contract 10.2).

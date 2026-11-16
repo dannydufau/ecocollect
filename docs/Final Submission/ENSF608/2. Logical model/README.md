@@ -6,6 +6,8 @@ The [conceptual model](<../1. Conceptual Model(ER diagram)/ER-Diagram.drawio>) s
 
 Service-support tables for outbox messages, idempotency keys, processed events and expiry jobs are outside this course model; they are specified separately in the implementation contract.
 
+The conceptual diagram's "Notification event details" page shows request events, update events, changed fields and the two notification source subtypes. These map to `request_event`, `request_update_event`, `request_changed_field`, `request_notification` and `award_notification`.
+
 ## Conceptual-to-relational mapping
 
 | Conceptual information | Relational representation |
