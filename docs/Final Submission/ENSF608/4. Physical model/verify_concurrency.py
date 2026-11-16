@@ -75,6 +75,7 @@ try:
 finally:
     run("DELETE FROM volunteer_preferred_postal_code WHERE account_id='volunteer3'")
 
+original_sequence = int(run(f'SELECT request_seq FROM pickup_request WHERE pickup_request_id={uid(3,1)}'))
 try:
     for number, actor in ((901, 'volunteer2'), (902, 'volunteer3')):
         run(f"INSERT INTO terms_acceptance VALUES ({uid(2,number)},{uid(1,2)},'{actor}',CURRENT_TIMESTAMP,'AT_VOLUNTEER_ACCEPTANCE')")
@@ -82,8 +83,11 @@ try:
          f'CALL accept_request({uid(5,901)},{uid(4,1)},{uid(2,901)})',
          f'CALL accept_request({uid(5,902)},{uid(4,101)},{uid(2,902)})')
 finally:
-    run(f'DELETE FROM assignment WHERE assignment_id IN ({uid(5,901)},{uid(5,902)}); '
-        f'DELETE FROM terms_acceptance WHERE terms_acceptance_id IN ({uid(2,901)},{uid(2,902)})')
+    run(f'DELETE FROM status_change WHERE pickup_request_id={uid(3,1)} AND changed_at IN '
+        f'(SELECT accepted_at FROM terms_acceptance WHERE terms_acceptance_id IN ({uid(2,901)},{uid(2,902)})); '
+        f'DELETE FROM assignment WHERE assignment_id IN ({uid(5,901)},{uid(5,902)}); '
+        f'DELETE FROM terms_acceptance WHERE terms_acceptance_id IN ({uid(2,901)},{uid(2,902)}); '
+        f'UPDATE pickup_request SET request_seq={original_sequence} WHERE pickup_request_id={uid(3,1)}')
 
 try:
     run(f'INSERT INTO assignment SELECT {uid(5,903)},pickup_window_id,terms_acceptance_id,accepted_at,collected_at,ended_at,end_reason FROM assignment WHERE assignment_id={uid(5,9)}; '

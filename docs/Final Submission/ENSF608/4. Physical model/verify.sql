@@ -34,10 +34,17 @@ BEGIN
         ('Both award roles', 'INSERT INTO resident_award VALUES (''00000008-0000-4000-8000-000000000001''); CALL check_business_rules()', '23514'),
         ('Both notification sources', 'INSERT INTO request_notification VALUES (''0000000a-0000-4000-8000-000000000065'',''volunteer1'',''00000003-0000-4000-8000-000000000004'',4); CALL check_business_rules()', '23514'),
         ('Missing notification source', 'DELETE FROM request_notification WHERE notification_id=''0000000a-0000-4000-8000-000000000001''; CALL check_business_rules()', '23514'),
-        ('Changed field on reopened event', 'INSERT INTO request_changed_field VALUES (''00000003-0000-4000-8000-00000000000a'',3,''windows''); CALL check_business_rules()', '23514'),
+        ('Changed field on reopened event', 'INSERT INTO request_changed_field VALUES (''00000003-0000-4000-8000-00000000000a'',4,''windows''); CALL check_business_rules()', '23514'),
         ('Duplicate active window', 'INSERT INTO pickup_window SELECT ''00000004-0000-4000-8000-000000000384'',pickup_request_id,pickup_date,start_hour,TRUE FROM pickup_window WHERE pickup_window_id=''00000004-0000-4000-8000-000000000001''; CALL check_business_rules()', '23514'),
         ('Owner acceptance has wrong type', 'UPDATE pickup_request SET terms_acceptance_id=''00000002-0000-4000-8000-000000000001'' WHERE pickup_request_id=''00000003-0000-4000-8000-000000000001''; CALL check_business_rules()', '23514'),
-        ('Event sequence gap', 'DELETE FROM request_event WHERE pickup_request_id=''00000003-0000-4000-8000-000000000002'' AND request_seq=2; CALL check_business_rules()', '23514')
+        ('Event beyond the published sequence', 'UPDATE pickup_request SET request_seq=4 WHERE pickup_request_id=''00000003-0000-4000-8000-000000000002''; CALL check_business_rules()', '23514'),
+        ('Wrong award notification trigger', 'UPDATE notification SET type=''ECOPOINTS_AWARDED_ON_ASSIGNMENT_CANCELLATION_VOLUNTEER'' WHERE notification_id=''0000000a-0000-4000-8000-000000000065''; CALL check_business_rules()', '23514'),
+        ('Update notification missing its details', 'DELETE FROM request_changed_field WHERE pickup_request_id=''00000003-0000-4000-8000-000000000001''; DELETE FROM request_update_event WHERE pickup_request_id=''00000003-0000-4000-8000-000000000001''; CALL check_business_rules()', '23514'),
+        ('Acceptance with obsolete terms', 'INSERT INTO terms_acceptance VALUES (''00000002-0000-4000-8000-0000000003de'',''00000001-0000-4000-8000-000000000001'',''volunteer2'',CURRENT_TIMESTAMP,''AT_VOLUNTEER_ACCEPTANCE''); CALL accept_request(''00000005-0000-4000-8000-0000000003de'',''00000004-0000-4000-8000-000000000001'',''00000002-0000-4000-8000-0000000003de'')', '23514'),
+        ('Assigned state without an assignment', 'INSERT INTO status_change VALUES (''00000003-0000-4000-8000-00000000000b'',CURRENT_TIMESTAMP,''Assigned'',NULL); CALL check_business_rules()', '23514'),
+        ('Incorrect new request estimate', 'UPDATE pickup_request SET estimated_weight_kg=99 WHERE pickup_request_id=''00000003-0000-4000-8000-000000000008''; CALL check_new_request(''00000003-0000-4000-8000-000000000008'')', '23514'),
+        ('Incorrect copied replacement item', 'UPDATE pickup_request SET quantity=2,estimated_weight_kg=12 WHERE pickup_request_id=''00000003-0000-4000-8000-000000000008''; CALL check_new_request(''00000003-0000-4000-8000-000000000008'')', '23514'),
+        ('Birthday still tomorrow in Calgary', 'INSERT INTO account VALUES (''birthday_test'',''Alex'',''Test'',''Alex T.'',''2008-11-16'',''2026-11-16 01:00:00+00'',NULL)', '23514')
     ) AS cases(name, statement, expected_code)
     LOOP
         BEGIN
@@ -57,6 +64,55 @@ $$;
 CALL add_preferred_code('volunteer3','T2P1J9');
 CALL attach_item_photo('00000003-0000-4000-8000-000000000001','item-photo-1');
 CALL check_business_rules();
+
+SAVEPOINT birthday_test;
+INSERT INTO account VALUES ('birthday_test','Alex','Test','Alex T.',
+    '2008-11-16','2026-11-16 07:00:00+00',NULL);
+ROLLBACK TO SAVEPOINT birthday_test;
+
+SAVEPOINT replacement_test;
+UPDATE item_category SET standard_weight_kg=9 WHERE category_id='printers';
+UPDATE pickup_request SET estimated_weight_kg=9
+WHERE pickup_request_id='00000003-0000-4000-8000-000000000008';
+CALL check_new_request('00000003-0000-4000-8000-000000000008');
+UPDATE pickup_request SET quantity=2,estimated_weight_kg=18,notes='Use the side entrance.',
+    file_id=NULL,request_seq=request_seq+1
+WHERE pickup_request_id='00000003-0000-4000-8000-000000000008';
+CALL check_business_rules();
+ROLLBACK TO SAVEPOINT replacement_test;
+
+SAVEPOINT delayed_events_test;
+DELETE FROM request_event
+WHERE pickup_request_id='00000003-0000-4000-8000-000000000002' AND request_seq=2;
+UPDATE pickup_request SET request_seq=request_seq+1
+WHERE pickup_request_id='00000003-0000-4000-8000-00000000000b';
+CALL check_business_rules();
+ROLLBACK TO SAVEPOINT delayed_events_test;
+
+SAVEPOINT cancellation_test;
+UPDATE terms_acceptance SET accepted_at=(
+    SELECT ended_at-INTERVAL '1 hour' FROM assignment
+    WHERE assignment_id='00000005-0000-4000-8000-000000000005'
+) WHERE terms_acceptance_id='00000002-0000-4000-8000-0000000000cd';
+UPDATE assignment SET accepted_at=(SELECT accepted_at FROM terms_acceptance
+    WHERE terms_acceptance_id='00000002-0000-4000-8000-0000000000cd')
+WHERE assignment_id='00000005-0000-4000-8000-000000000005';
+UPDATE status_change SET changed_at=(SELECT accepted_at FROM assignment
+    WHERE assignment_id='00000005-0000-4000-8000-000000000005')
+WHERE pickup_request_id='00000003-0000-4000-8000-000000000005' AND status='Assigned';
+CALL check_business_rules();
+ROLLBACK TO SAVEPOINT cancellation_test;
+
+SAVEPOINT acceptance_test;
+INSERT INTO terms_acceptance VALUES (
+    '00000002-0000-4000-8000-0000000003de',
+    '00000001-0000-4000-8000-000000000002',
+    'volunteer2',CURRENT_TIMESTAMP,'AT_VOLUNTEER_ACCEPTANCE'
+);
+CALL accept_request('00000005-0000-4000-8000-0000000003de',
+    '00000004-0000-4000-8000-00000000000b','00000002-0000-4000-8000-0000000003de');
+CALL check_business_rules();
+ROLLBACK TO SAVEPOINT acceptance_test;
 
 SELECT s.status, COUNT(*) AS request_count
 FROM status_change s

@@ -1,0 +1,170 @@
+                          version
+------------------------------------------------------------
+ PostgreSQL 16.6, compiled by Visual C++ build 1942, 64-bit
+(1 row)
+
+BEGIN
+CREATE SCHEMA
+SET
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+COMMIT
+BEGIN
+SET
+CREATE PROCEDURE
+CREATE PROCEDURE
+CREATE PROCEDURE
+CREATE PROCEDURE
+CREATE PROCEDURE
+COMMIT
+BEGIN
+SET
+SET
+INSERT 0 7
+INSERT 0 4
+INSERT 0 4
+INSERT 0 5
+INSERT 0 2
+INSERT 0 2
+INSERT 0 26
+INSERT 0 9
+INSERT 0 4
+INSERT 0 11
+INSERT 0 13
+INSERT 0 29
+INSERT 0 8
+INSERT 0 3
+INSERT 0 11
+INSERT 0 2
+INSERT 0 5
+INSERT 0 2
+INSERT 0 3
+INSERT 0 33
+INSERT 0 3
+INSERT 0 2
+INSERT 0 13
+INSERT 0 8
+INSERT 0 5
+CALL
+COMMIT
+BEGIN
+SET
+SET
+CALL
+psql:verify.sql:61: NOTICE:  Passed: Invalid postal-code letters
+psql:verify.sql:61: NOTICE:  Passed: Award on an unfinished assignment
+psql:verify.sql:61: NOTICE:  Passed: Duplicate account key
+psql:verify.sql:61: NOTICE:  Passed: Unknown account
+psql:verify.sql:61: NOTICE:  Passed: Required name
+psql:verify.sql:61: NOTICE:  Passed: Empty public name
+psql:verify.sql:61: NOTICE:  Passed: Underage account
+psql:verify.sql:61: NOTICE:  Passed: Zero quantity
+psql:verify.sql:61: NOTICE:  Passed: Negative estimate
+psql:verify.sql:61: NOTICE:  Passed: Invalid hour
+psql:verify.sql:61: NOTICE:  Passed: Invalid status
+psql:verify.sql:61: NOTICE:  Passed: Incomplete assignment ending
+psql:verify.sql:61: NOTICE:  Passed: Collection before acceptance
+psql:verify.sql:61: NOTICE:  Passed: Invalid update reason
+psql:verify.sql:61: NOTICE:  Passed: Invalid changed field
+psql:verify.sql:61: NOTICE:  Passed: Duplicate award notification
+psql:verify.sql:61: NOTICE:  Passed: Duplicate delivery evidence
+psql:verify.sql:61: NOTICE:  Passed: Self rescheduling
+psql:verify.sql:61: NOTICE:  Passed: Fourth preferred code
+psql:verify.sql:61: NOTICE:  Passed: Delivery photo used for an item
+psql:verify.sql:61: NOTICE:  Passed: Accept an unavailable request
+psql:verify.sql:61: NOTICE:  Passed: Missing award role
+psql:verify.sql:61: NOTICE:  Passed: Both award roles
+psql:verify.sql:61: NOTICE:  Passed: Both notification sources
+psql:verify.sql:61: NOTICE:  Passed: Missing notification source
+psql:verify.sql:61: NOTICE:  Passed: Changed field on reopened event
+psql:verify.sql:61: NOTICE:  Passed: Duplicate active window
+psql:verify.sql:61: NOTICE:  Passed: Owner acceptance has wrong type
+psql:verify.sql:61: NOTICE:  Passed: Event beyond the published sequence
+psql:verify.sql:61: NOTICE:  Passed: Wrong award notification trigger
+psql:verify.sql:61: NOTICE:  Passed: Update notification missing its details
+psql:verify.sql:61: NOTICE:  Passed: Acceptance with obsolete terms
+psql:verify.sql:61: NOTICE:  Passed: Assigned state without an assignment
+psql:verify.sql:61: NOTICE:  Passed: Incorrect new request estimate
+psql:verify.sql:61: NOTICE:  Passed: Incorrect copied replacement item
+psql:verify.sql:61: NOTICE:  Passed: Birthday still tomorrow in Calgary
+DO
+CALL
+CALL
+CALL
+SAVEPOINT
+INSERT 0 1
+ROLLBACK
+SAVEPOINT
+UPDATE 1
+UPDATE 1
+CALL
+UPDATE 1
+CALL
+ROLLBACK
+SAVEPOINT
+DELETE 1
+UPDATE 1
+CALL
+ROLLBACK
+SAVEPOINT
+UPDATE 1
+UPDATE 1
+UPDATE 1
+CALL
+ROLLBACK
+SAVEPOINT
+INSERT 0 1
+CALL
+CALL
+ROLLBACK
+  status   | request_count
+-----------+---------------
+ Assigned  |             1
+ Cancelled |             1
+ Collected |             1
+ Delivered |             2
+ Expired   |             1
+ Missed    |             1
+ Open      |             4
+(7 rows)
+
+ earned_role | awards | points
+-------------+--------+--------
+ resident    |      2 |  18.70
+ volunteer   |      3 |  60.40
+(2 rows)
+
+ notification_source | notifications
+---------------------+---------------
+ request             |             8
+ award               |             5
+(2 rows)
+
+ROLLBACK
+ tables | columns | primary_keys | foreign_keys
+--------+---------+--------------+--------------
+     25 |     100 |           25 |           30
+(1 row)

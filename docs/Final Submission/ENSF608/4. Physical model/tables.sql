@@ -15,7 +15,7 @@ CREATE TABLE account (
     CONSTRAINT account_ck2 CHECK (TRIM(first_name) <> ''),
     CONSTRAINT account_ck3 CHECK (TRIM(last_name) <> ''),
     CONSTRAINT account_ck4 CHECK (TRIM(public_name) <> ''),
-    CONSTRAINT account_ck5 CHECK (date_of_birth <= (created_at - INTERVAL '18 years')::date),
+    CONSTRAINT account_ck5 CHECK (date_of_birth <= ((created_at AT TIME ZONE 'America/Edmonton') - INTERVAL '18 years')::date),
     CONSTRAINT account_ck6 CHECK (deactivated_at IS NULL OR deactivated_at >= created_at)
 );
 
