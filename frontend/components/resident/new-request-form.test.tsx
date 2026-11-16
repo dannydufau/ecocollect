@@ -26,20 +26,21 @@ async function fill() {
     fireEvent.change(screen.getByLabelText("Start hour 1"), { target: { value: "14" } });
 }
 async function accept() {
+    if (screen.queryByRole("button", { name: "Review" })) fireEvent.click(screen.getByRole("button", { name: "Review" }));
     fireEvent.click(await screen.findByRole("checkbox", { name: /accept the terms/ }));
 }
-const button = () => screen.getByRole("button", { name: "Send request" });
+const button = () => screen.getByRole("button", { name: "Confirm and send" });
 const failure = (status: number, code: string, fields?: Record<string, string>) => new apiModule.ApiError(status, { error: { code, message: "Check the request.", details: { fields } } });
 beforeEach(() => {
     vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-11-20T18:00:00Z"));
     termsId = "t1"; push.mockReset();
-    vi.spyOn(apiModule.api, "get").mockImplementation(async path => (path === "/api/categories" ? categories : { termsDocumentId: termsId, content: `Terms ${termsId}`, publishedAt: "2026-11-01T18:00:00Z" }) as never);
+    vi.spyOn(apiModule.api, "get").mockImplementation(async path => (path === "/api/categories" ? categories : path === "/api/profile" ? { address: { street: "123 Main Street", postalCode: "T2P1J9" } } : { termsDocumentId: termsId, content: `Terms ${termsId}`, publishedAt: "2026-11-01T18:00:00Z" }) as never);
     vi.spyOn(apiModule, "apiFetch").mockResolvedValue({ requests: [{ requestId: "r1" }] });
 });
 afterEach(() => { cleanup(); client?.clear(); vi.restoreAllMocks(); vi.useRealTimers(); });
 
 it("requires current terms acceptance and sends nothing when the form is submitted without it", async () => {
-    mount(); await fill();
+    mount(); await fill(); fireEvent.click(screen.getByRole("button", { name: "Review" }));
     expect(button()).toBeDisabled();
     fireEvent.submit(button().closest("form")!);
     expect(apiModule.apiFetch).not.toHaveBeenCalled();
@@ -47,10 +48,11 @@ it("requires current terms acceptance and sends nothing when the form is submitt
     await accept(); expect(button()).toBeDisabled();
 });
 it("posts the Q4 body with numeric quantities and an idempotency header, then refreshes the list and navigates", async () => {
-    mount(); await fill(); await accept();
+    mount(); await fill();
     fireEvent.click(screen.getByRole("button", { name: "Add another item" }));
     fireEvent.change(screen.getAllByLabelText("Category")[1], { target: { value: "phones" } });
     fireEvent.change(screen.getByLabelText("Notes (optional)"), { target: { value: "Side door" } });
+    await accept();
     vi.mocked(apiModule.apiFetch).mockResolvedValue({ requests: [{ requestId: "r1" }, { requestId: "r2" }] });
     const invalidate = vi.spyOn(client, "invalidateQueries");
     fireEvent.click(button());
@@ -75,7 +77,7 @@ it("prevents duplicate submissions and disables editing while sending", async ()
     fireEvent.submit(form); fireEvent.submit(form);
     expect(apiModule.apiFetch).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("button", { name: "Sending..." })).toBeDisabled();
-    expect(screen.getByLabelText("Quantity")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Back to edit" })).toBeDisabled();
     finish({ requests: [{ requestId: "r1" }] });
     await waitFor(() => expect(push).toHaveBeenCalledWith("/resident?created=1"));
     fireEvent.submit(form); expect(apiModule.apiFetch).toHaveBeenCalledTimes(1);
@@ -95,14 +97,16 @@ it("uses a new idempotency key when the form was edited after a failed attempt",
     vi.mocked(apiModule.apiFetch).mockRejectedValueOnce(new TypeError("Failed to fetch"));
     mount(); await fill(); await accept(); fireEvent.click(button());
     await screen.findByText(/could not reach the server/);
+    fireEvent.click(screen.getByRole("button", { name: "Back to edit" }));
     fireEvent.change(screen.getByLabelText("Quantity"), { target: { value: "3" } });
+    await accept();
     fireEvent.click(button());
     await waitFor(() => expect(push).toHaveBeenCalled());
     const calls = vi.mocked(apiModule.apiFetch).mock.calls;
     expect(new Headers(calls[0][1]?.headers).get("Idempotency-Key")).not.toBe(new Headers(calls[1][1]?.headers).get("Idempotency-Key"));
 });
 it("says why Send is disabled until the terms are accepted", async () => {
-    mount(); await fill();
+    mount(); await fill(); fireEvent.click(screen.getByRole("button", { name: "Review" }));
     expect(button()).toHaveAccessibleDescription("Accept the terms above to send.");
     await accept();
     expect(screen.queryByText("Accept the terms above to send.")).not.toBeInTheDocument();
@@ -139,10 +143,56 @@ it("reloads outdated terms and requires acceptance again before retrying", async
     await waitFor(() => expect(push).toHaveBeenCalled());
     expect(JSON.parse(vi.mocked(apiModule.apiFetch).mock.calls[1][1]!.body as string).termsDocumentId).toBe("t2");
 });
-it("does not submit invalid item details even after accepting the terms", async () => {
-    mount(); await screen.findByLabelText("Category"); await accept(); fireEvent.click(button());
+it("does not open review for invalid item details", async () => {
+    mount(); await screen.findByLabelText("Category"); fireEvent.click(screen.getByRole("button", { name: "Review" }));
     expect(apiModule.apiFetch).not.toHaveBeenCalled();
     expect(screen.getByText("Choose a category.")).toBeInTheDocument();
+});
+it("reviews the entered details and profile address without sending, then keeps them when going back", async () => {
+    mount(); await fill();
+    fireEvent.change(screen.getByLabelText("Notes (optional)"), { target: { value: "Side door" } });
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+    expect(await screen.findByText("123 Main Street, T2P1J9")).toBeInTheDocument();
+    expect(screen.getByText("Computers/Laptops: 2")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Pickup windows" })).toHaveTextContent(/Nov 21/);
+    expect(screen.getByRole("region", { name: "Notes" })).toHaveTextContent("Side door");
+    expect(screen.getByRole("heading", { name: "Review your request" })).toHaveFocus();
+    expect(apiModule.apiFetch).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Back to edit" }));
+    expect(screen.getByRole("button", { name: "Review" })).toHaveFocus();
+    expect(screen.getByLabelText("Category")).toHaveValue("laptops");
+    expect(screen.getByLabelText("Quantity")).toHaveValue(2);
+    expect(screen.getByLabelText("Date 1")).toHaveValue("2026-11-21");
+    expect(screen.getByLabelText("Start hour 1")).toHaveValue("14");
+    expect(screen.getByLabelText("Notes (optional)")).toHaveValue("Side door");
+    fireEvent.change(screen.getByLabelText("Quantity"), { target: { value: "3" } });
+    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+    expect(screen.getByText("Computers/Laptops: 3")).toBeInTheDocument();
+    expect(apiModule.apiFetch).not.toHaveBeenCalled();
+});
+it("blocks confirmation when the profile address cannot be loaded and allows retry", async () => {
+    const get = vi.mocked(apiModule.api.get);
+    const fallback = get.getMockImplementation()!;
+    get.mockImplementation(async path => { if (path === "/api/profile") throw new TypeError("Failed to fetch"); return fallback(path); });
+    mount(); await fill(); await accept();
+    await screen.findByText(/Could not load your address/);
+    expect(button()).toBeDisabled();
+    fireEvent.submit(button().closest("form")!);
+    expect(apiModule.apiFetch).not.toHaveBeenCalled();
+    get.mockImplementation(fallback);
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    await screen.findByText("123 Main Street, T2P1J9");
+    expect(button()).toBeEnabled();
+});
+it("rechecks windows before confirmation if time has passed during review", async () => {
+    mount(); await fill(); await accept();
+    await screen.findByText("123 Main Street, T2P1J9");
+    vi.setSystemTime(new Date("2026-11-22T18:00:00Z"));
+    fireEvent.click(button());
+    expect(await screen.findByText("Choose pickup windows in the future.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Review" })).toBeInTheDocument();
+    expect(apiModule.apiFetch).not.toHaveBeenCalled();
 });
 it("requires renewed acceptance when a background refetch changes the terms", async () => {
     mount(); await fill(); await accept(); termsId = "t2";

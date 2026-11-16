@@ -1,9 +1,10 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import RequestForm, { type RequestValues } from "./request-form";
+import RequestForm, { validate, type RequestValues } from "./request-form";
+import ReviewRequest from "./review-request";
 import TermsCheckbox from "@/components/terms-checkbox";
 import { Alert } from "@/components/ui/alert";
 import { apiFetch, ApiError, friendlyError } from "@/lib/api";
@@ -19,6 +20,15 @@ export default function NewRequestForm() {
     const [busy, setBusy] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
     const [fields, setFields] = useState<Record<string, string>>({});
+    const [review, setReview] = useState<RequestValues | null>(null);
+    const editor = useRef<HTMLDivElement>(null);
+    const wasReviewing = useRef(false);
+    useEffect(() => {
+        if (wasReviewing.current && !review && !Object.keys(fields).length) {
+            editor.current?.querySelector<HTMLButtonElement>('button[type="submit"]')?.focus();
+        }
+        wasReviewing.current = review !== null;
+    }, [review, fields]);
     // A retry of the same body reuses its key. A changed body gets a new one so an edit is not lost
     const sent = useRef<{ json: string; key: string } | null>(null);
     const inFlight = useRef(false);
@@ -27,6 +37,12 @@ export default function NewRequestForm() {
 
     async function submit(values: RequestValues) {
         if (!accepted || !termsDocumentId || inFlight.current || completed.current) return;
+        const errors = validate(values);
+        if (Object.keys(errors).length) {
+            setFields(errors);
+            setReview(null);
+            return;
+        }
         inFlight.current = true;
         setBusy(true);
         setMessage(null);
@@ -48,7 +64,10 @@ export default function NewRequestForm() {
             router.push(`/resident?created=${response.requests.length}`);
         } catch (error) {
             setMessage(friendlyError(error));
-            if (error instanceof ApiError && error.status === 400) setFields(error.fields);
+            if (error instanceof ApiError && error.status === 400) {
+                setFields(error.fields);
+                setReview(null);
+            }
             if (error instanceof ApiError && error.status === 409 && error.code === "terms_outdated") {
                 setTermsDocumentId(null);
                 await client.invalidateQueries({ queryKey: queryKeys.terms });
@@ -64,8 +83,15 @@ export default function NewRequestForm() {
         setMessage(null);
     }
 
-    return <RequestForm onValid={submit} fieldErrors={fields} busy={busy} submitDisabled={!accepted} submitHint={accepted ? undefined : "Accept the terms above to send."} submitLabel="Send request" onEdit={clearErrors}>
-        <TermsCheckbox value={termsDocumentId} onChange={setTermsDocumentId} />
-        {message && <Alert variant="error">{message}</Alert>}
-    </RequestForm>;
+    return <>
+        <div ref={editor} hidden={review !== null}>
+            <RequestForm onValid={values => { clearErrors(); setTermsDocumentId(null); setReview(values); }} fieldErrors={fields} busy={busy} submitLabel="Review" onEdit={clearErrors}>
+                {message && !review && <Alert variant="error">{message}</Alert>}
+            </RequestForm>
+        </div>
+        {review && <ReviewRequest values={review} busy={busy} accepted={accepted} onBack={() => { clearErrors(); setReview(null); }} onConfirm={() => void submit(review)}>
+            <TermsCheckbox value={termsDocumentId} onChange={setTermsDocumentId} />
+            {message && <Alert variant="error">{message}</Alert>}
+        </ReviewRequest>}
+    </>;
 }
