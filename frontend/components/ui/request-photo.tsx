@@ -2,7 +2,14 @@
 
 import { useState } from "react";
 
-export function RequestPhoto({ src, alt, refetch }: { src: string; alt: string; refetch: () => void }) {
+type Props = { src: string; alt: string; refetch: () => void };
+
+// key={src} starts the error count again when the refetch gives a new signed URL
+export function RequestPhoto(props: Props) {
+    return <Photo key={props.src} {...props} />;
+}
+
+function Photo({ src, alt, refetch }: Props) {
     const [errors, setErrors] = useState(0);
 
     if (errors > 1) return <p className="text-neutral-700">The photo is not available right now.</p>;

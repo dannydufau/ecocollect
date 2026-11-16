@@ -40,6 +40,21 @@ describe("form components", () => {
         expect(screen.queryByRole("img")).toBeNull();
     });
 
+    it("starts again with a refetch when the photo url changes", () => {
+        const refetch = vi.fn();
+        const { rerender } = render(<RequestPhoto src="/a.jpg" alt="Old laptop" refetch={refetch} />);
+        fireEvent.error(screen.getByRole("img", { name: "Old laptop" }));
+        rerender(<RequestPhoto src="/b.jpg" alt="Old laptop" refetch={refetch} />);
+        fireEvent.error(screen.getByRole("img", { name: "Old laptop" }));
+        expect(refetch).toHaveBeenCalledTimes(2);
+        expect(screen.getByRole("img", { name: "Old laptop" })).toBeInTheDocument();
+    });
+
+    it("announces a field error", () => {
+        render(<Field label="Name" error="Enter a name">{(control) => <input {...control} />}</Field>);
+        expect(screen.getByRole("alert")).toHaveTextContent("Enter a name");
+    });
+
     it("has no dark mode rule in globals.css", () => {
         const css = readFileSync("app/globals.css", "utf8");
         expect(css).not.toContain("prefers-color-scheme");
