@@ -64,7 +64,7 @@ export default function NewRequestForm() {
         setMessage(null);
     }
 
-    return <RequestForm onValid={submit} fieldErrors={fields} busy={busy} submitDisabled={!accepted} submitLabel="Send request" onEdit={clearErrors}>
+    return <RequestForm onValid={submit} fieldErrors={fields} busy={busy} submitDisabled={!accepted} submitHint={accepted ? undefined : "Accept the terms above to send."} submitLabel="Send request" onEdit={clearErrors}>
         <TermsCheckbox value={termsDocumentId} onChange={setTermsDocumentId} />
         {message && <Alert variant="error">{message}</Alert>}
     </RequestForm>;

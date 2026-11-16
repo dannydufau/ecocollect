@@ -45,13 +45,14 @@ export function validate(values: RequestValues, createdAt = new Date().toISOStri
     return errors;
 }
 
-export default function RequestForm({ initialValues, createdAt, onValid, fieldErrors = {}, busy = false, submitDisabled = false, submitLabel = "Review request", onEdit, children }: {
+export default function RequestForm({ initialValues, createdAt, onValid, fieldErrors = {}, busy = false, submitDisabled = false, submitHint, submitLabel = "Review request", onEdit, children }: {
     initialValues?: RequestValues;
     createdAt?: string;
     onValid?: (values: RequestValues) => void;
     fieldErrors?: Record<string, string>;
     busy?: boolean;
     submitDisabled?: boolean;
+    submitHint?: string;
     submitLabel?: string;
     onEdit?: () => void;
     children?: ReactNode;
@@ -137,7 +138,10 @@ export default function RequestForm({ initialValues, createdAt, onValid, fieldEr
                 </div>
                 <p>We collect from the address in your profile. <Link href="/profile" className="text-[#8c491a] underline underline-offset-2">Change address</Link></p>
                 {children}
-                <button type="submit" disabled={busy || submitDisabled} className="min-h-11 rounded-lg bg-[#9e5220] px-4 text-white focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50">{busy ? "Sending..." : submitLabel}</button>
+                <div className="flex flex-wrap items-center gap-3">
+                    <button type="submit" disabled={busy || submitDisabled} aria-describedby={submitHint ? `${id}-hint` : undefined} className="min-h-11 rounded-lg bg-[#9e5220] px-4 text-white focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50">{busy ? "Sending..." : submitLabel}</button>
+                    {submitHint && <p id={`${id}-hint`} className="text-[13px] text-stone-700">{submitHint}</p>}
+                </div>
             </fieldset>
         </form>
     );

@@ -101,6 +101,12 @@ it("uses a new idempotency key when the form was edited after a failed attempt",
     const calls = vi.mocked(apiModule.apiFetch).mock.calls;
     expect(new Headers(calls[0][1]?.headers).get("Idempotency-Key")).not.toBe(new Headers(calls[1][1]?.headers).get("Idempotency-Key"));
 });
+it("says why Send is disabled until the terms are accepted", async () => {
+    mount(); await fill();
+    expect(button()).toHaveAccessibleDescription("Accept the terms above to send.");
+    await accept();
+    expect(screen.queryByText("Accept the terms above to send.")).not.toBeInTheDocument();
+});
 it("shows a server quantity error on its row and clears it when edited", async () => {
     vi.mocked(apiModule.apiFetch).mockRejectedValueOnce(failure(400, "validation_error", { "items[0].quantity": "Choose a smaller quantity." }));
     mount(); await fill(); await accept(); fireEvent.click(button());
