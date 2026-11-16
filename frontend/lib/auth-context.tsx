@@ -73,6 +73,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const sseStreamSource = useRef<EventSource | null>(null);
   // signIn and the auth listener both start the session, this makes sure the cookie is asked for only once per login
   const session = useRef<{ uid: string; started: Promise<boolean> } | null>(null);
+  // Session requests still on their way. One that lands after the logout would set the cookie again.
+  const pending = useRef(new Set<Promise<boolean>>());
 
   function beginSession(user: User, again = false): Promise<boolean> {
     if (!again && session.current?.uid === user.uid) return session.current.started;
@@ -85,7 +87,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     );
     session.current = { uid: user.uid, started };
+    pending.current.add(started);
+    void started.then(() => pending.current.delete(started));
     return started;
+  }
+
+  async function endSession() {
+    await Promise.all(pending.current);
+    await cleanupSession();
+    session.current = null;
   }
 
   useEffect(() => {
@@ -102,8 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!user) {
         // signOut below already did this. It is still needed when Firebase ends the login by itself (expired token).
-        if (session.current) await cleanupSession();
-        session.current = null;
+        if (session.current) await endSession();
         storeRole(null);
       }
 
@@ -148,8 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // README 3.5: push subscription first, then the session cookie, then Firebase. The cached lists go in the listener.
   async function signOut() {
     await removePushSubscription();
-    await cleanupSession();
-    session.current = null;
+    await endSession();
     await firebaseSignOut(auth);
   }
 

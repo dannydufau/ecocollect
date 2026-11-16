@@ -192,6 +192,19 @@ it("refreshRoles drops the answer when another account signed in meanwhile", asy
     expect(openSignalStream).not.toHaveBeenCalled();
 });
 
+it("signOut waits for a session request that is still pending, so the cookie ends up deleted", async () => {
+    const { result } = await mount(fakeUser("u1", ["resident"]));
+    let land = () => {};
+    vi.mocked(api.post).mockImplementationOnce(() => new Promise<undefined>((resolve) => { land = () => { calls.push("POST /api/session"); resolve(undefined); }; }));
+    let refresh!: Promise<string[]>;
+    let leaving!: Promise<void>;
+    await act(async () => { refresh = result.current.refreshRoles(); });
+    await act(async () => { leaving = result.current.signOut(); });
+    expect(calls).toEqual(["DELETE /api/push/subscriptions"]);
+    await act(async () => { land(); await Promise.all([refresh, leaving]); });
+    expect(calls).toEqual(["DELETE /api/push/subscriptions", "POST /api/session", "DELETE /api/session", "firebase signOut"]);
+});
+
 it("refreshRoles does nothing when nobody is signed in", async () => {
     const { result } = await mount();
     await act(async () => { expect(await result.current.refreshRoles()).toEqual([]); });
