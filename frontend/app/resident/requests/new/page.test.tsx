@@ -13,20 +13,20 @@ afterEach(() => { cleanup(); vi.resetAllMocks(); });
 
 describe("new request access", () => {
     it("shows the form to residents", () => {
-        vi.mocked(useAuth).mockReturnValue({ user: { uid: "resident" } as NonNullable<ReturnType<typeof useAuth>["user"]>, roles: ["resident"], loading: false });
+        vi.mocked(useAuth).mockReturnValue({ user: { uid: "resident" } as NonNullable<ReturnType<typeof useAuth>["user"]>, roles: ["resident"], loading: false } as ReturnType<typeof useAuth>);
         render(<NewRequestPage />);
         expect(screen.getByText("Request form")).toBeInTheDocument();
         expect(screen.getByText("Add the items you want collected. Each item becomes its own request.")).toBeInTheDocument();
         expect(replace).not.toHaveBeenCalled();
     });
     it("redirects volunteers without exposing the form", () => {
-        vi.mocked(useAuth).mockReturnValue({ user: { uid: "volunteer" } as NonNullable<ReturnType<typeof useAuth>["user"]>, roles: ["volunteer"], loading: false });
+        vi.mocked(useAuth).mockReturnValue({ user: { uid: "volunteer" } as NonNullable<ReturnType<typeof useAuth>["user"]>, roles: ["volunteer"], loading: false } as ReturnType<typeof useAuth>);
         render(<NewRequestPage />);
         expect(screen.queryByText("Request form")).not.toBeInTheDocument();
         expect(replace).toHaveBeenCalledWith("/volunteer");
     });
     it("redirects signed-out users to login", () => {
-        vi.mocked(useAuth).mockReturnValue({ user: null, roles: [], loading: false });
+        vi.mocked(useAuth).mockReturnValue({ user: null, roles: [], activeRole: null, loading: false } as Partial<ReturnType<typeof useAuth>> as ReturnType<typeof useAuth>);
         render(<NewRequestPage />);
         expect(screen.queryByText("Request form")).not.toBeInTheDocument();
         expect(replace).toHaveBeenCalledWith("/login");
