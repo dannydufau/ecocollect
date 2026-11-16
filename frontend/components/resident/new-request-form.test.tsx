@@ -91,6 +91,16 @@ it("reuses the idempotency key after a failed attempt", async () => {
     expect(new Headers(calls[0][1]?.headers).get("Idempotency-Key")).toBe(new Headers(calls[1][1]?.headers).get("Idempotency-Key"));
     expect(uuid).toHaveBeenCalledTimes(1);
 });
+it("uses a new idempotency key when the form was edited after a failed attempt", async () => {
+    vi.mocked(apiModule.apiFetch).mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    mount(); await fill(); await accept(); fireEvent.click(button());
+    await screen.findByText(/could not reach the server/);
+    fireEvent.change(screen.getByLabelText("Quantity"), { target: { value: "3" } });
+    fireEvent.click(button());
+    await waitFor(() => expect(push).toHaveBeenCalled());
+    const calls = vi.mocked(apiModule.apiFetch).mock.calls;
+    expect(new Headers(calls[0][1]?.headers).get("Idempotency-Key")).not.toBe(new Headers(calls[1][1]?.headers).get("Idempotency-Key"));
+});
 it("shows a server quantity error on its row and clears it when edited", async () => {
     vi.mocked(apiModule.apiFetch).mockRejectedValueOnce(failure(400, "validation_error", { "items[0].quantity": "Choose a smaller quantity." }));
     mount(); await fill(); await accept(); fireEvent.click(button());

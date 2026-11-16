@@ -19,7 +19,8 @@ export default function NewRequestForm() {
     const [busy, setBusy] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
     const [fields, setFields] = useState<Record<string, string>>({});
-    const idempotencyKey = useRef<string | null>(null);
+    // A retry of the same body reuses its key. A changed body gets a new one so an edit is not lost
+    const sent = useRef<{ json: string; key: string } | null>(null);
     const inFlight = useRef(false);
     const completed = useRef(false);
     const accepted = !terms.isPending && !terms.isError && termsDocumentId !== null && termsDocumentId === terms.data?.termsDocumentId;
@@ -31,15 +32,16 @@ export default function NewRequestForm() {
         setMessage(null);
         setFields({});
         try {
-            idempotencyKey.current ??= crypto.randomUUID();
             const body: CreateRequests = {
                 items: values.items.map(item => ({ categoryId: item.categoryId, quantity: Number(item.quantity) })),
                 windows: values.windows.map(({ date, startHour }) => ({ date, startHour })),
                 ...(values.notes ? { notes: values.notes } : {}),
                 termsDocumentId,
             };
+            const json = JSON.stringify(body);
+            if (sent.current?.json !== json) sent.current = { json, key: crypto.randomUUID() };
             const response = await apiFetch<{ requests: CreatedRequest[] }>("/api/requests", {
-                method: "POST", headers: { "Idempotency-Key": idempotencyKey.current }, body: JSON.stringify(body),
+                method: "POST", headers: { "Idempotency-Key": sent.current.key }, body: json,
             });
             completed.current = true;
             await client.invalidateQueries({ queryKey: queryKeys.myRequests });
