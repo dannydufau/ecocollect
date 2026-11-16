@@ -1,4 +1,4 @@
-import { signOut, type User } from "firebase/auth";
+import type { User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { api } from "@/lib/api";
 
@@ -33,10 +33,6 @@ export async function startSession(): Promise<void> {
     }
     const idToken = await user.getIdToken();
     await api.post("/api/session", { idToken });
-}
-
-export async function logout(): Promise<void> {
-    await signOut(auth);
 }
 
 // README 3.5: tell the server to forget this browser's push subscription before the login goes away.
