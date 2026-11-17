@@ -18,7 +18,7 @@ export function requestSummary(store, request) {
 }
 
 function photoUrl(photo, timestamp) {
-  return photo ? `https://mock.imagekit.test/${encodeURIComponent(photo.fileId)}?expires=${timestamp + 10 * 60 * 1000}` : null;
+  return photo ? `/api/mock-imagekit/file/${encodeURIComponent(photo.fileId)}?expires=${timestamp + 10 * 60 * 1000}` : null;
 }
 
 /** @returns {import("../lib/types").RequestDetail | null} */
