@@ -17,6 +17,13 @@ export function usePublicStream({ profile, stats }: { profile?: string; stats?: 
         const changed = () => latest.current();
         source.addEventListener("public-profile-updated", changed);
         source.addEventListener("stats-updated", changed);
+        // README 16.5: after a drop the browser reconnects by itself and the events in between are lost, so refetch.
+        // The first open is skipped, the page has just loaded its data.
+        let opened = false;
+        source.onopen = () => {
+            if (opened) changed();
+            opened = true;
+        };
         return () => source.close();
     }, [profile, stats]);
 }

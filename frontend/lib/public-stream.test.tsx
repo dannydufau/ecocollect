@@ -6,6 +6,7 @@ import { usePublicStream } from "./public-stream";
 class FakeSource {
     static all: FakeSource[] = [];
     listeners = new Map<string, () => void>();
+    onopen: (() => void) | null = null;
     close = vi.fn();
     constructor(public url: string) { FakeSource.all.push(this); }
     addEventListener(name: string, listener: () => void) { this.listeners.set(name, listener); }
@@ -40,6 +41,15 @@ it("calls onChange for a profile update and for a stats update", () => {
     expect(onChange).toHaveBeenCalledTimes(1);
     FakeSource.all[0].emit("stats-updated");
     expect(onChange).toHaveBeenCalledTimes(2);
+});
+
+it("refetches when the stream reconnects, but not on the first open", () => {
+    const onChange = vi.fn();
+    renderHook(() => usePublicStream({ profile: "abc" }, onChange));
+    FakeSource.all[0].onopen?.();
+    expect(onChange).not.toHaveBeenCalled();
+    FakeSource.all[0].onopen?.();
+    expect(onChange).toHaveBeenCalledTimes(1);
 });
 
 it("closes the stream on unmount", () => {
