@@ -2,6 +2,7 @@
 
 import { useId } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Alert, Button, input } from "@/components/ui";
 import { api } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -31,26 +32,23 @@ export function CategoryPicker({ value, onChange, disabledIds = [], invalid = fa
 
     if (isPending) return <p role="status">Loading categories...</p>;
     if (isError) return (
-        <div>
-            <p role="alert">Could not load categories. Please try again.</p>
-            <button type="button" onClick={() => refetch()}
-                className="min-h-11 rounded-lg border px-3 focus-visible:outline-2 focus-visible:outline-offset-2">
-                Try again
-            </button>
+        <div className="space-y-2">
+            <Alert variant="error">Could not load categories. Please try again.</Alert>
+            <Button variant="secondary" onClick={() => refetch()}>Try again</Button>
         </div>
     );
 
     return (
         <div className="min-w-0">
-            <label htmlFor={id} className="mb-1 block text-sm font-medium">Category</label>
+            <label htmlFor={id} className="mb-1 block font-semibold">Category</label>
             <select id={id} value={value} onChange={event => onChange(event.target.value)}
                 disabled={data.length === 0} aria-invalid={invalid}
-                className="min-h-11 w-full min-w-0 rounded-lg border border-stone-400 bg-white px-3 text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50">
+                className={`${input} min-w-0 disabled:opacity-50`}>
                 <option value="" disabled>{data.length ? "Choose a category" : "No categories available"}</option>
                 {data.map(category => (
                     <option key={category.categoryId} value={category.categoryId}
                         disabled={disabledIds.includes(category.categoryId)}
-                        className="disabled:text-stone-400">
+                        className="disabled:text-neutral-500">
                         {category.name}
                     </option>
                 ))}
