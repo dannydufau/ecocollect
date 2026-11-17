@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import { currentUser, now, sendError } from "../store.mjs";
 
 const MAX_BYTES = 10 * 1024 * 1024;
+const PLACEHOLDER = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="420" viewBox="0 0 640 420">
+<rect width="640" height="420" fill="#ebddc5"/><text x="320" y="215" font-family="sans-serif" font-size="28" text-anchor="middle" fill="#201e1d">Mock photo</text></svg>`;
 const EXTENSIONS = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
 
 function send(res, status, body) {
@@ -65,6 +67,11 @@ export function register(route, store) {
       },
       expiresAt: new Date(now().getTime() + 10 * 60 * 1000).toISOString(),
     });
+  });
+
+  // The photoUrl of the mock request detail points here, so the photo really loads in the browser
+  route("GET", "/api/mock-imagekit/file/:fileId", (req, res) => {
+    res.writeHead(200, { "Content-Type": "image/svg+xml" }).end(PLACEHOLDER);
   });
 
   // Stands in for ImageKit. The file is not read or kept, because Q4, Q9 and Q15 accept any fileId.

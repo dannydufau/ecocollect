@@ -74,3 +74,13 @@ it("fake upload returns a fileId", () => {
     expect(result.status).toBe(200);
     expect(result.body.fileId).toMatch(/^mock-/);
 });
+
+it("serves a placeholder image for the photoUrl of the mock detail", () => {
+    const response = { status: 0, headers: {} as Record<string, string>, text: "",
+        writeHead(status: number, headers: Record<string, string>) { this.status = status; this.headers = headers; return this; },
+        end(text: string) { this.text = text; return this; } };
+    handlers.get("/api/mock-imagekit/file/:fileId")!({ headers: {} } as IncomingMessage, response as unknown as ServerResponse, {});
+    expect(response.status).toBe(200);
+    expect(response.headers["Content-Type"]).toBe("image/svg+xml");
+    expect(response.text).toContain("<svg");
+});
