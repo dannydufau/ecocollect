@@ -48,6 +48,8 @@ export default function PhotoPicker({ purpose, requestId, onUploaded, onClear }:
     function choose(e: ChangeEvent<HTMLInputElement>) {
         const chosen = e.target.files?.[0];
         if (!chosen) return;
+        // The form still holds the id of the photo uploaded before. If this one fails it must not be sent.
+        if (status === "done") onClear();
         setFile(chosen);
         setPreview(URL.createObjectURL(chosen));
         upload(chosen);

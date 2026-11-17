@@ -89,6 +89,18 @@ it("clears an old error when a new file is chosen", async () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 });
 
+it("clears the old photo as soon as another one is chosen, so a failed second upload leaves no id behind", async () => {
+    vi.mocked(uploadPhoto).mockResolvedValueOnce("f1").mockRejectedValueOnce(new Error("The photo could not be uploaded, try again"));
+    const { onUploaded, onClear, input } = setup();
+    await userEvent.upload(input, photo("a.jpg"));
+    await screen.findByText("Uploaded");
+    expect(onClear).not.toHaveBeenCalled();
+    await userEvent.upload(input, photo("b.jpg"));
+    expect(onClear).toHaveBeenCalledTimes(1);
+    await screen.findByText("The photo could not be uploaded, try again");
+    expect(onUploaded).toHaveBeenCalledTimes(1);
+});
+
 it("calls onClear on Remove and lets the same file be chosen again", async () => {
     vi.mocked(uploadPhoto).mockResolvedValue("f1");
     const { onClear, onUploaded, input } = setup();
