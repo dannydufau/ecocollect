@@ -1,0 +1,114 @@
+import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { api } from "@/lib/api";
+import EnableNotifications from "./enable-notifications";
+
+vi.mock("@/lib/api", () => ({ api: { post: vi.fn(), delete: vi.fn() } }));
+
+const json = { endpoint: "https://push.example.test/abc", keys: { p256dh: "p", auth: "a" }, expirationTime: null };
+
+// jsdom has no Notification, PushManager or service worker, so each test gets fakes
+function fakeBrowser({ permission = "default", answer = "granted", existing = null as unknown, subscribe = vi.fn() } = {}) {
+    const requestPermission = vi.fn(async () => answer);
+    vi.stubGlobal("Notification", { permission, requestPermission });
+    vi.stubGlobal("PushManager", class {});
+    subscribe.mockResolvedValue({ toJSON: () => json });
+    const registration = { pushManager: { getSubscription: vi.fn(async () => existing), subscribe } };
+    const register = vi.fn(async () => registration);
+    Object.defineProperty(navigator, "serviceWorker", {
+        configurable: true,
+        value: { register, getRegistration: vi.fn(async () => registration) },
+    });
+    return { requestPermission, subscribe, register };
+}
+
+beforeEach(() => {
+    vi.mocked(api.post).mockReset().mockResolvedValue(undefined);
+    vi.stubEnv("NEXT_PUBLIC_VAPID_KEY", "AQID");
+});
+
+// Vitest does not clean the page between tests by itself
+afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+    delete (navigator as { serviceWorker?: unknown }).serviceWorker;
+});
+
+it("asks for permission, subscribes and posts the subscription", async () => {
+    const { requestPermission, subscribe, register } = fakeBrowser();
+    render(<EnableNotifications />);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Turn on notifications" }));
+    expect(register).toHaveBeenCalledWith("/sw.js");
+    expect(requestPermission).toHaveBeenCalled();
+    expect(subscribe).toHaveBeenCalledWith({ userVisibleOnly: true, applicationServerKey: new Uint8Array([1, 2, 3]) });
+    expect(api.post).toHaveBeenCalledWith("/api/push/subscriptions", json);
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+});
+
+it("shows the hint and posts nothing when permission is denied on click", async () => {
+    const { subscribe } = fakeBrowser({ answer: "denied" });
+    render(<EnableNotifications />);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Turn on notifications" }));
+    expect(screen.getByText("Notifications are blocked. Allow them in your browser settings.")).toBeInTheDocument();
+    expect(subscribe).not.toHaveBeenCalled();
+    expect(api.post).not.toHaveBeenCalled();
+});
+
+it("shows the hint without a button when permission was already denied", async () => {
+    fakeBrowser({ permission: "denied" });
+    render(<EnableNotifications />);
+
+    expect(await screen.findByText("Notifications are blocked. Allow them in your browser settings.")).toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+});
+
+it("hides the button when already subscribed", async () => {
+    const { requestPermission } = fakeBrowser({ permission: "granted", existing: { endpoint: json.endpoint } });
+    const { container } = render(<EnableNotifications />);
+
+    await vi.waitFor(() => expect(navigator.serviceWorker.getRegistration).toHaveBeenCalled());
+    await new Promise((done) => setTimeout(done));
+    expect(container).toBeEmptyDOMElement();
+    expect(requestPermission).not.toHaveBeenCalled();
+});
+
+it("renders nothing in a browser without push", async () => {
+    const { container } = render(<EnableNotifications />);
+    await new Promise((done) => setTimeout(done));
+    expect(container).toBeEmptyDOMElement();
+});
+
+it("says notifications are not set up when the VAPID key is empty", async () => {
+    vi.stubEnv("NEXT_PUBLIC_VAPID_KEY", "");
+    const { requestPermission } = fakeBrowser();
+    render(<EnableNotifications />);
+
+    expect(await screen.findByText("Notifications are not set up yet.")).toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(requestPermission).not.toHaveBeenCalled();
+});
+
+it("shows an error when subscribing fails", async () => {
+    const subscribe = vi.fn();
+    fakeBrowser({ subscribe });
+    subscribe.mockReset().mockRejectedValue(new Error("no push service"));
+    render(<EnableNotifications />);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Turn on notifications" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("We could not turn on notifications. Please try again.");
+    expect(api.post).not.toHaveBeenCalled();
+});
+
+it("shows an error when saving the subscription fails", async () => {
+    fakeBrowser();
+    vi.mocked(api.post).mockRejectedValue(new Error("offline"));
+    render(<EnableNotifications />);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Turn on notifications" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("We could not turn on notifications. Please try again.");
+    expect(screen.getByRole("button", { name: "Turn on notifications" })).toBeInTheDocument();
+});
