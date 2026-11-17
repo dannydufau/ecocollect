@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { now, sendError } from "./store.mjs";
 import { buildDetail, requestSummary, windowStart } from "./detail.mjs";
 import { awardCancellation } from "./routes/rewards.mjs";
+import { cancelAsVolunteer } from "./routes/volunteer.mjs";
 
 const HOUR = 3600000;
 const emptyNotify = () => {};
@@ -126,6 +127,7 @@ export function registerResidentActions(route, store, { authenticate, send, vali
   });
 
   route("POST", "/api/requests/:id/assignment/cancel", (req, res, { params, body = {} }) => {
+    if (cancelAsVolunteer(req, res, { params, body }, notify)) return;
     const ctx = context(req, res, params.id);
     if (!ctx) return;
     const { request, assignment, user, time, timestamp } = ctx;

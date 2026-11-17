@@ -192,12 +192,12 @@ it("sends both cancellation notifications when Q10 cancels an Assigned request",
         ["demo-resident-1", "REQUEST_CANCELLED_RESIDENT"],
     ]);
 });
-it("rejects a volunteer role cancellation without exposing the owner's detail", () => {
+it("hands a volunteer cancellation to volunteer.mjs without exposing the owner's detail", () => {
     const { request } = assigned();
     const result = call("POST", request, "/assignment/cancel", { as: "volunteer" }, "demo-volunteer-1");
-    expect(result.status).toBe(403);
+    expect(result.status).toBe(200);
     expect(result.body).not.toHaveProperty("address");
-    expect(request.status).toBe("Assigned");
+    expect(request.status).toBe("Open");
 });
 
 it("serves the resident action through the HTTP router", async () => {
