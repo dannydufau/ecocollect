@@ -1,21 +1,36 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { homeFor, type Role } from "@/lib/auth";
+import type { Role } from "@/lib/auth";
+import { saveReturnTo } from "@/lib/return-to";
 
 export default function RequireRole({ role, children }: { role: Role; children: ReactNode }) {
-    const { user, roles, loading } = useAuth();
+    const { user, roles, activeRole, loading, setActiveRole } = useAuth();
     const router = useRouter();
+    const synced = useRef(false);
     const allowed = user !== null && roles.includes(role);
 
     useEffect(() => {
-        if (loading || allowed) {
+        if (loading) {
             return;
         }
-        router.replace(user ? homeFor(roles) : "/login");
-    }, [loading, allowed, user, roles, router]);
+        if (!user) {
+            saveReturnTo(window.location.pathname + window.location.search);
+            router.replace("/login");
+            return;
+        }
+        if (!allowed) {
+            router.replace(roles.length === 0 ? "/login" : "/choose-role");
+            return;
+        }
+        // Opening this role's page picks the role, but only on arrival so the header's role switch is not undone
+        if (!synced.current) {
+            synced.current = true;
+            if (activeRole !== role) setActiveRole(role);
+        }
+    }, [loading, user, allowed, roles, role, activeRole, setActiveRole, router]);
 
     if (!allowed) {
         return <p className="p-8">Loading...</p>;
