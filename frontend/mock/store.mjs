@@ -22,6 +22,7 @@ export const store = {
   notificationsSeeded: false, // notifications.mjs adds its demo data on the first request
   awards: [],
   terms: [],
+  pushSubscriptions: [],
   sseConnections: new Map(), // uid -> Set of open event streams
 };
 
@@ -34,6 +35,7 @@ export function seed() {
   store.notificationsSeeded = false;
   store.awards = [];
   store.terms = [];
+  store.pushSubscriptions = [];
   store.sseConnections = new Map();
 }
 
