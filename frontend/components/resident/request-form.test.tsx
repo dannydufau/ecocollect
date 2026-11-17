@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { api } from "@/lib/api";
 import { renderWithClient } from "@/test/utils";
 import RequestForm, { validate, type RequestValues } from "./request-form";
@@ -65,9 +65,9 @@ describe("RequestForm", () => {
     });
     it("updates the read-only estimated weight when quantity changes", async () => {
         renderWithClient(<RequestForm initialValues={valid()} />);
-        expect(await screen.findByText("Estimated weight: 5.00 kg")).toBeInTheDocument();
+        await waitFor(() => expect(screen.getByText(/^Estimated weight:/)).toHaveTextContent("Estimated weight: 5.00 kg"));
         fireEvent.change(screen.getByLabelText("Quantity"), { target: { value: "3" } });
-        expect(screen.getByText("Estimated weight: 7.50 kg")).toBeInTheDocument();
+        expect(screen.getByText(/^Estimated weight:/)).toHaveTextContent("Estimated weight: 7.50 kg");
     });
     it("shows no errors before the first submit", async () => {
         renderWithClient(<RequestForm />);

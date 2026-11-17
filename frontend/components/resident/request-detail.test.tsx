@@ -74,16 +74,15 @@ it("does not expose history or linked request IDs to a non-owner", () => {
 
 it("loads the requested ID through the shared detail hook and shows the owner fields", async () => {
     renderWithClient(<ResidentRequestDetail requestId="r/1" />);
-    expect(await screen.findByRole("heading", { name: "Computers/Laptops" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "2 × Computers/Laptops" })).toBeInTheDocument();
     expect(api.getWithMeta).toHaveBeenCalledWith("/api/requests/r%2F1");
     expect(screen.getByText("5.00 kg")).toBeInTheDocument();
-    expect(screen.getByText("2")).toBeInTheDocument();
-    expect(screen.getByText("101 Example Street SW")).toBeInTheDocument();
+        expect(screen.getByText("101 Example Street SW")).toBeInTheDocument();
     expect(screen.getByText("Calgary, T2P1J9")).toBeInTheDocument();
     expect(screen.getByText(/Use the side entrance/)).toHaveTextContent("Please ring the bell.");
     expect(screen.getByText(formatWindow(detail().windows[0]))).toBeInTheDocument();
     expect(screen.getByText(formatTimestamp(detail().createdAt))).toBeInTheDocument();
-    expect(screen.getByText("Times are Calgary time.")).toBeInTheDocument();
+    expect(screen.getByText("Windows and times are Calgary time.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Back to my requests" })).toHaveAttribute("href", "/resident");
 });
 
@@ -94,7 +93,7 @@ it("shows loading without stale details while waiting for the first response", a
     expect(screen.getByRole("status")).toHaveTextContent("Loading your request...");
     expect(screen.queryByText("101 Example Street SW")).not.toBeInTheDocument();
     await act(async () => resolve(response()));
-    await screen.findByRole("heading", { name: "Computers/Laptops" });
+    await screen.findByRole("heading", { name: "2 × Computers/Laptops" });
 });
 
 it.each(["Open", "Assigned", "Collected", "Delivered", "Cancelled", "Expired", "Missed"] as const)(
@@ -147,12 +146,12 @@ it("shows the delivery facility, Calgary time and evidence photo", () => {
     }, delivery, photoUrl: "https://images.example.test/item.jpg" })} onPhotoError={vi.fn()} />);
     expect(screen.getByText("Sample electronics depot")).toBeInTheDocument();
     expect(screen.getByText(`Delivered ${formatTimestamp(delivery.deliveredAt)}`)).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: "Delivery evidence photo" })).toHaveAttribute("src", delivery.evidencePhotoUrl);
-    expect(screen.getByRole("img", { name: "Item photo" })).toHaveAttribute("src", "https://images.example.test/item.jpg");
+    expect(screen.getByRole("img", { name: "Delivery photo" })).toHaveAttribute("src", delivery.evidencePhotoUrl);
+    expect(screen.getByRole("img", { name: "Photo of the items" })).toHaveAttribute("src", "https://images.example.test/item.jpg");
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
 });
 
-it.each(["Item photo", "Delivery evidence photo"])("refetches once and gives a text fallback when %s fails", name => {
+it.each(["Photo of the items", "Delivery photo"])("refetches once and gives a text fallback when %s fails", name => {
     const refetch = vi.fn();
     render(<ResidentRequestView request={detail({ photoUrl: "https://images.example.test/item.jpg", delivery })} onPhotoError={refetch} />);
     fireEvent.error(screen.getByRole("img", { name }));
@@ -165,7 +164,7 @@ it.each(["Item photo", "Delivery evidence photo"])("refetches once and gives a t
 
 it("omits absent notes, photos, address and assignment sections", () => {
     render(<ResidentRequestView request={detail({ notes: null, address: undefined })} onPhotoError={vi.fn()} />);
-    for (const name of ["Notes", "Item photo", "Pickup address", "Volunteer", "Delivery"]) {
+    for (const name of ["Photo", "Pickup address and notes", "Volunteer", "Delivery"]) {
         expect(screen.queryByRole("heading", { name })).not.toBeInTheDocument();
     }
 });
@@ -213,7 +212,7 @@ it("allows a failed request to be retried", async () => {
     renderWithClient(<ResidentRequestDetail requestId="r1" />);
     expect(await screen.findByRole("alert")).toHaveTextContent("We could not load your request.");
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-    await screen.findByRole("heading", { name: "Computers/Laptops" });
+    await screen.findByRole("heading", { name: "2 × Computers/Laptops" });
     await waitFor(() => expect(api.getWithMeta).toHaveBeenCalledTimes(2));
 });
 

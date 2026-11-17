@@ -3,7 +3,7 @@ import type { ButtonHTMLAttributes } from "react";
 const variants = {
     primary: "bg-accent text-bg hover:bg-accent-700 active:bg-accent-800",
     secondary: "border border-neutral-600 text-text hover:bg-text/10 active:bg-text/15",
-    danger: "bg-red-700 text-white hover:bg-red-800 active:bg-red-900",
+    danger: "bg-danger text-white hover:brightness-90 active:brightness-75",
 };
 
 type Props = ButtonHTMLAttributes<HTMLButtonElement> & {

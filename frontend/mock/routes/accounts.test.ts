@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { beforeEach, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { seed, store } from "../store.mjs";
-import { register } from "./accounts.mjs";
+import { emitPublic, register } from "./accounts.mjs";
 import { register as registerResident } from "./resident.mjs";
 import { register as registerRewards } from "./rewards.mjs";
 
@@ -20,7 +20,22 @@ function call(method: string, path: string, { user = "demo-resident-1", body, pa
     return { status: response.status, body: response.text ? JSON.parse(response.text) : undefined, headers: response.headers };
 }
 
+// A fake stream: it records what was written to it and lets the test close it
+function openPublicStream(query: string) {
+    const closers: (() => void)[] = [];
+    const response = {
+        status: 0, written: [] as string[], text: "",
+        writeHead(status: number) { this.status = status; return this; },
+        write(text: string) { this.written.push(text); },
+        end(text?: string) { this.text = text ?? ""; return this; },
+        on(name: string, fn: () => void) { if (name === "close") closers.push(fn); },
+    };
+    routes.get("GET /api/public/events")!({ headers: {} } as IncomingMessage, response as unknown as ServerResponse, { url: new URL(`http://localhost/api/public/events${query}`) } as never);
+    return { response, close: () => closers.forEach(fn => fn()) };
+}
+
 beforeEach(() => {
+    vi.useFakeTimers();
     seed();
     routes = new Map();
     const add = (method: string, path: string, handler: Handler) => routes.set(`${method} ${path}`, handler);
@@ -28,6 +43,8 @@ beforeEach(() => {
     registerRewards(() => {}, store);
     register(add, store);
 });
+
+afterEach(() => vi.useRealTimers());
 
 it("seeds a resident only account, one with both roles and a deactivated one", () => {
     expect(call("GET", "/api/profile", { user: "demo-resident-1" }).body.roles).toEqual(["resident"]);
@@ -236,4 +253,43 @@ it("applies the same postal code check when editing the profile or adding a role
     expect(patch({ address: { street: "1 2 St", postalCode: ["T2P1J9"] } }).body.error.details.fields).toHaveProperty("address.postalCode");
     expect(patch({ preferredPostalCodes: [["T2P1J9"]] }, "demo-volunteer-1").status).toBe(400);
     expect(addRole({ role: "resident", termsDocumentId: termsId(), address: { street: "1 2 St", postalCode: ["T2P1J9"] } }, "demo-volunteer-2").status).toBe(400);
+});
+
+it("opens the public stream without a login and sends ready, then a ping every 25 seconds", () => {
+    const { response } = openPublicStream("?stats");
+    expect(response.status).toBe(200);
+    expect(response.written).toEqual(["event: ready\ndata: {}\n\n"]);
+    vi.advanceTimersByTime(25_000);
+    expect(response.written[1]).toBe(": ping\n\n");
+});
+
+it("answers 400 unless the public stream gets exactly one of profile and stats", () => {
+    for (const query of ["", "?profile=a&stats", "?profile="]) {
+        const { response } = openPublicStream(query);
+        expect(response.status).toBe(400);
+        expect(JSON.parse(response.text).error.code).toBe("validation_error");
+    }
+    expect(store.publicConnections.size).toBe(0);
+});
+
+it("emitPublic reaches only the watchers it is meant for", () => {
+    const abc = openPublicStream("?profile=abc").response;
+    const other = openPublicStream("?profile=xyz").response;
+    const stats = openPublicStream("?stats").response;
+    emitPublic("public-profile-updated", { accountId: "abc" });
+    expect(abc.written.at(-1)).toBe('event: public-profile-updated\ndata: {"accountId":"abc"}\n\n');
+    expect(other.written).toHaveLength(1);
+    expect(stats.written).toHaveLength(1);
+    emitPublic("stats-updated");
+    expect(stats.written.at(-1)).toBe("event: stats-updated\ndata: {}\n\n");
+    expect(abc.written).toHaveLength(2);
+});
+
+it("forgets a public stream and stops pinging when it closes", () => {
+    const { response, close } = openPublicStream("?profile=abc");
+    expect(store.publicConnections.size).toBe(1);
+    close();
+    expect(store.publicConnections.size).toBe(0);
+    vi.advanceTimersByTime(60_000);
+    expect(response.written).toHaveLength(1);
 });

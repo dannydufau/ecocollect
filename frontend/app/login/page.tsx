@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { FirebaseError } from "firebase/app";
 import { auth } from "@/lib/firebase";
 import { getRoles, homeFor } from "@/lib/auth";
 import { useAuth } from "@/lib/auth-context";
+import { Alert, Button, Field, card, input } from "@/components/ui";
 
 function errorMessage(err: unknown): string {
   if (err instanceof FirebaseError) {
@@ -64,43 +67,29 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-6 p-8">
-      <h1 className="text-2xl font-semibold">EcoCollect login</h1>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <label className="flex flex-col gap-1">
-          Email
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            autoComplete="email"
-            className="rounded border px-3 py-2"
-          />
-        </label>
-        <label className="flex flex-col gap-1">
-          Password
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            autoComplete="current-password"
-            className="rounded border px-3 py-2"
-          />
-        </label>
-        {error && (
-          <p role="alert" className="text-sm text-red-600">
-            {error}
-          </p>
-        )}
-        <button
-          type="submit"
-          disabled={submitting}
-          className="rounded bg-green-700 px-4 py-2 text-white disabled:opacity-50"
-        >
-          {submitting ? "Signing in..." : "Sign in"}
-        </button>
+    <main className="mx-auto w-full max-w-sm min-w-0 p-4 sm:p-8">
+      <form onSubmit={handleSubmit} className={`${card} flex flex-col gap-4 p-6 shadow-[0_3px_10px_rgba(46,43,37,0.16)]`}>
+        <Image src="/ecocollect-mark.png" alt="" width={69} height={72} priority className="self-start" />
+        <h1 className="text-[32px]">Sign in to EcoCollect</h1>
+        <p className="text-neutral-800">Calgary’s community e-waste courier.</p>
+        <Field label="Email">
+          {(control) => (
+            <input {...control} type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+              required autoComplete="email" className={input} />
+          )}
+        </Field>
+        <Field label="Password">
+          {(control) => (
+            <input {...control} type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+              required autoComplete="current-password" className={input} />
+          )}
+        </Field>
+        {error && <Alert variant="error">{error}</Alert>}
+        <Button type="submit" busy={submitting} busyLabel="Signing in..." className="w-full">Sign in</Button>
+        <div className="flex flex-wrap gap-4">
+          <Link href="/register" className="inline-flex min-h-11 items-center text-accent-700 underline underline-offset-4">Create an account</Link>
+          <Link href="/stats" className="inline-flex min-h-11 items-center text-accent-700 underline underline-offset-4">Community stats</Link>
+        </div>
       </form>
     </main>
   );
