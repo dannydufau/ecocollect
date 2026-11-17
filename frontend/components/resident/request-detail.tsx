@@ -12,6 +12,7 @@ import { formatTimestamp } from "@/lib/time";
 import type { RequestDetail } from "@/lib/types";
 import { useRequestDetail } from "@/lib/use-request";
 import { RequestActions, type ResidentActionRenderers } from "./request-actions";
+import StatusHistory from "./status-history";
 
 const linkStyle = "inline-flex min-h-11 items-center rounded-lg px-1 text-[#8c491a] underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2";
 const cardStyle = "min-w-0 space-y-3 rounded-2xl border border-stone-300 bg-white p-4 sm:p-6";
@@ -111,5 +112,6 @@ export function ResidentRequestView({ request, onPhotoError, actionRenderers }: 
                 <RequestPhoto src={request.delivery.evidencePhotoUrl} alt="Delivery evidence photo" refetch={onPhotoError} />
             </div>}
         </section>}
+        <StatusHistory statusHistory={request.statusHistory} rescheduledFrom={request.rescheduledFrom} rescheduledAs={request.rescheduledAs} />
     </>;
 }
