@@ -97,7 +97,9 @@ describe("notify", () => {
                 title: "Request sent", body: "2 × Phones", url: "/resident/requests/r1", createdAt: "2026-11-20T18:00:00.000Z",
             });
         }
-        expect(other.response.written).toHaveLength(1);
+        // a volunteer's stream does not get the resident's notification, only the news that the list of open requests changed
+        expect(other.response.written).toHaveLength(2);
+        expect(other.response.written[1]).toBe('event: available-requests-changed\ndata: {"requestId":"r1"}\n\n');
     });
 
     it("gives notifications created in the same millisecond different timestamps, so paging by time skips none", () => {
@@ -117,6 +119,22 @@ describe("notify", () => {
         expect(notify("demo-volunteer-5", { type: "NEW_MATCHING_REQUEST", title: "t", body: "b", url: "/" })).toBeNull();
         expect(stored().filter((item) => item.userId === "demo-volunteer-5")).toHaveLength(0);
         expect(response.written).toHaveLength(1);
+    });
+
+    it("tells every volunteer stream, and only those, when a request is created, changed, accepted, cancelled or expires", () => {
+        const volunteer = openStream("demo-volunteer-1").response;
+        const resident = openStream("demo-resident-1").response;
+        for (const type of ["REQUEST_CREATED", "REQUEST_UPDATED_RESIDENT", "REQUEST_ASSIGNED_RESIDENT", "REQUEST_CANCELLED_RESIDENT", "REQUEST_EXPIRED_RESIDENT"]) {
+            notify("demo-resident-4", { type, requestId: "r9", title: "t", body: "b", url: "/" });
+        }
+        expect(volunteer.written.filter((text) => text.startsWith("event: available-requests-changed"))).toHaveLength(5);
+        expect(resident.written).toHaveLength(1);
+    });
+
+    it("does not tell the volunteers about changes that leave the list as it is", () => {
+        const volunteer = openStream("demo-volunteer-1").response;
+        notify("demo-resident-4", { type: "REQUEST_COLLECTED_RESIDENT", requestId: "r9", title: "t", body: "b", url: "/" });
+        expect(volunteer.written).toHaveLength(1);
     });
 
     it("works with nobody connected", () => {
