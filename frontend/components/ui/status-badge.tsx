@@ -1,23 +1,24 @@
 type Status = "Open" | "Assigned" | "Collected" | "Delivered" | "Cancelled" | "Expired" | "Missed";
 
+// The prototype's pill colors. White or pale text on the dark fills, dark text on the light ones.
 const styles: Record<Status, string> = {
-    Open: "border-amber-300 bg-amber-50 text-amber-900",
-    Assigned: "border-sky-300 bg-sky-50 text-sky-900",
-    Collected: "border-violet-300 bg-violet-50 text-violet-900",
-    Delivered: "border-green-300 bg-green-50 text-green-900",
-    Cancelled: "border-red-300 bg-red-50 text-red-900",
-    Expired: "border-gray-300 bg-gray-100 text-gray-800",
-    Missed: "border-orange-300 bg-orange-50 text-orange-900",
+    Open: "bg-accent-2-200 text-accent-2-900",
+    Assigned: "bg-accent-200 text-accent-900",
+    Collected: "bg-accent-2-700 text-white",
+    Delivered: "bg-accent-2-900 text-accent-2-100",
+    Cancelled: "bg-neutral-300 text-neutral-900",
+    Expired: "bg-neutral-300 text-neutral-900",
+    Missed: "bg-danger text-white",
 };
 
 const symbols: Record<Status, string> = {
     Open: "○", Assigned: "◐", Collected: "◕", Delivered: "✓",
-    Cancelled: "✕", Expired: "-", Missed: "!",
+    Cancelled: "✕", Expired: "–", Missed: "!",
 };
 
 export function StatusBadge({ status }: { status: Status }) {
     return (
-        <span className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-sm font-medium ${styles[status]}`}>
+        <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-3.5 py-[5px] text-[13px] font-semibold ${styles[status]}`}>
             <span aria-hidden="true">{symbols[status]}</span>
             {status}
         </span>

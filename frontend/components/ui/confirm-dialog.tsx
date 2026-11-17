@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, type ReactNode } from "react";
+import { Button } from "./button";
 
 type Props = {
     open: boolean;
@@ -29,20 +30,14 @@ export function ConfirmDialog({ open, title, children, confirmLabel, confirmDisa
 
     return (
         <dialog ref={ref} onCancel={(event) => { event.preventDefault(); if (!busy) onCancel(); }}
-            className="m-auto w-[calc(100%-2rem)] max-w-md rounded-xl border border-stone-200 bg-white p-6 text-stone-900 shadow-xl backdrop:bg-black/50"
+            className="m-auto max-h-[90dvh] w-[calc(100%-2rem)] max-w-md overflow-y-auto rounded-[32px] bg-surface p-5 text-text shadow-[0_12px_32px_rgba(46,43,37,0.22)] backdrop:bg-neutral-900/50"
             aria-labelledby={titleId} aria-busy={busy}>
-            <h2 id={titleId} className="text-lg font-semibold">{title}</h2>
-            <div className="mt-3 text-sm">{open && children}</div>
-            {error && <p role="alert" className="mt-3 text-sm text-red-700">{error}</p>}
+            <h2 id={titleId} className="text-xl">{title}</h2>
+            <div className="mt-3">{open && children}</div>
+            {error && <p role="alert" className="mt-3 text-[13px] font-semibold text-danger">{error}</p>}
             <div className="mt-5 flex flex-wrap justify-end gap-3">
-                <button type="button" onClick={onCancel} disabled={busy}
-                    className="min-h-11 rounded-lg border border-stone-400 px-4 py-2 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50">
-                    Cancel
-                </button>
-                <button type="button" onClick={onConfirm} disabled={busy || confirmDisabled}
-                    className={`min-h-11 rounded-lg px-4 py-2 text-white focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50 ${danger ? "bg-red-700" : "bg-[#9e5220]"}`}>
-                    {confirmLabel}
-                </button>
+                <Button variant="secondary" onClick={onCancel} disabled={busy}>Cancel</Button>
+                <Button variant={danger ? "danger" : "primary"} onClick={onConfirm} disabled={busy || confirmDisabled}>{confirmLabel}</Button>
             </div>
         </dialog>
     );

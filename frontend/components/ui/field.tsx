@@ -20,9 +20,9 @@ export function Field({ label, hint, error, optional = false, children }: {
                 {label}
                 {optional && <span className="font-normal text-neutral-700"> (optional)</span>}
             </label>
-            {hint && <p id={`${id}-hint`} className="text-neutral-700">{hint}</p>}
+            {hint && <p id={`${id}-hint`} className="text-[13px] text-neutral-700">{hint}</p>}
             {children({ id, "aria-describedby": describedBy, "aria-invalid": error ? true : undefined })}
-            {error && <p id={`${id}-error`} role="alert" className="font-semibold text-red-700">{error}</p>}
+            {error && <p id={`${id}-error`} role="alert" className="text-[13px] font-semibold text-danger">{error}</p>}
         </div>
     );
 }

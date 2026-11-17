@@ -4,11 +4,12 @@ import { useEffect, useRef, type ReactNode } from "react";
 
 type Variant = "error" | "success" | "warning" | "info";
 
-const styles: Record<Variant, string> = {
-    error: "border-red-300 bg-red-50 text-red-900",
-    success: "border-green-300 bg-green-50 text-green-900",
-    warning: "border-amber-300 bg-amber-50 text-amber-900",
-    info: "border-sky-300 bg-sky-50 text-sky-900",
+// Pale fill, a 1.5px ring and a short bold lead, so the kind is not told by color alone (the prototype's Alert)
+const styles: Record<Variant, { box: string; lead: string }> = {
+    error: { box: "bg-danger-50 text-danger-800 ring-danger", lead: "Error." },
+    success: { box: "bg-accent-2-100 text-accent-2-800 ring-accent-2-500", lead: "Done." },
+    warning: { box: "bg-accent-100 text-accent-800 ring-accent-500", lead: "Heads up." },
+    info: { box: "bg-neutral-100 text-neutral-800 ring-neutral-400", lead: "Note." },
 };
 
 export function Alert({ variant, children, error, scrollIntoView = false }: {
@@ -26,8 +27,8 @@ export function Alert({ variant, children, error, scrollIntoView = false }: {
 
     return (
         <div ref={ref} role={variant === "error" ? "alert" : "status"}
-            className={`rounded-lg border p-3 text-sm ${styles[variant]}`}>
-            {children ?? message}
+            className={`rounded-2xl px-[18px] py-3 text-[15px] leading-snug ring-[1.5px] ring-inset ${styles[variant].box}`}>
+            <strong>{styles[variant].lead}</strong> {children ?? message}
         </div>
     );
 }
