@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { now, sendError } from "./store.mjs";
 import { buildDetail, requestSummary, windowStart } from "./detail.mjs";
+import { textFor } from "./notification-text.mjs";
 import { awardCancellation } from "./routes/rewards.mjs";
 import { cancelAsVolunteer } from "./routes/volunteer.mjs";
 
@@ -9,10 +10,10 @@ const emptyNotify = () => {};
 
 export function registerResidentActions(route, store, { authenticate, send, validate, notify = emptyNotify }) {
   function notifyResident(request, type) {
-    notify(request.residentUid, { type, requestId: request.requestId, title: "Pickup updated", body: "Your pickup request has changed.", url: `/resident/requests/${request.requestId}` });
+    notify(request.residentUid, { type, requestId: request.requestId, ...textFor(type, request), url: `/resident/requests/${request.requestId}` });
   }
   function notifyVolunteer(request, assignment, type, ended = false) {
-    notify(assignment.volunteerId, { type, requestId: request.requestId, title: "Pickup updated", body: "Your pickup has changed.", url: ended ? "/volunteer/history" : `/volunteer/requests/${request.requestId}` });
+    notify(assignment.volunteerId, { type, requestId: request.requestId, ...textFor(type, request), url: ended ? "/volunteer/history" : `/volunteer/requests/${request.requestId}` });
   }
   function status(request, value, timestamp, reason = null) {
     request.status = value;

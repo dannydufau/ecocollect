@@ -213,3 +213,11 @@ it("notifies the resident on Q11, Q12 and Q15", () => {
     call("POST", `/api/requests/${seeded("Collected").requestId}/assignment/delivery`, "demo-volunteer-1", { facilityId: "mock-facility-1", evidencePhoto: { fileId: "mock-1" } });
     expect(notify).toHaveBeenCalledWith("demo-resident-1", expect.objectContaining({ type: "REQUEST_DELIVERED_RESIDENT" }));
 });
+
+it("writes a title and body for the notifications, like the examples in README 13.1", () => {
+    const request = addOpen();
+    accept(request);
+    const sent = (uid: string) => notify.mock.calls.filter(([to]) => to === uid).map(([, data]) => data);
+    expect(sent("demo-resident-2")[0]).toMatchObject({ type: "REQUEST_ASSIGNED_RESIDENT", title: "Pickup accepted", body: "Victor V. will come on Mon, Nov 23, 10:00 to 11:00." });
+    expect(sent("demo-volunteer-2")[0]).toMatchObject({ type: "REQUEST_ASSIGNED_VOLUNTEER", title: "Pickup accepted", body: "Collect 1 × Phones on Mon, Nov 23, 10:00 to 11:00." });
+});

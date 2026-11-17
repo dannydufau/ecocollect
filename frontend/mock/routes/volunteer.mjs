@@ -2,6 +2,7 @@
 import { randomUUID } from "node:crypto";
 import { currentUser, now, sendError, store } from "../store.mjs";
 import { buildDetail, requestSummary, windowStart } from "../detail.mjs";
+import { textFor } from "../notification-text.mjs";
 
 const HISTORY = ["Volunteer_Cancelled", "Resident_Cancelled", "Missed_Pickup"];
 const ASSIGNMENT_STATUSES = ["Active", "Collected", "Delivered", ...HISTORY];
@@ -36,12 +37,12 @@ function setStatus(request, status, timestamp, reason = null) {
   request.statusHistory.push({ status, changedAt: timestamp, reason });
 }
 
-function notifyResident(notify, request, type, title) {
-  notify(request.residentUid, { type, requestId: request.requestId, title, body: "Your pickup request has changed.", url: `/resident/requests/${request.requestId}` });
+function notifyResident(notify, request, type) {
+  notify(request.residentUid, { type, requestId: request.requestId, ...textFor(type, request), url: `/resident/requests/${request.requestId}` });
 }
 
-function notifyVolunteer(notify, request, assignment, type, title, ended = false) {
-  notify(assignment.volunteerId, { type, requestId: request.requestId, title, body: "Your pickup has changed.", url: ended ? "/volunteer/history" : `/volunteer/requests/${request.requestId}` });
+function notifyVolunteer(notify, request, assignment, type, ended = false) {
+  notify(assignment.volunteerId, { type, requestId: request.requestId, ...textFor(type, request), url: ended ? "/volunteer/history" : `/volunteer/requests/${request.requestId}` });
 }
 
 function futureWindows(request, time) {
@@ -139,9 +140,9 @@ export function cancelAsVolunteer(req, res, { params, body = {} }, notify = () =
   assignment.endReason = "Volunteer_Cancelled";
   const reopened = Date.parse(timestamp) < Date.parse(request.expiresAt);
   setStatus(request, reopened ? "Open" : "Expired", timestamp, body.reason ?? null);
-  notifyResident(notify, request, "ASSIGNMENT_CANCELLED_BY_VOLUNTEER_RESIDENT", "Pickup cancelled");
-  notifyVolunteer(notify, request, assignment, "ASSIGNMENT_CANCELLED_BY_VOLUNTEER_VOLUNTEER", "Pickup cancelled", true);
-  notifyResident(notify, request, reopened ? "REQUEST_UPDATED_RESIDENT" : "REQUEST_EXPIRED_RESIDENT", reopened ? "Request reopened" : "Request expired");
+  notifyResident(notify, request, "ASSIGNMENT_CANCELLED_BY_VOLUNTEER_RESIDENT");
+  notifyVolunteer(notify, request, assignment, "ASSIGNMENT_CANCELLED_BY_VOLUNTEER_VOLUNTEER", true);
+  notifyResident(notify, request, reopened ? "REQUEST_UPDATED_RESIDENT" : "REQUEST_EXPIRED_RESIDENT");
   // an expired request is hidden from the volunteer, so they get only the summary
   send(res, 200, buildDetail(store, request, user.uid) ?? requestSummary(store, request));
   return true;
@@ -186,7 +187,7 @@ export function register(route, _store, { notify = () => {} } = {}) {
     // an overdue Open request is expired instead of accepted (12.6)
     if (time >= Date.parse(request.expiresAt)) {
       setStatus(request, "Expired", timestamp);
-      notifyResident(notify, request, "REQUEST_EXPIRED_RESIDENT", "Request expired");
+      notifyResident(notify, request, "REQUEST_EXPIRED_RESIDENT");
       return sendError(res, 409, "expired", "This request has expired.");
     }
     const window = futureWindows(request, time).find((item) => item.windowId === body.windowId);
@@ -202,8 +203,8 @@ export function register(route, _store, { notify = () => {} } = {}) {
     store.termsAcceptances.push({ termsAcceptanceId: randomUUID(), accountId: user.uid, termsDocumentId: body.termsDocumentId,
       type: "AT_VOLUNTEER_ACCEPTANCE", acceptedAt: timestamp });
     setStatus(request, "Assigned", timestamp);
-    notifyResident(notify, request, "REQUEST_ASSIGNED_RESIDENT", "Pickup accepted");
-    notifyVolunteer(notify, request, assignment, "REQUEST_ASSIGNED_VOLUNTEER", "Pickup accepted");
+    notifyResident(notify, request, "REQUEST_ASSIGNED_RESIDENT");
+    notifyVolunteer(notify, request, assignment, "REQUEST_ASSIGNED_VOLUNTEER");
     send(res, 201, buildDetail(store, request, user.uid));
   });
 
@@ -233,8 +234,8 @@ export function register(route, _store, { notify = () => {} } = {}) {
     assignment.endReason = "Delivered";
     request.delivery = { facility: { facilityId: facility.facilityId, name: facility.name }, deliveredAt: timestamp, evidencePhoto: { fileId: body.evidencePhoto.fileId } };
     setStatus(request, "Delivered", timestamp);
-    notifyResident(notify, request, "REQUEST_DELIVERED_RESIDENT", "Items delivered");
-    notifyVolunteer(notify, request, assignment, "REQUEST_DELIVERED_VOLUNTEER", "Delivery recorded");
+    notifyResident(notify, request, "REQUEST_DELIVERED_RESIDENT");
+    notifyVolunteer(notify, request, assignment, "REQUEST_DELIVERED_VOLUNTEER");
     send(res, 200, buildDetail(store, request, user.uid));
   });
 }
