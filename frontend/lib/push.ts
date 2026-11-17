@@ -11,9 +11,12 @@ export async function isSubscribed(): Promise<boolean> {
 
 // README 16.8: call this from a click. Returns the permission the user gave.
 export async function subscribe(vapidKey: string): Promise<NotificationPermission> {
-    const registration = await navigator.serviceWorker.register("/sw.js");
+    // Safari wants the prompt straight from the click, so ask before awaiting anything else
     const permission = await Notification.requestPermission();
     if (permission !== "granted") return permission;
+    await navigator.serviceWorker.register("/sw.js");
+    // subscribe() needs an active worker, and one registered a moment ago may not be active yet
+    const registration = await navigator.serviceWorker.ready;
     // the VAPID key is base64url, the browser wants the raw bytes
     const base64 = vapidKey.replace(/-/g, "+").replace(/_/g, "/");
     const applicationServerKey = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));

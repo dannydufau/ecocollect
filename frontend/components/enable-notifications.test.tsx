@@ -18,7 +18,7 @@ function fakeBrowser({ permission = "default", answer = "granted", existing = nu
     const register = vi.fn(async () => registration);
     Object.defineProperty(navigator, "serviceWorker", {
         configurable: true,
-        value: { register, getRegistration: vi.fn(async () => registration) },
+        value: { register, ready: Promise.resolve(registration), getRegistration: vi.fn(async () => registration) },
     });
     return { requestPermission, subscribe, register };
 }
