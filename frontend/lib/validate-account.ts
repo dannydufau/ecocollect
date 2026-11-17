@@ -22,7 +22,9 @@ export const normalizePostalCode = (value: string) => value.replace(/\s+/g, "").
 
 // The oldest birth date that is 18 or older on `today` (both YYYY-MM-DD). Used for the date picker's max.
 export function eighteenYearsAgo(today: string): string {
-    return `${Number(today.slice(0, 4)) - 18}${today.slice(4)}`;
+    // 29 February has no match 18 years back unless that year is a leap year too. Someone born on 28 February is 18 that day.
+    const monthDay = today.endsWith("-02-29") ? "-02-28" : today.slice(4);
+    return `${Number(today.slice(0, 4)) - 18}${monthDay}`;
 }
 
 function isRealDate(value: string): boolean {

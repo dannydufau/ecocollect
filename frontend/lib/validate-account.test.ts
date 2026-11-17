@@ -13,6 +13,7 @@ describe("normalizing", () => {
     it("lowercases and trims the username", () => expect(normalizeUsername("  Abc_1 ")).toBe("abc_1"));
     it("uppercases a postal code and removes the spaces", () => expect(normalizePostalCode(" t2p 1j9 ")).toBe("T2P1J9"));
     it("finds the oldest allowed birth date", () => expect(eighteenYearsAgo(today)).toBe("2008-11-16"));
+    it("finds a real date when today is 29 February", () => expect(eighteenYearsAgo("2028-02-29")).toBe("2010-02-28"));
 });
 
 describe("validateAccount", () => {
@@ -50,6 +51,11 @@ describe("validateAccount", () => {
     it("turns 18 on the day after for a 29 February birth", () => {
         expect(validateAccount({ ...resident, dateOfBirth: "2008-02-29" }, "2026-02-28").dateOfBirth).toBe("You must be 18 or older to register.");
         expect(validateAccount({ ...resident, dateOfBirth: "2008-02-29" }, "2026-03-01").dateOfBirth).toBeUndefined();
+    });
+
+    it("applies the same limit on 29 February", () => {
+        expect(validateAccount({ ...resident, dateOfBirth: "2010-02-28" }, "2028-02-29").dateOfBirth).toBeUndefined();
+        expect(validateAccount({ ...resident, dateOfBirth: "2010-03-01" }, "2028-02-29").dateOfBirth).toBe("You must be 18 or older to register.");
     });
 
     it("needs a role", () => {
