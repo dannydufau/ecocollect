@@ -72,7 +72,9 @@ export async function startServer({ port = Number(process.env.MOCK_PORT ?? 8080)
     const raw = await readBody(req);
     let body;
     try {
-      body = raw ? JSON.parse(raw) : undefined;
+      // multipart uploads (the fake ImageKit) are not JSON, so their body stays undefined
+      const multipart = req.headers["content-type"]?.startsWith("multipart/");
+      body = raw && !multipart ? JSON.parse(raw) : undefined;
     } catch {
       return sendError(res, 400, "invalid_json", "The body is not valid JSON");
     }

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import fs from "node:fs";
 import path from "node:path";
 import type { AddressInfo } from "node:net";
@@ -75,6 +76,14 @@ describe("mock server", () => {
     const res = await fetch(`${base}/api/echo`, { method: "POST", body: "{not json" });
     expect(res.status).toBe(400);
     expect((await res.json()).error.code).toBe("invalid_json");
+  });
+
+  it("passes a multipart body to the handler without reading it as JSON", async () => {
+    const base = await start();
+    const form = new FormData();
+    form.append("file", new Blob(["photo"]), "a.jpg");
+    const res = await fetch(`${base}/api/echo`, { method: "POST", body: form });
+    expect(res.status).toBe(200);
   });
 
   it("returns 400 for a bad % escape in a :id path", async () => {
