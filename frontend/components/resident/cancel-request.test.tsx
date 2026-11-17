@@ -21,14 +21,16 @@ const detail = (patch: Partial<RequestDetail> = {}): RequestDetail => ({
     assignment: null, delivery: null, refreshAt: null, ...patch,
 });
 let client: QueryClient;
-function mount(node = <CancelRequest request={detail()} />) {
+const onNotice = vi.fn();
+function mount(node = <CancelRequest request={detail()} onNotice={onNotice} />) {
     client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
     return render(<QueryClientProvider client={client}>{node}</QueryClientProvider>);
 }
 function open() { fireEvent.click(screen.getByRole("button", { name: "Cancel request" })); }
-function confirm() { fireEvent.click(screen.getByRole("button", { name: "Confirm cancellation" })); }
+function confirm() { fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel request" })); }
 
 beforeEach(() => {
+    onNotice.mockReset();
     vi.spyOn(api, "post").mockResolvedValue(detail({ status: "Cancelled", allowedActions: [] }));
     vi.spyOn(api, "getWithMeta").mockResolvedValue({ data: detail(), serverDate: new Date() });
 });
@@ -39,7 +41,7 @@ it.each([
     detail({ viewer: "volunteer" }),
     detail({ viewer: "assigned_volunteer" }),
 ])("hides cancellation when the viewer or allowed actions prohibit it", request => {
-    mount(<CancelRequest request={request} />);
+    mount(<CancelRequest request={request} onNotice={onNotice} />);
     expect(screen.queryByRole("button", { name: "Cancel request" })).not.toBeInTheDocument();
     expect(api.post).not.toHaveBeenCalled();
 });
@@ -47,7 +49,7 @@ it.each([
 it("dismissing the dialog sends nothing and reopening starts with an empty reason", () => {
     mount(); open();
     fireEvent.change(screen.getByLabelText("Reason (optional)"), { target: { value: "Plans changed" } });
-    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel" }));
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Keep request" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(api.post).not.toHaveBeenCalled();
     open(); expect(screen.getByLabelText("Reason (optional)")).toHaveValue("");
@@ -68,7 +70,7 @@ it("sends once and prevents editing or closing while the call is pending", async
     let finish!: () => void;
     vi.mocked(api.post).mockImplementation(() => new Promise<void>(resolve => { finish = resolve; }) as never);
     mount(); open();
-    const button = screen.getByRole("button", { name: "Confirm cancellation" });
+    const button = within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel request" });
     fireEvent.click(button); fireEvent.click(button);
     await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
     expect(screen.getByRole("button", { name: "Cancelling..." })).toBeDisabled();
@@ -105,7 +107,7 @@ it("refreshes the page after success, shows Cancelled and removes the button", a
 it.each([
     ["expired", "This request has expired.", "Expired"],
     ["not_cancellable", "This request can't be cancelled now.", "Collected"],
-] as const)("keeps the %s message visible when the refetch removes the action", async (code, message, status) => {
+] as const)("keeps the %s message on the page when the refetch removes the button", async (code, message, status) => {
     let current = detail();
     vi.mocked(api.getWithMeta).mockImplementation(async () => ({ data: current, serverDate: new Date() }) as never);
     vi.mocked(api.post).mockImplementation(async () => {
@@ -114,10 +116,56 @@ it.each([
     });
     mount(<ResidentRequestDetail requestId="r/1" />);
     await screen.findByRole("button", { name: "Cancel request" }); open(); confirm();
-    expect(await screen.findByText(message)).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent(message);
     await screen.findByText(status);
-    expect(screen.getByRole("button", { name: "Confirm cancellation" })).toBeDisabled();
-    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel" }));
-    expect(screen.getByRole("alert")).toHaveTextContent(message);
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(screen.queryByRole("button", { name: "Cancel request" })).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent(message);
+});
+
+it("shows the success alert Request cancelled. at the top of the page", async () => {
+    let current = detail();
+    vi.mocked(api.getWithMeta).mockImplementation(async () => ({ data: current, serverDate: new Date() }) as never);
+    vi.mocked(api.post).mockImplementation(async () => { current = detail({ status: "Cancelled", allowedActions: [] }); return current as never; });
+    mount(<ResidentRequestDetail requestId="r/1" />);
+    await screen.findByRole("button", { name: "Cancel request" });
+    expect(screen.queryByText("Request cancelled.")).not.toBeInTheDocument();
+    open(); confirm();
+    expect(await screen.findByText("Request cancelled.")).toBeInTheDocument();
+    await screen.findByText("Cancelled");
+    expect(screen.getByText("Request cancelled.").closest("[role=status]")).not.toBeNull();
+});
+
+it("tells the page about the result, and clears an old one when the dialog opens again", async () => {
+    mount(); open(); confirm();
+    await waitFor(() => expect(onNotice).toHaveBeenCalledWith({ kind: "success", text: "Request cancelled." }));
+    cleanup();
+    onNotice.mockClear();
+    mount(); open();
+    expect(onNotice).toHaveBeenCalledWith(null);
+});
+
+it.each([
+    ["Open", "Volunteers will no longer see it."],
+    ["Assigned", "The volunteer will be told, and the request will be cancelled."],
+] as const)("explains what cancelling a %s request does", (status, sentence) => {
+    mount(<CancelRequest request={detail({ status })} onNotice={onNotice} />); open();
+    expect(within(screen.getByRole("dialog")).getByText(sentence)).toBeInTheDocument();
+});
+
+it("names the buttons Keep request and Cancel request in the dialog, and shows the page button as a red outline", () => {
+    mount();
+    expect(screen.getByRole("button", { name: "Cancel request" })).toHaveClass("border-danger", "text-danger");
+    open();
+    const dialog = within(screen.getByRole("dialog"));
+    expect(dialog.getByRole("button", { name: "Keep request" })).toBeInTheDocument();
+    expect(dialog.getByRole("button", { name: "Cancel request" })).toHaveClass("bg-danger");
+    expect(dialog.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
+});
+
+it("puts the cancel button in the same group as the other actions", async () => {
+    vi.mocked(api.getWithMeta).mockResolvedValue({ data: detail({ allowedActions: ["edit", "cancel"] }), serverDate: new Date() } as never);
+    mount(<ResidentRequestDetail requestId="r/1" actionRenderers={{ edit: () => <button>Edit request</button> }} />);
+    const group = await screen.findByRole("region", { name: "Request actions" });
+    expect(within(group).getAllByRole("button").map(button => button.textContent)).toEqual(["Edit request", "Cancel request"]);
 });
