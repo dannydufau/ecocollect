@@ -1,4 +1,4 @@
-import AvailableRequests from "@/components/available-requests";
+import AvailableRequests from "@/components/volunteer/available-requests";
 import LogoutButton from "@/components/logout-button";
 
 export default function VolunteerPage() {
