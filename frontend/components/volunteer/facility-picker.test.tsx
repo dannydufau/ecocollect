@@ -1,4 +1,4 @@
-import { cleanup, screen } from "@testing-library/react";
+import { cleanup, fireEvent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { api } from "@/lib/api";
@@ -42,13 +42,13 @@ it("checks the row that matches value", async () => {
 it("shows special instructions only when they are set", async () => {
     renderWithClient(<FacilityPicker categoryId="laptops" value={null} onChange={() => {}} />);
     expect(await screen.findByText("Use the loading dock.")).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: /North Electronics Depot/ }).closest("label")).toHaveTextContent(/^North Electronics Depot\s*1100 64 Ave NE, T2E7Y5$/);
+    expect(screen.getByRole("radio", { name: /North Electronics Depot/ }).closest("label")).toHaveTextContent(/^North Electronics Depot\s*1100 64 Ave NE, Calgary T2E 7Y5$/);
 });
 
 it("shows a message when no facility accepts the category", async () => {
     vi.mocked(api.get).mockResolvedValue([]);
     renderWithClient(<FacilityPicker categoryId="laptops" value={null} onChange={() => {}} />);
-    expect(await screen.findByText("No facility accepts this category")).toBeInTheDocument();
+    expect(await screen.findByText("No facility accepts this category right now.")).toBeInTheDocument();
     expect(screen.queryByRole("radio")).not.toBeInTheDocument();
 });
 
@@ -56,4 +56,23 @@ it("shows an error", async () => {
     vi.mocked(api.get).mockRejectedValue(new Error("down"));
     renderWithClient(<FacilityPicker categoryId="laptops" value={null} onChange={() => {}} />);
     expect(await screen.findByRole("alert")).toHaveTextContent("We could not load the facilities. Please try again.");
+});
+
+it("shows the address with a spaced postal code", async () => {
+    renderWithClient(<FacilityPicker categoryId="laptops" value={null} onChange={() => {}} />);
+    expect(await screen.findByText("2808 Ogden Rd SE, Calgary T2G 4R7")).toBeInTheDocument();
+});
+
+it("fills the chosen row", async () => {
+    renderWithClient(<FacilityPicker categoryId="laptops" value="f2" onChange={() => {}} />);
+    expect((await screen.findByRole("radio", { name: /North Electronics Depot/ })).closest("label")).toHaveClass("bg-accent-2-200");
+    expect(screen.getByRole("radio", { name: /Demo Recycling Facility/ }).closest("label")).toHaveClass("bg-surface");
+});
+
+it("lets the volunteer try again after an error", async () => {
+    vi.mocked(api.get).mockRejectedValueOnce(new Error("down"));
+    renderWithClient(<FacilityPicker categoryId="laptops" value={null} onChange={() => {}} />);
+    await screen.findByRole("alert");
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(await screen.findAllByRole("radio")).toHaveLength(2);
 });

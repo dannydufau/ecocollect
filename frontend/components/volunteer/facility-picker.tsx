@@ -2,8 +2,9 @@
 
 import { useId } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Alert, Spinner } from "@/components/ui";
+import { Alert, Button, Spinner } from "@/components/ui";
 import { api } from "@/lib/api";
+import { formatPostalCode } from "@/lib/postal-code";
 import { queryKeys } from "@/lib/query-keys";
 import type { Facility } from "@/lib/types";
 
@@ -13,26 +14,31 @@ export function FacilityPicker({ categoryId, value, onChange }: {
     onChange: (facilityId: string) => void;
 }) {
     const name = useId();
-    const { data, isPending, isError } = useQuery({
+    const { data, isPending, isError, refetch, isFetching } = useQuery({
         queryKey: queryKeys.facilities(categoryId),
         queryFn: () => api.get<Facility[]>(`/api/facilities?categoryId=${encodeURIComponent(categoryId)}`),
     });
 
     if (isPending) return <Spinner label="Loading facilities..." />;
-    if (isError) return <Alert variant="error">We could not load the facilities. Please try again.</Alert>;
+    if (isError) return (
+        <div className="space-y-2">
+            <Alert variant="error">We could not load the facilities. Please try again.</Alert>
+            <Button variant="secondary" onClick={() => void refetch()} busy={isFetching} busyLabel="Trying...">Try again</Button>
+        </div>
+    );
 
     return (
         <fieldset className="min-w-0 space-y-2">
-            <legend className="mb-1 font-semibold">Facility</legend>
-            {data.length === 0 && <p>No facility accepts this category</p>}
+            <legend className="mb-1 text-[14px] font-semibold">Facility</legend>
+            {data.length === 0 && <p>No facility accepts this category right now.</p>}
             {data.map(facility => (
-                <label key={facility.facilityId} className="flex min-h-11 min-w-0 cursor-pointer items-start gap-3 rounded-2xl border border-neutral-600 p-3 has-[:checked]:border-accent has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2">
+                <label key={facility.facilityId} className={`flex min-h-11 min-w-0 cursor-pointer items-start gap-3 rounded-2xl px-3.5 py-2.5 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent ${value === facility.facilityId ? "bg-accent-2-200" : "bg-surface"}`}>
                     <input type="radio" name={name} value={facility.facilityId} checked={value === facility.facilityId}
                         onChange={() => onChange(facility.facilityId)} className="mt-1 h-5 w-5 flex-none accent-accent" />
                     <span className="min-w-0 break-words">
                         <span className="block font-semibold">{facility.name}</span>
-                        <span className="block text-neutral-800">{facility.street}, {facility.postalCode}</span>
-                        {facility.specialInstructions && <span className="block text-sm text-neutral-700">{facility.specialInstructions}</span>}
+                        <span className="block">{facility.street}, Calgary {formatPostalCode(facility.postalCode)}</span>
+                        {facility.specialInstructions && <span className="block text-[13px] text-neutral-800">{facility.specialInstructions}</span>}
                     </span>
                 </label>
             ))}
