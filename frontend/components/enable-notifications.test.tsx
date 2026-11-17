@@ -40,7 +40,7 @@ it("asks for permission, subscribes and posts the subscription", async () => {
     const { requestPermission, subscribe, register } = fakeBrowser();
     render(<EnableNotifications />);
 
-    await userEvent.click(await screen.findByRole("button", { name: "Turn on notifications" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Turn on device notifications" }));
     expect(register).toHaveBeenCalledWith("/sw.js");
     expect(requestPermission).toHaveBeenCalled();
     expect(subscribe).toHaveBeenCalledWith({ userVisibleOnly: true, applicationServerKey: new Uint8Array([1, 2, 3]) });
@@ -52,8 +52,8 @@ it("shows the hint and posts nothing when permission is denied on click", async 
     const { subscribe } = fakeBrowser({ answer: "denied" });
     render(<EnableNotifications />);
 
-    await userEvent.click(await screen.findByRole("button", { name: "Turn on notifications" }));
-    expect(screen.getByText("Notifications are blocked. Allow them in your browser settings.")).toBeInTheDocument();
+    await userEvent.click(await screen.findByRole("button", { name: "Turn on device notifications" }));
+    expect(screen.getByText("Notifications are blocked for this site. You can turn them on in your browser settings.")).toBeInTheDocument();
     expect(subscribe).not.toHaveBeenCalled();
     expect(api.post).not.toHaveBeenCalled();
 });
@@ -62,7 +62,7 @@ it("shows the hint without a button when permission was already denied", async (
     fakeBrowser({ permission: "denied" });
     render(<EnableNotifications />);
 
-    expect(await screen.findByText("Notifications are blocked. Allow them in your browser settings.")).toBeInTheDocument();
+    expect(await screen.findByText("Notifications are blocked for this site. You can turn them on in your browser settings.")).toBeInTheDocument();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
 });
 
@@ -98,7 +98,7 @@ it("shows an error when subscribing fails", async () => {
     subscribe.mockReset().mockRejectedValue(new Error("no push service"));
     render(<EnableNotifications />);
 
-    await userEvent.click(await screen.findByRole("button", { name: "Turn on notifications" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Turn on device notifications" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("We could not turn on notifications. Please try again.");
     expect(api.post).not.toHaveBeenCalled();
 });
@@ -108,7 +108,7 @@ it("shows an error when saving the subscription fails", async () => {
     vi.mocked(api.post).mockRejectedValue(new Error("offline"));
     render(<EnableNotifications />);
 
-    await userEvent.click(await screen.findByRole("button", { name: "Turn on notifications" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Turn on device notifications" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("We could not turn on notifications. Please try again.");
-    expect(screen.getByRole("button", { name: "Turn on notifications" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Turn on device notifications" })).toBeInTheDocument();
 });

@@ -42,10 +42,10 @@ export default function EnableNotifications() {
 
     if (view === "checking" || view === "hidden") return null;
     if (view === "no-key") return <Alert variant="info">Notifications are not set up yet.</Alert>;
-    if (view === "blocked") return <Alert variant="warning">Notifications are blocked. Allow them in your browser settings.</Alert>;
+    if (view === "blocked") return <Alert variant="info">Notifications are blocked for this site. You can turn them on in your browser settings.</Alert>;
     return (
         <div className="space-y-2">
-            <Button onClick={turnOn} busy={busy} busyLabel="Turning on...">Turn on notifications</Button>
+            <Button variant="secondary" onClick={turnOn} busy={busy} busyLabel="Turning on...">Turn on device notifications</Button>
             {error && <Alert variant="error">{error}</Alert>}
         </div>
     );
