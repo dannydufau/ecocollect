@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { Alert } from "@/components/ui/alert";
 import { RequestPhoto } from "@/components/ui/request-photo";
 import { Spinner } from "@/components/ui/spinner";
@@ -13,6 +14,7 @@ import type { RequestDetail } from "@/lib/types";
 import { useRequestDetail } from "@/lib/use-request";
 import { RequestActions, type ResidentActionRenderers } from "./request-actions";
 import StatusHistory from "./status-history";
+import CancelRequest from "./cancel-request";
 
 const linkStyle = "inline-flex min-h-11 items-center rounded-lg px-1 text-[#8c491a] underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2";
 const cardStyle = "min-w-0 space-y-3 rounded-2xl border border-stone-300 bg-white p-4 sm:p-6";
@@ -43,13 +45,17 @@ export default function ResidentRequestDetail({ requestId, actionRenderers }: {
         <Link href="/resident" className={linkStyle}>Back to my requests</Link>
     </section>;
 
-    return <ResidentRequestView request={data} onPhotoError={() => { void refetch(); }} actionRenderers={actionRenderers} />;
+    return <ResidentRequestView request={data} onPhotoError={() => { void refetch(); }} actions={<>
+        <RequestActions request={data} renderers={actionRenderers} />
+        {!actionRenderers?.cancel && <CancelRequest key={data.requestId} request={data} />}
+    </>} />;
 }
 
-export function ResidentRequestView({ request, onPhotoError, actionRenderers }: {
+export function ResidentRequestView({ request, onPhotoError, actionRenderers, actions }: {
     request: RequestDetail;
     onPhotoError: () => void;
     actionRenderers?: ResidentActionRenderers;
+    actions?: ReactNode;
 }) {
     if (request.viewer !== "owner") return <UnavailableRequest />;
 
@@ -69,7 +75,7 @@ export function ResidentRequestView({ request, onPhotoError, actionRenderers }: 
         {request.allowedActions.includes("report_missed") && <Alert variant="warning">
             Your action is needed: confirm the collection or report a missed pickup.
         </Alert>}
-        <RequestActions request={request} renderers={actionRenderers} />
+        {actions ?? <RequestActions request={request} renderers={actionRenderers} />}
 
         <section aria-labelledby="pickup-details-heading" className={cardStyle}>
             <h2 id="pickup-details-heading" className="text-lg font-semibold">Pickup details</h2>
