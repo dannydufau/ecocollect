@@ -8,6 +8,7 @@ type Props = {
     title: string;
     children: ReactNode;
     confirmLabel: string;
+    cancelLabel?: string;
     confirmDisabled?: boolean;
     busy?: boolean;
     error?: string;
@@ -16,7 +17,7 @@ type Props = {
     onCancel: () => void;
 };
 
-export function ConfirmDialog({ open, title, children, confirmLabel, confirmDisabled = false,
+export function ConfirmDialog({ open, title, children, confirmLabel, cancelLabel = "Cancel", confirmDisabled = false,
     busy = false, error, danger = false, onConfirm, onCancel }: Props) {
     const ref = useRef<HTMLDialogElement>(null);
     const titleId = useId();
@@ -36,7 +37,7 @@ export function ConfirmDialog({ open, title, children, confirmLabel, confirmDisa
             <div className="mt-3">{open && children}</div>
             {error && <p role="alert" className="mt-3 text-[13px] font-semibold text-danger">{error}</p>}
             <div className="mt-5 flex flex-wrap justify-end gap-3">
-                <Button variant="secondary" onClick={onCancel} disabled={busy}>Cancel</Button>
+                <Button variant="secondary" onClick={onCancel} disabled={busy}>{cancelLabel}</Button>
                 <Button variant={danger ? "danger" : "primary"} onClick={onConfirm} disabled={busy || confirmDisabled}>{confirmLabel}</Button>
             </div>
         </dialog>
