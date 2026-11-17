@@ -41,7 +41,7 @@ it("shows a preview, uploads the file and calls onUploaded", async () => {
 
     const file = photo();
     await userEvent.upload(input, file);
-    expect(screen.getByRole("img", { name: "Chosen photo" })).toHaveAttribute("src", "blob:1");
+    expect(screen.getByRole("img", { name: "Photo of the items" })).toHaveAttribute("src", "blob:1");
     expect(screen.getByText("Uploading...")).toBeInTheDocument();
     expect(uploadPhoto).toHaveBeenCalledWith(file, { purpose: "item_photo", requestId: undefined });
 
@@ -53,7 +53,7 @@ it("shows a preview, uploads the file and calls onUploaded", async () => {
 
 it("shows the hint", () => {
     setup();
-    expect(screen.getByText("No house numbers, faces, mail or documents in the photo.")).toBeInTheDocument();
+    expect(screen.getByText("No house numbers, faces, mail or documents in the photo. JPEG, PNG or WEBP, up to 10 MB.")).toBeInTheDocument();
 });
 
 it("shows the error and does not call onUploaded when the upload fails", async () => {
@@ -107,7 +107,7 @@ it("calls onClear on Remove and lets the same file be chosen again", async () =>
 
     const file = photo();
     await userEvent.upload(input, file);
-    await userEvent.click(await screen.findByRole("button", { name: "Remove" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Remove photo" }));
     expect(onClear).toHaveBeenCalledTimes(1);
     expect(input.value).toBe("");
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
@@ -125,7 +125,7 @@ it("Remove can be reached with Tab and used with Enter", async () => {
     await screen.findByText("Uploaded");
     input.focus();
     await userEvent.tab();
-    expect(screen.getByRole("button", { name: "Remove" })).toHaveFocus();
+    expect(screen.getByRole("button", { name: "Remove photo" })).toHaveFocus();
     await userEvent.keyboard("{Enter}");
     expect(onClear).toHaveBeenCalled();
 });
@@ -169,4 +169,24 @@ it("revokes the object URL on unmount", async () => {
     await userEvent.upload(input, photo());
     view.unmount();
     expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:1");
+});
+
+it("adds (optional) to the label when the photo is optional", () => {
+    render(<PhotoPicker purpose="item_photo" optional onUploaded={vi.fn()} onClear={vi.fn()} />);
+    expect(screen.getByLabelText("Photo (optional)")).toBeInTheDocument();
+});
+
+it("calls the delivery preview Delivery photo", async () => {
+    vi.mocked(uploadPhoto).mockResolvedValue("f1");
+    render(<PhotoPicker purpose="delivery_evidence" requestId="r1" onUploaded={vi.fn()} onClear={vi.fn()} />);
+    await userEvent.upload(screen.getByLabelText("Photo"), photo());
+    expect(screen.getByRole("img", { name: "Delivery photo" })).toBeInTheDocument();
+});
+
+it("moves focus back to the file input after Remove", async () => {
+    vi.mocked(uploadPhoto).mockResolvedValue("f1");
+    const { input } = setup();
+    await userEvent.upload(input, photo());
+    await userEvent.click(await screen.findByRole("button", { name: "Remove photo" }));
+    expect(input).toHaveFocus();
 });

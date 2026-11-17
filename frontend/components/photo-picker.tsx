@@ -7,11 +7,12 @@ import { uploadPhoto } from "@/lib/upload/upload-photo";
 type Props = {
     purpose: "item_photo" | "delivery_evidence";
     requestId?: string;
+    optional?: boolean;
     onUploaded: (fileId: string) => void;
     onClear: () => void;
 };
 
-export default function PhotoPicker({ purpose, requestId, onUploaded, onClear }: Props) {
+export default function PhotoPicker({ purpose, requestId, optional = false, onUploaded, onClear }: Props) {
     const [file, setFile] = useState<File | null>(null);
     const [preview, setPreview] = useState<string | null>(null);
     const [status, setStatus] = useState<"idle" | "uploading" | "done" | "error">("idle");
@@ -62,26 +63,27 @@ export default function PhotoPicker({ purpose, requestId, onUploaded, onClear }:
         setStatus("idle");
         // lets the same file be chosen again
         if (input.current) input.current.value = "";
+        input.current?.focus();
         onClear();
     }
 
     return (
         <div className="flex max-w-full flex-col gap-2">
             <label className="flex flex-col gap-1">
-                Photo
+                <span>Photo{optional && <span className="font-normal text-neutral-700"> (optional)</span>}</span>
                 <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" onChange={choose}
                     className="min-h-11 w-full max-w-full text-sm focus-visible:outline-2 focus-visible:outline-offset-2" />
             </label>
-            <p className="text-sm text-neutral-700">No house numbers, faces, mail or documents in the photo.</p>
+            <p className="text-sm text-neutral-700">No house numbers, faces, mail or documents in the photo. JPEG, PNG or WEBP, up to 10 MB.</p>
             {preview && (
                 // eslint-disable-next-line @next/next/no-img-element -- a local object URL, so next/image does not fit
-                <img src={preview} alt="Chosen photo" className="max-h-60 w-full max-w-full rounded-2xl object-cover" />
+                <img src={preview} alt={purpose === "delivery_evidence" ? "Delivery photo" : "Photo of the items"} className="h-28 w-40 max-w-full rounded-md object-cover" />
             )}
             {status === "uploading" && <p role="status">Uploading...</p>}
             {status === "done" && (
                 <div className="flex flex-wrap items-center gap-2">
                     <p role="status">Uploaded</p>
-                    <Button variant="secondary" onClick={remove}>Remove</Button>
+                    <Button variant="secondary" onClick={remove}>Remove photo</Button>
                 </div>
             )}
             {status === "error" && file && (
