@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as apiModule from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
@@ -154,7 +154,8 @@ it("reviews the entered details and profile address without sending, then keeps 
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Review" }));
     expect(await screen.findByText("123 Main Street, T2P1J9")).toBeInTheDocument();
-    expect(screen.getByText("Computers/Laptops: 2")).toBeInTheDocument();
+    expect(screen.getByText("2 × Computers/Laptops")).toBeInTheDocument();
+    expect(within(screen.getByRole("region", { name: "Items" })).getByText(/^Estimated weight:/)).toHaveTextContent("Estimated weight: 5.00 kg");
     expect(screen.getByRole("region", { name: "Pickup windows" })).toHaveTextContent(/Nov 21/);
     expect(screen.getByRole("region", { name: "Notes" })).toHaveTextContent("Side door");
     expect(screen.getByRole("heading", { name: "Review your request" })).toHaveFocus();
@@ -168,7 +169,7 @@ it("reviews the entered details and profile address without sending, then keeps 
     expect(screen.getByLabelText("Notes (optional)")).toHaveValue("Side door");
     fireEvent.change(screen.getByLabelText("Quantity"), { target: { value: "3" } });
     fireEvent.click(screen.getByRole("button", { name: "Review" }));
-    expect(screen.getByText("Computers/Laptops: 3")).toBeInTheDocument();
+    expect(screen.getByText("3 × Computers/Laptops")).toBeInTheDocument();
     expect(apiModule.apiFetch).not.toHaveBeenCalled();
 });
 it("blocks confirmation when the profile address cannot be loaded and allows retry", async () => {
@@ -200,4 +201,12 @@ it("requires renewed acceptance when a background refetch changes the terms", as
     await screen.findByText("Terms t2");
     expect(button()).toBeDisabled();
     expect(screen.getByRole("checkbox", { name: /accept the terms/ })).not.toBeChecked();
+});
+it("says how many requests the items will create", async () => {
+    mount(); await fill();
+    fireEvent.click(screen.getByRole("button", { name: "Add another item" }));
+    fireEvent.change(screen.getAllByLabelText("Category")[1], { target: { value: "phones" } });
+    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+    expect(await screen.findByText("This creates 2 separate requests, one per item.")).toBeInTheDocument();
+    expect(screen.getByText("1 × Phones")).toBeInTheDocument();
 });

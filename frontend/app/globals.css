@@ -37,6 +37,11 @@
   --color-neutral-700: #645c50;
   --color-neutral-800: #474238;
   --color-neutral-900: #2e2b25;
+
+  /* the prototype's error red, with a pale fill and a dark text for alerts */
+  --color-danger: oklch(0.47 0.15 28);
+  --color-danger-50: oklch(0.95 0.03 28);
+  --color-danger-800: oklch(0.38 0.13 28);
 }
 
 /* old names still used by existing pages */
