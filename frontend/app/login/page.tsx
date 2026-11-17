@@ -68,7 +68,7 @@ export default function LoginPage() {
 
   return (
     <main className="mx-auto w-full max-w-sm min-w-0 p-4 sm:p-8">
-      <form onSubmit={handleSubmit} noValidate className={`${card} flex flex-col gap-4 p-6 shadow-[0_3px_10px_rgba(46,43,37,0.16)]`}>
+      <form onSubmit={handleSubmit} className={`${card} flex flex-col gap-4 p-6 shadow-[0_3px_10px_rgba(46,43,37,0.16)]`}>
         <Image src="/ecocollect-mark.png" alt="" width={69} height={72} priority className="self-start" />
         <h1 className="text-[32px]">Sign in to EcoCollect</h1>
         <p className="text-neutral-800">Calgary’s community e-waste courier.</p>

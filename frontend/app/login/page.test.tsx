@@ -19,4 +19,7 @@ it("shows the sign in form with the mark and links to register and the stats", (
     expect(screen.getByRole("link", { name: "Create an account" })).toHaveAttribute("href", "/register");
     expect(screen.getByRole("link", { name: "Community stats" })).toHaveAttribute("href", "/stats");
     expect(document.querySelector("img[src*='ecocollect-mark']")).not.toBeNull();
+    // FE-033 adds its own messages. Until then the browser's required check stops an empty submit.
+    expect(screen.getByLabelText("Email")).toBeRequired();
+    expect(screen.getByLabelText("Email").closest("form")).not.toHaveAttribute("novalidate");
 });
