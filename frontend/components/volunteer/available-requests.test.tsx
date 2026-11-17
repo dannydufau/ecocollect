@@ -1,7 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { api } from "@/lib/api";
+import { formatTimestamp } from "@/lib/time";
 import type { AvailableRequest } from "@/lib/types";
 import { renderWithClient } from "@/test/utils";
 import AvailableRequests from "./available-requests";
@@ -32,15 +33,34 @@ it("renders each card with category, quantity, weight, postal code and windows, 
     const links = await screen.findAllByRole("link", { name: "2 × Computers/Laptops" });
     expect(links.map(link => link.getAttribute("href"))).toEqual(["/volunteer/requests/r1", "/volunteer/requests/r2"]);
     const card = links[0].closest("li")!;
-    expect(within(card).getByText("5.00 kg · T2P1J9")).toBeInTheDocument();
+    expect(within(card).getByText("T2P 1J9")).toBeInTheDocument();
+    expect(within(card).getByText(/^5.00 kg/)).toBeInTheDocument();
     expect(within(card).getByText("Tomorrow, 2 to 3 p.m.")).toBeInTheDocument();
+    expect(within(card).getByText("Sat, Nov 21, 14:00 to 15:00")).toBeInTheDocument();
+    expect(within(card).getByText(`Open until ${formatTimestamp("2026-11-21T21:00:00Z")}`)).toBeInTheDocument();
+});
+
+it("shows the number of requests", async () => {
+    renderWithClient(<AvailableRequests />);
+    expect(await screen.findByText("2 requests")).toHaveAttribute("role", "status");
+});
+
+it("says 1 request for a single card", async () => {
+    vi.mocked(api.get).mockResolvedValue([row()]);
+    renderWithClient(<AvailableRequests />);
+    expect(await screen.findByText("1 request")).toHaveAttribute("role", "status");
+});
+
+it("has the page title as the h1", () => {
+    renderWithClient(<AvailableRequests />);
+    expect(screen.getByRole("heading", { level: 1, name: "Available requests" })).toBeInTheDocument();
 });
 
 it("shows the photo mark only when the request has a photo", async () => {
     renderWithClient(<AvailableRequests />);
     const [first, second] = await screen.findAllByRole("link", { name: "2 × Computers/Laptops" });
-    expect(within(first.closest("li")!).getByText("Photo")).toBeInTheDocument();
-    expect(within(second.closest("li")!).queryByText("Photo")).not.toBeInTheDocument();
+    expect(within(first.closest("li")!).getByText("5.00 kg · Photo")).toBeInTheDocument();
+    expect(within(second.closest("li")!).getByText("5.00 kg")).toBeInTheDocument();
 });
 
 it("shows the empty state", async () => {
@@ -53,6 +73,14 @@ it("shows an error", async () => {
     vi.mocked(api.get).mockRejectedValue(new Error("down"));
     renderWithClient(<AvailableRequests />);
     expect(await screen.findByRole("alert")).toHaveTextContent("We could not load the requests. Please try again.");
+});
+
+it("lets the volunteer try again after an error", async () => {
+    vi.mocked(api.get).mockRejectedValueOnce(new Error("down"));
+    renderWithClient(<AvailableRequests />);
+    await screen.findByRole("alert");
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(await screen.findAllByRole("link", { name: "2 × Computers/Laptops" })).toHaveLength(2);
 });
 
 it("links to the history page", () => {
