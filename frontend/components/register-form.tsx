@@ -1,14 +1,20 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { Button, Field, input } from "@/components/ui";
+import { Button, Field, card, input } from "@/components/ui";
 import { calgaryToday } from "@/lib/time";
 import {
     eighteenYearsAgo, normalizePostalCode, normalizeUsername, validateAccount, type AccountValues,
 } from "@/lib/validate-account";
 
-const legend = "mb-2 font-[family-name:var(--font-heading)] text-xl";
-const group = "flex min-w-0 flex-col gap-4";
+// A card with its title inside, like the prototype. The legend floats so it sits in the card and not on its border.
+function Group({ title, describedBy, children }: { title: string; describedBy?: string; children: ReactNode }) {
+    return <fieldset aria-describedby={describedBy} className={`${card} min-w-0`}>
+        <legend className="float-left mb-3 font-[family-name:var(--font-heading)] text-xl">{title}</legend>
+        <div className="clear-both flex flex-col gap-4">{children}</div>
+    </fieldset>;
+}
 
 export default function RegisterForm({ onValid, fieldErrors = {}, busy = false, submitDisabled = false, onEdit, children }: {
     onValid?: (values: AccountValues) => void;
@@ -70,8 +76,7 @@ export default function RegisterForm({ onValid, fieldErrors = {}, busy = false, 
     return (
         <form ref={formRef} onSubmit={submit} aria-busy={busy} noValidate className="min-w-0 space-y-8">
             <fieldset disabled={busy} className="min-w-0 space-y-8">
-                <fieldset className={group}>
-                    <legend className={legend}>About you</legend>
+                <Group title="About you">
                     <div className="grid gap-4 sm:grid-cols-2">
                         {text("firstName", "First name", "given-name")}
                         {text("lastName", "Last name", "family-name")}
@@ -81,28 +86,25 @@ export default function RegisterForm({ onValid, fieldErrors = {}, busy = false, 
                             onChange={event => change({ dateOfBirth: event.target.value })} />}
                     </Field>
                     {text("publicName", "Public name", "nickname", { hint: "Other people see this name." })}
-                </fieldset>
+                </Group>
 
-                <fieldset className={group}>
-                    <legend className={legend}>Account</legend>
+                <Group title="Account">
                     {text("username", "Username", "username", { hint: "3 to 50 characters: a to z, 0 to 9, _ and -. You can't change it later." })}
                     {text("email", "Email", "email", { type: "email" })}
                     {text("password", "Password", "new-password", { type: "password" })}
-                </fieldset>
+                </Group>
 
-                <fieldset className={group} aria-describedby={errors.role ? `${id}-role-error` : undefined}>
-                    <legend className={legend}>I want to</legend>
-                    {errors.role && <p id={`${id}-role-error`} role="alert" tabIndex={-1} className="font-semibold text-red-700">{errors.role}</p>}
+                <Group title="I want to" describedBy={errors.role ? `${id}-role-error` : undefined}>
                     {([["resident", "Request pickups (Resident)"], ["volunteer", "Collect and deliver items (Volunteer)"]] as const).map(([role, label]) =>
                         <label key={role} className="flex min-h-11 items-center gap-3">
                             <input type="radio" name={`${id}-role`} value={role} checked={values.role === role} onChange={() => change({ role })} className="size-5 accent-accent" />
                             {label}
                         </label>)}
                     <p className="text-neutral-700">You can add the other role later in your profile.</p>
-                </fieldset>
+                    {errors.role && <p id={`${id}-role-error`} role="alert" tabIndex={-1} className="font-semibold text-red-700">{errors.role}</p>}
+                </Group>
 
-                {values.role === "resident" && <fieldset className={group}>
-                    <legend className={legend}>Your address</legend>
+                {values.role === "resident" && <Group title="Role details">
                     <div className="grid gap-4 sm:grid-cols-2">
                         <Field label="Street" error={errors["address.street"]}>
                             {control => <input {...control} type="text" autoComplete="street-address" value={values.street} className={input}
@@ -114,10 +116,10 @@ export default function RegisterForm({ onValid, fieldErrors = {}, busy = false, 
                                 onBlur={() => tidy("postalCode", normalizePostalCode)} />}
                         </Field>
                     </div>
-                </fieldset>}
+                </Group>}
 
-                {values.role === "volunteer" && <fieldset className={group}>
-                    <legend className={legend}>Preferred postal codes (optional, up to 3)</legend>
+                {values.role === "volunteer" && <Group title="Role details">
+                    <p className="font-semibold">Preferred postal codes (optional, up to 3)</p>
                     <p className="text-neutral-700">You get notifications for new requests in these areas. You can change them later.</p>
                     {errors.preferredPostalCodes && <p role="alert" tabIndex={-1} className="font-semibold text-red-700">{errors.preferredPostalCodes}</p>}
                     {values.preferredPostalCodes.map((code, index) => <div key={index} className="flex items-end gap-3">
@@ -135,10 +137,13 @@ export default function RegisterForm({ onValid, fieldErrors = {}, busy = false, 
                         <Button variant="secondary" disabled={values.preferredPostalCodes.length >= 3}
                             onClick={() => change({ preferredPostalCodes: [...values.preferredPostalCodes, ""] })}>Add postal code</Button>
                     </div>
-                </fieldset>}
+                </Group>}
 
                 {children}
-                <Button type="submit" busy={busy} busyLabel="Creating account..." disabled={submitDisabled} className="w-full">Create account</Button>
+                <div className="flex flex-wrap items-center gap-4">
+                    <Button type="submit" busy={busy} busyLabel="Creating account..." disabled={submitDisabled} className="px-7">Create account</Button>
+                    <Link href="/login" className="inline-flex min-h-11 items-center text-accent-700 underline underline-offset-4">Already have an account? Sign in</Link>
+                </div>
             </fieldset>
         </form>
     );

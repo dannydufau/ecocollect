@@ -39,8 +39,23 @@ it("shows street and postal code for a resident, and hides the street for a volu
 
     await userEvent.click(screen.getByRole("radio", { name: "Collect and deliver items (Volunteer)" }));
     expect(screen.queryByLabelText("Street")).not.toBeInTheDocument();
-    expect(screen.getByRole("group", { name: "Preferred postal codes (optional, up to 3)" })).toBeInTheDocument();
+    expect(screen.getByText("Preferred postal codes (optional, up to 3)")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add postal code" })).toBeInTheDocument();
+});
+
+it("groups the fields like the design, with Role details for either role", async () => {
+    render(<RegisterForm />);
+    for (const name of ["About you", "Account", "I want to"]) expect(screen.getByRole("group", { name })).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Role details" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("radio", { name: "Request pickups (Resident)" }));
+    expect(screen.getByRole("group", { name: "Role details" })).toContainElement(label("Street"));
+    await userEvent.click(screen.getByRole("radio", { name: "Collect and deliver items (Volunteer)" }));
+    expect(screen.getByRole("group", { name: "Role details" })).toBeInTheDocument();
+});
+
+it("has the sign in link next to the button", () => {
+    render(<RegisterForm />);
+    expect(screen.getByRole("link", { name: "Already have an account? Sign in" })).toHaveAttribute("href", "/login");
 });
 
 it("lowercases the username and tidies the postal code when the field is left", async () => {
