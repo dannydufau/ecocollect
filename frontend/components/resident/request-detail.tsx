@@ -70,7 +70,6 @@ export function ResidentRequestView({ request, onPhotoError, actionRenderers }: 
             Your action is needed: confirm the collection or report a missed pickup.
         </Alert>}
         <RequestActions request={request} renderers={actionRenderers} />
-        <StatusHistory statusHistory={request.statusHistory} rescheduledFrom={request.rescheduledFrom} rescheduledAs={request.rescheduledAs} />
 
         <section aria-labelledby="pickup-details-heading" className={cardStyle}>
             <h2 id="pickup-details-heading" className="text-lg font-semibold">Pickup details</h2>
@@ -113,5 +112,6 @@ export function ResidentRequestView({ request, onPhotoError, actionRenderers }: 
                 <RequestPhoto src={request.delivery.evidencePhotoUrl} alt="Delivery evidence photo" refetch={onPhotoError} />
             </div>}
         </section>}
+        <StatusHistory statusHistory={request.statusHistory} rescheduledFrom={request.rescheduledFrom} rescheduledAs={request.rescheduledAs} />
     </>;
 }
