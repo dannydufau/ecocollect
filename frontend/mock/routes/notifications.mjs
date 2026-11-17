@@ -25,6 +25,18 @@ function writeEvent(uid, name, data, id) {
   }
 }
 
+// README 13.3: every stream of a volunteer hears that the list of open requests changed. The notification types below
+// are the ones sent when a request is created, changed, accepted, cancelled or expires (a reopened request counts too).
+const AVAILABLE_CHANGES = new Set(["REQUEST_CREATED", "REQUEST_UPDATED_RESIDENT", "REQUEST_ASSIGNED_RESIDENT", "REQUEST_CANCELLED_RESIDENT", "REQUEST_EXPIRED_RESIDENT"]);
+
+function availableChanged(requestId) {
+  for (const connections of store.sseConnections.values()) {
+    for (const connection of connections) {
+      if (connection.roles.includes("volunteer")) connection.res.write(`event: available-requests-changed\ndata: ${JSON.stringify({ requestId })}\n\n`);
+    }
+  }
+}
+
 // The paging cursor is only a timestamp (13.4), so two notifications must never share one
 function newTimestamp() {
   const latest = Math.max(0, ...store.notifications.map((item) => Date.parse(item.createdAt)));
@@ -42,6 +54,7 @@ export function notify(userId, { type, requestId = null, awardId = null, title, 
   store.notifications.push(notification);
   const notificationId = notification.notificationId;
   writeEvent(userId, "notification", { notificationId, type, requestId, awardId, title, body, url, createdAt: notification.createdAt }, notificationId);
+  if (AVAILABLE_CHANGES.has(type)) availableChanged(requestId);
   return notification;
 }
 

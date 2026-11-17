@@ -1,11 +1,12 @@
-// Mock of the User Service: U1, U2, U4, U6, U7, U8, U9, U10 and R3 (contract 5.1 and 5.4).
+// Mock of the User Service: U1, U2, U4, U6, U7, U8, U9, U10 and R3 (contract 5.1 and 5.4), plus N2 (the public stream).
 import { randomUUID } from "node:crypto";
-import { currentUser, now, sendError } from "../store.mjs";
+import { currentUser, now, sendError, store as sharedStore } from "../store.mjs";
 
 const DAY = 24 * 60 * 60 * 1000;
 const USERNAME = /^[a-z0-9_-]{3,50}$/;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const POSTAL_CODE = /^T[0-9][A-Z][0-9][A-Z][0-9]$/;
+const PING_MS = 25_000;
 
 function send(res, status, body) {
   res.writeHead(status, { "Content-Type": "application/json" }).end(JSON.stringify(body));
@@ -102,6 +103,15 @@ function checkNewAccount(body) {
   return fields;
 }
 
+// For the other mock files: tells the watchers of a public page that it changed (13.5).
+// emitPublic("public-profile-updated", { accountId }) or emitPublic("stats-updated")
+export function emitPublic(event, data = {}) {
+  for (const watcher of sharedStore.publicConnections) {
+    const wanted = event === "stats-updated" ? watcher.stats : watcher.profile === data.accountId;
+    if (wanted) watcher.res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  }
+}
+
 export function register(route, store) {
   fillProfiles(store);
 
@@ -118,6 +128,24 @@ export function register(route, store) {
     }
     return user.account;
   }
+
+  // N2: no login, exactly one of ?profile=<accountId> or ?stats
+  route("GET", "/api/public/events", (req, res, { url }) => {
+    const profile = url.searchParams.get("profile");
+    const stats = url.searchParams.has("stats");
+    if (Boolean(profile) === stats) {
+      return sendError(res, 400, "validation_error", "Check the query.", { profile: "Use exactly one of profile or stats." });
+    }
+    res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache, no-transform", Connection: "keep-alive" });
+    res.write("event: ready\ndata: {}\n\n");
+    const watcher = { res, profile, stats };
+    store.publicConnections.add(watcher);
+    const ping = setInterval(() => res.write(": ping\n\n"), PING_MS);
+    res.on("close", () => {
+      clearInterval(ping);
+      store.publicConnections.delete(watcher);
+    });
+  });
 
   route("POST", "/api/session", (req, res, { body }) => {
     if (typeof body?.idToken !== "string" || !body.idToken) {

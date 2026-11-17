@@ -3,6 +3,7 @@ import { currentUser, now, sendError } from "../store.mjs";
 import { buildDetail, requestSummary, windowStart } from "../detail.mjs";
 import { registerResidentActions } from "../resident-actions.mjs";
 import { register as registerLegacy } from "./legacy.mjs";
+import { volunteerList } from "./volunteer.mjs";
 
 const DAY = 24 * 60 * 60 * 1000;
 const HOUR = 60 * 60 * 1000;
@@ -209,6 +210,7 @@ export function register(route, store, { notify = () => {} } = {}) {
 
   route("GET", "/api/requests", (req, res, context) => {
     const { url } = context;
+    if (["available", "volunteer"].includes(url.searchParams.get("view"))) return volunteerList(req, res, context);
     if (url.searchParams.get("view") !== "mine") return legacyList(req, res, context);
     const user = authenticate(req, res, "resident");
     if (!user) return;

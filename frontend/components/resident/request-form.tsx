@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { Button, card, input, textarea } from "@/components/ui";
 import { CategoryPicker, useCategories } from "./category-picker";
 import { WindowsPicker } from "./windows-picker";
 import { calgaryInstant } from "@/lib/time";
@@ -89,11 +90,11 @@ export default function RequestForm({ initialValues, createdAt, onValid, fieldEr
     }
 
     return (
-        <form ref={formRef} onSubmit={submit} aria-busy={busy} noValidate className="min-w-0 max-w-2xl space-y-6 rounded-xl border border-stone-200 bg-white p-4 text-stone-900 sm:p-6">
+        <form ref={formRef} onSubmit={submit} aria-busy={busy} noValidate className="min-w-0 max-w-2xl space-y-6">
             <fieldset disabled={busy} className="min-w-0 space-y-6">
                 <fieldset className="min-w-0 space-y-4">
-                    <legend className="mb-2 text-xl font-semibold">Items</legend>
-                    {errors.items && <p role="alert" tabIndex={-1} className="text-sm text-red-700">{errors.items}</p>}
+                    <legend className="sr-only">Items</legend>
+                    {errors.items && <p role="alert" tabIndex={-1} className="text-[13px] font-semibold text-danger">{errors.items}</p>}
                     {values.items.map((item, index) => {
                         const categoryError = errors[`items[${index}].categoryId`];
                         const quantityError = errors[`items[${index}].quantity`];
@@ -101,47 +102,47 @@ export default function RequestForm({ initialValues, createdAt, onValid, fieldEr
                         const weight = category && Number(item.quantity) > 0 && Number.isSafeInteger(Number(item.quantity))
                             ? (category.standardWeightKg * Number(item.quantity)).toFixed(2) : null;
                         const update = (patch: Partial<typeof item>) => updateValues({ ...values, items: values.items.map((row, rowIndex) => rowIndex === index ? { ...row, ...patch } : row) });
-                        return <fieldset key={index} className="min-w-0 space-y-3 rounded-lg border border-stone-300 p-3">
-                            <legend className="px-1 font-medium">Item {index + 1}</legend>
-                            <div className="grid min-w-0 gap-3 sm:grid-cols-[2fr_1fr] sm:items-start">
-                                <div className="min-w-0">
-                                    <CategoryPicker value={item.categoryId} onChange={categoryId => update({ categoryId })} invalid={Boolean(categoryError)}
-                                        disabledIds={values.items.filter((_, rowIndex) => rowIndex !== index).map(row => row.categoryId)} />
-                                    {categoryError && <p role="alert" className="mt-1 text-sm text-red-700">{categoryError}</p>}
+                        return <fieldset key={index} className={`${card} min-w-0 space-y-3`}>
+                            <legend className="float-left mb-3 font-[family-name:var(--font-heading)] text-[22px]">Item {index + 1}</legend>
+                            <div className="clear-both space-y-3">
+                                <div className="grid min-w-0 gap-3 sm:grid-cols-[2fr_1fr] sm:items-start">
+                                    <div className="min-w-0">
+                                        <CategoryPicker value={item.categoryId} onChange={categoryId => update({ categoryId })} invalid={Boolean(categoryError)}
+                                            disabledIds={values.items.filter((_, rowIndex) => rowIndex !== index).map(row => row.categoryId)} />
+                                        {categoryError && <p role="alert" className="mt-1 text-[13px] font-semibold text-danger">{categoryError}</p>}
+                                    </div>
+                                    <div>
+                                        <label htmlFor={`${id}-quantity-${index}`} className="mb-1 block font-semibold">Quantity</label>
+                                        <input id={`${id}-quantity-${index}`} type="number" min="1" step="1" value={item.quantity}
+                                            onChange={event => update({ quantity: event.target.value })}
+                                            aria-invalid={Boolean(quantityError)} aria-describedby={quantityError ? `${id}-quantity-error-${index}` : undefined}
+                                            className={`${input} min-w-0`} />
+                                        {quantityError && <p id={`${id}-quantity-error-${index}`} role="alert" className="mt-1 text-[13px] font-semibold text-danger">{quantityError}</p>}
+                                    </div>
                                 </div>
-                                <div>
-                                    <label htmlFor={`${id}-quantity-${index}`} className="mb-1 block text-sm font-medium">Quantity</label>
-                                    <input id={`${id}-quantity-${index}`} type="number" min="1" step="1" value={item.quantity}
-                                        onChange={event => update({ quantity: event.target.value })}
-                                        aria-invalid={Boolean(quantityError)} aria-describedby={quantityError ? `${id}-quantity-error-${index}` : undefined}
-                                        className="min-h-11 w-full min-w-0 rounded-lg border border-stone-400 px-3 focus-visible:outline-2 focus-visible:outline-offset-2" />
-                                    {quantityError && <p id={`${id}-quantity-error-${index}`} role="alert" className="mt-1 text-sm text-red-700">{quantityError}</p>}
-                                </div>
+                                <p>Estimated weight: <strong>{weight === null ? "—" : `${weight} kg`}</strong></p>
+                                {values.items.length > 1 && <div><Button variant="secondary" aria-label={`Remove item ${index + 1}`}
+                                    onClick={() => updateValues({ ...values, items: values.items.filter((_, rowIndex) => rowIndex !== index) })}>Remove item</Button></div>}
                             </div>
-                            <p className="text-sm text-stone-700">Estimated weight: {weight === null ? "—" : `${weight} kg`}</p>
-                            {values.items.length > 1 && <button type="button" aria-label={`Remove item ${index + 1}`}
-                                onClick={() => updateValues({ ...values, items: values.items.filter((_, rowIndex) => rowIndex !== index) })}
-                                className="min-h-11 rounded-lg border border-stone-400 px-3 focus-visible:outline-2 focus-visible:outline-offset-2">Remove item</button>}
                         </fieldset>;
                     })}
-                    <button type="button" disabled={!categories.length || values.items.length >= categories.length}
-                        onClick={() => updateValues({ ...values, items: [...values.items, { categoryId: "", quantity: "1" }] })}
-                        className="min-h-11 rounded-lg border border-stone-400 px-3 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50">Add another item</button>
+                    <div><Button variant="secondary" disabled={!categories.length || values.items.length >= categories.length}
+                        onClick={() => updateValues({ ...values, items: [...values.items, { categoryId: "", quantity: "1" }] })}>Add another item</Button></div>
                 </fieldset>
                 <WindowsPicker value={values.windows} onChange={windows => updateValues({ ...values, windows })} createdAt={createdAt} />
-                {windowErrors.length > 0 && <p role="alert" tabIndex={-1} className="text-sm text-red-700">{windowErrors.join(" ")}</p>}
+                {windowErrors.length > 0 && <p role="alert" tabIndex={-1} className="text-[13px] font-semibold text-danger">{windowErrors.join(" ")}</p>}
                 <div>
-                    <label htmlFor={`${id}-notes`} className="mb-1 block font-medium">Notes (optional)</label>
+                    <label htmlFor={`${id}-notes`} className="mb-1 block font-semibold">Notes <span className="font-normal text-neutral-700">(optional)</span></label>
                     <textarea id={`${id}-notes`} value={values.notes} onChange={event => updateValues({ ...values, notes: event.target.value })}
                         aria-invalid={Boolean(errors.notes)} aria-describedby={errors.notes ? `${id}-notes-error` : undefined}
-                        rows={3} className="w-full min-w-0 rounded-lg border border-stone-400 p-3 focus-visible:outline-2 focus-visible:outline-offset-2" />
-                    {errors.notes && <p id={`${id}-notes-error`} role="alert" className="text-sm text-red-700">{errors.notes}</p>}
+                        rows={3} placeholder="For example: Side door" className={`${textarea} min-w-0`} />
+                    {errors.notes && <p id={`${id}-notes-error`} role="alert" className="text-[13px] font-semibold text-danger">{errors.notes}</p>}
                 </div>
-                <p>We collect from the address in your profile. <Link href="/profile" className="text-[#8c491a] underline underline-offset-2">Change address</Link></p>
+                <p>We collect from the address in your profile. <Link href="/profile" className="text-accent-700 underline underline-offset-4">Change address</Link></p>
                 {children}
                 <div className="flex flex-wrap items-center gap-3">
-                    <button type="submit" disabled={busy || submitDisabled} aria-describedby={submitHint ? `${id}-hint` : undefined} className="min-h-11 rounded-lg bg-[#9e5220] px-4 text-white focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50">{busy ? "Sending..." : submitLabel}</button>
-                    {submitHint && <p id={`${id}-hint`} className="text-[13px] text-stone-700">{submitHint}</p>}
+                    <Button type="submit" busy={busy} busyLabel="Sending..." disabled={submitDisabled} aria-describedby={submitHint ? `${id}-hint` : undefined} className="px-7">{submitLabel}</Button>
+                    {submitHint && <p id={`${id}-hint`} className="text-[13px] text-neutral-700">{submitHint}</p>}
                 </div>
             </fieldset>
         </form>

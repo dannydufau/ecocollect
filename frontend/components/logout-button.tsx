@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui";
 import { useAuth } from "@/lib/auth-context";
 
 export default function LogoutButton() {
@@ -13,8 +14,6 @@ export default function LogoutButton() {
     }
 
     return (
-        <button onClick={handleClick} className="rounded border px-3 py-1 text-sm">
-            Log out
-        </button>
+        <Button variant="secondary" onClick={handleClick}>Log out</Button>
     );
 }

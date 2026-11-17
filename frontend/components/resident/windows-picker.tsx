@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
+import { Button, card, input } from "@/components/ui";
 import { calgaryToday, formatHour, formatWindow } from "@/lib/time";
 import type { PickupWindow } from "@/lib/types";
 
@@ -48,59 +49,62 @@ export function WindowsPicker({ value, onChange, createdAt }: {
     }
 
     return (
-        <fieldset className="min-w-0 space-y-3">
-            <legend className="mb-2 font-medium">Pickup windows (Calgary time)</legend>
-            {draft.rows.map((row, index) => {
-                let error = "";
-                if (row.date && (row.date < today || row.date > maxDate)) {
-                    error = `Choose a date from ${dateLabel(today)} to ${dateLabel(maxDate)}.`;
-                } else if (row.date === today && row.startHour !== "" && Number(row.startHour) <= currentHour) {
-                    error = "Choose a pickup time in the future.";
-                } else if (row.date && row.startHour !== "" && draft.rows.some((other, otherIndex) =>
-                    otherIndex !== index && other.date === row.date && other.startHour === row.startHour)) {
-                    error = "Choose a different date or hour. This pickup window is already listed.";
-                }
-                const errorId = `${id}-${index}-error`;
+        <fieldset className={`${card} min-w-0`}>
+            <legend className="float-left mb-2 font-[family-name:var(--font-heading)] text-[22px]">Pickup windows</legend>
+            <div className="clear-both flex flex-col gap-3">
+                <p className="text-[13px] text-neutral-700">Each window is one hour (Calgary time). Offer up to 3. They must start in the future and within 30 days.</p>
+                {draft.rows.map((row, index) => {
+                    let error = "";
+                    if (row.date && (row.date < today || row.date > maxDate)) {
+                        error = `Choose a date from ${dateLabel(today)} to ${dateLabel(maxDate)}.`;
+                    } else if (row.date === today && row.startHour !== "" && Number(row.startHour) <= currentHour) {
+                        error = "Choose a pickup time in the future.";
+                    } else if (row.date && row.startHour !== "" && draft.rows.some((other, otherIndex) =>
+                        otherIndex !== index && other.date === row.date && other.startHour === row.startHour)) {
+                        error = "Choose a different date or hour. This pickup window is already listed.";
+                    }
+                    const errorId = `${id}-${index}-error`;
 
-                return (
-                    <div key={index} className="min-w-0 rounded-lg border border-stone-300 p-3">
-                        <div className="grid min-w-0 gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-                            <div className="min-w-0">
-                                <label htmlFor={`${id}-${index}-date`} className="mb-1 block text-sm">Date {index + 1}</label>
-                                <input id={`${id}-${index}-date`} type="date" required
-                                    value={row.date} min={today} max={maxDate}
-                                    onChange={event => updateRow(index, { date: event.target.value })}
-                                    aria-invalid={Boolean(error)} aria-describedby={error ? errorId : undefined}
-                                    className="min-h-11 w-full min-w-0 rounded-lg border border-stone-400 bg-white px-3 text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-2" />
+                    return (
+                        <div key={index} className="min-w-0">
+                            <div className="grid min-w-0 gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+                                <div className="min-w-0">
+                                    <label htmlFor={`${id}-${index}-date`} className="mb-1 block font-semibold">Date {index + 1}</label>
+                                    <input id={`${id}-${index}-date`} type="date" required
+                                        value={row.date} min={today} max={maxDate}
+                                        onChange={event => updateRow(index, { date: event.target.value })}
+                                        aria-invalid={Boolean(error)} aria-describedby={error ? errorId : undefined}
+                                        className={`${input} min-w-0`} />
+                                </div>
+                                <div className="min-w-0">
+                                    <label htmlFor={`${id}-${index}-hour`} className="mb-1 block font-semibold">Start hour {index + 1}</label>
+                                    <select id={`${id}-${index}-hour`} required value={row.startHour}
+                                        onChange={event => updateRow(index, { startHour: event.target.value })}
+                                        aria-invalid={Boolean(error)} aria-describedby={error ? errorId : undefined}
+                                        className={`${input} min-w-0`}>
+                                        <option value="" disabled>Choose an hour</option>
+                                        {Array.from({ length: 24 }, (_, hour) => (
+                                            <option key={hour} value={hour}>{formatHour(hour)}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <Button variant="secondary" aria-label={`Remove window ${index + 1}`}
+                                    disabled={draft.rows.length === 1}
+                                    onClick={() => updateRows(draft.rows.filter((_, rowIndex) => rowIndex !== index))}>
+                                    Remove
+                                </Button>
                             </div>
-                            <div className="min-w-0">
-                                <label htmlFor={`${id}-${index}-hour`} className="mb-1 block text-sm">Start hour {index + 1}</label>
-                                <select id={`${id}-${index}-hour`} required value={row.startHour}
-                                    onChange={event => updateRow(index, { startHour: event.target.value })}
-                                    aria-invalid={Boolean(error)} aria-describedby={error ? errorId : undefined}
-                                    className="min-h-11 w-full min-w-0 rounded-lg border border-stone-400 bg-white px-3 text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-2">
-                                    <option value="" disabled>Choose an hour</option>
-                                    {Array.from({ length: 24 }, (_, hour) => (
-                                        <option key={hour} value={hour}>{formatHour(hour)}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <button type="button" aria-label={`Remove window ${index + 1}`}
-                                disabled={draft.rows.length === 1}
-                                onClick={() => updateRows(draft.rows.filter((_, rowIndex) => rowIndex !== index))}
-                                className="min-h-11 rounded-lg border border-stone-400 px-3 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50">
-                                Remove
-                            </button>
+                            {error && <p id={errorId} role="alert" className="mt-2 text-[13px] font-semibold text-danger">{error}</p>}
                         </div>
-                        {error && <p id={errorId} role="alert" className="mt-2 text-sm text-red-700">{error}</p>}
-                    </div>
-                );
-            })}
-            <button type="button" disabled={draft.rows.length >= 3}
-                onClick={() => updateRows([...draft.rows, { date: "", startHour: "" }])}
-                className="min-h-11 rounded-lg border border-stone-400 px-3 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50">
-                Add window
-            </button>
+                    );
+                })}
+                <div>
+                    <Button variant="secondary" disabled={draft.rows.length >= 3}
+                        onClick={() => updateRows([...draft.rows, { date: "", startHour: "" }])}>
+                        Add window
+                    </Button>
+                </div>
+            </div>
         </fieldset>
     );
 }
