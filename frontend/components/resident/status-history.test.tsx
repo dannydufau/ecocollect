@@ -18,7 +18,7 @@ it("shows history oldest first without changing the response order, using Calgar
     const time = rows[0].querySelector("time")!;
     expect(time).toHaveAttribute("datetime", "2026-11-14T18:00:00Z");
     expect(time).toHaveTextContent(/Nov 14, 2026/);
-    expect(time).toHaveTextContent(/12:00/);
+    expect(time).toHaveTextContent(/11:00/);
     expect(rows[2]).toHaveTextContent("Volunteer did not arrive.");
     expect(rows[2]).toHaveTextContent("Please use the side door next time.");
     expect(rows[0].querySelector("p")).toBeNull();
