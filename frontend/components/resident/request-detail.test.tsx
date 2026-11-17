@@ -49,9 +49,18 @@ it("includes owner history and the replacement link on the detail page", async (
         rescheduledAs: { requestId: "r2" },
     })));
     renderWithClient(<ResidentRequestDetail requestId="r1" />);
-    const history = await screen.findByRole("region", { name: "Status history" });
-    expect(within(history).getByText("No collection.")).toBeInTheDocument();
-    expect(within(history).getByRole("link", { name: "Rescheduled as" })).toHaveAttribute("href", "/resident/requests/r2");
+    const history = await screen.findByRole("region", { name: "History" });
+    expect(within(history).getByText("Reason: No collection.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "View the new request" })).toHaveAttribute("href", "/resident/requests/r2");
+});
+
+it("puts the history after the delivery section", () => {
+    render(<ResidentRequestView request={detail({ status: "Delivered", allowedActions: [], assignment, delivery,
+        statusHistory: [{ status: "Open", changedAt: "2026-11-14T18:00:00Z", reason: null }],
+    })} onPhotoError={vi.fn()} />);
+    const delivered = screen.getByRole("heading", { name: "Delivery" });
+    const history = screen.getByRole("heading", { name: "History" });
+    expect(delivered.compareDocumentPosition(history) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 });
 
 it("does not expose history or linked request IDs to a non-owner", () => {
@@ -60,7 +69,7 @@ it("does not expose history or linked request IDs to a non-owner", () => {
         rescheduledFrom: { requestId: "private-request" },
     })} onPhotoError={vi.fn()} />);
     expect(screen.queryByText("Private reason.")).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Rescheduled from" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Rescheduled from an earlier request" })).not.toBeInTheDocument();
 });
 
 it("loads the requested ID through the shared detail hook and shows the owner fields", async () => {

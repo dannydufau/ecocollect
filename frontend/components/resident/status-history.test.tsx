@@ -19,29 +19,29 @@ it("shows history oldest first without changing the response order, using Calgar
     expect(time).toHaveAttribute("datetime", "2026-11-14T18:00:00Z");
     expect(time).toHaveTextContent(/Nov 14, 2026/);
     expect(time).toHaveTextContent(/11:00/);
-    expect(rows[2]).toHaveTextContent("Volunteer did not arrive.");
+    expect(rows[2]).toHaveTextContent("Reason: Volunteer did not arrive.");
     expect(rows[2]).toHaveTextContent("Please use the side door next time.");
     expect(rows[0].querySelector("p")).toBeNull();
 });
 
 it("links the missed request to its replacement and the replacement back to its source", () => {
     render(<StatusHistory rescheduledFrom={{ requestId: "old/request" }} rescheduledAs={{ requestId: "r2" }} />);
-    expect(screen.getByRole("link", { name: "Rescheduled from" })).toHaveAttribute("href", "/resident/requests/old%2Frequest");
-    expect(screen.getByRole("link", { name: "Rescheduled as" })).toHaveAttribute("href", "/resident/requests/r2");
+    expect(screen.getByRole("link", { name: "Rescheduled from an earlier request" })).toHaveAttribute("href", "/resident/requests/old%2Frequest");
+    expect(screen.getByRole("link", { name: "View the new request" })).toHaveAttribute("href", "/resident/requests/r2");
     expect(screen.queryByRole("list")).not.toBeInTheDocument();
 });
 
 it.each(["rescheduledFrom", "rescheduledAs"] as const)("shows only the supplied %s link", key => {
     render(<StatusHistory {...{ [key]: { requestId: "r2" } }} />);
     expect(screen.getAllByRole("link")).toHaveLength(1);
-    expect(screen.getByRole("link")).toHaveTextContent(key === "rescheduledFrom" ? "Rescheduled from" : "Rescheduled as");
+    expect(screen.getByRole("link")).toHaveTextContent(key === "rescheduledFrom" ? "Rescheduled from an earlier request" : "View the new request");
 });
 
-it("shows a single history row without empty reschedule navigation", () => {
+it("shows a single history row without an empty rescheduling card", () => {
     render(<StatusHistory statusHistory={[{ status: "Open", changedAt: "2026-11-14T18:00:00Z", reason: null }]}
         rescheduledFrom={null} rescheduledAs={null} />);
     expect(screen.getAllByRole("listitem")).toHaveLength(1);
-    expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Rescheduling" })).not.toBeInTheDocument();
 });
 
 it("omits the section when there is no history or reschedule link", () => {
