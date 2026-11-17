@@ -39,6 +39,15 @@ describe("UI components", () => {
         expect(onCancel).toHaveBeenCalledOnce();
     });
 
+    it("can name the cancel button, so Cancel is not misread as cancelling a request", () => {
+        const onCancel = vi.fn();
+        render(<ConfirmDialog open title="Cancel this request?" confirmLabel="Cancel request" cancelLabel="Keep request"
+            onConfirm={vi.fn()} onCancel={onCancel}>Text</ConfirmDialog>);
+        expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
+        fireEvent.click(screen.getByRole("button", { name: "Keep request" }));
+        expect(onCancel).toHaveBeenCalledOnce();
+    });
+
     it.each([{ busy: true }, { confirmDisabled: true }])("disables confirm: %o", (flags) => {
         render(<ConfirmDialog open title="Confirm" confirmLabel="Yes" onConfirm={vi.fn()}
             onCancel={vi.fn()} {...flags}>Text</ConfirmDialog>);

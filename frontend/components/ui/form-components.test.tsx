@@ -14,6 +14,13 @@ describe("form components", () => {
         expect(button).toBeDisabled();
     });
 
+    it("draws the danger-outline button as a red outline with red text, not a fill", () => {
+        render(<Button variant="danger-outline">Cancel request</Button>);
+        const button = screen.getByRole("button", { name: "Cancel request" });
+        expect(button).toHaveClass("border-danger", "text-danger");
+        expect(button).not.toHaveClass("bg-danger");
+    });
+
     it("links a field error with aria-describedby and sets aria-invalid", () => {
         render(<Field label="Name" error="Enter a name">{(control) => <input {...control} />}</Field>);
         const input = screen.getByLabelText("Name");

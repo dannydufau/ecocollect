@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { Alert, Button, RequestPhoto, Spinner, StatusBadge, WindowList, card, textLink } from "@/components/ui";
 import { isAuthError } from "@/lib/api";
 import { nextStepText } from "@/lib/status-text";
 import { formatTimestamp } from "@/lib/time";
 import type { RequestDetail } from "@/lib/types";
 import { useRequestDetail } from "@/lib/use-request";
+import CancelRequest, { type Notice } from "./cancel-request";
 import { RequestActions, type ResidentActionRenderers } from "./request-actions";
 import StatusHistory from "./status-history";
 
@@ -25,6 +27,7 @@ export default function ResidentRequestDetail({ requestId, actionRenderers }: {
     actionRenderers?: ResidentActionRenderers;
 }) {
     const { data, isPending, isError, unavailable, error, refetch, isFetching } = useRequestDetail(requestId);
+    const [notice, setNotice] = useState<Notice | null>(null);
     if (unavailable || (data && data.viewer !== "owner")) return <UnavailableRequest />;
     if (isPending) return <Spinner label="Loading your request..." />;
     if (isError || !data) return <section className="space-y-3">
@@ -36,13 +39,16 @@ export default function ResidentRequestDetail({ requestId, actionRenderers }: {
         <Link href="/resident" className={textLink}>Back to my requests</Link>
     </section>;
 
-    return <ResidentRequestView request={data} onPhotoError={() => { void refetch(); }} actionRenderers={actionRenderers} />;
+    // The cancel button goes in with the other actions, so they all sit in one group
+    const renderers: ResidentActionRenderers = { cancel: request => <CancelRequest request={request} onNotice={setNotice} />, ...actionRenderers };
+    return <ResidentRequestView request={data} onPhotoError={() => { void refetch(); }} actionRenderers={renderers} notice={notice} />;
 }
 
-export function ResidentRequestView({ request, onPhotoError, actionRenderers }: {
+export function ResidentRequestView({ request, onPhotoError, actionRenderers, notice }: {
     request: RequestDetail;
     onPhotoError: () => void;
     actionRenderers?: ResidentActionRenderers;
+    notice?: Notice | null;
 }) {
     if (request.viewer !== "owner") return <UnavailableRequest />;
 
@@ -56,6 +62,7 @@ export function ResidentRequestView({ request, onPhotoError, actionRenderers }: 
             <p className="text-[17px]">{nextStepText(request.status, "resident")}</p>
         </header>
 
+        {notice && <Alert variant={notice.kind}>{notice.text}</Alert>}
         {request.allowedActions.includes("report_missed") && <Alert variant="warning">
             Your action is needed: confirm the collection or report a missed pickup.
         </Alert>}
