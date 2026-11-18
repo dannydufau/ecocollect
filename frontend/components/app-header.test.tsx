@@ -51,7 +51,7 @@ it("shows the volunteer links", () => {
 it("lets a both-roles account switch to volunteer", () => {
     signedIn(["resident", "volunteer"], "resident");
     render(<AppHeader />);
-    const group = screen.getByRole("group", { name: "Acting as" });
+    const group = screen.getByRole("group", { name: "Active role" });
     expect(within(group).getByRole("button", { name: "Resident" })).toHaveAttribute("aria-pressed", "true");
     fireEvent.click(within(group).getByRole("button", { name: "Volunteer" }));
     expect(setActiveRole).toHaveBeenCalledWith("volunteer");
@@ -63,22 +63,52 @@ it("shows only the shared links and the switcher before a both-roles account pic
     signedIn(["resident", "volunteer"], null);
     render(<AppHeader />);
     const nav = screen.getByRole("navigation", { name: "Main" });
-    expect(within(nav).getAllByRole("link").map((link) => link.textContent)).toEqual(["EcoPoints", "Notifications", "Profile"]);
-    expect(screen.getByRole("group", { name: "Acting as" })).toBeInTheDocument();
+    expect(within(nav).getAllByRole("link").map((link) => link.textContent)).toEqual(["EcoPoints"]);
+    expect(screen.getByRole("link", { name: "Profile" })).toHaveAttribute("href", "/profile");
+    expect(screen.getByRole("group", { name: "Active role" })).toBeInTheDocument();
+});
+
+it.each([
+    ["resident", "resident", "/resident"],
+    ["volunteer", "volunteer", "/volunteer"],
+])("sends the brand link of a %s tab to its home", (role, active, home) => {
+    signedIn(["resident", "volunteer"], active);
+    render(<AppHeader />);
+    expect(screen.getByRole("link", { name: "EcoCollect" })).toHaveAttribute("href", home);
+});
+
+it("sends the brand link to /choose-role before a role is picked and to /login when signed out", () => {
+    pathname = "/ecopoints";
+    signedIn(["resident", "volunteer"], null);
+    const { unmount } = render(<AppHeader />);
+    expect(screen.getByRole("link", { name: "EcoCollect" })).toHaveAttribute("href", "/choose-role");
+    unmount();
+    vi.mocked(useAuth).mockReturnValue({ user: null, roles: [], activeRole: null, loading: false } as never);
+    render(<AppHeader />);
+    expect(screen.getByRole("link", { name: "EcoCollect" })).toHaveAttribute("href", "/login");
+});
+
+it("shows the active role tag for a both-roles account only on a phone", () => {
+    signedIn(["resident", "volunteer"], "volunteer");
+    render(<AppHeader />);
+    const group = screen.getByRole("group", { name: "Active role" });
+    expect(screen.getAllByText("Volunteer")).toEqual([within(group).getByText("Volunteer")]);
+    setWidth(500);
+    expect(screen.getByText("Volunteer", { selector: "span" })).toBeInTheDocument();
 });
 
 it("shows a role tag and no switcher for one role", () => {
     signedIn(["resident"]);
     render(<AppHeader />);
     expect(screen.getByText("Resident")).toBeInTheDocument();
-    expect(screen.queryByRole("group", { name: "Acting as" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Active role" })).not.toBeInTheDocument();
 });
 
 it("shows the brand, stats and sign in when signed out", () => {
     pathname = "/stats";
     vi.mocked(useAuth).mockReturnValue({ user: null, roles: [], activeRole: null, loading: false, setActiveRole } as never);
     render(<AppHeader />);
-    expect(screen.getByRole("link", { name: "EcoCollect" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "EcoCollect" })).toHaveAttribute("href", "/login");
     expect(screen.getByRole("link", { name: "Community stats" })).toHaveAttribute("href", "/stats");
     expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/login");
     expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
@@ -120,7 +150,7 @@ it("uses a bottom bar with three short links and a More menu below 960px", () =>
     fireEvent.click(more);
     expect(more).toHaveAttribute("aria-expanded", "true");
     const menu = document.getElementById(more.getAttribute("aria-controls")!)!;
-    expect(within(menu).getByRole("link", { name: "Notifications" })).toBeInTheDocument();
+    expect(within(menu).queryByRole("link", { name: "Notifications" })).not.toBeInTheDocument();
     expect(within(menu).getByRole("link", { name: "Profile" })).toBeInTheDocument();
     expect(within(menu).getByRole("button", { name: "Log out" })).toBeInTheDocument();
 

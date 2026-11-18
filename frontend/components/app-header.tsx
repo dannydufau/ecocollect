@@ -21,25 +21,23 @@ const roleLinks: Record<Role, NavLink[]> = {
         { href: "/volunteer/history", label: "History", short: "Assignments" },
     ],
 };
-const sharedLinks: NavLink[] = [
-    { href: "/ecopoints", label: "EcoPoints", short: "Points" },
-    { href: "/notifications", label: "Notifications" },
-    { href: "/profile", label: "Profile" },
-];
+const ecoPoints: NavLink = { href: "/ecopoints", label: "EcoPoints", short: "Points" };
+const profile: NavLink = { href: "/profile", label: "Profile" };
 const roleNames: Record<Role, string> = { resident: "Resident", volunteer: "Volunteer" };
-const topLink = "inline-flex min-h-11 items-center rounded-full px-3 font-semibold hover:bg-surface aria-[current=page]:bg-text aria-[current=page]:text-bg";
-const bottomLink = "flex min-h-14 items-center justify-center px-1 text-sm font-semibold aria-[current=page]:bg-text aria-[current=page]:text-bg";
+const topLink = "inline-flex min-h-11 items-center rounded-full px-4 hover:bg-accent-100 aria-[current=page]:bg-accent-200 aria-[current=page]:font-bold";
+const bottomLink = "flex min-h-14 items-center justify-center rounded-xl px-1 text-sm font-medium hover:bg-accent-100 aria-[current=page]:bg-accent-200 aria-[current=page]:font-bold";
+const roleColors: Record<Role, string> = { resident: "bg-accent-700", volunteer: "bg-accent-2-800" };
 
 function subscribe(onChange: () => void) {
     window.addEventListener("resize", onChange);
     return () => window.removeEventListener("resize", onChange);
 }
 
-function Bar({ children }: { children?: ReactNode }) {
+function Bar({ home = "/login", children }: { home?: string; children?: ReactNode }) {
     return (
-        <header className="border-b border-divider">
-            <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2">
-                <Link href="/" className="inline-flex min-h-11 items-center gap-2 font-[family-name:var(--font-heading)] text-xl">
+        <header>
+            <div className="mx-auto flex w-full max-w-4xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 sm:px-8">
+                <Link href={home} className="inline-flex min-h-11 items-center gap-2 font-[family-name:var(--font-heading)] text-xl">
                     <Image src="/ecocollect-mark.png" alt="" width={31} height={32} />
                     EcoCollect
                 </Link>
@@ -83,15 +81,17 @@ export default function AppHeader() {
         );
     }
     if (pathname === "/choose-role") {
-        return <Bar><div className="ml-auto"><LogoutButton /></div></Bar>;
+        return <Bar home="/choose-role"><div className="ml-auto"><LogoutButton /></div></Bar>;
     }
 
-    const links = [...(activeRole ? roleLinks[activeRole] : []), ...sharedLinks];
+    const middle = [...(activeRole ? roleLinks[activeRole] : []), ecoPoints];
     // Only the longest matching link is the current page, so /resident/requests/new does not also mark /resident
-    const current = links
+    const current = [...middle, profile]
         .filter((link) => pathname === link.href || pathname.startsWith(`${link.href}/`))
         .sort((a, b) => b.href.length - a.href.length)[0];
     const both = roles.includes("resident") && roles.includes("volunteer");
+
+    const home = activeRole ? `/${activeRole}` : "/choose-role";
 
     function switchTo(role: Role) {
         setActiveRole(role);
@@ -108,31 +108,34 @@ export default function AppHeader() {
         ));
     }
 
-    const roleTag = roles.length === 1 && (
-        <span className="rounded-full bg-surface px-3 py-1 text-sm font-semibold">{roleNames[roles[0]]}</span>
+    // A one-role account always has its role. A both-roles account shows the tag only where the switcher is hidden.
+    const shownRole = activeRole ?? (roles.length === 1 ? roles[0] : null);
+    const roleTag = shownRole && !(wide && both) && (
+        <span className={`rounded-full px-3 py-1 text-sm font-bold text-white ${roleColors[shownRole]}`}>{roleNames[shownRole]}</span>
     );
     const switcher = both && (
-        <div role="group" aria-label="Acting as" className="flex flex-wrap items-center gap-2">
-            <span aria-hidden="true">Acting as:</span>
-            {(["resident", "volunteer"] as const).map((role) => (
-                <button key={role} type="button" aria-pressed={activeRole === role} onClick={() => switchTo(role)}
-                    className={`min-h-11 rounded-full border px-4 font-semibold ${activeRole === role
-                        ? "border-text bg-text text-bg"
-                        : "border-neutral-600 hover:bg-surface"}`}>
-                    {roleNames[role]}
-                </button>
-            ))}
+        <div className="flex items-center gap-3">
+            <span className="text-sm text-neutral-800">Acting as</span>
+            <div role="group" aria-label="Active role" className="flex rounded-full bg-surface p-[3px]">
+                {(["resident", "volunteer"] as const).map((role) => (
+                    <button key={role} type="button" aria-pressed={activeRole === role} onClick={() => switchTo(role)}
+                        className={`min-h-[38px] rounded-full px-4 text-sm font-semibold ${activeRole === role ? `${roleColors[role]} text-white` : "hover:bg-accent-100"}`}>
+                        {roleNames[role]}
+                    </button>
+                ))}
+            </div>
         </div>
     );
 
     if (wide) {
         return (
-            <Bar>
-                <nav aria-label="Main" className="flex flex-wrap gap-1">{navLinks(links, topLink)}</nav>
-                <div className="ml-auto flex flex-wrap items-center gap-2">
+            <Bar home={home}>
+                <nav aria-label="Main" className="flex flex-wrap gap-1">{navLinks(middle, topLink)}</nav>
+                <div className="ml-auto flex flex-wrap items-center gap-3">
                     {switcher}
                     {roleTag}
                     <span data-slot="bell" />
+                    {navLinks([profile], topLink)}
                     <LogoutButton />
                 </div>
             </Bar>
@@ -141,7 +144,7 @@ export default function AppHeader() {
 
     return (
         <>
-            <Bar>
+            <Bar home={home}>
                 <div className="ml-auto flex items-center gap-2">
                     {roleTag}
                     <span data-slot="bell" />
@@ -151,11 +154,11 @@ export default function AppHeader() {
                 <div id={moreId} hidden={!moreOpen}
                     className="absolute inset-x-0 bottom-full flex flex-col items-start gap-2 border-t border-divider bg-bg p-4">
                     {switcher}
-                    {navLinks(links.slice(3), topLink)}
+                    {navLinks([...middle.slice(3), profile], topLink)}
                     <LogoutButton />
                 </div>
                 <div className="mx-auto grid max-w-3xl grid-cols-4">
-                    {navLinks(links.slice(0, 3), bottomLink, true)}
+                    {navLinks(middle.slice(0, 3), bottomLink, true)}
                     <button type="button" aria-expanded={moreOpen} aria-controls={moreId}
                         onClick={() => setMoreOpenOn(moreOpen ? null : pathname)} className={bottomLink}>
                         More
