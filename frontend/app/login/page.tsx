@@ -1,13 +1,10 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { Suspense, useEffect, useState, type FormEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FirebaseError } from "firebase/app";
-import { auth } from "@/lib/firebase";
-import { getRoles, homeFor } from "@/lib/auth";
 import { useAuth } from "@/lib/auth-context";
 import { Alert, Button, Field, card, input } from "@/components/ui";
 
@@ -23,14 +20,22 @@ function errorMessage(err: unknown): string {
         return "Too many attempts. Wait a moment and try again.";
       case "auth/network-request-failed":
         return "Network error. Check your connection.";
+      case "auth/user-disabled":
+        return "This account has been deactivated.";
     }
   }
   return "Something went wrong. Please try again.";
 }
 
+// Reading the search params needs its own Suspense boundary or the build fails
+function ExpiredNotice() {
+  const expired = useSearchParams().get("expired") === "1";
+  return expired ? <Alert variant="info">Please sign in again.</Alert> : null;
+}
+
 export default function LoginPage() {
   const router = useRouter();
-  const { user, roles, loading } = useAuth();
+  const { user, roles, loading, signIn, signOut } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +43,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!loading && !submitting && user && roles.length > 0) {
-      router.replace(homeFor(roles));
+      router.replace("/choose-role");
     }
   }, [loading, submitting, user, roles, router]);
 
@@ -47,18 +52,13 @@ export default function LoginPage() {
     setError(null);
     setSubmitting(true);
     try {
-      const credential = await signInWithEmailAndPassword(
-        auth,
-        email,
-        password,
-      );
-      const userRoles = await getRoles(credential.user);
+      const userRoles = await signIn(email, password);
       if (userRoles.length === 0) {
-        await signOut(auth);
+        await signOut();
         setError("This account has no role assigned.");
         return;
       }
-      router.replace(homeFor(userRoles));
+      router.replace("/choose-role");
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -72,6 +72,9 @@ export default function LoginPage() {
         <Image src="/ecocollect-mark.png" alt="" width={69} height={72} priority className="self-start" />
         <h1 className="text-[32px]">Sign in to EcoCollect</h1>
         <p className="text-neutral-800">Calgary’s community e-waste courier.</p>
+        <Suspense fallback={null}>
+          <ExpiredNotice />
+        </Suspense>
         <Field label="Email">
           {(control) => (
             <input {...control} type="email" value={email} onChange={(e) => setEmail(e.target.value)}
