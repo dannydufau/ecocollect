@@ -20,7 +20,7 @@ const termsBox = "I have read and accept the terms and safety guidelines";
 const conflict = (code: string) => new ApiError(409, { error: { code, message: code } });
 
 beforeEach(() => {
-    vi.mocked(useAuth).mockReturnValue({ signIn } as never);
+    vi.mocked(useAuth).mockReturnValue({ user: null, roles: [], loading: false, signIn } as never);
     vi.mocked(api.get).mockResolvedValue(terms("terms_3"));
 });
 
@@ -130,6 +130,23 @@ it("shows 400 field errors under their inputs", async () => {
     await acceptTerms();
     submit();
     await waitFor(() => expect(screen.getByLabelText("Postal code")).toHaveAccessibleDescription(expect.stringContaining("Not a Calgary code.")));
+});
+
+it("also shows the alert when a 400 names a field the form does not have", async () => {
+    vi.mocked(api.post).mockRejectedValue(new ApiError(400, {
+        error: { code: "validation_error", message: "Check", details: { fields: { termsDocumentId: "Not valid." } } },
+    }));
+    renderWithClient(<RegisterPage />);
+    fillResident();
+    await acceptTerms();
+    submit();
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+});
+
+it("sends a signed-in user to /choose-role", () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { uid: "u1" }, roles: ["resident"], loading: false, signIn } as never);
+    renderWithClient(<RegisterPage />);
+    expect(router.replace).toHaveBeenCalledWith("/choose-role");
 });
 
 it("reloads the terms and asks again when they are outdated", async () => {

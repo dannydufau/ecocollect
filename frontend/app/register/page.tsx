@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -13,15 +13,22 @@ import { useAuth } from "@/lib/auth-context";
 import { queryKeys } from "@/lib/query-keys";
 import { normalizePostalCode, normalizeUsername, type AccountValues } from "@/lib/validate-account";
 
+const formFields = /^(firstName|lastName|publicName|dateOfBirth|username|email|password|role|address\.street|address\.postalCode|preferredPostalCodes(\[\d+\])?)$/;
+
 export default function RegisterPage() {
     const router = useRouter();
     const queryClient = useQueryClient();
-    const { signIn } = useAuth();
+    const { user, roles, loading, signIn } = useAuth();
     const [termsDocumentId, setTermsDocumentId] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [error, setError] = useState<string | null>(null);
     const [created, setCreated] = useState(false);
     const [busy, setBusy] = useState(false);
+
+    // A signed-in user has nothing to do here. Not while creating, the sign in after the create must not race this.
+    useEffect(() => {
+        if (!loading && user && roles.length > 0 && !busy && !created) router.replace("/choose-role");
+    }, [loading, user, roles, busy, created, router]);
 
     async function create(values: AccountValues) {
         setBusy(true);
@@ -42,7 +49,11 @@ export default function RegisterPage() {
             const code = err instanceof ApiError ? err.code : "";
             if (code === "username_taken") setFieldErrors({ username: friendlyError(err) });
             else if (code === "email_taken") setFieldErrors({ email: friendlyError(err) });
-            else if (err instanceof ApiError && err.status === 400 && Object.keys(err.fields).length) setFieldErrors(err.fields);
+            else if (err instanceof ApiError && err.status === 400 && Object.keys(err.fields).length) {
+                setFieldErrors(err.fields);
+                // A key the form has no input for would show nothing, so say it in the alert too
+                if (!Object.keys(err.fields).every(key => formFields.test(key))) setError(friendlyError(err));
+            }
             else {
                 // The new terms come back with another id, so the checkbox clears itself
                 if (code === "terms_outdated") void queryClient.invalidateQueries({ queryKey: queryKeys.terms });
