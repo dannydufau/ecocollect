@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { Alert, Button, EmptyState, Spinner, card, textLink } from "@/components/ui";
+import { Alert, Button, EmptyState, Spinner, card, pageTitle, textLink } from "@/components/ui";
 import { api, isAuthError } from "@/lib/api";
 import type { operations } from "@/lib/api-types";
 import { queryKeys } from "@/lib/query-keys";
@@ -25,7 +25,7 @@ export default function EcoPointsPage() {
     return (
         <main className="p-4 sm:p-8">
             <div className="mx-auto max-w-3xl space-y-6">
-                <h1 className="text-[length:clamp(30px,5vw,40px)]">EcoPoints</h1>
+                <h1 className={pageTitle}>EcoPoints</h1>
                 {isPending && <Spinner label="Loading EcoPoints..." />}
                 {isError && <div className="space-y-2">
                     <Alert variant="error">

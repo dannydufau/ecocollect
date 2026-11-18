@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import type { Role } from "@/lib/auth";
 import { roleOf, takeReturnTo } from "@/lib/return-to";
-import { card } from "@/components/ui";
+import { card, pageTitle } from "@/components/ui";
 
 const labels: Record<Role, { name: string; text: string }> = {
     resident: { name: "Resident", text: "Request e-waste pickups" },
@@ -43,7 +43,7 @@ export default function ChooseRolePage() {
 
     return (
         <main className="mx-auto flex w-full max-w-sm min-w-0 flex-col gap-4 p-4 sm:p-8">
-            <h1 className="text-[length:clamp(30px,5vw,40px)]">Continue as</h1>
+            <h1 className={pageTitle}>Continue as</h1>
             {roles.map((role) => (
                 <button key={role} type="button" onClick={() => choose(role)}
                     className={`${card} flex min-h-11 w-full flex-col px-6 py-4 text-left hover:bg-accent-200`}>

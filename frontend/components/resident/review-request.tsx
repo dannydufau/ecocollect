@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, type ReactNode } from "react";
-import { Alert, Button, WindowList, card, textLink } from "@/components/ui";
+import { Alert, Button, WindowList, card, pageTitle, textLink } from "@/components/ui";
 import { useProfile } from "@/lib/use-profile";
 import { useCategories } from "./category-picker";
 import type { RequestValues } from "./request-form";
@@ -25,7 +25,7 @@ export default function ReviewRequest({ values, busy, accepted, onBack, onConfir
 
     return <form onSubmit={event => { event.preventDefault(); if (!busy && accepted && ready) onConfirm(); }}
         aria-busy={busy} className="min-w-0 max-w-xl space-y-6">
-        <h2 ref={heading} tabIndex={-1} className="text-[length:clamp(30px,5vw,40px)]">Review your request</h2>
+        <h2 ref={heading} tabIndex={-1} className={pageTitle}>Review your request</h2>
         <section aria-label="Items" className="space-y-3">
             {categories.isPending && <p role="status">Loading categories...</p>}
             {categories.isError && <Alert variant="error">Could not load categories. <button type="button" onClick={() => void categories.refetch()} className="underline">Try again</button></Alert>}
