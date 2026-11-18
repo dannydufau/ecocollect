@@ -33,8 +33,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             Skip to main content
           </a>
           <AppHeader />
-          {/* Bottom padding keeps the phone bottom bar from covering the end of the page */}
-          <div id="main-content" tabIndex={-1} className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 py-6 pb-20 min-[960px]:pb-6">
+          {/* The pages keep their own width and padding. Bottom padding keeps the phone bottom bar from covering the end of the page. */}
+          <div id="main-content" tabIndex={-1} className="flex w-full flex-1 flex-col pb-20 min-[960px]:pb-0">
             {children}
           </div>
         </Providers>
