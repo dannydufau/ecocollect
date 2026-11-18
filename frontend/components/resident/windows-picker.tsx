@@ -2,7 +2,7 @@
 
 import { useId, useState } from "react";
 import { Button, card, input } from "@/components/ui";
-import { calgaryToday, formatHour, formatWindow } from "@/lib/time";
+import { calgaryHour, calgaryToday, formatHour, formatWindow } from "@/lib/time";
 import type { PickupWindow } from "@/lib/types";
 
 type Row = { date: string; startHour: string };
@@ -31,10 +31,8 @@ export function WindowsPicker({ value, onChange, createdAt }: {
     const today = calgaryToday();
     const lastDay = new Date(createdAt ?? `${today}T12:00:00Z`);
     lastDay.setUTCDate(lastDay.getUTCDate() + 30);
-    const maxDate = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Edmonton" }).format(lastDay);
-    const currentHour = Number(new Intl.DateTimeFormat("en-US", {
-        timeZone: "America/Edmonton", hour: "2-digit", hourCycle: "h23",
-    }).format(new Date()));
+    const maxDate = calgaryToday(lastDay);
+    const currentHour = calgaryHour();
 
     function updateRows(rows: Row[]) {
         const windows = rows

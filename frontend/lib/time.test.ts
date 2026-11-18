@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { formatWindow, friendlyWindow } from "./time";
+import { calgaryHour, calgaryToday, formatWindow, friendlyWindow, isValidWindow } from "./time";
 import { nextStepText } from "./status-text";
 
 afterEach(() => { vi.useRealTimers(); });
@@ -15,6 +15,22 @@ describe("window formatting", () => {
         vi.setSystemTime(new Date("2026-11-15T05:00:00Z")); // Nov 14 in Calgary; Nov 15 in Tokyo
         expect(friendlyWindow({ date: "2026-11-14", startHour: 14 })).toBe("Today, 2 to 3 p.m.");
         expect(friendlyWindow({ date: "2026-11-15", startHour: 14 })).toBe("Tomorrow, 2 to 3 p.m.");
+    });
+
+    it("accepts only a real date and an hour from 0 to 23", () => {
+        expect(isValidWindow({ date: "2026-11-14", startHour: 0 })).toBe(true);
+        expect(isValidWindow({ date: "2026-11-14", startHour: 23 })).toBe(true);
+        expect(isValidWindow({ date: "2026-02-30", startHour: 10 })).toBe(false);
+        expect(isValidWindow({ date: "2026-11-14", startHour: 24 })).toBe(false);
+        expect(isValidWindow({ date: "2026-11-14", startHour: 1.5 })).toBe(false);
+    });
+
+    it("reads the day and the hour in Calgary time", () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date("2026-11-15T05:30:00Z")); // 22:30 on Nov 14 in Calgary
+        expect(calgaryToday()).toBe("2026-11-14");
+        expect(calgaryHour()).toBe(22);
+        expect(calgaryToday(new Date("2026-12-14T20:00:00Z"))).toBe("2026-12-14");
     });
 
     it("gives the resident the assigned status message", () => {
