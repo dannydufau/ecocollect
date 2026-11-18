@@ -7,7 +7,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { formatPostalCode } from "@/lib/postal-code";
 import { formatTimestamp, formatWindow, friendlyWindow } from "@/lib/time";
 import type { AvailableRequest } from "@/lib/types";
-import { Alert, Button, EmptyState, Spinner, card, textLink } from "@/components/ui";
+import { Alert, Button, EmptyState, Spinner, clickableCard, pageTitle, stretchedLink, textLink } from "@/components/ui";
 
 // FE-047 adds the postal code filter that fills this
 const codes: string[] = [];
@@ -21,7 +21,7 @@ export default function AvailableRequests() {
     return (
         <section aria-labelledby="available-heading" className="min-w-0 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-                <h1 id="available-heading" className="text-[length:clamp(30px,5vw,40px)]">Available requests</h1>
+                <h1 id="available-heading" className={pageTitle}>Available requests</h1>
                 <Link href="/volunteer/history" className={textLink}>History</Link>
             </div>
             {isPending && <Spinner label="Loading requests..." />}
@@ -33,10 +33,9 @@ export default function AvailableRequests() {
             {data && data.length > 0 && <>
                 <p role="status" className="font-semibold">{data.length === 1 ? "1 request" : `${data.length} requests`}</p>
                 <ul className="space-y-3">
-                    {data.map(request => <li key={request.requestId} className={`${card} relative min-w-0 hover:shadow-[0_3px_10px_rgba(46,43,37,0.16)] has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-accent`}>
+                    {data.map(request => <li key={request.requestId} className={clickableCard}>
                         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-                            {/* The empty ::after stretches the link over the whole card so it is easy to tap */}
-                            <Link href={`/volunteer/requests/${encodeURIComponent(request.requestId)}`} className="min-w-0 break-words font-[family-name:var(--font-heading)] text-[21px] text-text no-underline after:absolute after:inset-0 after:rounded-[inherit] after:content-[''] focus-visible:outline-none">
+                                                        <Link href={`/volunteer/requests/${encodeURIComponent(request.requestId)}`} className={stretchedLink}>
                                 {request.quantity} × {request.category.name}
                             </Link>
                             <span className="whitespace-nowrap rounded-full bg-neutral-100 px-3 py-1 text-[13px] font-semibold text-neutral-800">{formatPostalCode(request.postalCode)}</span>

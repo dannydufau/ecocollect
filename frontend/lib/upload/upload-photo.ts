@@ -1,9 +1,6 @@
 import { api } from "@/lib/api";
-import type { components } from "@/lib/api-types";
+import type { UploadRequest, UploadTicket } from "@/lib/types";
 import { prepareImage } from "./prepare-image";
-
-type UploadRequest = components["schemas"]["UploadRequest"];
-type UploadTicket = components["schemas"]["UploadTicket"];
 
 export async function uploadPhoto(
     file: File,

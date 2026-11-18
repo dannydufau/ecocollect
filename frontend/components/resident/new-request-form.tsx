@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import RequestForm, { validate, type RequestValues } from "./request-form";
 import ReviewRequest from "./review-request";
 import TermsCheckbox from "@/components/terms-checkbox";
-import { Alert } from "@/components/ui/alert";
+import { Alert } from "@/components/ui";
 import { apiFetch, ApiError, friendlyError } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { useTerms } from "@/lib/use-terms";

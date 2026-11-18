@@ -8,7 +8,7 @@ import { fetchMyRequests } from "@/lib/my-requests";
 import { queryKeys } from "@/lib/query-keys";
 import { formatTimestamp } from "@/lib/time";
 import type { RequestStatus } from "@/lib/types";
-import { Alert, Button, FilterTabs, Spinner, StatusBadge, card, linkButton } from "@/components/ui";
+import { Alert, Button, FilterTabs, Spinner, StatusBadge, clickableCard, linkButton, pageTitle, stretchedLink } from "@/components/ui";
 
 const statuses: RequestStatus[] = ["Open", "Assigned", "Collected", "Delivered", "Cancelled", "Expired", "Missed"];
 
@@ -25,7 +25,7 @@ export default function MyRequests({ created }: { created?: string }) {
     return (
         <section aria-labelledby="my-requests-heading" className="min-w-0 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-                <h1 id="my-requests-heading" className="text-[length:clamp(30px,5vw,40px)]">My requests</h1>
+                <h1 id="my-requests-heading" className={pageTitle}>My requests</h1>
                 <Link href="/resident/requests/new" className={linkButton}>New request</Link>
             </div>
             {Number.isSafeInteger(count) && count > 0 && <Alert variant="success">{count === 1 ? "Your request was created." : `${count} requests were created.`}</Alert>}
@@ -44,10 +44,9 @@ export default function MyRequests({ created }: { created?: string }) {
                 </div>)}
             {data && data.length > 0 && <>
             <ul className="space-y-3">
-                {data.map(request => <li key={request.requestId} className={`${card} relative min-w-0 hover:shadow-[0_3px_10px_rgba(46,43,37,0.16)] has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-accent`}>
+                {data.map(request => <li key={request.requestId} className={clickableCard}>
                     <div className="flex flex-wrap items-start justify-between gap-3">
-                        {/* The empty ::after stretches the link over the whole card so it is easy to tap */}
-                        <Link href={`/resident/requests/${encodeURIComponent(request.requestId)}`} className="min-w-0 break-words font-[family-name:var(--font-heading)] text-[21px] text-text no-underline after:absolute after:inset-0 after:rounded-[inherit] after:content-[''] focus-visible:outline-none">
+                                                <Link href={`/resident/requests/${encodeURIComponent(request.requestId)}`} className={stretchedLink}>
                             {request.quantity} × {request.category.name}
                         </Link>
                         <StatusBadge status={request.status} />

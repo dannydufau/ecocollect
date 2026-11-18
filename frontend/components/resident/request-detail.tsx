@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Alert, Button, RequestPhoto, Spinner, StatusBadge, WindowList, card, textLink } from "@/components/ui";
+import { Alert, Button, RequestPhoto, Spinner, StatusBadge, WindowList, card, pageTitle, textLink } from "@/components/ui";
 import { isAuthError } from "@/lib/api";
 import { nextStepText } from "@/lib/status-text";
 import { formatTimestamp } from "@/lib/time";
@@ -17,7 +17,7 @@ const cardTitle = "text-[22px]";
 
 function UnavailableRequest() {
     return <section className="space-y-3">
-        <h1 className="text-[length:clamp(30px,5vw,40px)]">This request is no longer available.</h1>
+        <h1 className={pageTitle}>This request is no longer available.</h1>
         <Link href="/resident" className={textLink}>Back to my requests</Link>
     </section>;
 }
@@ -31,7 +31,7 @@ export default function ResidentRequestDetail({ requestId, actionRenderers }: {
     if (unavailable || (data && data.viewer !== "owner")) return <UnavailableRequest />;
     if (isPending) return <Spinner label="Loading your request..." />;
     if (isError || !data) return <section className="space-y-3">
-        <h1 className="text-[length:clamp(30px,5vw,40px)]">Pickup request</h1>
+        <h1 className={pageTitle}>Pickup request</h1>
         <Alert variant="error">{isAuthError(error)
             ? "You are not allowed to see this request. Please log in again as a resident."
             : "We could not load your request. Please try again."}</Alert>
@@ -56,7 +56,7 @@ export function ResidentRequestView({ request, onPhotoError, actionRenderers, no
         <Link href="/resident" className={textLink}>Back to my requests</Link>
         <header className="min-w-0 space-y-2">
             <div className="flex flex-wrap items-center gap-3">
-                <h1 className="break-words text-[length:clamp(30px,5vw,40px)]">{request.quantity} × {request.category.name}</h1>
+                <h1 className={`break-words ${pageTitle}`}>{request.quantity} × {request.category.name}</h1>
                 <StatusBadge status={request.status} />
             </div>
             <p className="text-[17px]">{nextStepText(request.status, "resident")}</p>

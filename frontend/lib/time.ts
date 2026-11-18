@@ -22,9 +22,14 @@ export function calgaryInstant(date: string, hour: number): Date {
     return new Date(guess - (shown - guess));
 }
 
-// Today's date in Calgary as YYYY-MM-DD (for the date picker's min).
-export function calgaryToday(): string {
-    return new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date());
+// A date in Calgary as YYYY-MM-DD, today by default (for the date picker's min and max).
+export function calgaryToday(date = new Date()): string {
+    return new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(date);
+}
+
+// The hour of the day in Calgary, 0 to 23
+export function calgaryHour(): number {
+    return Number(new Intl.DateTimeFormat("en-US", { timeZone: TZ, hour: "2-digit", hourCycle: "h23" }).format(new Date()));
 }
 
 // "Oct 28, 2026, 10:15 a.m." in Calgary time, from a UTC timestamp.
@@ -43,12 +48,13 @@ function isRealDate(date: string): boolean {
     return !Number.isNaN(parsed.getTime()) && parsed.toISOString().startsWith(date);
 }
 
+export function isValidWindow(window: PickupWindow): boolean {
+    return isRealDate(window.date) && Number.isInteger(window.startHour) && window.startHour >= 0 && window.startHour <= 23;
+}
+
 // "Fri, Oct 30, 14:00 to 15:00". A window with a bad date or hour is shown as the date it came with, like formatTimestamp.
 export function formatWindow(window: PickupWindow): string {
-    const goodHour = Number.isInteger(window.startHour) &&
-        window.startHour >= 0 && window.startHour <= 23;
-
-    if (!isRealDate(window.date) || !goodHour) {
+    if (!isValidWindow(window)) {
         return String(window.date);
     }
 
@@ -68,11 +74,7 @@ export function formatHour(hour: number): string {
 
 export function friendlyWindow(window: PickupWindow): string {
     const full = formatWindow(window);
-
-    if (!isRealDate(window.date) ||
-        !Number.isInteger(window.startHour) ||
-        window.startHour < 0 ||
-        window.startHour > 23) {
+    if (!isValidWindow(window)) {
         return full;
     }
 

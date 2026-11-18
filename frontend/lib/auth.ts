@@ -1,8 +1,9 @@
 import type { User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { api } from "@/lib/api";
+import type { Role } from "@/lib/types";
 
-export type Role = "resident" | "volunteer";
+export type { Role };
 
 export async function getRoles(user: User): Promise<Role[]> {
     const result = await user.getIdTokenResult();

@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import RegisterForm from "@/components/register-form";
 import TermsCheckbox from "@/components/terms-checkbox";
-import { Alert, textLink } from "@/components/ui";
+import { Alert, pageTitle, textLink } from "@/components/ui";
 import { ApiError, api, friendlyError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { queryKeys } from "@/lib/query-keys";
@@ -73,7 +73,7 @@ export default function RegisterPage() {
 
     return <main className="mx-auto w-full max-w-xl min-w-0 space-y-6 p-4 sm:p-8">
         <Image src="/ecocollect-mark.png" alt="" width={61} height={64} priority />
-        <h1 className="text-[length:clamp(30px,5vw,40px)]">Create your account</h1>
+        <h1 className={pageTitle}>Create your account</h1>
         <RegisterForm onValid={create} fieldErrors={fieldErrors} busy={busy} submitDisabled={!termsDocumentId || created}
             onEdit={() => setFieldErrors({})}>
             <TermsCheckbox value={termsDocumentId} onChange={setTermsDocumentId} />

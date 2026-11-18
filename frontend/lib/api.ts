@@ -121,6 +121,10 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
     return (await request<T>(path, init)).data;
 }
 
+// post, patch and delete only differ in the method name
+const withBody = (method: string) => <T>(path: string, body?: unknown) =>
+    apiFetch<T>(path, { method, body: body === undefined ? undefined : JSON.stringify(body) });
+
 export const api = {
     get: <T>(path: string) => apiFetch<T>(path),
     // The request page times its refresh by the server clock (16.12), because the device clock can be wrong.
@@ -129,19 +133,7 @@ export const api = {
         const date = new Date(res.headers.get("Date") ?? "");
         return { data, serverDate: Number.isNaN(date.getTime()) ? new Date() : date };
     },
-    post: <T>(path: string, body?: unknown) =>
-        apiFetch<T>(path, {
-            method: "POST",
-            body: body === undefined ? undefined : JSON.stringify(body),
-        }),
-    patch: <T>(path: string, body?: unknown) =>
-        apiFetch<T>(path, {
-            method: "PATCH",
-            body: body === undefined ? undefined : JSON.stringify(body),
-        }),
-    delete: <T>(path: string, body?: unknown) =>
-        apiFetch<T>(path, {
-            method: "DELETE",
-            body: body === undefined ? undefined : JSON.stringify(body),
-        }),
+    post: withBody("POST"),
+    patch: withBody("PATCH"),
+    delete: withBody("DELETE"),
 };

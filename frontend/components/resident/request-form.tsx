@@ -5,7 +5,7 @@ import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } fr
 import { Button, card, input, textarea } from "@/components/ui";
 import { CategoryPicker, useCategories } from "./category-picker";
 import { WindowsPicker } from "./windows-picker";
-import { calgaryInstant } from "@/lib/time";
+import { calgaryInstant, isValidWindow } from "@/lib/time";
 import type { PickupWindow } from "@/lib/types";
 
 export type RequestValues = {
@@ -30,9 +30,7 @@ export function validate(values: RequestValues, createdAt = new Date().toISOStri
     if (values.windows.length < 1 || values.windows.length > 3) errors.windows = "Choose one to three pickup windows.";
     const slots = new Set<string>();
     values.windows.forEach(window => {
-        const date = new Date(`${window.date}T00:00:00Z`);
-        const validDate = /^\d{4}-\d{2}-\d{2}$/.test(window.date) && !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === window.date;
-        if (!validDate || !Number.isInteger(window.startHour) || window.startHour < 0 || window.startHour > 23) {
+        if (!isValidWindow(window)) {
             errors.windows = "Choose a valid date and hour for every pickup window.";
             return;
         }
