@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { Button, Field, card, input } from "@/components/ui";
+import { Button, Field, card, input, textLink } from "@/components/ui";
 import { calgaryToday } from "@/lib/time";
 import {
     eighteenYearsAgo, normalizePostalCode, normalizeUsername, validateAccount, type AccountValues,
@@ -142,7 +142,7 @@ export default function RegisterForm({ onValid, fieldErrors = {}, busy = false, 
                 {children}
                 <div className="flex flex-wrap items-center gap-4">
                     <Button type="submit" busy={busy} busyLabel="Creating account..." disabled={submitDisabled} className="px-7">Create account</Button>
-                    <Link href="/login" className="inline-flex min-h-11 items-center text-accent-700 underline underline-offset-4">Already have an account? Sign in</Link>
+                    <Link href="/login" className={textLink}>Already have an account? Sign in</Link>
                 </div>
             </fieldset>
         </form>
