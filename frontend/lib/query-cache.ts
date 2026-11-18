@@ -1,9 +1,8 @@
 import type { QueryClient } from "@tanstack/react-query";
 
-// The lists are cached in the browser tab, under keys that don't say whose they are.
-// So when the signed-in person changes (or nobody is signed in any more), the old person's lists must go.
-// Nobody before means the first sign-in of this tab: there is nothing of anyone's to drop, and clearing then would cut
-// off the request an unguarded page like /ecopoints already started, which then waits forever.
+// The cached lists don't say whose they are, so a different person signing in must not see the last person's.
+// The first sign-in of a tab (nobody before) is skipped: clearing then would cancel a request an unguarded page
+// like /ecopoints already started, and it would never finish.
 export function dropCacheIfUserChanged(queryClient: QueryClient, previousUid: string | null, uid: string | null): void {
     if (previousUid !== null && previousUid !== uid) {
         queryClient.clear();
