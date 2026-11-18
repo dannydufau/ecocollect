@@ -45,7 +45,7 @@ it.each(["auth/invalid-credential", "auth/wrong-password", "auth/user-not-found"
         signIn.mockRejectedValue(new FirebaseError(code, "bad"));
         render(<LoginPage />);
         submit();
-        expect(await screen.findByRole("alert")).toHaveTextContent("Email or password is wrong");
+        expect(await screen.findByRole("alert")).toHaveTextContent("Incorrect email or password.");
         expect(router.replace).not.toHaveBeenCalled();
         expect(router.push).not.toHaveBeenCalled();
     });

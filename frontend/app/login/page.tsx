@@ -15,7 +15,7 @@ function errorMessage(err: unknown): string {
       case "auth/invalid-email":
       case "auth/wrong-password":
       case "auth/user-not-found":
-        return "Email or password is wrong";
+        return "Incorrect email or password.";
       case "auth/too-many-requests":
         return "Too many attempts. Wait a moment and try again.";
       case "auth/network-request-failed":
