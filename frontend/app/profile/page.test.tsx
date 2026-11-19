@@ -1,14 +1,16 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { cleanup, screen } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { api, ApiError } from "@/lib/api";
 import type { Profile } from "@/lib/types";
 import { renderWithClient } from "@/test/utils";
 import ProfilePage from "./page";
 
 vi.mock("@/lib/firebase", () => ({ auth: {} }));
+vi.mock("@/lib/auth-context", () => ({ useAuth: () => ({ refreshRoles: async () => [] }) }));
+vi.mock("@/lib/auth-context", () => ({ useAuth: () => ({ refreshRoles: async () => [] }) }));
 vi.mock("@/lib/api", async (importOriginal) => ({
     ...(await importOriginal<typeof import("@/lib/api")>()),
-    api: { get: vi.fn() },
+    api: { get: vi.fn(), post: vi.fn() },
 }));
 
 const resident: Profile = {
@@ -96,4 +98,23 @@ it("shows the error for a 404", async () => {
     vi.mocked(api.get).mockRejectedValue(new ApiError(404, null));
     renderWithClient(<ProfilePage />);
     expect(await screen.findByRole("alert")).toHaveTextContent("We could not find your profile.");
+});
+
+it("keeps the success message after the role card is gone", async () => {
+    let profile: Profile = resident;
+    vi.mocked(api.get).mockImplementation(async (path: string) => (
+        path === "/api/terms" ? { termsDocumentId: "terms_3", content: "Some terms", publishedAt: "2026-11-01T00:00:00Z" } : profile
+    ));
+    vi.mocked(api.post).mockImplementation(async () => {
+        profile = both;
+        return { roles: ["resident", "volunteer"] };
+    });
+    renderWithClient(<ProfilePage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Become a volunteer" }));
+    fireEvent.click(await screen.findByLabelText("I have read and accept the terms and safety guidelines"));
+    fireEvent.click(screen.getByRole("button", { name: "Activate role" }));
+    expect(await screen.findByText("You can now use EcoCollect as a volunteer.")).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("heading", { name: "Add a role" })).not.toBeInTheDocument());
+    expect(screen.queryByRole("heading", { name: "Become a volunteer" })).not.toBeInTheDocument();
+    expect(screen.getByText("You can now use EcoCollect as a volunteer.")).toBeInTheDocument();
 });
