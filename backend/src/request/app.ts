@@ -4,12 +4,13 @@ import express from 'express';
 import type pg from 'pg';
 import { errorHandler, notFound } from './http/errors.ts';
 import { gatewayUser } from './http/gateway-user.ts';
+import { listsRouter } from './http/routes/lists.ts';
 
 export type AppDeps = {
   pool: pg.Pool;
 };
 
-export function createApp(_deps: AppDeps): express.Express {
+export function createApp({ pool }: AppDeps): express.Express {
   const app = express();
   app.disable('x-powered-by');
 
@@ -20,7 +21,7 @@ export function createApp(_deps: AppDeps): express.Express {
   app.use(express.json());
   app.use(gatewayUser);
 
-  // Routers (Q1, Q2, ...) are added here and get what they need from _deps.
+  app.use(listsRouter(pool));               // Q1, Q2
 
   app.use(notFound);
   app.use(errorHandler);

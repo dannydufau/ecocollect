@@ -62,3 +62,21 @@ export type OutboxRow = {
   claimed_until: Date | null;
   published_at: Date | null;
 };
+
+// One row of ecocollect608.req_list_categories (Q1).
+export type CategoryRow = {
+  category_id: string;
+  name: string;
+  waste_type: string;
+  standard_weight_kg: string;          // NUMERIC
+};
+
+// One row of ecocollect608.req_list_facilities (Q2).
+export type FacilityRow = {
+  facility_id: string;
+  name: string;
+  street: string;
+  postal_code: string;
+  special_instructions: string | null;
+  accepted_category_ids: string[];
+};

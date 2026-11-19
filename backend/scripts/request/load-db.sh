@@ -7,6 +7,7 @@
 #   5. db/init/022_request_helpers.sql (helpers on the course tables)
 #   6. db/init/023_request_enqueue_event.sql (stores one event in the outbox)
 #   7. db/init/024_request_check.sql (check_request: request-level rules)
+#   8. db/init/025_request_lists.sql (Q1 categories, Q2 facilities)
 #
 # Usage (from anywhere in the repo):
 #   backend/scripts/request/load-db.sh                          # dev database: ecocollect_request
@@ -77,5 +78,8 @@ psql_in -d "$DB" < "$ROOT/db/init/023_request_enqueue_event.sql"
 
 echo "load-db: 024_request_check.sql"
 psql_in -d "$DB" < "$ROOT/db/init/024_request_check.sql"
+
+echo "load-db: 025_request_lists.sql"
+psql_in -d "$DB" < "$ROOT/db/init/025_request_lists.sql"
 
 echo "load-db: done. Connect with postgres://<POSTGRES_USER>:<POSTGRES_PASSWORD>@localhost:\${POSTGRES_PORT:-5432}/$DB"
