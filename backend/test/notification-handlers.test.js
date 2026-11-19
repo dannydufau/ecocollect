@@ -9,8 +9,6 @@ const assert = require('node:assert/strict');
 
 const { requestCreated, SIGNAL } = require('../src/notification/handlers');
 
-// --- fixtures ---------------------------------------------------------------
-
 // A RequestCreated envelope shaped like the example in contracts/asyncapi.yaml.
 // Pass `data` to override fields for a particular test.
 function envelope(data = {}) {
@@ -27,8 +25,6 @@ function envelope(data = {}) {
     },
   };
 }
-
-// --- tests ------------------------------------------------------------------
 
 test('RequestCreated: the resident gets REQUEST_CREATED, each volunteer NEW_MATCHING_REQUEST', () => {
   const out = requestCreated(envelope());
@@ -85,9 +81,9 @@ test('RequestCreated: no matched volunteers means only the resident is signalled
   ]);
 });
 
-test('RequestCreated: an event without a requestId throws, so the subscriber nacks it', () => {
+test('RequestCreated: an event without a requestId throws, so the subscriber retries it', () => {
   // Without a requestId the browser wouldn't know what to refetch, so there
-  // is nothing useful to send. Throwing makes the subscriber log and nack.
+  // is nothing useful to send. Throwing makes the subscriber log and retry it.
   for (const requestId of [undefined, '', 42]) {
     assert.throws(
       () => requestCreated(envelope({ requestId })),

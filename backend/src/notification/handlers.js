@@ -30,7 +30,7 @@ function requestCreated(envelope) {
   const { requestId, residentUid } = request;
 
   // Without a requestId the frontend can't refetch anything; throw so the
-  // subscriber logs it and nacks the message.
+  // subscriber logs it and rejects it, so RabbitMQ retries it.
   if (typeof requestId !== 'string' || requestId === '') {
     throw new Error('RequestCreated without a requestId');
   }
