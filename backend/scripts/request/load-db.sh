@@ -4,6 +4,8 @@
 #   2. PR #198's course database: tables.sql, transactions.sql, seed.sql (schema ecocollect608)
 #   3. db/init/020_request_ops.sql (schema request_ops)
 #   4. db/init/021_request_ops_functions.sql (outbox claim / mark published)
+#   5. db/init/022_request_helpers.sql (helpers on the course tables)
+#   6. db/init/023_request_enqueue_event.sql (stores one event in the outbox)
 #
 # Usage (from anywhere in the repo):
 #   backend/scripts/request/load-db.sh                          # dev database: ecocollect_request
@@ -65,5 +67,11 @@ psql_in -d "$DB" < "$ROOT/db/init/020_request_ops.sql"
 
 echo "load-db: 021_request_ops_functions.sql"
 psql_in -d "$DB" < "$ROOT/db/init/021_request_ops_functions.sql"
+
+echo "load-db: 022_request_helpers.sql"
+psql_in -d "$DB" < "$ROOT/db/init/022_request_helpers.sql"
+
+echo "load-db: 023_request_enqueue_event.sql"
+psql_in -d "$DB" < "$ROOT/db/init/023_request_enqueue_event.sql"
 
 echo "load-db: done. Connect with postgres://<POSTGRES_USER>:<POSTGRES_PASSWORD>@localhost:\${POSTGRES_PORT:-5432}/$DB"
