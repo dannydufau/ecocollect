@@ -24,7 +24,6 @@ import {
   type Role,
 } from "@/lib/auth";
 import { dropCacheIfUserChanged } from "@/lib/query-cache";
-import { openSignalStream } from "@/lib/sse";
 
 type AuthState = {
   user: User | null;
@@ -36,7 +35,7 @@ type AuthState = {
 type AuthValue = AuthState & {
   setActiveRole: (role: Role) => void;
   signIn: (email: string, password: string) => Promise<Role[]>;
-  signOut: () => Promise<void>;
+  signOut: (options?: { skipServer?: boolean }) => Promise<void>;
   refreshRoles: () => Promise<Role[]>;
 };
 
@@ -70,7 +69,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
   const queryClient = useQueryClient();
   const lastUid = useRef<string | null>(null);
-  const sseStreamSource = useRef<EventSource | null>(null);
   // signIn and the auth listener both start the session, this makes sure the cookie is asked for only once per login
   const session = useRef<{ uid: string; started: Promise<boolean> } | null>(null);
   // Session requests still on their way. One that lands after the logout would set the cookie again.
@@ -99,14 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    const cleanupStream = () => {
-      sseStreamSource.current?.close();
-      sseStreamSource.current = null;
-    };
-
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      let sessionOk = false;
-      cleanupStream();
       // Every way of signing out ends up here, so the previous person's cached lists go for all of them.
       dropCacheIfUserChanged(queryClient, lastUid.current, user?.uid ?? null);
 
@@ -121,24 +112,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // If reading the token fails (network), treat the user as having no role instead of loading forever.
       const roles = user ? await getRoles(user).catch(() => []) : [];
       if (user && roles.length > 0) {
-        sessionOk = await beginSession(user);
+        await beginSession(user);
       }
       if (user?.uid !== auth.currentUser?.uid) {
         // user changed while setting up the session, state no longer valid
         return;
       }
 
-      if (sessionOk) {
-        cleanupStream();
-        sseStreamSource.current = openSignalStream(queryClient);
-      }
-
       setState({ user, roles, activeRole: pickRole(roles), loading: false });
     });
-    return () => {
-      unsubscribe();
-      cleanupStream();
-    };
+    return () => unsubscribe();
   }, [queryClient]);
 
   function setActiveRole(role: Role) {
@@ -155,9 +138,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   // README 3.5: push subscription first, then the session cookie, then Firebase. The cached lists go in the listener.
-  async function signOut() {
-    await removePushSubscription();
-    await endSession();
+  // After a deactivation the server has already ended everything and its calls would only fail with a 401,
+  // so skipServer leaves them out and only signs out of Firebase.
+  async function signOut({ skipServer = false } = {}) {
+    if (skipServer) {
+      session.current = null;
+    } else {
+      await removePushSubscription();
+      await endSession();
+    }
     await firebaseSignOut(auth);
   }
 
@@ -169,12 +158,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const roles = await getRoles(user);
     // Somebody else may have signed in while we waited, these roles are not theirs
     if (auth.currentUser?.uid !== user.uid) return [];
-    const sessionOk = roles.length > 0 && (await beginSession(user, true));
+    if (roles.length > 0) await beginSession(user, true);
     if (auth.currentUser?.uid !== user.uid) return [];
-    if (sessionOk) {
-      sseStreamSource.current?.close();
-      sseStreamSource.current = openSignalStream(queryClient);
-    }
     setState((current) => ({
       ...current,
       roles,
