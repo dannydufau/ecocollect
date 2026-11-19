@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { cleanup, screen } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { api, ApiError } from "@/lib/api";
 import type { Profile } from "@/lib/types";
 import { renderWithClient } from "@/test/utils";
@@ -7,10 +7,11 @@ import ProfilePage from "./page";
 
 vi.mock("@/lib/firebase", () => ({ auth: {} }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }) }));
-vi.mock("@/lib/auth-context", () => ({ useAuth: () => ({ refreshRoles: vi.fn() }) }));
+vi.mock("@/lib/auth-context", () => ({ useAuth: () => ({ refreshRoles: async () => [], signOut: async () => {} }) }));
+vi.mock("@/lib/auth-context", () => ({ useAuth: () => ({ refreshRoles: async () => [] }) }));
 vi.mock("@/lib/api", async (importOriginal) => ({
     ...(await importOriginal<typeof import("@/lib/api")>()),
-    api: { get: vi.fn() },
+    api: { get: vi.fn(), post: vi.fn() },
 }));
 
 const resident: Profile = {
@@ -36,35 +37,42 @@ it("shows the loading state first", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Loading your profile...");
 });
 
-it("shows a resident's details with the address and no postal codes", async () => {
+it("shows a resident's account card and the address card, with no postal codes card", async () => {
     vi.mocked(api.get).mockResolvedValue(resident);
     renderWithClient(<ProfilePage />);
-    expect(await screen.findByText("Account id")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Account" })).toBeInTheDocument();
     expect(api.get).toHaveBeenCalledWith("/api/profile");
-    expect(value("Account id")).toHaveTextContent("maya");
+    expect(value("Username")).toHaveTextContent("maya");
+    expect(value("Email")).toHaveTextContent("maya@example.com");
     expect(value("Name")).toHaveTextContent("Maya Chen");
+    expect(value("Date of birth")).toHaveTextContent("May 1, 1990");
     expect(value("Public name")).toHaveTextContent("Maya C.");
-    expect(value("Birth date")).toHaveTextContent("1990-05-01");
     expect(value("Roles")).toHaveTextContent("Resident");
-    expect(value("Address")).toHaveTextContent("123 Main St, Calgary T2P1J9");
-    expect(screen.queryByText("Preferred postal codes")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Address" }).parentElement).toHaveTextContent("123 Main StCalgary, T2P 1J9");
+    expect(screen.queryByRole("heading", { name: "Preferred postal codes" })).not.toBeInTheDocument();
 });
 
-it("shows a volunteer's postal codes and no address", async () => {
+it("shows a volunteer's postal codes with a space and no address card", async () => {
     vi.mocked(api.get).mockResolvedValue(volunteer);
     renderWithClient(<ProfilePage />);
-    expect(await screen.findByText("Preferred postal codes")).toBeInTheDocument();
-    expect(value("Preferred postal codes")).toHaveTextContent("T2P1J9, T3A0B1, T2N4X7");
+    expect(await screen.findByRole("heading", { name: "Preferred postal codes" })).toBeInTheDocument();
+    expect(screen.getAllByRole("listitem").map((item) => item.textContent)).toEqual(["T2P 1J9", "T3A 0B1", "T2N 4X7"]);
     expect(value("Roles")).toHaveTextContent("Volunteer");
-    expect(screen.queryByText("Address")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Address" })).not.toBeInTheDocument();
 });
 
-it("shows both the address and the postal codes for an account with both roles", async () => {
+it("says so when a volunteer has no saved codes", async () => {
+    vi.mocked(api.get).mockResolvedValue({ ...volunteer, preferredPostalCodes: [] });
+    renderWithClient(<ProfilePage />);
+    expect(await screen.findByText(/You have no saved codes/)).toBeInTheDocument();
+});
+
+it("shows the address and the postal codes and both role pills for an account with both roles", async () => {
     vi.mocked(api.get).mockResolvedValue(both);
     renderWithClient(<ProfilePage />);
-    expect(await screen.findByText("Address")).toBeInTheDocument();
-    expect(value("Preferred postal codes")).toHaveTextContent("T3A0B1");
-    expect(value("Roles")).toHaveTextContent("Resident and Volunteer");
+    expect(await screen.findByRole("heading", { name: "Address" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Preferred postal codes" })).toBeInTheDocument();
+    expect(value("Roles")).toHaveTextContent("ResidentVolunteer");
 });
 
 it("shows member since from createdAt", async () => {
@@ -91,4 +99,23 @@ it("shows the error for a 404", async () => {
     vi.mocked(api.get).mockRejectedValue(new ApiError(404, null));
     renderWithClient(<ProfilePage />);
     expect(await screen.findByRole("alert")).toHaveTextContent("We could not find your profile.");
+});
+
+it("keeps the success message after the role card is gone", async () => {
+    let profile: Profile = resident;
+    vi.mocked(api.get).mockImplementation(async (path: string) => (
+        path === "/api/terms" ? { termsDocumentId: "terms_3", content: "Some terms", publishedAt: "2026-11-01T00:00:00Z" } : profile
+    ));
+    vi.mocked(api.post).mockImplementation(async () => {
+        profile = both;
+        return { roles: ["resident", "volunteer"] };
+    });
+    renderWithClient(<ProfilePage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Become a volunteer" }));
+    fireEvent.click(await screen.findByLabelText("I have read and accept the terms and safety guidelines"));
+    fireEvent.click(screen.getByRole("button", { name: "Activate role" }));
+    expect(await screen.findByText("You can now use EcoCollect as a volunteer.")).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("heading", { name: "Add a role" })).not.toBeInTheDocument());
+    expect(screen.queryByRole("heading", { name: "Become a volunteer" })).not.toBeInTheDocument();
+    expect(screen.getByText("You can now use EcoCollect as a volunteer.")).toBeInTheDocument();
 });

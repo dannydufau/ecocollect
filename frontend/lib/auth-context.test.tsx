@@ -99,6 +99,13 @@ it("signOut still finishes when the push call fails", async () => {
     expect(calls).toEqual(["DELETE /api/push/subscriptions", "DELETE /api/session", "firebase signOut"]);
 });
 
+it("signOut with skipServer only signs out of Firebase", async () => {
+    const { result } = await mount(fakeUser("u1", ["resident"]));
+    calls.length = 0;
+    await act(async () => { await result.current.signOut({ skipServer: true }); });
+    expect(calls).toEqual(["firebase signOut"]);
+});
+
 it("deletes the session only once when the listener sees the sign out afterwards", async () => {
     const { result } = await mount(fakeUser("u1", ["resident"]));
     await act(async () => { await result.current.signOut(); });

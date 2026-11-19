@@ -37,21 +37,22 @@ afterEach(() => {
     vi.resetAllMocks();
 });
 
-it("says it cannot be undone", () => {
+it("says the history is kept and that it cannot be undone", () => {
     const dialog = openDialog();
     expect(dialog).toHaveAttribute("open");
-    expect(dialog).toHaveTextContent("This cannot be undone.");
+    expect(dialog).toHaveTextContent("Your history is kept. This can't be undone.");
 });
 
-it("deletes the profile, then signs out, then goes to the login page", async () => {
+it("deletes the profile, then signs out without the server calls, then goes to the login page", async () => {
     const dialog = openDialog();
     fireEvent.click(within(dialog).getByRole("button", { name: "Deactivate account" }));
     await waitFor(() => expect(calls).toEqual(["DELETE /api/profile", "signOut", "replace /login"]));
+    expect(signOut).toHaveBeenCalledWith({ skipServer: true });
 });
 
 it("calls nothing when the dialog is cancelled", () => {
     const dialog = openDialog();
-    fireEvent.click(within(dialog).getByRole("button", { name: "Keep my account" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Keep account" }));
     expect(dialog).not.toHaveAttribute("open");
     expect(calls).toEqual([]);
 });
@@ -60,7 +61,7 @@ it("shows the active_work sentence, keeps the dialog open and does not sign out"
     vi.mocked(api.delete).mockRejectedValue(new ApiError(409, { error: { code: "active_work", message: "busy" } }));
     const dialog = openDialog();
     fireEvent.click(within(dialog).getByRole("button", { name: "Deactivate account" }));
-    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Finish or cancel your open requests and assignments first.");
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("You can't deactivate your account while you have requests or pickups in progress.");
     expect(dialog).toHaveAttribute("open");
     expect(signOut).not.toHaveBeenCalled();
     expect(router.replace).not.toHaveBeenCalled();
@@ -82,7 +83,7 @@ it("does not send twice when confirmed again while busy", async () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Deactivate account" }));
     const busy = await within(dialog).findByRole("button", { name: "Deactivating..." });
     expect(busy).toBeDisabled();
-    expect(within(dialog).getByRole("button", { name: "Keep my account" })).toBeDisabled();
+    expect(within(dialog).getByRole("button", { name: "Keep account" })).toBeDisabled();
     fireEvent.click(busy);
     expect(api.delete).toHaveBeenCalledTimes(1);
     await act(async () => finish());
