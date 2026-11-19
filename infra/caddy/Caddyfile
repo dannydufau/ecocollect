@@ -9,7 +9,7 @@
 }
 
 (verify-auth) {
-	forward_auth user {
+	forward_auth auth {
 		uri /verify
 		copy_headers {
 			X-User-Id
@@ -24,6 +24,7 @@ localhost {
 
 	handle /api/* {
 		# reward paths, public
+		# Match profile stats before the User Service's public profile route.
 		@reward-public-paths <<CEL
 			(method('GET') && (path('/api/public/stats') || path_regexp('^/api/public/profiles/[^/]+/stats$')))
 			CEL
@@ -44,13 +45,21 @@ localhost {
 
 		# user paths, public
 		@user-public-paths <<CEL
-			(method('POST', 'DELETE') && path('/api/session')) ||
 			(method('POST') && path('/api/accounts')) ||
 			(method('GET') && (path('/api/terms') || path_regexp('^/api/public/profiles/[^/]+$')))
 			CEL
 
 		handle @user-public-paths {
 			reverse_proxy user
+		}
+
+		# Session and verification stay on the backend until USER-04 moves them.
+		@session-paths {
+			method POST DELETE
+			path /api/session
+		}
+		handle @session-paths {
+			reverse_proxy auth
 		}
 
 		# user paths, auth
@@ -116,7 +125,18 @@ localhost {
 	handle_errors {
 		handle /api/* {
 			header Content-Type application/json
-			respond `{"status": {err.status_code}, "error": "{err.message}"}` {err.status_code}
+			@404 expression `{err.status_code} == 404`
+			handle @404 {
+				respond `{"error":{"code":"not_found","message":"Not found."}}` 404
+			}
+			@unavailable expression `{err.status_code} in [502, 503, 504]`
+			handle @unavailable {
+				respond `{"error":{"code":"service_unavailable","message":"The service is unavailable. Try again."}}` {err.status_code}
+			}
+			# any other error Caddy raises itself (e.g. 400, 413)
+			handle {
+				respond `{"error":{"code":"gateway_error","message":"The request could not be handled."}}` {err.status_code}
+			}
 		}
 	}
 }

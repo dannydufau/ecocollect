@@ -141,7 +141,7 @@ This avoids dependencies such as `delivery_id → facility_id → facility addre
 Normalization must preserve the meaning of historical values:
 
 - A resident's current profile address can change after their active work ends. Each request retains its original pickup address (BR34). Thus one resident ID does not determine a single historical address across all requests.
-- Category standard weight can change while earlier requests retain their estimates (BR31). Therefore, the same category and quantity can have different estimates on requests created at different times. `(category_id, quantity) → estimated_weight_kg` does not hold across the full request history. The system calculates the estimate when a request is created or edited.
+- Category standard weight can change while earlier requests retain their estimates (BR31). Therefore, the same category and quantity can have different estimates on requests created at different times. `(category_id, quantity) → estimated_weight_kg` does not hold across the full request history. The system calculates the estimate when a request is created or edited. A replacement created after a missed pickup is a new request, so its estimate uses the current category weight. The missed request keeps its previous estimate (contract 12.5).
 - Award points and the formula used are frozen facts (BR41). A request may be edited after a cancellation award, and later formulas can affect new awards. Current request values must not overwrite an old award's meaning. Repeating the same formula text does not mean that a role must always use that formula.
 
 ## Conclusion

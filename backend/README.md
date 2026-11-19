@@ -1,5 +1,15 @@
 # Backend
 
+## User Service (`src/user/`)
+
+Run `node src/user/index.ts` from `backend/` with Node 22.18 or newer. It listens on port 3004 locally, or `PORT` when set. Compose starts the same backend image with this entry point on port 80, without exposing a host port. `GET /health` returns `{ "status": "ok" }`; other paths return the JSON error shape until their endpoint tickets are added.
+
+Add endpoint files to `src/user/routes/`. Each file exports `register(app)` and registers its routes on the Express app. Files are loaded in filename order before the shared 404 and error handlers. Protected handlers use the gateway's verified user headers; public handlers do not read them. `http/errors.ts` provides `HttpError` and `validationFailed(fields)`.
+
+Session creation, logout and `/verify` stay on the existing backend through the `auth` alias until USER-04 (#229) moves them together. The Firebase key remains mounted on the backend during this transition and is also mounted on the new User Service. Request, Reward and Notification services do not receive it.
+
+The layout follows the Request Service on branch `102-request-service`. Database setup and endpoints are separate User Service tickets. `npm test` includes the User Service tests.
+
 ## Auth module (`src/api/auth/`)
 
 This checks Firebase users for the gateway. It lives in the API server for now, but it has its own router so it can become a separate service later.

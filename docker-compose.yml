@@ -65,6 +65,26 @@ services:
       timeout: 3s
       retries: 10
 
+  user:
+    build:
+      context: ./backend
+    command: ["node", "src/user/index.ts"]
+    restart: unless-stopped
+    environment:
+      PORT: "80"
+      DATABASE_URL: postgres://${POSTGRES_USER:-ecocollect}:${POSTGRES_PASSWORD:?copy .env.example to .env first}@postgres:5432/${POSTGRES_DB:-ecocollect}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-ecocollect}:${RABBITMQ_PASSWORD:?copy .env.example to .env first}@rabbitmq:5672
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/firebase-admin.json
+    secrets:
+      - firebase-admin.json
+    sysctls:
+      net.ipv4.ip_unprivileged_port_start: 0
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:80/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   notification:                     # SSE live updates (issue #25): RabbitMQ events in, /api/events streams out
     build:
       context: ./backend            # same image as the backend, started with a different entry point
@@ -133,6 +153,8 @@ services:
       - caddy_config:/config
     depends_on:
       backend:
+        condition: service_healthy
+      user:
         condition: service_healthy
       frontend:
         condition: service_started
