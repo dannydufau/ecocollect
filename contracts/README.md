@@ -255,6 +255,8 @@ sequenceDiagram
 
 ## 8. Who writes and who reads
 
+Terms document IDs are UUIDs in the database and strings in API bodies. For U4, U8, Q4, Q11 and a Q14 reschedule, check the supplied `termsDocumentId` before casting it to UUID. A malformed, unknown or outdated ID returns `409 terms_outdated`, never a database cast error reported as `500`.
+
 Each service's DB user has full rights on its own schema and `SELECT` on every other schema. Reading is free; writing has one owner per table, so each rule (and its locking and outbox event) lives in one place.
 
 | Writer | Tables (ER names) |

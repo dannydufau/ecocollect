@@ -27,7 +27,7 @@ CREATE TABLE resident (
     CONSTRAINT resident_fk1 FOREIGN KEY (account_id)
         REFERENCES account (account_id),
     CONSTRAINT resident_ck1 CHECK (TRIM(street) <> ''),
-    CONSTRAINT resident_ck2 CHECK (postal_code ~ '^T[1-4][ABCEGHJKLMNPRSTVWXYZ][0-9][ABCEGHJKLMNPRSTVWXYZ][0-9]$')
+    CONSTRAINT resident_ck2 CHECK (postal_code ~ '^T[0-9][A-Z][0-9][A-Z][0-9]$')
 );
 
 CREATE TABLE volunteer (
@@ -43,7 +43,7 @@ CREATE TABLE volunteer_preferred_postal_code (
     CONSTRAINT volunteer_preferred_postal_code_pk PRIMARY KEY (account_id, postal_code),
     CONSTRAINT volunteer_preferred_postal_code_fk1 FOREIGN KEY (account_id)
         REFERENCES volunteer (account_id),
-    CONSTRAINT volunteer_preferred_postal_code_ck1 CHECK (postal_code ~ '^T[1-4][ABCEGHJKLMNPRSTVWXYZ][0-9][ABCEGHJKLMNPRSTVWXYZ][0-9]$')
+    CONSTRAINT volunteer_preferred_postal_code_ck1 CHECK (postal_code ~ '^T[0-9][A-Z][0-9][A-Z][0-9]$')
 );
 
 CREATE TABLE push_subscription (
@@ -131,7 +131,7 @@ CREATE TABLE pickup_request (
     CONSTRAINT pickup_request_ck2 CHECK (estimated_weight_kg > 0),
     CONSTRAINT pickup_request_ck3 CHECK (request_seq > 0),
     CONSTRAINT pickup_request_ck4 CHECK (TRIM(pickup_street) <> ''),
-    CONSTRAINT pickup_request_ck5 CHECK (pickup_postal_code ~ '^T[1-4][ABCEGHJKLMNPRSTVWXYZ][0-9][ABCEGHJKLMNPRSTVWXYZ][0-9]$'),
+    CONSTRAINT pickup_request_ck5 CHECK (pickup_postal_code ~ '^T[0-9][A-Z][0-9][A-Z][0-9]$'),
     CONSTRAINT pickup_request_ck6 CHECK (rescheduled_from_request_id IS NULL OR rescheduled_from_request_id <> pickup_request_id)
 );
 
@@ -188,7 +188,7 @@ CREATE TABLE recycling_facility (
     CONSTRAINT recycling_facility_pk PRIMARY KEY (facility_id),
     CONSTRAINT recycling_facility_ck1 CHECK (TRIM(name) <> ''),
     CONSTRAINT recycling_facility_ck2 CHECK (TRIM(street) <> ''),
-    CONSTRAINT recycling_facility_ck3 CHECK (postal_code ~ '^T[1-4][ABCEGHJKLMNPRSTVWXYZ][0-9][ABCEGHJKLMNPRSTVWXYZ][0-9]$')
+    CONSTRAINT recycling_facility_ck3 CHECK (postal_code ~ '^T[0-9][A-Z][0-9][A-Z][0-9]$')
 );
 
 CREATE TABLE facility_accepts (

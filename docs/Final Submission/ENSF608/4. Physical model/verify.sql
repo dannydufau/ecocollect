@@ -9,7 +9,10 @@ DECLARE
     test RECORD;
 BEGIN
     FOR test IN SELECT * FROM (VALUES
-        ('Invalid postal-code letters', 'UPDATE resident SET postal_code=''T2I1O9'' WHERE account_id=''resident1''', '23514'),
+        ('Lowercase resident postal code', 'UPDATE resident SET postal_code=''t2p1j9'' WHERE account_id=''resident1''', '23514'),
+        ('Lowercase preferred postal code', 'UPDATE volunteer_preferred_postal_code SET postal_code=''t2p1j9'' WHERE account_id=''volunteer1'' AND postal_code=''T2P1J9''', '23514'),
+        ('Spaces in pickup postal code', 'UPDATE pickup_request SET pickup_postal_code=''T2 P1J'' WHERE pickup_request_id=''00000003-0000-4000-8000-000000000001''', '23514'),
+        ('Wrong facility postal-code prefix', 'UPDATE recycling_facility SET postal_code=''V2P1J9'' WHERE facility_id=''00000006-0000-4000-8000-000000000001''', '23514'),
         ('Award on an unfinished assignment', 'UPDATE ecopoints_award SET assignment_id=''00000005-0000-4000-8000-000000000002'' WHERE ecopoints_award_id=''00000008-0000-4000-8000-000000000001''; CALL check_business_rules()', '23514'),
         ('Duplicate account key', 'INSERT INTO volunteer VALUES (''volunteer1'')', '23505'),
         ('Unknown account', 'INSERT INTO volunteer VALUES (''unknown-person'')', '23503'),
@@ -61,6 +64,15 @@ END;
 $$;
 
 -- These valid changes also leave the original seed data intact.
+SAVEPOINT postal_format_test;
+UPDATE resident SET postal_code='T0A0A0' WHERE account_id='resident1';
+UPDATE volunteer_preferred_postal_code SET postal_code='T9Z9Z9'
+WHERE account_id='volunteer1' AND postal_code='T2P1J9';
+UPDATE pickup_request SET pickup_postal_code='T0A0A0'
+WHERE pickup_request_id='00000003-0000-4000-8000-000000000001';
+UPDATE recycling_facility SET postal_code='T9Z9Z9' WHERE facility_id='00000006-0000-4000-8000-000000000001';
+ROLLBACK TO SAVEPOINT postal_format_test;
+
 CALL add_preferred_code('volunteer3','T2P1J9');
 CALL attach_item_photo('00000003-0000-4000-8000-000000000001','item-photo-1');
 CALL check_business_rules();

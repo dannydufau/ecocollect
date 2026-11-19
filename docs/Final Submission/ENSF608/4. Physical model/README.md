@@ -24,6 +24,8 @@ psql -X -v ON_ERROR_STOP=1 -d ecocollect608 -f tables.sql -f transactions.sql -f
 
 Use a fresh database. The scripts stop on an error, and table creation and seeding each run in one transaction. The tables are placed in the `ecocollect608` schema. Running `tables.sql` again will fail because the schema already exists; it does not delete an existing database.
 
+`ecocollect608` contains the complete course model for running these files together. The application uses the service schemas in contract sections 2.1 and 8: `users`, `requests`, `rewards`, `notifications` and `cleanup`. Application migrations keep the same table names, columns, keys and relationships, placing each table in its service schema and qualifying references across schemas. Terms acceptance remains the shared insert-only table described in section 8. Each service has write access to its own tables and the required read access to other schemas. Application integration is tracked in #191; these course scripts do not configure service users or permissions.
+
 The SQL equivalent of `createdb ecocollect608` is `CREATE DATABASE ecocollect608;`. Connect to that database before running the files.
 
 To check the same database again:
@@ -52,7 +54,9 @@ The age check also uses the Calgary calendar date, so changing the connection's 
 
 PostgreSQL syntax is used for schema selection, postal-code and username patterns, time-zone conversion and procedure bodies. No extensions are needed. Primary keys and unique constraints create their own indexes.
 
-Postal-code checks validate the stored format. The service must check that the supplied address is in Calgary.
+All four postal-code columns use the contract's format check: `^T[0-9][A-Z][0-9][A-Z][0-9]$`. This checks six uppercase letter/digit characters starting with T; it does not prove that a code exists or that an address is in Calgary. The service must check the Calgary address separately.
+
+Terms document IDs remain `UUID` values, as in the logical model. The API sends them as strings. Services must check a supplied ID before casting it to UUID and return `409 terms_outdated` if it is malformed, unknown or no longer current. A malformed ID must not reach a UUID cast and become a `500`. The contract examples use the current terms UUID from `seed.sql`.
 
 ## Constraints and transactions
 
@@ -109,7 +113,8 @@ Tested on PostgreSQL 16.6:
 
 - A fresh database was created and all scripts completed successfully.
 - The database matched all 25 tables, 100 column names and types, nullability, and 30 foreign keys in the logical model.
-- `verify.sql` rejected 36 invalid writes and rolled back its test changes.
+- `verify.sql` rejected 39 invalid writes and rolled back its test changes.
+- Postal-code checks accept the API's format across resident addresses, preferred codes, pickup addresses and facilities, while rejecting lowercase, spaces and a wrong prefix. The format-only test values are rolled back.
 - Valid cases cover replacement edits, a recalculated replacement estimate, delayed events, late cancellation awards and accepting an available request with current terms.
 - Two concurrent connections were tested for duplicate unfinished assignments, a fourth preferred code, duplicate awards for one assignment and role, and a photo used for both an item and delivery evidence. In each case the second writer waited for the parent lock and was rejected after the first committed.
 

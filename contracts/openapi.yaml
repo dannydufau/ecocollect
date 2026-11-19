@@ -173,7 +173,7 @@ paths:
               address:
                 street: 123 4 Ave SW
                 postalCode: T2P1J9
-              termsDocumentId: terms_3
+              termsDocumentId: 00000001-0000-4000-8000-000000000002
       responses:
         '201':
           description: Registered.
@@ -369,7 +369,7 @@ paths:
               $ref: '#/components/schemas/ActivateRole'
             example:
               role: resident
-              termsDocumentId: terms_3
+              termsDocumentId: 00000001-0000-4000-8000-000000000002
               address:
                 street: 9 Main St NW
                 postalCode: T3A0B1
@@ -607,7 +607,7 @@ paths:
                 - date: '2026-11-22'
                   startHour: 14
               notes: Side door
-              termsDocumentId: terms_3
+              termsDocumentId: 00000001-0000-4000-8000-000000000002
       responses:
         '201':
           description: Created, one per item.
@@ -946,7 +946,7 @@ paths:
               $ref: '#/components/schemas/AcceptRequest'
             example:
               windowId: w_1
-              termsDocumentId: terms_3
+              termsDocumentId: 00000001-0000-4000-8000-000000000002
       responses:
         '201':
           description: 'Accepted: the request detail, now with the address.'
@@ -1113,7 +1113,7 @@ paths:
                 windows:
                   - date: '2026-11-24'
                     startHour: 10
-                termsDocumentId: terms_3
+                termsDocumentId: 00000001-0000-4000-8000-000000000002
       responses:
         '200':
           description: The missed request, and the new one if rescheduled.
@@ -2481,6 +2481,7 @@ components:
           $ref: ./schemas/common.yaml#/Timestamp
     TermsDocument:
       type: object
+      description: Terms IDs are stored as UUIDs and returned as strings. Before database casts, handlers reject malformed, unknown or outdated submitted terms IDs with 409 terms_outdated.
       additionalProperties: false
       required:
         - termsDocumentId
