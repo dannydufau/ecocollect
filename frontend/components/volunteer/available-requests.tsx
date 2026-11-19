@@ -1,21 +1,26 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { formatPostalCode } from "@/lib/postal-code";
 import { formatTimestamp, formatWindow, friendlyWindow } from "@/lib/time";
 import type { AvailableRequest } from "@/lib/types";
+import { useProfile } from "@/lib/use-profile";
 import { Alert, Button, EmptyState, Spinner, clickableCard, pageTitle, stretchedLink, textLink } from "@/components/ui";
-
-// FE-047 adds the postal code filter that fills this
-const codes: string[] = [];
+import PostalFilter from "./postal-filter";
 
 export default function AvailableRequests() {
+    const profile = useProfile();
+    // Null until the profile has loaded or failed, then the preferred codes are taken once (README 16.9)
+    const [codes, setCodes] = useState<string[] | null>(null);
+    if (codes === null && (profile.data || profile.isError)) setCodes(profile.data?.preferredPostalCodes ?? []);
     const { data, isPending, isError, refetch, isFetching } = useQuery({
         queryKey: [...queryKeys.availableRequests, codes],
-        queryFn: () => api.get<AvailableRequest[]>(`/api/requests?view=available${codes.length ? `&postalCodes=${encodeURIComponent(codes.join(","))}` : ""}`),
+        queryFn: () => api.get<AvailableRequest[]>(`/api/requests?view=available${codes?.length ? `&postalCodes=${encodeURIComponent(codes.join(","))}` : ""}`),
+        enabled: codes !== null,
     });
 
     return (
@@ -24,6 +29,7 @@ export default function AvailableRequests() {
                 <h1 id="available-heading" className={pageTitle}>Available requests</h1>
                 <Link href="/volunteer/history" className={textLink}>History</Link>
             </div>
+            {codes && <PostalFilter codes={codes} onChange={setCodes} />}
             {isPending && <Spinner label="Loading requests..." />}
             {isError && <>
                 <Alert variant="error">We could not load the requests. Please try again.</Alert>

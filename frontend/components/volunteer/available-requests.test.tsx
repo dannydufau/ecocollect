@@ -16,10 +16,20 @@ const row = (overrides: Partial<AvailableRequest> = {}): AvailableRequest => ({
     ...overrides,
 });
 
+// The profile comes first and has no preferred codes, so the list has no filter
+function serve(list: unknown) {
+    vi.mocked(api.get).mockImplementation(async (path: string) => {
+        const value = path === "/api/profile" ? { preferredPostalCodes: [] } : list;
+        if (value instanceof Error) throw value;
+        return value;
+    });
+}
+
 beforeEach(() => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-11-20T18:00:00Z"));
-    vi.mocked(api.get).mockReset().mockResolvedValue([row(), row({ requestId: "r2", hasPhoto: false, postalCode: "T3A0B1" })]);
+    vi.mocked(api.get).mockReset();
+    serve([row(), row({ requestId: "r2", hasPhoto: false, postalCode: "T3A0B1" })]);
 });
 
 // Vitest does not clean the page between tests by itself
@@ -46,7 +56,7 @@ it("shows the number of requests", async () => {
 });
 
 it("says 1 request for a single card", async () => {
-    vi.mocked(api.get).mockResolvedValue([row()]);
+    serve([row()]);
     renderWithClient(<AvailableRequests />);
     expect(await screen.findByText("1 request")).toHaveAttribute("role", "status");
 });
@@ -64,21 +74,22 @@ it("shows the photo mark only when the request has a photo", async () => {
 });
 
 it("shows the empty state", async () => {
-    vi.mocked(api.get).mockResolvedValue([]);
+    serve([]);
     renderWithClient(<AvailableRequests />);
     expect(await screen.findByText("Nothing available right now")).toBeInTheDocument();
 });
 
 it("shows an error", async () => {
-    vi.mocked(api.get).mockRejectedValue(new Error("down"));
+    serve(new Error("down"));
     renderWithClient(<AvailableRequests />);
     expect(await screen.findByRole("alert")).toHaveTextContent("We could not load the requests. Please try again.");
 });
 
 it("lets the volunteer try again after an error", async () => {
-    vi.mocked(api.get).mockRejectedValueOnce(new Error("down"));
+    serve(new Error("down"));
     renderWithClient(<AvailableRequests />);
     await screen.findByRole("alert");
+    serve([row(), row({ requestId: "r2" })]);
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(await screen.findAllByRole("link", { name: "2 × Computers/Laptops" })).toHaveLength(2);
 });
@@ -98,7 +109,8 @@ it("fetches again when the available requests key is invalidated", async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(<QueryClientProvider client={client}><AvailableRequests /></QueryClientProvider>);
     await screen.findAllByRole("link", { name: "2 × Computers/Laptops" });
-    expect(api.get).toHaveBeenCalledTimes(1);
+    vi.mocked(api.get).mockClear();
     await client.invalidateQueries({ queryKey: ["requests", "available"] });
-    expect(api.get).toHaveBeenCalledTimes(2);
+    expect(api.get).toHaveBeenCalledTimes(1);
+    expect(api.get).toHaveBeenCalledWith("/api/requests?view=available");
 });
