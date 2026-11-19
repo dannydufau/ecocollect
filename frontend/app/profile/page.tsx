@@ -8,6 +8,8 @@ import { formatDate, formatTimestamp } from "@/lib/time";
 import type { Profile } from "@/lib/types";
 import { useProfile } from "@/lib/use-profile";
 import { AddressEditor, CodesEditor, PublicNameEditor } from "./editors";
+import type { Notice } from "./notice";
+import { SecondRole } from "./second-role";
 
 const roleNames = { resident: "Resident", volunteer: "Volunteer" };
 const cardTitle = "text-[22px]";
@@ -23,15 +25,16 @@ export default function ProfilePage() {
     const { data, isPending, isError, error, refetch, isFetching } = useProfile();
     // Only one card is edited at a time
     const [editing, setEditing] = useState<Card | null>(null);
-    const [saved, setSaved] = useState(false);
+    // The result of the last change, kept here because a card can disappear after it (the role card does)
+    const [notice, setNotice] = useState<Notice | null>(null);
     const profile: Profile | undefined = data;
 
     function editor(card: Card) {
         return {
             open: editing === card,
-            onOpen: () => { setSaved(false); setEditing(card); },
+            onOpen: () => { setNotice(null); setEditing(card); },
             onClose: () => setEditing(null),
-            onSaved: () => { setSaved(true); setEditing(null); },
+            onSaved: () => { setNotice({ variant: "success", text: "Profile saved." }); setEditing(null); },
         };
     }
 
@@ -41,7 +44,7 @@ export default function ProfilePage() {
                 <h1 className={pageTitle}>Profile</h1>
                 {profile && <Link href={`/profiles/${encodeURIComponent(profile.accountId)}`} className={textLink}>View my public profile</Link>}
             </div>
-            {saved && <Alert variant="success">Profile saved.</Alert>}
+            {notice && <Alert variant={notice.variant}>{notice.text}</Alert>}
             {isPending && <Spinner label="Loading your profile..." />}
             {isError && <div className="space-y-2">
                 <Alert variant="error">
@@ -79,6 +82,7 @@ export default function ProfilePage() {
                 <h2 id="codes-heading" className={cardTitle}>Preferred postal codes</h2>
                 <CodesEditor profile={profile} {...editor("codes")} />
             </section>}
+            {profile && <SecondRole profile={profile} onDone={setNotice} />}
         </main>
     );
 }
