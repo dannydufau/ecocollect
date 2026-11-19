@@ -13,6 +13,8 @@ class FakeSource {
     listeners = new Map<string, (event: { data: string }) => void>();
     onopen: (() => void) | null = null;
     onerror: (() => void) | null = null;
+    static CLOSED = 2;
+    readyState = 0;
     close = vi.fn();
     constructor(public url: string, public init?: EventSourceInit) { FakeSource.all.push(this); }
     addEventListener(name: string, listener: (event: { data: string }) => void) { this.listeners.set(name, listener); }
@@ -165,6 +167,7 @@ it("account-deactivated signs out", () => {
     mount();
     act(() => FakeSource.all[0].emit("account-deactivated", {}));
     expect(signOut).toHaveBeenCalledTimes(1);
+    expect(signOut).toHaveBeenCalledWith({ skipServer: true });
 });
 
 it("refetches notifications every 30 s while the stream is down and stops on reopen", () => {
@@ -197,6 +200,68 @@ it("leaves no timer after unmount or sign-out", () => {
     act(() => FakeSource.all[1].onerror?.());
     signedOut();
     again.rerender();
+    expect(vi.getTimerCount()).toBe(0);
+});
+
+it("opens a new stream after the browser gave up, waiting longer each time and starting over once it opens", () => {
+    vi.useFakeTimers();
+    mount();
+    const closed = (source: FakeSource) => { source.readyState = FakeSource.CLOSED; act(() => source.onerror?.()); };
+
+    closed(FakeSource.all[0]);
+    act(() => { vi.advanceTimersByTime(4_999); });
+    expect(FakeSource.all).toHaveLength(1);
+    act(() => { vi.advanceTimersByTime(1); });
+    expect(FakeSource.all).toHaveLength(2);
+    expect(FakeSource.all[0].close).toHaveBeenCalledTimes(1);
+
+    closed(FakeSource.all[1]);
+    act(() => { vi.advanceTimersByTime(9_999); });
+    expect(FakeSource.all).toHaveLength(2);
+    act(() => { vi.advanceTimersByTime(1); });
+    expect(FakeSource.all).toHaveLength(3);
+
+    act(() => FakeSource.all[2].onopen?.());
+    closed(FakeSource.all[2]);
+    act(() => { vi.advanceTimersByTime(5_000); });
+    expect(FakeSource.all).toHaveLength(4);
+});
+
+it("never waits more than 30 s between tries", () => {
+    vi.useFakeTimers();
+    mount();
+    for (let i = 0; i < 6; i++) {
+        const source = FakeSource.all[i];
+        source.readyState = FakeSource.CLOSED;
+        act(() => source.onerror?.());
+        act(() => { vi.advanceTimersByTime(30_000); });
+    }
+    expect(FakeSource.all).toHaveLength(7);
+    const last = FakeSource.all[6];
+    last.readyState = FakeSource.CLOSED;
+    act(() => last.onerror?.());
+    act(() => { vi.advanceTimersByTime(29_999); });
+    expect(FakeSource.all).toHaveLength(7);
+    act(() => { vi.advanceTimersByTime(1); });
+    expect(FakeSource.all).toHaveLength(8);
+});
+
+it("leaves the browser alone while it is reconnecting by itself", () => {
+    vi.useFakeTimers();
+    mount();
+    act(() => FakeSource.all[0].onerror?.());
+    act(() => { vi.advanceTimersByTime(60_000); });
+    expect(FakeSource.all).toHaveLength(1);
+});
+
+it("cancels a waiting retry on unmount", () => {
+    vi.useFakeTimers();
+    const view = mount();
+    FakeSource.all[0].readyState = FakeSource.CLOSED;
+    act(() => FakeSource.all[0].onerror?.());
+    view.unmount();
+    act(() => { vi.advanceTimersByTime(60_000); });
+    expect(FakeSource.all).toHaveLength(1);
     expect(vi.getTimerCount()).toBe(0);
 });
 

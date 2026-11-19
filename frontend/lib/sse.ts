@@ -5,6 +5,9 @@ import { keysFor } from "@/lib/invalidate";
 import { queryKeys } from "@/lib/query-keys";
 import type { Notification } from "@/lib/types";
 
+const RETRY_FIRST = 5_000;
+const RETRY_MAX = 30_000;
+
 export const StreamContext = createContext<() => void>(() => {});
 
 // Lets any page reopen the stream
@@ -27,6 +30,8 @@ export function useEventStream() {
     const { user, roles, signOut, refreshRoles } = useAuth();
     const queryClient = useQueryClient();
     const [opened, setOpened] = useState(0);
+    // How long to wait before opening the stream again after the browser gave up on it
+    const retryDelay = useRef(RETRY_FIRST);
     const uid = user && roles.length > 0 ? user.uid : null;
     const roleList = roles.join(",");
 
@@ -38,6 +43,7 @@ export function useEventStream() {
         if (!uid || typeof EventSource === "undefined") return;
         const source = new EventSource("/api/events", { withCredentials: true });
         let timer: ReturnType<typeof setInterval> | undefined;
+        let retry: ReturnType<typeof setTimeout> | undefined;
         const stopTimer = () => {
             clearInterval(timer);
             timer = undefined;
@@ -82,19 +88,27 @@ export function useEventStream() {
             invalidate(queryKeys.availableRequests);
             invalidate(queryKeys.request(data.requestId));
         });
-        on("account-deactivated", () => void latest.current.signOut());
+        on("account-deactivated", () => void latest.current.signOut({ skipServer: true }));
 
         source.onopen = () => {
             stopTimer();
+            retryDelay.current = RETRY_FIRST;
             queryClient.invalidateQueries();
         };
         // The browser reconnects by itself, meanwhile the bell is kept fresh by asking every 30 s
         source.onerror = () => {
             timer ??= setInterval(() => invalidate(queryKeys.notifications), 30_000);
+            // After a non-200 answer (a 502 while the service restarts) the browser gives up for good (issue #59),
+            // so open a new stream later, waiting a bit longer each time
+            if (source.readyState === EventSource.CLOSED && retry === undefined) {
+                retry = setTimeout(() => setOpened((count) => count + 1), retryDelay.current);
+                retryDelay.current = Math.min(retryDelay.current * 2, RETRY_MAX);
+            }
         };
 
         return () => {
             stopTimer();
+            clearTimeout(retry);
             source.close();
         };
     }, [uid, roleList, opened, queryClient]);
