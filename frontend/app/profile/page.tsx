@@ -5,6 +5,7 @@ import { Alert, Button, Spinner, card, pageTitle, textLink } from "@/components/
 import { ApiError, isAuthError } from "@/lib/api";
 import { formatTimestamp } from "@/lib/time";
 import { useProfile } from "@/lib/use-profile";
+import { DeactivateAccount } from "./deactivate-account";
 import { EditProfile } from "./edit-profile";
 import { SecondRole } from "./second-role";
 
@@ -59,6 +60,7 @@ export default function ProfilePage() {
                 </section>}
                 {data && <EditProfile profile={data} />}
                 {data && <SecondRole profile={data} />}
+                {data && <DeactivateAccount />}
             </div>
         </main>
     );
