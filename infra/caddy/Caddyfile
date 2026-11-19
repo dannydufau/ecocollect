@@ -116,7 +116,13 @@ localhost {
 	handle_errors {
 		handle /api/* {
 			header Content-Type application/json
-			respond `{"status": {err.status_code}, "error": "{err.message}"}` {err.status_code}
+			@404 expression `{err.status_code} == 404`
+			handle @404 {
+				respond `{"error":{"code":"not_found","message":"Not found."}}` 404
+			}
+			handle {
+				respond `{"error":{"code":"service_unavailable","message":"The service is unavailable. Try again."}}` {err.status_code}
+			}
 		}
 	}
 }
