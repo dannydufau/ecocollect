@@ -4,10 +4,6 @@
 		path /verify
 	}
 
-	@cookie-post {
-		method POST
-	}
-
 	@good-resident header Authorization "Bearer good-resident"
 	@good-volunteer header Authorization "Bearer good-volunteer"
 	@good-cookie-resident header_regexp Cookie "session=good-resident"
@@ -17,44 +13,97 @@
 		handle @good-resident {
 			header X-User-Id "resident-id-1"
 			header X-User-Roles "resident"
-			respond 200
+			respond "Name: user" 200
 		}
 
 		handle @good-cookie-resident {
 			header X-User-Id "resident-id-1"
 			header X-User-Roles "resident"
-			respond 200
+			respond "Name: user" 200
 		}
 
 		handle @good-volunteer {
 			header X-User-Id "volunteer-id-1"
 			header X-User-Roles "volunteer"
-			respond 200
+			respond "Name: user" 200
 		}
 
 		handle @good-cookie-volunteer {
 			header X-User-Id "volunteer-id-1"
 			header X-User-Roles "volunteer"
-			respond 200
+			respond "Name: user" 200
 		}
 
 		handle {
-			error "Unauthorized" 401
+			error "Name: user. Unauthorized" 401
 		}
 	}
 
+	@user-get {
+		method GET
+	}
+
+	@user-post {
+		method POST
+	}
+
+	@user-patch {
+		method PATCH
+	}
+
+	@user-delete {
+		method DELETE
+	}
+
 	handle /api/session {
-		handle @cookie-post {
+		handle @user-post {
 			header Set-Cookie "session=good-resident; Path=/; SameSite=Lax"
 			respond 204
 		}
-		handle {
+		handle @user-delete {
+			header Set-Cookie "session=; Max-Age=0; Path=/; SameSite=Lax"
 			respond 204
+		}
+	}
+
+	handle /api/accounts {
+		handle @user-post {
+			error "Name: user" 400
+		}
+	}
+
+	handle /api/terms {
+		handle @user-get {
+			respond "Name: user. Terms document" 200
+		}
+	}
+
+	handle /api/public/profiles/* {
+		handle @user-get {
+			error "Name: user. No public profile found." 404
+		}
+	}
+
+	handle /api/profile {
+		handle @user-get {
+			respond "Name: user. User profile" 200
+		}
+		handle @user-patch {
+			respond "Name: user. User updated" 200
+		}
+		handle @user-delete {
+			respond 204
+		}
+	}
+
+	handle /api/profile/roles {
+		handle @user-post {
+			respond "Name: user. User role activated" 200
 		}
 	}
 
 	handle {
-		error "Unauthorized" 401
+		error "Not found" 404
 	}
 
 	handle_errors {
