@@ -23,7 +23,7 @@ def uid(kind, number):
     return f"'{kind:08x}-0000-4000-8000-{number:012x}'"
 
 
-def race(name, first_sql, second_sql):
+def race(name, first_sql, second_sql, expected_message=None):
     first = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE, text=True)
     second = None
@@ -55,6 +55,8 @@ def race(name, first_sql, second_sql):
         error = second.stderr.read()
         if first.returncode != 0 or second.returncode == 0 or '23514' not in error:
             raise RuntimeError(name + ': unexpected result\n' + first.stderr.read() + error)
+        if expected_message is not None and expected_message not in error:
+            raise RuntimeError(name + ': wrong rule rejected the write\n' + error)
         print(name + ': second writer waited, then was rejected (23514)')
     finally:
         for process in (first, second):
@@ -115,5 +117,21 @@ try:
 finally:
     run(f'UPDATE pickup_request SET file_id=NULL WHERE pickup_request_id={uid(3,11)}; '
         "DELETE FROM photo WHERE file_id='concurrency-photo'")
+try:
+    race('Facility minimum categories',
+         f"CALL remove_facility_category({uid(6,3)},'phones')",
+         f"CALL remove_facility_category({uid(6,3)},'cables-chargers')",
+         'must accept at least one category')
+finally:
+    run(f"INSERT INTO facility_accepts VALUES ({uid(6,3)},'phones') ON CONFLICT DO NOTHING")
+
+try:
+    race('Category minimum facilities',
+         f"CALL remove_facility_category({uid(6,1)},'cables-chargers')",
+         f"CALL remove_facility_category({uid(6,3)},'cables-chargers')",
+         'must be accepted by at least one facility')
+finally:
+    run(f"INSERT INTO facility_accepts VALUES ({uid(6,1)},'cables-chargers') ON CONFLICT DO NOTHING")
+
 run('CALL check_business_rules()')
-print('All four concurrency checks passed; test rows removed.')
+print('All six concurrency checks passed; test rows removed.')

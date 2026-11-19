@@ -2,4 +2,6 @@ Preferred-code limit: second writer waited, then was rejected (23514)
 Unfinished assignment limit: second writer waited, then was rejected (23514)
 Award role limit: second writer waited, then was rejected (23514)
 Photo exclusivity: second writer waited, then was rejected (23514)
-All four concurrency checks passed; test rows removed.
+Facility minimum categories: second writer waited, then was rejected (23514)
+Category minimum facilities: second writer waited, then was rejected (23514)
+All six concurrency checks passed; test rows removed.

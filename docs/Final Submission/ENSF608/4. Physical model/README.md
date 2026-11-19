@@ -7,7 +7,7 @@ This PostgreSQL 16 implementation follows the final [logical model](<../2. Logic
 | File | Purpose |
 |---|---|
 | `tables.sql` | Creates the schema, tables, primary keys, foreign keys, unique constraints and checks. |
-| `transactions.sql` | Creates procedures for checking related rows and new requests, accepting a request, adding a preferred postal code and attaching an item photo. |
+| `transactions.sql` | Creates procedures for checking related rows and new requests, accepting a request, adding a preferred postal code, attaching an item photo and removing a facility/category link. |
 | `seed.sql` | Adds related sample data to every table. |
 | `verify.sql` | Checks the dataset, tests valid changes and confirms that invalid writes are rejected. Test changes are rolled back. |
 | `verify_concurrency.py` | Uses two database connections to test limits when writes happen at the same time. Requires Python 3 and `psql`. |
@@ -84,7 +84,7 @@ Use the default `READ COMMITTED` isolation level. All writers of the same rule m
 | Change account roles | Account |
 | Change facility/category links | Affected facility rows first, then category rows, each in ID order |
 
-`accept_request`, `add_preferred_code` and `attach_item_photo` perform their parent-row locks. An award and exactly one role row must be inserted in one transaction. A notification and exactly one source row must likewise be inserted together. The checker does not run automatically: direct table writes can bypass checks involving several rows. There are no triggers or partial indexes.
+`accept_request`, `add_preferred_code`, `attach_item_photo` and `remove_facility_category` perform their parent-row locks. To replace an acceptance link, add the replacement first, then call `remove_facility_category` in the same transaction. For changes involving several parents, lock all affected facility rows first and category rows second, each in ID order. An award and exactly one role row must be inserted in one transaction. A notification and exactly one source row must likewise be inserted together. The checker does not run automatically: direct table writes can bypass checks involving several rows. There are no triggers or partial indexes.
 
 Call `check_new_request(request_id)` during creation to check the current weight, copied profile address and any rescheduled item facts. A replacement gets a fresh weight estimate. It can be edited normally while Open; these creation checks do not freeze its later values. Earlier requests and awards keep their historical values.
 
@@ -118,6 +118,6 @@ Tested on PostgreSQL 16.6:
 - Removing a facility's last category or a category's last accepting facility was rejected, with the unlinked record's ID and name in the error. Moving a category to another accepting facility in one transaction passed.
 - Postal-code checks accept the API's format across resident addresses, preferred codes, pickup addresses and facilities, while rejecting lowercase, spaces and a wrong prefix. The format-only test values are rolled back.
 - Valid cases cover replacement edits, a recalculated replacement estimate, delayed events, late cancellation awards and accepting an available request with current terms.
-- Two concurrent connections were tested for duplicate unfinished assignments, a fourth preferred code, duplicate awards for one assignment and role, and a photo used for both an item and delivery evidence. In each case the second writer waited for the parent lock and was rejected after the first committed.
+- Two concurrent connections were tested for duplicate unfinished assignments, a fourth preferred code, duplicate awards for one assignment and role, a photo used for both an item and delivery evidence, and concurrent removals of the last facility/category links in both directions. In each case the second writer waited for the parent lock and was rejected after the first committed.
 
 `verify.sql` prints request-state counts, award totals and notification-source counts. The separate database-operations deliverable will use this dataset for its numbered queries and saved results.

@@ -455,4 +455,16 @@ BEGIN
     CALL check_business_rules();
 END;
 $$;
+CREATE PROCEDURE remove_facility_category(p_facility_id UUID, p_category_id TEXT)
+LANGUAGE plpgsql
+SET search_path TO ecocollect608, pg_temp
+AS $$
+BEGIN
+    PERFORM 1 FROM recycling_facility WHERE facility_id=p_facility_id FOR UPDATE;
+    PERFORM 1 FROM item_category WHERE category_id=p_category_id FOR UPDATE;
+    DELETE FROM facility_accepts WHERE facility_id=p_facility_id AND category_id=p_category_id;
+    CALL check_business_rules();
+END;
+$$;
+
 COMMIT;
