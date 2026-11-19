@@ -131,3 +131,74 @@ BEGIN
     RETURN v_ids;
 END;
 $$;
+
+-- Field checks for new pickup windows: creating (Q4), editing (Q9), a resident's
+-- assignment cancellation with windows (Q12) and a reschedule (Q14). Element i of
+-- p_dates and p_hours is one slot. Every failure is returned, nothing is raised:
+-- the write function adds them to its own lists and writes nothing if any.
+--   p_field       path prefix in the error fields: 'windows' or 'reschedule.windows'
+--   p_now         each window must start after this moment
+--   p_created_at  ... and end by p_created_at + 30 days (FR07; the original
+--                 createdAt when editing or reopening, the new one when creating)
+-- One entry per window, for the first rule it breaks, in this order: in the
+-- future, within 30 days, not a repeat of an earlier slot. Error paths are
+-- zero-based (contract), PL/pgSQL arrays start at 1, so the path uses i - 1.
+-- The shape (date format, hour 0-23, 1-3 items) is checked in TypeScript first;
+-- the count is checked again here because 1-3 is a model rule. A NULL argument
+-- or element, or arrays of different lengths, is a bug in the caller and raises.
+CREATE OR REPLACE FUNCTION ecocollect608.req_validate_windows(
+    p_field          TEXT,
+    p_dates          DATE[],
+    p_hours          SMALLINT[],
+    p_now            TIMESTAMPTZ,
+    p_created_at     TIMESTAMPTZ,
+    OUT error_fields   TEXT[],
+    OUT error_messages TEXT[])
+LANGUAGE plpgsql
+STABLE
+SET search_path TO ecocollect608, pg_temp
+AS $$
+DECLARE
+    v_count INT := coalesce(cardinality(p_dates), 0);   -- cardinality(NULL) is NULL
+    v_start TIMESTAMPTZ;
+    v_end   TIMESTAMPTZ;
+    v_first INT;                                         -- earlier slot repeated by i
+BEGIN
+    error_fields   := '{}';
+    error_messages := '{}';
+
+    -- array_position(a, NULL) finds a NULL element (it compares with IS NOT DISTINCT FROM).
+    IF p_field IS NULL OR p_now IS NULL OR p_created_at IS NULL
+       OR v_count <> coalesce(cardinality(p_hours), 0)
+       OR array_position(p_dates, NULL) IS NOT NULL
+       OR array_position(p_hours, NULL) IS NOT NULL THEN
+        RAISE EXCEPTION 'req_validate_windows: NULL argument, NULL window or unpaired arrays';
+    END IF;
+
+    IF v_count NOT BETWEEN 1 AND 3 THEN
+        error_fields   := array_append(error_fields, p_field);
+        error_messages := array_append(error_messages, 'must have 1 to 3 windows');
+        RETURN;
+    END IF;
+
+    FOR i IN 1 .. v_count LOOP
+        v_start := ecocollect608.req_window_start(p_dates[i], p_hours[i]);
+        v_end   := ecocollect608.req_window_end(p_dates[i], p_hours[i]);
+
+        SELECT min(j) INTO v_first
+        FROM generate_subscripts(p_dates, 1) AS j
+        WHERE j < i AND p_dates[j] = p_dates[i] AND p_hours[j] = p_hours[i];
+
+        IF v_start <= p_now THEN
+            error_fields   := array_append(error_fields, format('%s[%s]', p_field, i - 1));
+            error_messages := array_append(error_messages, 'must start in the future');
+        ELSIF v_end > p_created_at + INTERVAL '30 days' THEN
+            error_fields   := array_append(error_fields, format('%s[%s]', p_field, i - 1));
+            error_messages := array_append(error_messages, 'must end within 30 days of the request''s creation');
+        ELSIF v_first IS NOT NULL THEN
+            error_fields   := array_append(error_fields, format('%s[%s]', p_field, i - 1));
+            error_messages := array_append(error_messages, format('same slot as %s[%s]', p_field, v_first - 1));
+        END IF;
+    END LOOP;
+END;
+$$;
