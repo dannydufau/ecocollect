@@ -74,6 +74,7 @@ export function startRequestPublisher(options: PublisherOptions): Publisher {
   let running: Promise<void> | undefined;
   let again = false;                  // nudged while running: run once more
   let stopped = false;
+  let lastError: string | undefined;  // the last logged failure, to log repeats once
 
   async function connect(): Promise<amqp.ConfirmChannel> {
     model = await amqp.connect(url);
@@ -111,11 +112,17 @@ export function startRequestPublisher(options: PublisherOptions): Publisher {
 
   // On an error: log, drop the connection, try again at the next tick. The
   // failed event stays leased until then, so nothing overtakes it.
+  // The same error on every tick (broker or database down) is logged once,
+  // and again when it changes; a clean run logs the recovery.
   async function run(): Promise<void> {
     try {
       await drain();
+      if (lastError !== undefined) console.log('request publisher: working again');
+      lastError = undefined;
     } catch (err) {
-      console.error('request publisher:', describe(err));
+      const text = describe(err);
+      if (text !== lastError) console.error('request publisher:', text, '(retrying every tick)');
+      lastError = text;
       await drop();
     }
   }
