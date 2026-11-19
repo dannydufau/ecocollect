@@ -1,8 +1,15 @@
 'use strict';
 
 /*
- * Notification service entry point: wires the pieces together.
- *   RabbitMQ (notification.events) -> subscriber -> handlers -> hub -> SSE tabs (GET /api/events)
+ * Notification service entry point: the one place that wires the pieces
+ * together. The pieces don't know about each other.
+ *
+ *   RabbitMQ (notification.events) --> subscriber --> handlers (event -> signals) --> hub --> SSE tabs
+ *                                                                                      ^
+ *   browser --> Caddy (/verify adds X-User-Id) --> GET /api/events
+ *
+ * Run locally:   RABBITMQ_URL=amqp://user:pass@localhost:5672 node src/notification/index.js
+ * In Compose:    same image as the backend, started with this file (PORT=80).
  */
 
 const express = require('express');
@@ -21,11 +28,14 @@ if (!process.env.RABBITMQ_URL) {
 const hub = createHub();
 
 // HTTP: the SSE endpoint
+
 const app = express();
 app.use(createEventsRouter(hub));
 
-// Compose sets PORT=80 (Caddy proxies to "notification" without a port).
-// Locally, default to 3002 so it doesn't clash with the API server on 3001.
+/*
+ * Compose sets PORT=80 (Caddy proxies to "notification" without a port).
+ * Locally, default to 3002 so it doesn't clash with the API server on 3001.
+ */
 const port = Number(process.env.PORT || 3002);
 const server = app.listen(port, () => console.log(`Notification service listening on port ${port}`));
 
@@ -44,6 +54,7 @@ const subscriber = startSubscriber({
 });
 
 // Shutdown: `docker compose stop` sends SIGTERM, then kills after 10 s
+
 let stopping = false;
 
 async function shutdown(signalName) {
