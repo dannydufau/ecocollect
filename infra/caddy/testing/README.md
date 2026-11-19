@@ -45,7 +45,8 @@ It exits with `0` if everything passed and `1` otherwise, so it can also run in 
 | Service | Image | Role |
 |---|---|---|
 | `gateway` | `caddy:2` | The real `infra/caddy/Caddyfile`; the only service with a published port (`3030 → 443`) |
-| `user` | `caddy:2` | Fake user service. Answers `/verify` for `forward_auth` (see [Fake credentials](#fake-credentials)) and the user API routes (see [User stub responses](#user-stub-responses)) |
+| `user` | `caddy:2` | Fake user API routes (see [User stub responses](#user-stub-responses)). |
+| `auth` | `caddy:2` | Uses the same stub config for `/verify` and session routes while those remain on the legacy backend. |
 | `request`, `reward`, `notification` | `traefik/whoami` | Echo servers: the response body shows their name (e.g. `Name: request`) and every request header they received |
 | `frontend` | `traefik/whoami` | Same echo server, listening on port `3000` like the real frontend |
 

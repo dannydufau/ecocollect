@@ -9,7 +9,7 @@
 }
 
 (verify-auth) {
-	forward_auth user {
+	forward_auth auth {
 		uri /verify
 		copy_headers {
 			X-User-Id
@@ -24,6 +24,7 @@ localhost {
 
 	handle /api/* {
 		# reward paths, public
+		# Match profile stats before the User Service's public profile route.
 		@reward-public-paths <<CEL
 			(method('GET') && (path('/api/public/stats') || path_regexp('^/api/public/profiles/[^/]+/stats$')))
 			CEL
@@ -44,13 +45,21 @@ localhost {
 
 		# user paths, public
 		@user-public-paths <<CEL
-			(method('POST', 'DELETE') && path('/api/session')) ||
 			(method('POST') && path('/api/accounts')) ||
 			(method('GET') && (path('/api/terms') || path_regexp('^/api/public/profiles/[^/]+$')))
 			CEL
 
 		handle @user-public-paths {
 			reverse_proxy user
+		}
+
+		# Session and verification stay on the backend until USER-04 moves them.
+		@session-paths {
+			method POST DELETE
+			path /api/session
+		}
+		handle @session-paths {
+			reverse_proxy auth
 		}
 
 		# user paths, auth
