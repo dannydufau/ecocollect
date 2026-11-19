@@ -121,6 +121,13 @@ function startSubscriber({
       return;
     }
 
+    const problem = envelopeProblem(envelope);
+    if (problem) {
+      log.error(`[subscriber] invalid envelope (${problem}), dead-lettering: type=${type} eventId=${envelope.eventId} (${msg.fields.routingKey})`);
+      safeReject(ch, msg, false);
+      return;
+    }
+
     const handler = handlerByType.get(type);
     if (!handler) {
       // Tolerant reader: the bindings bring in events this service doesn't handle.
@@ -204,6 +211,15 @@ function buildHandlerMap(handlers) {
 // The envelope field that names the event.
 function eventTypeOf(envelope) {
   return envelope && envelope.type;
+}
+
+// What an envelope needs besides a known type; the reason it's unusable, or null.
+function envelopeProblem({ eventId, version, occurredAt, data }) {
+  if (typeof eventId !== 'string' || eventId === '') return 'no eventId';
+  if (!Number.isInteger(version) || version < 1) return 'no version';
+  if (typeof occurredAt !== 'string' || Number.isNaN(Date.parse(occurredAt))) return 'bad occurredAt';
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return 'no data';
+  return null;
 }
 
 module.exports = { startSubscriber };

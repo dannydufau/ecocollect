@@ -104,6 +104,11 @@ function message(body, routingKey = 'request.created') {
   return { content, fields: { routingKey, deliveryTag: 1 }, properties: { headers: {} } };
 }
 
+// A valid envelope; 'fields' overrides any part of it.
+function event(type, data = {}, fields = {}) {
+  return { eventId: 'e-1', type, version: 1, occurredAt: '2026-11-19T12:00:00Z', data, ...fields };
+}
+
 async function startedWith(handlers) {
   const connector = fakeConnector();
   const sub = start(connector, { handlers });
@@ -119,7 +124,7 @@ test('dispatches by envelope.type and acks when the handler returns', async () =
   const seen = [];
   const { sub, ch } = await startedWith({ RequestCreated: (env) => { seen.push(env); } });
 
-  const msg = message({ type: 'RequestCreated', data: { requestId: 'r-1' } });
+  const msg = message(event('RequestCreated', { requestId: 'r-1' }));
   ch.deliver(msg);
   await waitFor(() => settled(ch, msg));
 
@@ -134,7 +139,7 @@ test('rejects with requeue when the handler throws, so RabbitMQ retries it', asy
     RequestCreated: () => { throw new Error('boom'); },
   });
 
-  const msg = message({ type: 'RequestCreated', data: {} });
+  const msg = message(event('RequestCreated'));
   ch.deliver(msg);
   await waitFor(() => settled(ch, msg));
 
@@ -142,11 +147,17 @@ test('rejects with requeue when the handler throws, so RabbitMQ retries it', asy
   await sub.stop();
 });
 
-test('dead-letters unparseable JSON, messages without an event type, and unknown types', async () => {
+test('dead-letters unparseable JSON, unknown types and invalid envelopes', async () => {
   const { sub, ch } = await startedWith({ RequestCreated: () => {} });
 
-  const bad = ['{not json', '42', 'null', '{}', { type: '' }, { type: 'NoSuchEvent', data: {} }]
-    .map((body) => message(body));
+  const bad = [
+    '{not json', '42', 'null', '{}', { type: '' },
+    event('NoSuchEvent'),
+    event('RequestCreated', {}, { eventId: '' }),
+    event('RequestCreated', {}, { version: '1' }),
+    event('RequestCreated', {}, { occurredAt: 'yesterday' }),
+    event('RequestCreated', null),
+  ].map((body) => message(body));
   bad.forEach((msg) => ch.deliver(msg));
   await waitFor(() => bad.every((msg) => settled(ch, msg)));
 
@@ -157,7 +168,7 @@ test('dead-letters unparseable JSON, messages without an event type, and unknown
 test('acks and skips a valid event with no handler', async () => {
   const { sub, ch } = await startedWith({ RequestCreated: () => {} });
 
-  const unknown = message({ type: 'RequestUpdated', data: {} }, 'request.updated');
+  const unknown = message(event('RequestUpdated'), 'request.updated');
   ch.deliver(unknown);
   await waitFor(() => settled(ch, unknown));
 
