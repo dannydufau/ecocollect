@@ -10,6 +10,8 @@ Session creation, logout and `/verify` stay on the existing backend through the 
 
 The layout follows the Request Service on branch `102-request-service`. Database setup and endpoints are separate User Service tickets. `npm test` includes the User Service tests.
 
+The [User database setup](scripts/user/README.md) creates the account and terms tables, service login and outbox. It also explains the local and Compose connection settings and the database tests.
+
 ## Auth module (`src/api/auth/`)
 
 This checks Firebase users for the gateway. It lives in the API server for now, but it has its own router so it can become a separate service later.

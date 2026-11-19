@@ -14,6 +14,7 @@ test('Compose runs the User Service internally from the existing backend image',
   assert.deepEqual(user.command, ['node', 'src/user/index.ts']);
   assert.equal(user.ports, undefined);
   assert.equal(user.environment.PORT, '80');
+  assert.equal(user.environment.DATABASE_URL, '${USER_DATABASE_URL:-}');
   assert.ok(user.healthcheck.test.join(' ').includes('/health'));
   assert.equal(compose.services.caddy.depends_on.user.condition, 'service_healthy');
 });
