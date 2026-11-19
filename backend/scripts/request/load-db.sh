@@ -3,10 +3,11 @@
 #   1. drops and recreates the database
 #   2. the course database (the 608 physical model in MODEL_DIR): tables.sql,
 #      transactions.sql, seed.sql (schema ecocollect608)
-#   3. every db/init/0[2-9]*.sql file, in name order: the Request Service's own
-#      files (020_request_ops.sql first, then helpers, checks, reads and writes).
-#      001_schema.sql belongs to the shared compose database and is skipped.
+#   3. every db/request/*.sql file, in name order: the Request Service's own files
+#      (020_request_ops.sql first, then helpers, checks, reads and writes).
 #      A new SQL file is loaded just by adding it; this script doesn't change.
+# They are not in db/init: Postgres runs db/init on every new Compose volume, where
+# the course schema doesn't exist yet, so these files would stop the database.
 #
 # Usage (from anywhere in the repo):
 #   backend/scripts/request/load-db.sh                          # dev database: ecocollect_request
@@ -52,9 +53,9 @@ done
 # The glob comes back sorted by name, and every name starts with its number.
 # nullglob: no match gives an empty list, not the pattern itself.
 shopt -s nullglob
-files=("$ROOT"/db/init/0[2-9]*.sql)
+files=("$ROOT"/db/request/*.sql)
 if (( ${#files[@]} == 0 )); then
-  echo "load-db: no db/init/0[2-9]*.sql files found" >&2
+  echo "load-db: no db/request/*.sql files found" >&2
   exit 1
 fi
 for f in "${files[@]}"; do

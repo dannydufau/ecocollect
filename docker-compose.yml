@@ -113,7 +113,7 @@ services:
     environment:
       PORT: "80"                    # Caddy proxies to request without a port, which means 80
       # Its own database for now, built by backend/scripts/request/load-db.sh (the 608
-      # physical model + request_ops), until db/init loads the course model for everyone.
+      # physical model + db/request/), until db/init loads the course model for everyone.
       DATABASE_URL: postgres://${POSTGRES_USER:-ecocollect}:${POSTGRES_PASSWORD:?copy .env.example to .env first}@postgres:5432/${REQUEST_POSTGRES_DB:-ecocollect_request}
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-ecocollect}:${RABBITMQ_PASSWORD:?copy .env.example to .env first}@rabbitmq:5672
       # ImageKit (contract 2.4): this is the only service that gets the private key.
