@@ -115,7 +115,7 @@ Tested on PostgreSQL 16.6:
 - A fresh database was created and all scripts completed successfully.
 - The database matched all 25 tables, 100 column names and types, nullability, and 30 foreign keys in the logical model.
 - `verify.sql` rejected 41 invalid writes and rolled back its test changes.
-- Removing a facility's last category or a category's last accepting facility was rejected. Moving a category to another accepting facility in one transaction passed.
+- Removing a facility's last category or a category's last accepting facility was rejected, with the unlinked record's ID and name in the error. Moving a category to another accepting facility in one transaction passed.
 - Postal-code checks accept the API's format across resident addresses, preferred codes, pickup addresses and facilities, while rejecting lowercase, spaces and a wrong prefix. The format-only test values are rolled back.
 - Valid cases cover replacement edits, a recalculated replacement estimate, delayed events, late cancellation awards and accepting an available request with current terms.
 - Two concurrent connections were tested for duplicate unfinished assignments, a fourth preferred code, duplicate awards for one assignment and role, and a photo used for both an item and delivery evidence. In each case the second writer waited for the parent lock and was rejected after the first committed.

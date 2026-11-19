@@ -74,47 +74,49 @@ BEGIN
 SET
 SET
 CALL
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Facility without an accepted category
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Category without an accepting facility
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Lowercase resident postal code
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Lowercase preferred postal code
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Spaces in pickup postal code
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Wrong facility postal-code prefix
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Award on an unfinished assignment
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Duplicate account key
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Unknown account
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Required name
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Empty public name
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Underage account
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Zero quantity
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Negative estimate
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Invalid hour
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Invalid status
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Incomplete assignment ending
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Collection before acceptance
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Invalid update reason
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Invalid changed field
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Duplicate award notification
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Duplicate delivery evidence
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Self rescheduling
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Fourth preferred code
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Delivery photo used for an item
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Accept an unavailable request
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Missing award role
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Both award roles
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Both notification sources
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Missing notification source
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Changed field on reopened event
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Duplicate active window
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Owner acceptance has wrong type
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Event beyond the published sequence
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Wrong award notification trigger
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Update notification missing its details
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Acceptance with obsolete terms
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Assigned state without an assignment
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Incorrect new request estimate
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Incorrect copied replacement item
-psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:66: NOTICE:  Passed: Birthday still tomorrow in Calgary
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Details: Facility 00000006-0000-4000-8000-000000000003 (Sample community depot) must accept at least one category
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Facility without an accepted category
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Details: Category tablets (Tablets) must be accepted by at least one facility
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Category without an accepting facility
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Lowercase resident postal code
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Lowercase preferred postal code
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Spaces in pickup postal code
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Wrong facility postal-code prefix
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Award on an unfinished assignment
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Duplicate account key
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Unknown account
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Required name
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Empty public name
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Underage account
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Zero quantity
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Negative estimate
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Invalid hour
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Invalid status
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Incomplete assignment ending
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Collection before acceptance
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Invalid update reason
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Invalid changed field
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Duplicate award notification
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Duplicate delivery evidence
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Self rescheduling
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Fourth preferred code
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Delivery photo used for an item
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Accept an unavailable request
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Missing award role
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Both award roles
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Both notification sources
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Missing notification source
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Changed field on reopened event
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Duplicate active window
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Owner acceptance has wrong type
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Event beyond the published sequence
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Wrong award notification trigger
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Update notification missing its details
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Acceptance with obsolete terms
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Assigned state without an assignment
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Incorrect new request estimate
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Incorrect copied replacement item
+psql:physical-final/docs/Final Submission/ENSF608/4. Physical model/verify.sql:80: NOTICE:  Passed: Birthday still tomorrow in Calgary
 DO
 SAVEPOINT
 INSERT 0 1

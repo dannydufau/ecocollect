@@ -7,6 +7,7 @@ CALL check_business_rules();
 DO $$
 DECLARE
     test RECORD;
+    expected_message TEXT;
 BEGIN
     FOR test IN SELECT * FROM (VALUES
         ('Facility without an accepted category', 'DELETE FROM facility_accepts WHERE facility_id=''00000006-0000-4000-8000-000000000003''; CALL check_business_rules()', '23514'),
@@ -52,12 +53,25 @@ BEGIN
         ('Birthday still tomorrow in Calgary', 'INSERT INTO account VALUES (''birthday_test'',''Alex'',''Test'',''Alex T.'',''2008-11-16'',''2026-11-16 01:00:00+00'',NULL)', '23514')
     ) AS cases(name, statement, expected_code)
     LOOP
+        expected_message := CASE test.name
+            WHEN 'Facility without an accepted category'
+                THEN 'Facility 00000006-0000-4000-8000-000000000003 (Sample community depot) must accept at least one category'
+            WHEN 'Category without an accepting facility'
+                THEN 'Category tablets (Tablets) must be accepted by at least one facility'
+            ELSE NULL
+        END;
         BEGIN
             EXECUTE test.statement;
             RAISE EXCEPTION 'Invalid write was accepted: %', test.name;
         EXCEPTION WHEN OTHERS THEN
             IF SQLSTATE <> test.expected_code THEN
                 RAISE EXCEPTION 'Test % failed: expected %, got % (%)', test.name, test.expected_code, SQLSTATE, SQLERRM;
+            END IF;
+            IF expected_message IS NOT NULL THEN
+                IF SQLERRM <> expected_message THEN
+                    RAISE EXCEPTION 'Test % reported the wrong record: %', test.name, SQLERRM;
+                END IF;
+                RAISE NOTICE 'Details: %', SQLERRM;
             END IF;
         END;
         RAISE NOTICE 'Passed: %', test.name;

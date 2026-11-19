@@ -6,18 +6,25 @@ CREATE PROCEDURE check_business_rules()
 LANGUAGE plpgsql
 SET search_path TO ecocollect608, pg_temp
 AS $$
+DECLARE
+    unlinked_facility RECORD;
+    unlinked_category RECORD;
 BEGIN
-    IF EXISTS (
-        SELECT 1 FROM recycling_facility f
-        WHERE NOT EXISTS (SELECT 1 FROM facility_accepts a WHERE a.facility_id=f.facility_id)
-    ) THEN
-        RAISE EXCEPTION USING ERRCODE = '23514', MESSAGE = 'Every facility must accept at least one category';
+    SELECT f.facility_id, f.name INTO unlinked_facility
+    FROM recycling_facility f
+    WHERE NOT EXISTS (SELECT 1 FROM facility_accepts a WHERE a.facility_id=f.facility_id)
+    ORDER BY f.facility_id LIMIT 1;
+    IF FOUND THEN
+        RAISE EXCEPTION 'Facility % (%) must accept at least one category',
+            unlinked_facility.facility_id, unlinked_facility.name USING ERRCODE = '23514';
     END IF;
-    IF EXISTS (
-        SELECT 1 FROM item_category c
-        WHERE NOT EXISTS (SELECT 1 FROM facility_accepts a WHERE a.category_id=c.category_id)
-    ) THEN
-        RAISE EXCEPTION USING ERRCODE = '23514', MESSAGE = 'Every category must be accepted by at least one facility';
+    SELECT c.category_id, c.name INTO unlinked_category
+    FROM item_category c
+    WHERE NOT EXISTS (SELECT 1 FROM facility_accepts a WHERE a.category_id=c.category_id)
+    ORDER BY c.category_id LIMIT 1;
+    IF FOUND THEN
+        RAISE EXCEPTION 'Category % (%) must be accepted by at least one facility',
+            unlinked_category.category_id, unlinked_category.name USING ERRCODE = '23514';
     END IF;
     IF EXISTS (
         SELECT 1
