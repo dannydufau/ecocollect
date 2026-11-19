@@ -142,10 +142,11 @@ test('rejects with requeue when the handler throws, so RabbitMQ retries it', asy
   await sub.stop();
 });
 
-test('dead-letters unparseable JSON and messages without an event type', async () => {
+test('dead-letters unparseable JSON, messages without an event type, and unknown types', async () => {
   const { sub, ch } = await startedWith({ RequestCreated: () => {} });
 
-  const bad = ['{not json', '42', 'null', '{}', { type: '' }].map((body) => message(body));
+  const bad = ['{not json', '42', 'null', '{}', { type: '' }, { type: 'NoSuchEvent', data: {} }]
+    .map((body) => message(body));
   bad.forEach((msg) => ch.deliver(msg));
   await waitFor(() => bad.every((msg) => settled(ch, msg)));
 

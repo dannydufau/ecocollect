@@ -115,6 +115,12 @@ function startSubscriber({
       return;
     }
 
+    if (!Object.hasOwn(events, type)) {
+      log.error(`[subscriber] unknown type ${type}, dead-lettering (${msg.fields.routingKey})`);
+      safeReject(ch, msg, false);
+      return;
+    }
+
     const handler = handlerByType.get(type);
     if (!handler) {
       // Tolerant reader: the bindings bring in events this service doesn't handle.
