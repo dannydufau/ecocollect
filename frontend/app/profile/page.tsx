@@ -5,6 +5,7 @@ import { Alert, Button, Spinner, card, pageTitle, textLink } from "@/components/
 import { ApiError, isAuthError } from "@/lib/api";
 import { formatTimestamp } from "@/lib/time";
 import { useProfile } from "@/lib/use-profile";
+import { EditProfile } from "./edit-profile";
 
 const roleNames = { resident: "Resident", volunteer: "Volunteer" };
 
@@ -55,6 +56,7 @@ export default function ProfilePage() {
                         ))}
                     </dl>
                 </section>}
+                {data && <EditProfile profile={data} />}
             </div>
         </main>
     );
