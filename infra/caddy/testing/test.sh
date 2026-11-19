@@ -263,5 +263,15 @@ expect_sse_events "/api/events with gzip 2 events in 7 seconds" 2 -H "Cookie: se
 
 expect_status "/api/events without cookie -> 401" 401 --max-time 5 "$BASE_URL/api/events"
 
+echo "== Error shape =="
+expect_status "unknown /api path GET /api/nothing-here -> 404" 404 "$BASE_URL/api/nothing-here"
+expect_body_contains "unknown /api path -> code not_found" '"code":"not_found"' yes "$BASE_URL/api/nothing-here"
+expect_body_contains "unknown /api path -> Content-Type: application/json" "content-type: application/json" yes -i "$BASE_URL/api/nothing-here"
+
+# stopped last, so every routing test above still has its service
+$COMPOSE_CMD stop request >/dev/null 2>&1
+expect_status "stopped request service, GET /api/categories -> 502" 502 -H "Authorization: Bearer good-resident" "$BASE_URL/api/categories"
+expect_body_contains "stopped request service -> code service_unavailable" '"code":"service_unavailable"' yes -H "Authorization: Bearer good-resident" "$BASE_URL/api/categories"
+
 echo "$PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]
