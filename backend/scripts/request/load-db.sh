@@ -3,6 +3,7 @@
 #   1. drops and recreates the database
 #   2. PR #198's course database: tables.sql, transactions.sql, seed.sql (schema ecocollect608)
 #   3. db/init/020_request_ops.sql (schema request_ops)
+#   4. db/init/021_request_ops_functions.sql (outbox claim / mark published)
 #
 # Usage (from anywhere in the repo):
 #   backend/scripts/request/load-db.sh                          # dev database: ecocollect_request
@@ -61,5 +62,8 @@ done
 
 echo "load-db: 020_request_ops.sql"
 psql_in -d "$DB" < "$ROOT/db/init/020_request_ops.sql"
+
+echo "load-db: 021_request_ops_functions.sql"
+psql_in -d "$DB" < "$ROOT/db/init/021_request_ops_functions.sql"
 
 echo "load-db: done. Connect with postgres://<POSTGRES_USER>:<POSTGRES_PASSWORD>@localhost:\${POSTGRES_PORT:-5432}/$DB"
