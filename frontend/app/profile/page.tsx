@@ -6,6 +6,7 @@ import { ApiError, isAuthError } from "@/lib/api";
 import { formatTimestamp } from "@/lib/time";
 import { useProfile } from "@/lib/use-profile";
 import { EditProfile } from "./edit-profile";
+import { SecondRole } from "./second-role";
 
 const roleNames = { resident: "Resident", volunteer: "Volunteer" };
 
@@ -57,6 +58,7 @@ export default function ProfilePage() {
                     </dl>
                 </section>}
                 {data && <EditProfile profile={data} />}
+                {data && <SecondRole profile={data} />}
             </div>
         </main>
     );

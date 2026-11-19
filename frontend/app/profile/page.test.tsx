@@ -6,6 +6,7 @@ import { renderWithClient } from "@/test/utils";
 import ProfilePage from "./page";
 
 vi.mock("@/lib/firebase", () => ({ auth: {} }));
+vi.mock("@/lib/auth-context", () => ({ useAuth: () => ({ refreshRoles: vi.fn() }) }));
 vi.mock("@/lib/api", async (importOriginal) => ({
     ...(await importOriginal<typeof import("@/lib/api")>()),
     api: { get: vi.fn() },
