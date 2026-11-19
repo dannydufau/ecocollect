@@ -1,7 +1,7 @@
 -- check_request: the request-level rules of the model,
 -- checked for one request at the end of every write function. Only a bug can
 -- trip it: the write functions check everything before writing, so this is a
--- last line of defence. It raises (check_violation, like PR #198's
+-- last line of defence. It raises (check_violation, like the physical model's
 -- check_business_rules), which rolls back the whole action.
 --
 -- Rules that depend on the current time (a window in the future, terms current

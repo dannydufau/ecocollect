@@ -7,7 +7,7 @@ import { category, facility } from '../../json/responses.ts';
 import { validationFailed } from '../errors.ts';
 import { requireRole } from '../gateway-user.ts';
 
-export function listsRouter(pool: pg.Pool): Router {
+export default function listsRouter(pool: pg.Pool): Router {
   const router = Router();
 
   router.get('/api/categories', async (_req, res) => {

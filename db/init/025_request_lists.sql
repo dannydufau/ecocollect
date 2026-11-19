@@ -1,6 +1,6 @@
 -- Request Service read functions for the reference lists (schema "ecocollect608"):
 -- Q1 categories, Q2 facilities. Called by TypeScript, one call each.
--- Needs PR #198's tables.sql loaded first (load-db.sh does that).
+-- Needs the 608 physical model's tables.sql loaded first (load-db.sh does that).
 --
 -- The output columns of RETURNS TABLE are also PL/pgSQL variables, so every
 -- column in the queries is qualified with its table alias to avoid "ambiguous"

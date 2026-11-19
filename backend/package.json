@@ -9,7 +9,7 @@
   },
   "scripts": {
     "start": "node src/api/server.js",
-    "test": "node --test --test-concurrency=1 test/*.test.js",
+    "test": "node --test --test-concurrency=1 test/*.test.js \"test/request/**/*.test.ts\"",
     "test:integration": "bash scripts/test-integration.sh",
     "typecheck": "tsc -p src/request",
     "test:request": "node --test --test-concurrency=1 \"test/request/**/*.test.ts\""

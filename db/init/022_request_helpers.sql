@@ -1,6 +1,6 @@
 -- Request Service internal helpers on the course tables (schema "ecocollect608").
 -- Called by the Request Service's other functions, never by TypeScript.
--- Needs PR #198's tables.sql loaded first (load-db.sh does that).
+-- Needs the 608 physical model's tables.sql loaded first (load-db.sh does that).
 --
 -- STABLE: the result depends only on the arguments and the database's contents
 -- within one statement (AT TIME ZONE reads the time zone data, so not IMMUTABLE).

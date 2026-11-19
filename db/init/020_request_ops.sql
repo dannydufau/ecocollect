@@ -1,6 +1,6 @@
 -- Request Service operational tables (schema "request_ops").
 -- These are outside the course's logical model (contract section 8): the model's
--- tables live in "ecocollect608" (PR #198). Nothing here references them, so this
+-- tables live in "ecocollect608" (the 608 physical model). Nothing here references them, so this
 -- file loads with or without the course schema. The service reaches these tables
 -- only through functions, never directly.
 
