@@ -4,6 +4,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { isClientError } from "@/lib/api";
 import { AuthProvider } from "@/lib/auth-context";
+import { StreamContext, useEventStream } from "@/lib/sse";
+
+function EventStream({ children }: { children: ReactNode }) {
+  const { reopen } = useEventStream();
+  return <StreamContext.Provider value={reopen}>{children}</StreamContext.Provider>;
+}
 
 export default function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
@@ -20,7 +26,9 @@ export default function Providers({ children }: { children: ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>{children}</AuthProvider>
+      <AuthProvider>
+        <EventStream>{children}</EventStream>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

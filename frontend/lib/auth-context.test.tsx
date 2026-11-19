@@ -3,7 +3,6 @@ import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { api } from "@/lib/api";
-import { openSignalStream } from "@/lib/sse";
 import { AuthProvider, useAuth } from "./auth-context";
 
 const fb = vi.hoisted(() => ({
@@ -19,7 +18,6 @@ vi.mock("firebase/auth", () => ({
     signOut: fb.signOut,
 }));
 vi.mock("@/lib/api", () => ({ api: { post: vi.fn(), delete: vi.fn() } }));
-vi.mock("@/lib/sse", () => ({ openSignalStream: vi.fn() }));
 
 let listener: (user: unknown) => Promise<void>;
 let calls: string[];
@@ -51,7 +49,6 @@ beforeEach(() => {
     fb.signOut.mockReset().mockImplementation(async () => { calls.push("firebase signOut"); });
     vi.mocked(api.post).mockReset().mockResolvedValue(undefined);
     vi.mocked(api.delete).mockReset().mockImplementation(async (path: string) => { calls.push(`DELETE ${path}`); });
-    vi.mocked(openSignalStream).mockReset().mockReturnValue({ close: vi.fn() } as unknown as EventSource);
     vi.spyOn(console, "warn").mockImplementation(() => {});
     subscribed();
 });
@@ -163,11 +160,10 @@ it("works when sessionStorage is blocked", async () => {
     expect(result.current.activeRole).toBe("volunteer");
 });
 
-it("refreshRoles asks for a new token, starts the session again and reopens the stream", async () => {
+it("refreshRoles asks for a new token and starts the session again", async () => {
     const user = fakeUser("u1", ["resident"]);
     const { result } = await mount(user);
     expect(api.post).toHaveBeenCalledTimes(1);
-    expect(openSignalStream).toHaveBeenCalledTimes(1);
 
     user.getIdTokenResult.mockResolvedValue({ claims: { roles: ["resident", "volunteer"] } });
     let roles: string[] = [];
@@ -177,7 +173,6 @@ it("refreshRoles asks for a new token, starts the session again and reopens the 
     expect(result.current.roles).toEqual(["resident", "volunteer"]);
     expect(result.current.activeRole).toBe("resident");
     expect(api.post).toHaveBeenCalledTimes(2);
-    expect(openSignalStream).toHaveBeenCalledTimes(2);
 });
 
 it("refreshRoles drops the answer when another account signed in meanwhile", async () => {
@@ -191,12 +186,10 @@ it("refreshRoles drops the answer when another account signed in meanwhile", asy
     fb.auth.currentUser = bob;
     await act(async () => { await listener(bob); });
     vi.mocked(api.post).mockClear();
-    vi.mocked(openSignalStream).mockClear();
     await act(async () => { release(); expect(await refresh).toEqual([]); });
     expect(result.current.user).toBe(bob);
     expect(result.current.roles).toEqual(["volunteer"]);
     expect(api.post).not.toHaveBeenCalled();
-    expect(openSignalStream).not.toHaveBeenCalled();
 });
 
 it("signOut waits for a session request that is still pending, so the cookie ends up deleted", async () => {
