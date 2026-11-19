@@ -27,7 +27,9 @@ function signal(type, requestId) {
  */
 function requestCreated(envelope) {
   const data = (envelope && envelope.data) || {};
-  const { requestId, residentUid } = data;
+  // v2 moved the request fields into data.request; v1 had them directly in data.
+  const request = data.request ?? data;
+  const { requestId, residentUid } = request;
 
   // Without a requestId there is nothing to refetch: throw, so the subscriber retries it.
   if (typeof requestId !== 'string' || requestId === '') {
