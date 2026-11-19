@@ -5,8 +5,8 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const YAML = require('yaml');
-const compose = YAML.parse(readFileSync('../docker-compose.yml', 'utf8'));
-const caddy = readFileSync('../infra/caddy/Caddyfile', 'utf8');
+const compose = YAML.parse(readFileSync(new URL('../../../docker-compose.yml', import.meta.url), 'utf8'));
+const caddy = readFileSync(new URL('../../../infra/caddy/Caddyfile', import.meta.url), 'utf8');
 
 test('Compose runs the User Service internally from the existing backend image', () => {
   const user = compose.services.user;

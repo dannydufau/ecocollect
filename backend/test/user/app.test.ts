@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
 import type { AddressInfo } from 'node:net';
 import { createApp } from '../../src/user/app.ts';
 
@@ -74,7 +73,7 @@ test('a route without register fails startup instead of silently disappearing', 
 
 test('validation errors preserve field messages and unexpected errors do not expose details', async t => {
   const dir = await routes(t);
-  const errors = pathToFileURL(path.resolve('src/user/http/errors.ts')).href;
+  const errors = new URL('../../src/user/http/errors.ts', import.meta.url).href;
   await writeFile(path.join(dir, 'errors.mjs'), `import { validationFailed } from ${JSON.stringify(errors)};
     export function register(app) {
       app.get('/api/validation', () => { throw validationFailed({ publicName:'Enter a name.' }); });

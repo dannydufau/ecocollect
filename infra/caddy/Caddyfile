@@ -23,6 +23,7 @@ localhost {
 	import strip-headers-add-request-id
 
 	handle /api/* {
+		# reward paths, public
 		# Match profile stats before the User Service's public profile route.
 		@reward-public-paths <<CEL
 			(method('GET') && (path('/api/public/stats') || path_regexp('^/api/public/profiles/[^/]+/stats$')))
@@ -124,13 +125,7 @@ localhost {
 	handle_errors {
 		handle /api/* {
 			header Content-Type application/json
-			@404 expression `{err.status_code} == 404`
-			handle @404 {
-				respond `{"error":{"code":"not_found","message":"Not found."}}` 404
-			}
-			handle {
-				respond `{"error":{"code":"service_unavailable","message":"The service is unavailable. Try again."}}` {err.status_code}
-			}
+			respond `{"status": {err.status_code}, "error": "{err.message}"}` {err.status_code}
 		}
 	}
 }
