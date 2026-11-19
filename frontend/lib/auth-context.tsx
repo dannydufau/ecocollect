@@ -35,7 +35,7 @@ type AuthState = {
 type AuthValue = AuthState & {
   setActiveRole: (role: Role) => void;
   signIn: (email: string, password: string) => Promise<Role[]>;
-  signOut: () => Promise<void>;
+  signOut: (options?: { skipServer?: boolean }) => Promise<void>;
   refreshRoles: () => Promise<Role[]>;
 };
 
@@ -138,9 +138,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   // README 3.5: push subscription first, then the session cookie, then Firebase. The cached lists go in the listener.
-  async function signOut() {
-    await removePushSubscription();
-    await endSession();
+  // After a deactivation the server has already ended everything and its calls would only fail with a 401,
+  // so skipServer leaves them out and only signs out of Firebase.
+  async function signOut({ skipServer = false } = {}) {
+    if (skipServer) {
+      session.current = null;
+    } else {
+      await removePushSubscription();
+      await endSession();
+    }
     await firebaseSignOut(auth);
   }
 
