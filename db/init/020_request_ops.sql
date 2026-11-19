@@ -2,7 +2,7 @@
 -- These are outside the course's logical model (contract section 8): the model's
 -- tables live in "ecocollect608" (PR #198). Nothing here references them, so this
 -- file loads with or without the course schema. The service reaches these tables
--- only through functions (plan 3.6), never directly.
+-- only through functions, never directly.
 
 CREATE SCHEMA IF NOT EXISTS request_ops;
 
@@ -87,7 +87,7 @@ CREATE TABLE IF NOT EXISTS request_ops.outbox (
         ('RequestCancelled',                    'request.cancelled',                     1),  -- E9
         ('RequestExpired',                      'request.expired',                       1)   -- E10
     )),
-    -- 1-3 active windows (plan 2.2), and the three arrays line up.
+    -- 1-3 active windows, and the three arrays line up.
     CONSTRAINT outbox_windows_ck CHECK (
         cardinality(window_ids) BETWEEN 1 AND 3
         AND cardinality(window_dates) = cardinality(window_ids)

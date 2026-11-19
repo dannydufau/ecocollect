@@ -1,4 +1,4 @@
--- Request Service outbox functions (schema "request_ops", plan 3.6 and 3.7).
+-- Request Service outbox functions (schema "request_ops").
 -- The publisher (TypeScript) calls only these two; it never touches the outbox
 -- table directly. Each call is its own transaction (autocommit), so the claim is
 -- committed before the network send, and the lease (claimed_until) stands in

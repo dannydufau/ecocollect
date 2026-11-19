@@ -1,4 +1,4 @@
--- check_request (plan 3.2 step 5, 3.5): the request-level rules of the model,
+-- check_request: the request-level rules of the model,
 -- checked for one request at the end of every write function. Only a bug can
 -- trip it: the write functions check everything before writing, so this is a
 -- last line of defence. It raises (check_violation, like PR #198's

@@ -1,0 +1,64 @@
+// Row types of the database functions the service calls, as node-postgres
+// delivers them through createPool (db/pool.ts): DATE as 'YYYY-MM-DD',
+// TIMESTAMPTZ as Date, BIGINT and NUMERIC as string.
+
+// One row of request_ops.outbox, as request_ops.req_outbox_claim returns it.
+// Which of the nullable columns are set depends on event_type; the outbox_eN_ck
+// CHECKs in 020_request_ops.sql say which (contract 10.3).
+export type OutboxRow = {
+  // Envelope (contract 10.1)
+  event_id: string;
+  event_type: string;
+  event_version: number;
+  routing_key: string;
+  occurred_at: Date;
+  trace_id: string | null;
+
+  // Request snapshot (contract 10.2), the request after the change
+  pickup_request_id: string;
+  request_seq: string;                 // BIGINT
+  transition_id: string;
+  status: string;
+  resident_id: string;
+  category_id: string;
+  category_name: string;
+  waste_type: string;
+  quantity: number;
+  estimated_weight_kg: string;         // NUMERIC
+  postal_code: string;
+  window_ids: string[];                // active windows, parallel arrays
+  window_dates: string[];
+  window_start_hours: number[];
+  request_created_at: Date;
+  expires_at: Date;
+
+  // Assignment snapshot (E3-E8)
+  assignment_id: string | null;
+  volunteer_id: string | null;
+  assignment_window_id: string | null;
+  assignment_window_date: string | null;
+  assignment_window_start_hour: number | null;
+  accepted_at: Date | null;
+  collected_at: Date | null;
+  ended_at: Date | null;
+  end_reason: string | null;
+
+  // Event-specific fields (contract 10.3)
+  facility_id: string | null;          // E5
+  facility_name: string | null;        // E5
+  delivered_at: Date | null;           // E5
+  cancelled_at: Date | null;           // E6, E7
+  outside_cancellation_window: boolean | null; // E6
+  reported_at: Date | null;            // E8
+  rescheduled_as_request_id: string | null;    // E8 (optional)
+  rescheduled_from_request_id: string | null;  // E1 (optional)
+  matched_volunteer_ids: string[] | null;      // E1, E2
+  changed: string[] | null;            // E2 'edited'
+  reason: string | null;               // E2, E9 (optional)
+  expiry_trigger: string | null;       // E10
+
+  // Publishing state
+  enqueued_at: Date;
+  claimed_until: Date | null;
+  published_at: Date | null;
+};

@@ -1,4 +1,4 @@
--- req_enqueue_event (plan 3.5): stores one event in request_ops.outbox, in the
+-- req_enqueue_event: stores one event in request_ops.outbox, in the
 -- caller's transaction. Every write function calls it once per event, in event
 -- order, after its writes, so the snapshot shows the request AFTER the change
 -- (contract 10.2). Internal: called by other functions, never by TypeScript.
