@@ -62,7 +62,7 @@ Terms document IDs remain `UUID` values, as in the logical model. The API sends 
 
 Primary keys prevent duplicate records. Foreign keys require the referenced account, acceptance, request, window, award or event to exist. Unique constraints prevent repeated delivery evidence, multiple deliveries for one assignment, repeated predecessor links and multiple notifications for one award. Checks reject invalid quantities, hours, status values, update fields, points and assignment times.
 
-Some rules involve several rows. `check_business_rules()` checks those rows together, including account roles, current terms, active windows, assignment limits, award roles, notification sources, event sequences and rescheduling. Run it after the related writes and before committing:
+Some rules involve several rows. `check_business_rules()` checks those rows together, including account roles, current terms, active windows, assignment limits, award roles, notification sources, event sequences and rescheduling. It also requires every facility to accept at least one category and every category to have at least one accepting facility, matching the ER diagram's ACCEPTS relationship. Run it after the related writes and before committing:
 
 ```sql
 BEGIN;
@@ -82,6 +82,7 @@ Use the default `READ COMMITTED` isolation level. All writers of the same rule m
 | Create an award and its role row | Assignment |
 | Create a notification and its source row | Notification |
 | Change account roles | Account |
+| Change facility/category links | Affected facility rows first, then category rows, each in ID order |
 
 `accept_request`, `add_preferred_code` and `attach_item_photo` perform their parent-row locks. An award and exactly one role row must be inserted in one transaction. A notification and exactly one source row must likewise be inserted together. The checker does not run automatically: direct table writes can bypass checks involving several rows. There are no triggers or partial indexes.
 
@@ -113,7 +114,8 @@ Tested on PostgreSQL 16.6:
 
 - A fresh database was created and all scripts completed successfully.
 - The database matched all 25 tables, 100 column names and types, nullability, and 30 foreign keys in the logical model.
-- `verify.sql` rejected 39 invalid writes and rolled back its test changes.
+- `verify.sql` rejected 41 invalid writes and rolled back its test changes.
+- Removing a facility's last category or a category's last accepting facility was rejected. Moving a category to another accepting facility in one transaction passed.
 - Postal-code checks accept the API's format across resident addresses, preferred codes, pickup addresses and facilities, while rejecting lowercase, spaces and a wrong prefix. The format-only test values are rolled back.
 - Valid cases cover replacement edits, a recalculated replacement estimate, delayed events, late cancellation awards and accepting an available request with current terms.
 - Two concurrent connections were tested for duplicate unfinished assignments, a fourth preferred code, duplicate awards for one assignment and role, and a photo used for both an item and delivery evidence. In each case the second writer waited for the parent lock and was rejected after the first committed.

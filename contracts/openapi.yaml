@@ -507,7 +507,7 @@ paths:
       operationId: listFacilities
       summary: Q2. Recycling facilities (volunteer)
       x-readme-id: Q2
-      description: With `categoryId`, only the facilities that accept it (FR17).
+      description: With `categoryId`, only the facilities that accept it (FR17). Every category has at least one accepting facility. An unknown categoryId returns 400 validation_failed with details.fields.categoryId.
       security:
         - bearerAuth: []
       parameters:
@@ -526,6 +526,19 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Facility'
+        '400':
+          description: Unknown categoryId.
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/Error
+              example:
+                error:
+                  code: validation_failed
+                  message: Choose an existing category.
+                  details:
+                    fields:
+                      categoryId: Unknown category.
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

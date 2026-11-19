@@ -8,6 +8,18 @@ SET search_path TO ecocollect608, pg_temp
 AS $$
 BEGIN
     IF EXISTS (
+        SELECT 1 FROM recycling_facility f
+        WHERE NOT EXISTS (SELECT 1 FROM facility_accepts a WHERE a.facility_id=f.facility_id)
+    ) THEN
+        RAISE EXCEPTION USING ERRCODE = '23514', MESSAGE = 'Every facility must accept at least one category';
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM item_category c
+        WHERE NOT EXISTS (SELECT 1 FROM facility_accepts a WHERE a.category_id=c.category_id)
+    ) THEN
+        RAISE EXCEPTION USING ERRCODE = '23514', MESSAGE = 'Every category must be accepted by at least one facility';
+    END IF;
+    IF EXISTS (
         SELECT 1
         FROM ecopoints_award e
         JOIN assignment a ON a.assignment_id=e.assignment_id

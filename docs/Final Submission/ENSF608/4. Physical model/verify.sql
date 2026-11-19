@@ -9,6 +9,8 @@ DECLARE
     test RECORD;
 BEGIN
     FOR test IN SELECT * FROM (VALUES
+        ('Facility without an accepted category', 'DELETE FROM facility_accepts WHERE facility_id=''00000006-0000-4000-8000-000000000003''; CALL check_business_rules()', '23514'),
+        ('Category without an accepting facility', 'DELETE FROM facility_accepts WHERE category_id=''tablets''; CALL check_business_rules()', '23514'),
         ('Lowercase resident postal code', 'UPDATE resident SET postal_code=''t2p1j9'' WHERE account_id=''resident1''', '23514'),
         ('Lowercase preferred postal code', 'UPDATE volunteer_preferred_postal_code SET postal_code=''t2p1j9'' WHERE account_id=''volunteer1'' AND postal_code=''T2P1J9''', '23514'),
         ('Spaces in pickup postal code', 'UPDATE pickup_request SET pickup_postal_code=''T2 P1J'' WHERE pickup_request_id=''00000003-0000-4000-8000-000000000001''', '23514'),
@@ -64,6 +66,14 @@ END;
 $$;
 
 -- These valid changes also leave the original seed data intact.
+SAVEPOINT facility_category_test;
+INSERT INTO facility_accepts (facility_id, category_id)
+VALUES ('00000006-0000-4000-8000-000000000003','tablets');
+DELETE FROM facility_accepts
+WHERE facility_id='00000006-0000-4000-8000-000000000001' AND category_id='tablets';
+CALL check_business_rules();
+ROLLBACK TO SAVEPOINT facility_category_test;
+
 SAVEPOINT postal_format_test;
 UPDATE resident SET postal_code='T0A0A0' WHERE account_id='resident1';
 UPDATE volunteer_preferred_postal_code SET postal_code='T9Z9Z9'
