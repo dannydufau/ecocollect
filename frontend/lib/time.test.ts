@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { calgaryHour, calgaryToday, formatWindow, friendlyWindow, isValidWindow } from "./time";
+import { calgaryHour, calgaryToday, formatDate, formatWindow, friendlyWindow, isValidWindow } from "./time";
 import { nextStepText } from "./status-text";
 
 afterEach(() => { vi.useRealTimers(); });
@@ -31,6 +31,11 @@ describe("window formatting", () => {
         expect(calgaryToday()).toBe("2026-11-14");
         expect(calgaryHour()).toBe(22);
         expect(calgaryToday(new Date("2026-12-14T20:00:00Z"))).toBe("2026-12-14");
+    });
+
+    it("formats a date with no time, and leaves a bad one as it came", () => {
+        expect(formatDate("1995-03-14")).toBe("Mar 14, 1995");
+        expect(formatDate("not a date")).toBe("not a date");
     });
 
     it("gives the resident the assigned status message", () => {
