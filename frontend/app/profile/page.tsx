@@ -7,6 +7,7 @@ import { ApiError, isAuthError } from "@/lib/api";
 import { formatDate, formatTimestamp } from "@/lib/time";
 import type { Profile } from "@/lib/types";
 import { useProfile } from "@/lib/use-profile";
+import { DeactivateAccount } from "./deactivate-account";
 import { AddressEditor, CodesEditor, PublicNameEditor } from "./editors";
 import type { Notice } from "./notice";
 import { SecondRole } from "./second-role";
@@ -83,6 +84,7 @@ export default function ProfilePage() {
                 <CodesEditor profile={profile} {...editor("codes")} />
             </section>}
             {profile && <SecondRole profile={profile} onDone={setNotice} />}
+            {profile && <DeactivateAccount />}
         </main>
     );
 }
