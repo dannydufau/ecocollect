@@ -47,16 +47,21 @@ export function validateAccount(values: AccountValues, today: string): Record<st
     if (!values.password) errors.password = "Choose a password.";
 
     if (!values.role) errors.role = "Choose how you want to use EcoCollect.";
-    if (values.role === "resident") {
-        if (!values.street.trim()) errors["address.street"] = "Enter your street address.";
-        if (!POSTAL_CODE.test(normalizePostalCode(values.postalCode))) errors["address.postalCode"] = "Enter a Calgary postal code, for example T2P 1J9.";
-    }
+    if (values.role === "resident") Object.assign(errors, validateAddress(values.street, values.postalCode));
     if (values.role === "volunteer") Object.assign(errors, validateCodes(values.preferredPostalCodes));
     return errors;
 }
 
+// Used on its own by the profile page too
+export function validateAddress(street: string, postalCode: string): Record<string, string> {
+    const errors: Record<string, string> = {};
+    if (!street.trim()) errors["address.street"] = "Enter your street address.";
+    if (!POSTAL_CODE.test(normalizePostalCode(postalCode))) errors["address.postalCode"] = "Enter a Calgary postal code, for example T2P 1J9.";
+    return errors;
+}
+
 // Blank rows are ignored, so an unused "Add postal code" row does not block the form
-function validateCodes(codes: string[]): Record<string, string> {
+export function validateCodes(codes: string[]): Record<string, string> {
     const errors: Record<string, string> = {};
     const seen = new Set<string>();
     codes.forEach((code, index) => {
