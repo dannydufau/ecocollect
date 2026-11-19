@@ -42,6 +42,13 @@ export function formatTimestamp(iso: string): string {
     return new Intl.DateTimeFormat("en-CA", { timeZone: TZ, dateStyle: "medium", timeStyle: "short" }).format(parsed);
 }
 
+// A date with no time, like a birth date: "Mar 14, 1995". Read as UTC so the day can't shift.
+export function formatDate(date: string): string {
+    const parsed = new Date(`${date}T12:00:00Z`);
+    if (Number.isNaN(parsed.getTime())) return date;
+    return new Intl.DateTimeFormat("en-CA", { timeZone: "UTC", dateStyle: "medium" }).format(parsed);
+}
+
 // A real calendar date like 2026-10-30. new Date() alone isn't enough, it quietly turns 2026-02-30 into Mar 2.
 function isRealDate(date: string): boolean {
     const parsed = new Date(`${date}T00:00:00Z`);

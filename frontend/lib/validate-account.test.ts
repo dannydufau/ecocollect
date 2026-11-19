@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { eighteenYearsAgo, normalizePostalCode, normalizeUsername, validateAccount, type AccountValues } from "./validate-account";
+import {
+    eighteenYearsAgo, normalizePostalCode, normalizeUsername, validateAccount, validateAddress, validateCodes, type AccountValues,
+} from "./validate-account";
 
 const today = "2026-11-16";
 const resident: AccountValues = {
@@ -95,5 +97,19 @@ describe("validateAccount", () => {
         it("does not check the resident address", () => {
             expect(check({ street: "", postalCode: "bad" }, volunteer)).toEqual({});
         });
+    });
+});
+
+describe("the address and code checks on their own", () => {
+    it("checks the street and the postal code", () => {
+        expect(validateAddress("123 4 Ave SW", "t2p 1j9")).toEqual({});
+        expect(validateAddress(" ", "T2P1J9")).toEqual({ "address.street": "Enter your street address." });
+        expect(validateAddress("123 4 Ave SW", "M5V 2T6")).toHaveProperty(["address.postalCode"]);
+    });
+
+    it("checks the preferred codes, ignoring blank rows", () => {
+        expect(validateCodes(["T2P1J9", "", "t3a 0b1"])).toEqual({});
+        expect(validateCodes(["T2P1J9", "T2P 1J9"])).toHaveProperty(["preferredPostalCodes[1]"]);
+        expect(validateCodes(["T2P1J9", "T3A0B1", "T2N4X7", "T1Y1A1"])).toHaveProperty("preferredPostalCodes");
     });
 });
