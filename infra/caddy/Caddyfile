@@ -120,8 +120,13 @@ localhost {
 			handle @404 {
 				respond `{"error":{"code":"not_found","message":"Not found."}}` 404
 			}
-			handle {
+			@unavailable expression `{err.status_code} in [502, 503, 504]`
+			handle @unavailable {
 				respond `{"error":{"code":"service_unavailable","message":"The service is unavailable. Try again."}}` {err.status_code}
+			}
+			# any other error Caddy raises itself (e.g. 400, 413)
+			handle {
+				respond `{"error":{"code":"gateway_error","message":"The request could not be handled."}}` {err.status_code}
 			}
 		}
 	}
