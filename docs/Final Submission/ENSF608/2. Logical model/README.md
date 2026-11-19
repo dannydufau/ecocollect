@@ -460,7 +460,7 @@ ECOPOINTS_AWARDED_ON_ASSIGNMENT_CANCELLATION_VOLUNTEER
 | Event identity | `(pickup_request_id, request_seq)` identifies an event. `transition_id` is not unique: cancellation/reopening and missed/rescheduled pairs share an action ID (contract 10.2). |
 | Event details | An update-event subtype has reason `edited` or `reopened`. Its changed-field rows are distinct and permitted only for `edited`. Request notifications reference the whole event key (BR58). |
 | Photos | Item photos may be shared by requests after rescheduling. In the transaction that attaches a photo, lock its row with `SELECT ... FOR UPDATE` and check that it is not used by both a delivery and a request (BR51, BR60). |
-| Rescheduling | Predecessor reference is unique when present, is not self-referential, belongs to the same owner and points to a Missed request. Copy the specified item facts and record new terms/windows/address/creation time (BR50). |
+| Rescheduling | Predecessor reference is unique when present, is not self-referential, belongs to the same owner and points to a Missed request. At creation, copy the category, quantity, notes and photo; recalculate the estimate using the current category weight; and record new terms, windows, address and creation time. Later Open edits follow the normal rules (BR50; contract 12.5). |
 | Deactivation and history | Apply active-work guards; retain historical requests, assignments and awards. Remove the account's notifications and subscriptions as specified (BR40, BR42, BR47, BR53). |
 
 Rules involving several rows are checked in a transaction. Lock the relevant parent row with `SELECT ... FOR UPDATE` before reading and changing related rows. Use the lecture SQL features and transactions for these checks; do not rely on database triggers or partial indexes.
@@ -500,3 +500,5 @@ Request status, assignment status, request expiry, delivery time, award kind/tim
 The SQL implementation must follow this 25-relation mapping, including its keys, domains and cross-row constraints. Service joins, seed scripts, operations and tests must use the same relations. Contract section 8 identifies the User, Request, Reward and Notification readers. Compatibility views or service projections can supply their API fields from the normalized relations.
 
 The Notification Service owns the event/detail/source relations that store its consumed event facts. Request Service publishes the request sequences and transition IDs used by these relations.
+
+Event consumption may lag behind publication or arrive out of order. Stored event sequences can have gaps and need not yet reach the request's latest published sequence.

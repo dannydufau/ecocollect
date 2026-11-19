@@ -7,6 +7,24 @@ const operations = Object.entries(openapi.paths).flatMap(([route, item]) =>
   METHODS.filter((m) => item[m]).map((m) => ({ route, method: m, op: item[m] })));
 const find = (method, route) => openapi.paths[route]?.[method];
 
+test('a facility must accept at least one category', () => {
+  const valid = validator(openapi, 'Facility');
+  const facility = { facilityId: 'sample', name: 'Sample facility', street: '1 Example Street', postalCode: 'T2P1J9', specialInstructions: null, acceptedCategoryIds: ['phones'] };
+  assert.ok(valid(facility), JSON.stringify(valid.errors));
+  assert.equal(valid({ ...facility, acceptedCategoryIds: [] }), false);
+  assert.ok(valid.errors.some(error => error.keyword === 'minItems'));
+});
+
+test('Q2 documents unknown categories as a field validation error', () => {
+  const response = find('get', '/api/facilities').responses['400'];
+  assert.ok(response, 'Q2 needs a 400 response');
+  const body = response.content['application/json'];
+  const valid = inline(openapi, body.schema);
+  assert.ok(valid(body.example), JSON.stringify(valid.errors));
+  assert.equal(body.example.error.code, 'validation_failed');
+  assert.equal(typeof body.example.error.details.fields.categoryId, 'string');
+});
+
 // README section 5: every call, by its README id.
 const README_CALLS = [
   ['U1', 'post', '/api/session'], ['U2', 'delete', '/api/session'], ['U3', 'get', '/verify'],
