@@ -91,3 +91,9 @@ Run `node --test test/user-public-profile.test.js` from `backend/`. Set `TEST_DA
 `src/user/firebase/accounts.ts` wraps account creation, role claims, disabling and re-enabling. Each helper takes an Auth object, so tests use a fake without credentials. `createAccountUser(auth, accountExists, input, now)` also takes the database's current time. It only removes a conflicting Firebase account when it is more than ten minutes old and `accountExists(uid)` explicitly returns false, then retries creation once. Username and email conflicts return typed 409 errors. Role claims get at most three attempts. If initial claims fail, the helper removes the newly created Firebase account; it preserves both errors if cleanup also fails.
 
 The registration handler owns deletion after a failed database write. The role handler owns reversing a database change after failed claims. Deactivation disables first and revokes tokens second; errors propagate to the handler, which owns recovery if a later step fails. `enableUser` re-enables the account without restoring revoked tokens. These helpers do not open database connections or initialize Firebase.
+
+## Own profile
+
+`GET /api/profile` reads only the caller ID from Caddy's `X-User-Id` header. `db/profile.ts` exports `loadProfile(client, auth, accountId)` for this route and the later profile-edit handler. It reads names, role membership, address and preferred codes from `users`, and the email from Firebase. Birth dates stay `YYYY-MM-DD`; creation times are UTC with a `Z`.
+
+A volunteer-only profile has no address. Missing or deactivated database accounts return `404 profile_not_found`; Firebase lookup failures return the shared 500 error. The route reuses the existing Firebase initializer in `src/api/auth/firebase.js` until #229 moves authentication into the User Service. Run `node --test test/user-profile.test.js`; set `TEST_DATABASE_URL` to a loaded scratch database for the role, isolation and date tests.
