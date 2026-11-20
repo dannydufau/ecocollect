@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Alert, Button, EmptyState, FilterTabs, Spinner, clickableCard, card, pageTitle, stretchedLink } from "@/components/ui";
 import { api } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
+import { formatPostalCode } from "@/lib/postal-code";
 import { formatTimestamp, formatWindow } from "@/lib/time";
 import type { VolunteerAssignment } from "@/lib/types";
 
@@ -35,14 +36,16 @@ export default function VolunteerHistoryPage() {
     return (
         <main className="p-4 sm:p-8">
             <div className="mx-auto max-w-3xl space-y-6">
-                <h1 className={pageTitle}>History</h1>
+                <h1 className={pageTitle}>My assignments</h1>
                 <FilterTabs label="Assignment status" options={filters} value={filter} onChange={setFilter} />
                 {isPending && <Spinner label="Loading your assignments..." />}
                 {isError && <div className="space-y-2">
                     <Alert variant="error">We could not load your assignments. Please try again.</Alert>
                     <Button variant="secondary" onClick={() => void refetch()} busy={isFetching} busyLabel="Trying...">Try again</Button>
                 </div>}
-                {rows?.length === 0 && <EmptyState title="No assignments here yet.">Requests you accept show up here.</EmptyState>}
+                {rows?.length === 0 && (filter === "All"
+                    ? <EmptyState title="No assignments yet.">Accept a request to see it here.</EmptyState>
+                    : <EmptyState title={`No ${filter.toLowerCase()} assignments.`} />)}
                 {rows && rows.length > 0 && <ul className="space-y-3">
                     {rows.map(row => {
                         const status = statuses[row.assignment.status];
@@ -50,14 +53,15 @@ export default function VolunteerHistoryPage() {
                             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
                                 {row.category
                                     ? <Link href={`/volunteer/requests/${encodeURIComponent(row.requestId)}`} className={stretchedLink}>{row.quantity} × {row.category.name}</Link>
-                                    : <p className="font-[family-name:var(--font-heading)] text-[21px]">Pickup</p>}
+                                    : <p className="font-[family-name:var(--font-heading)] text-[21px]">Request no longer available to you</p>}
                                 <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-3.5 py-[5px] text-[13px] font-semibold ${status.style}`}>
                                     <span aria-hidden="true">{status.symbol}</span>{status.label}
                                 </span>
                             </div>
                             {row.assignment.status === "Collected" && <p className="text-[13px] font-semibold text-accent-800">Record delivery</p>}
-                            {row.estimatedWeightKg !== null && <p className="text-neutral-800">{row.estimatedWeightKg.toFixed(2)} kg</p>}
+                            {row.estimatedWeightKg !== null && row.postalCode !== null && <p className="text-neutral-800">{row.estimatedWeightKg.toFixed(2)} kg · {formatPostalCode(row.postalCode)}</p>}
                             <p>{formatWindow(row.assignment.window)}</p>
+                            <p className="text-[13px] text-neutral-700">Accepted {formatTimestamp(row.assignment.acceptedAt)}</p>
                             {row.assignment.endedAt && <p className="text-[13px] text-neutral-700">Ended {formatTimestamp(row.assignment.endedAt)}</p>}
                         </li>;
                     })}

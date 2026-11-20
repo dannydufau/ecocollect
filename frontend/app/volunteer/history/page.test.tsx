@@ -30,7 +30,8 @@ it("shows a delivered row with its category, status words and a link", async () 
     const link = (await screen.findAllByRole("link", { name: "2 × Computers/Laptops" })).find(item => item.getAttribute("href") === "/volunteer/requests/r1")!;
     const row = link.closest("li")!;
     expect(row).toHaveTextContent("Delivered");
-    expect(row).toHaveTextContent("5.00 kg");
+    expect(row).toHaveTextContent("5.00 kg · T2P 1J9");
+    expect(row).toHaveTextContent(`Accepted ${formatTimestamp("2026-11-15T18:00:00Z")}`);
     expect(row).toHaveTextContent("Fri, Nov 20, 11:00 to 12:00");
     expect(api.get).toHaveBeenCalledWith("/api/requests?view=volunteer");
 });
@@ -41,6 +42,7 @@ it("shows a missed row with null request fields as status, window and end time, 
     expect(row).toHaveTextContent("Fri, Nov 20, 11:00 to 12:00");
     expect(row).toHaveTextContent(`Ended ${formatTimestamp("2026-11-20T19:00:00Z")}`);
     expect(within(row).queryByRole("link")).not.toBeInTheDocument();
+    expect(row).toHaveTextContent("Request no longer available to you");
 });
 
 it("puts Collected rows first with the Record delivery label", async () => {
@@ -72,7 +74,20 @@ it("starts on All, which sends no assignmentStatus", async () => {
 it("shows the empty state", async () => {
     vi.mocked(api.get).mockResolvedValue([]);
     renderWithClient(<VolunteerHistoryPage />);
-    expect(await screen.findByText("No assignments here yet.")).toBeInTheDocument();
+    expect(await screen.findByText("No assignments yet.")).toBeInTheDocument();
+    expect(screen.getByText("Accept a request to see it here.")).toBeInTheDocument();
+});
+
+it("names the filter when a filtered list is empty", async () => {
+    vi.mocked(api.get).mockResolvedValue([]);
+    renderWithClient(<VolunteerHistoryPage />);
+    fireEvent.click(within(screen.getByRole("group", { name: "Assignment status" })).getByRole("button", { name: "Missed" }));
+    expect(await screen.findByText("No missed assignments.")).toBeInTheDocument();
+});
+
+it("has the page title as the h1", () => {
+    renderWithClient(<VolunteerHistoryPage />);
+    expect(screen.getByRole("heading", { level: 1, name: "My assignments" })).toBeInTheDocument();
 });
 
 it("shows an error with a retry", async () => {
