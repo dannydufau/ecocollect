@@ -154,6 +154,13 @@ describe("item photo", () => {
         expect(within(row).getByRole("alert")).toHaveTextContent("This photo could not be used.");
     });
 
+    it("shows the photo error when the server names photo.fileId", async () => {
+        renderWithClient(<RequestForm initialValues={valid()} fieldErrors={{ "items[0].photo.fileId": "This photo is already used." }} />);
+        await screen.findByLabelText("Category");
+        const row = screen.getByRole("group", { name: "Item 1" });
+        expect(within(row).getByRole("alert")).toHaveTextContent("This photo is already used.");
+    });
+
     it("keeps each photo with its own item when an earlier item is removed", async () => {
         const onValid = vi.fn();
         const two = { ...valid(), items: [{ categoryId: "laptops", quantity: "2" }, { categoryId: "phones", quantity: "1" }] };
