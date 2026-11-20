@@ -13,7 +13,7 @@ const cardTitle = "text-[22px]";
 
 // Disabled until FE-050, FE-052 and FE-055 put the real controls here
 const actions = [
-    { action: "accept", label: "Accept", variant: "primary" },
+    { action: "accept", label: "Accept request", variant: "primary" },
     { action: "cancel_assignment", label: "Cancel assignment", variant: "danger-outline" },
     { action: "record_delivery", label: "Record delivery", variant: "primary" },
 ] as const;
@@ -58,6 +58,7 @@ export default function VolunteerRequestDetail({ requestId }: { requestId: strin
             <p className="text-[17px]"><span className="font-semibold">What happens next:</span> {nextStepText(request.status, "volunteer")}</p>
         </header>
 
+        {request.viewer === "owner" && <Alert variant="info">This is your own request. You can accept it like any other volunteer.</Alert>}
         {request.allowedActions.includes("record_delivery") && <Alert variant="info">Your action is needed: record the delivery.</Alert>}
         {buttons.length > 0 && <section aria-label="Request actions" className="flex flex-wrap gap-3">
             {buttons.map(({ action, label, variant }) => <Button key={action} variant={variant} disabled>{label}</Button>)}
@@ -70,7 +71,7 @@ export default function VolunteerRequestDetail({ requestId }: { requestId: strin
                 <div><dt className="text-[13px] text-neutral-700">Quantity</dt><dd>{request.quantity}</dd></div>
                 <div><dt className="text-[13px] text-neutral-700">Estimated weight</dt><dd>{request.estimatedWeightKg.toFixed(2)} kg</dd></div>
                 <div><dt className="text-[13px] text-neutral-700">Postal code</dt><dd>{request.postalCode}</dd></div>
-                {request.resident && <div><dt className="text-[13px] text-neutral-700">Resident</dt><dd className="break-words">{request.resident.publicName}</dd></div>}
+                {request.status === "Open" && <div><dt className="text-[13px] text-neutral-700">Open until</dt><dd>{formatTimestamp(request.expiresAt)}</dd></div>}
             </dl>
         </section>
 
@@ -94,12 +95,28 @@ export default function VolunteerRequestDetail({ requestId }: { requestId: strin
             {request.notes && <p className="whitespace-pre-wrap break-words"><span className="text-neutral-800">Notes:</span> {request.notes}</p>}
         </section>}
 
+        {request.resident && <section aria-labelledby="resident-heading" className={cardStyle}>
+            <h2 id="resident-heading" className={cardTitle}>Resident</h2>
+            <Link href={`/profiles/${encodeURIComponent(request.resident.accountId)}`} className={`break-words ${textLink}`}>{request.resident.publicName}</Link>
+        </section>}
+
         {assignment && <section aria-labelledby="assignment-heading" className={cardStyle}>
             <h2 id="assignment-heading" className={cardTitle}>Your pickup</h2>
             <p>Accepted {formatTimestamp(assignment.acceptedAt)}</p>
             <h3 className="text-lg">Selected pickup window</h3>
             <Windows windows={[assignment.window]} />
             {assignment.collectedAt && <p>Collected {formatTimestamp(assignment.collectedAt)}</p>}
+            {assignment.status === "Active" && <p className="text-neutral-800">Waiting for the resident to confirm collection.</p>}
+        </section>}
+
+        {request.delivery && <section aria-labelledby="delivery-heading" className={cardStyle}>
+            <h2 id="delivery-heading" className={cardTitle}>Delivery</h2>
+            <p className="break-words">{request.delivery.facility.name}</p>
+            <p>Delivered {formatTimestamp(request.delivery.deliveredAt)}</p>
+            {request.delivery.evidencePhotoUrl && <div className="max-w-xs">
+                <RequestPhoto src={request.delivery.evidencePhotoUrl} alt="Delivery photo" refetch={() => void refetch()} />
+            </div>}
+            <Link href="/ecopoints" className={textLink}>See my EcoPoints</Link>
         </section>}
     </>;
 }
