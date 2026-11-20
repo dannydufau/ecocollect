@@ -1,21 +1,26 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { formatPostalCode } from "@/lib/postal-code";
 import { formatTimestamp, formatWindow, friendlyWindow } from "@/lib/time";
 import type { AvailableRequest } from "@/lib/types";
+import { useProfile } from "@/lib/use-profile";
 import { Alert, Button, EmptyState, Spinner, clickableCard, pageTitle, stretchedLink, textLink } from "@/components/ui";
-
-// FE-047 adds the postal code filter that fills this
-const codes: string[] = [];
+import PostalFilter from "./postal-filter";
 
 export default function AvailableRequests() {
+    const profile = useProfile();
+    // Null until the profile has loaded or failed, then the preferred codes are taken once (README 16.9)
+    const [codes, setCodes] = useState<string[] | null>(null);
+    if (codes === null && (profile.data || profile.isError)) setCodes(profile.data?.preferredPostalCodes ?? []);
     const { data, isPending, isError, refetch, isFetching } = useQuery({
         queryKey: [...queryKeys.availableRequests, codes],
-        queryFn: () => api.get<AvailableRequest[]>(`/api/requests?view=available${codes.length ? `&postalCodes=${encodeURIComponent(codes.join(","))}` : ""}`),
+        queryFn: () => api.get<AvailableRequest[]>(`/api/requests?view=available${codes?.length ? `&postalCodes=${encodeURIComponent(codes.join(","))}` : ""}`),
+        enabled: codes !== null,
     });
 
     return (
@@ -24,12 +29,18 @@ export default function AvailableRequests() {
                 <h1 id="available-heading" className={pageTitle}>Available requests</h1>
                 <Link href="/volunteer/history" className={textLink}>History</Link>
             </div>
+            {codes && <PostalFilter codes={codes} onChange={setCodes} />}
+            {codes?.length === 0 && profile.data?.preferredPostalCodes.length === 0 && <p className="text-neutral-700">
+                Save preferred postal codes in your <Link href="/profile" className={textLink}>profile</Link> to see nearby requests first.
+            </p>}
             {isPending && <Spinner label="Loading requests..." />}
             {isError && <>
                 <Alert variant="error">We could not load the requests. Please try again.</Alert>
                 <div><Button variant="secondary" onClick={() => void refetch()} busy={isFetching} busyLabel="Trying...">Try again</Button></div>
             </>}
-            {data?.length === 0 && <EmptyState title="Nothing available right now" />}
+            {data?.length === 0 && (codes?.length
+                ? <EmptyState title="No open requests in these areas.">Try Show all areas.</EmptyState>
+                : <EmptyState title="No open requests right now.">New ones show up here as residents post them.</EmptyState>)}
             {data && data.length > 0 && <>
                 <p role="status" className="font-semibold">{data.length === 1 ? "1 request" : `${data.length} requests`}</p>
                 <ul className="space-y-3">
