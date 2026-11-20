@@ -20,7 +20,7 @@ export default function CancelAssignment({ request, onNotice }: { request: Reque
         async body => {
             try {
                 const result = await api.post(`/api/requests/${encodeURIComponent(request.requestId)}/assignment/cancel`, body);
-                onNotice({ kind: "success", text: "Pickup cancelled. The volunteer will be told." });
+                onNotice({ kind: "success", text: "The assignment was cancelled." });
                 return result;
             } catch (error) {
                 // The refresh takes the button away (window ended), so the sentence stays on the page
@@ -54,13 +54,13 @@ export default function CancelAssignment({ request, onNotice }: { request: Reque
 
     if (request.viewer !== "owner" || !request.allowedActions.includes("cancel_assignment")) return null;
     return <>
-        <Button variant="danger-outline" onClick={start}>Cancel assignment</Button>
-        <ConfirmDialog open={open} title="Cancel this pickup?" confirmLabel={action.isPending ? "Cancelling..." : "Cancel assignment"} cancelLabel="Keep pickup"
+        <Button variant="danger-outline" onClick={start}>Cancel volunteer</Button>
+        <ConfirmDialog open={open} title="Cancel the volunteer's assignment?" confirmLabel={action.isPending ? "Cancelling..." : "Cancel volunteer"} cancelLabel="Keep volunteer"
             danger busy={action.isPending} error={windowError || action.message || undefined}
             onConfirm={confirm} onCancel={() => { if (!sending.current) setOpen(false); }}>
             <div className="space-y-3">
-                <p>The volunteer will be told. The request opens again if it still has a pickup window ahead.</p>
-                {request.assignment?.outsideCancellationWindow && <Alert variant="warning">Cancelling this close to the pickup gives the volunteer points.</Alert>}
+                <p>Your request stays active. It goes back to Open if it still has future pickup windows. You can offer new windows below.</p>
+                {request.assignment?.outsideCancellationWindow && <Alert variant="warning">The pickup is less than 24 hours away. The volunteer will receive EcoPoints for this cancellation.</Alert>}
                 <Field label="Reason" optional>
                     {control => <textarea {...control} value={reason} onChange={event => setReason(event.target.value)} disabled={action.isPending}
                         rows={3} className={textarea} />}
