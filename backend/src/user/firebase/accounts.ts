@@ -73,6 +73,7 @@ export async function createAccountUser(
     const existing = conflict instanceof UsernameTaken
       ? await auth.getUser(input.username)
       : await auth.getUserByEmail(input.email);
+    // Missing creation time or a database result other than false keeps the user and returns 409.
     const createdAt = Date.parse(existing.metadata?.creationTime ?? '');
     if (!Number.isFinite(createdAt) || nowMs - createdAt <= 10 * 60 * 1000) {
       throw conflict;
