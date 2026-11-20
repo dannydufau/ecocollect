@@ -1,13 +1,13 @@
 // Q1 GET /api/categories (any signed-in user) and
 // Q2 GET /api/facilities?categoryId= (volunteers).
 import { Router } from 'express';
-import type pg from 'pg';
+import type { RouteDeps } from '../../app.ts';
 import { listCategories, listFacilities } from '../../db/functions.ts';
 import { category, facility } from '../../json/responses.ts';
 import { validationFailed } from '../errors.ts';
 import { requireRole } from '../gateway-user.ts';
 
-export default function listsRouter(pool: pg.Pool): Router {
+export default function listsRouter({ pool }: RouteDeps): Router {
   const router = Router();
 
   router.get('/api/categories', async (_req, res) => {

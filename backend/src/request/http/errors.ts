@@ -25,6 +25,11 @@ export class HttpError extends Error {
 export const validationFailed = (fields: Record<string, string>) =>
   new HttpError(400, 'validation_failed', 'Some fields are invalid.', { fields });
 
+// A write function's 'validation_failed': its two arrays are paired element
+// by element (error_fields[i] goes with error_messages[i]).
+export const validationFailedFromDb = (fields: string[], messages: string[]) =>
+  validationFailed(Object.fromEntries(fields.map((field, i) => [field, messages[i] ?? ''])));
+
 export const forbidden = (message: string) =>
   new HttpError(403, 'forbidden', message);
 

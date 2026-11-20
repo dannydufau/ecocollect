@@ -7,14 +7,19 @@ import type pg from 'pg';
 import { errorHandler, notFound } from './http/errors.ts';
 import { gatewayUser } from './http/gateway-user.ts';
 
+// What the routes need from outside. Tests pass only a pool: the publisher
+// nudge is then a no-op and demo mode is off.
 export type AppDeps = {
   pool: pg.Pool;
+  nudgePublisher?: () => void;  // after a write, so events go out without waiting for a tick
+  demo?: boolean;               // DEMO_MODE (contract 17.5)
 };
 
 // Every file in http/routes/ is one group of endpoints. Its default export
-// takes the pool and returns a Router. Adding a file is enough to add its
+// takes the deps and returns a Router. Adding a file is enough to add its
 // routes: this file doesn't change for a new endpoint.
-export type RouteFactory = (pool: pg.Pool) => Router;
+export type RouteDeps = Required<AppDeps>;
+export type RouteFactory = (deps: RouteDeps) => Router;
 
 const ROUTES_DIR = new URL('./http/routes/', import.meta.url);
 
@@ -29,14 +34,14 @@ async function loadRouteFactories(): Promise<RouteFactory[]> {
   for (const file of files) {
     const mod = (await import(new URL(file, ROUTES_DIR).href)) as { default?: unknown };
     if (typeof mod.default !== 'function') {
-      throw new Error(`http/routes/${file}: needs a default export (pool) => Router`);
+      throw new Error(`http/routes/${file}: needs a default export (deps) => Router`);
     }
     factories.push(mod.default as RouteFactory);
   }
   return factories;
 }
 
-export function createApp({ pool }: AppDeps): express.Express {
+export function createApp({ pool, nudgePublisher = () => {}, demo = false }: AppDeps): express.Express {
   const app = express();
   app.disable('x-powered-by');
 
@@ -47,7 +52,7 @@ export function createApp({ pool }: AppDeps): express.Express {
   app.use(express.json());
   app.use(gatewayUser);
 
-  for (const factory of routeFactories) app.use(factory(pool));
+  for (const factory of routeFactories) app.use(factory({ pool, nudgePublisher, demo }));
 
   app.use(notFound);
   app.use(errorHandler);

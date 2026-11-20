@@ -106,3 +106,16 @@ export type CreateRequestsRow = {
   error_messages: string[];
   created_request_ids: string[] | null; // set for 'ok' and 'replayed'
 };
+
+// One row of requests.req_get_requests (the Q4 201 body, one per request).
+export type GetRequestsRow = {
+  request_id: string;
+  category_id: string;
+  category_name: string;
+  waste_type: string;
+  quantity: number;
+  estimated_weight_kg: string;         // NUMERIC
+  status: string;
+  created_at: Date;
+  expires_at: Date;
+};

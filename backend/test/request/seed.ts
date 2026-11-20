@@ -24,3 +24,6 @@ export const SEED_VOLUNTEER_ID = 'volunteer1';
 
 /** An `account_id` in `INSERT INTO resident` and not in `INSERT INTO volunteer`. */
 export const SEED_RESIDENT_ONLY_ID = 'resident1';
+
+/** The `terms_document_id` in `INSERT INTO terms_document` with the latest `published_at` (the current terms). */
+export const SEED_CURRENT_TERMS_ID = '00000001-0000-4000-8000-000000000002';

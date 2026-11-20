@@ -23,7 +23,8 @@ const publisher = startRequestPublisher({ pool, url: required('RABBITMQ_URL') })
 // Compose sets PORT=80 (Caddy proxies to "request" without a port). Locally,
 // 3003 so it doesn't clash with the API server (3001) or notification (3002).
 const port = Number(process.env.PORT || 3003);
-const server = createApp({ pool }).listen(port, () => {
+const demo = process.env.DEMO_MODE === 'true';
+const server = createApp({ pool, nudgePublisher: publisher.nudge, demo }).listen(port, () => {
   console.log(`Request service listening on port ${port}`);
 });
 

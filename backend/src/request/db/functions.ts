@@ -2,7 +2,7 @@
 // pool.query: one function call that PostgreSQL commits on its own.
 import type pg from 'pg';
 import type {
-  CategoryRow, CreateRequestsInput, CreateRequestsRow, FacilityRow,
+  CategoryRow, CreateRequestsInput, CreateRequestsRow, FacilityRow, GetRequestsRow,
 } from '../domain/types.ts';
 
 export async function listCategories(pool: pg.Pool): Promise<CategoryRow[]> {
@@ -30,5 +30,15 @@ export async function createRequests(pool: pg.Pool, input: CreateRequestsInput):
     [input.residentId, input.idempotencyKey, input.termsDocumentId,
     input.categoryIds, input.quantities, input.photoFileIds, input.photoPaths,
     input.dates, input.hours, input.notes, input.demo, input.traceId]);
+  // a function with OUT parameters always returns exactly one row, so the ! (not-null assertion) is safe.
   return rows[0]!;
+}
+
+// Q4 201 body: the viewer's own requests among requestIds, in that order. An id
+// that doesn't exist or isn't the viewer's gives no row, so fewer rows than ids
+// means a bug in the caller. The cast makes pg send the JS array as uuid[].
+export async function getRequests(pool: pg.Pool, requestIds: string[], viewerId: string): Promise<GetRequestsRow[]> {
+  const { rows } = await pool.query<GetRequestsRow>(
+    'SELECT * FROM requests.req_get_requests($1::uuid[], $2)', [requestIds, viewerId]);
+  return rows;
 }
