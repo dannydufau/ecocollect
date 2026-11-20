@@ -77,7 +77,7 @@ it("sends photo null when the photo is removed", async () => {
 
 it("sends the new photo after it was replaced", async () => {
     await mount();
-    fireEvent.click(screen.getByRole("button", { name: "Remove photo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Replace photo" }));
     fireEvent.click(screen.getByRole("button", { name: "Upload photo" }));
     save();
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/api/requests/r1", { photo: { fileId: "f-new" } }));
@@ -106,6 +106,12 @@ it("shows a message and a link back instead of the form when the request can't b
     current = detail({ allowedActions: ["cancel"] });
     render(<QueryClientProvider client={client = new QueryClient()}><EditRequestPage /></QueryClientProvider>);
     expect(await screen.findByText("This request can't be edited now.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Back to the request" })).toHaveAttribute("href", "/resident/requests/r1");
+    expect(screen.getByRole("link", { name: "Back to request" })).toHaveAttribute("href", "/resident/requests/r1");
     expect(screen.queryByRole("button", { name: "Save changes" })).not.toBeInTheDocument();
+});
+
+it("says the address can't be changed and cancels back to the request", async () => {
+    await mount();
+    expect(screen.getByText("The pickup address comes from your profile and can't be changed here.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Cancel" })).toHaveAttribute("href", "/resident/requests/r1");
 });

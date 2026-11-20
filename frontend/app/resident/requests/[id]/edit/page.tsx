@@ -42,7 +42,7 @@ export default function EditRequestPage() {
     return (
         <main className="p-4 sm:p-8">
             <div className="mx-auto max-w-3xl space-y-6">
-                <Link href={back} className={textLink}>Back to the request</Link>
+                <Link href={back} className={textLink}>Back to request</Link>
                 <h1 className={pageTitle}>Edit request</h1>
                 {action.message && <Alert variant="error">{action.message}</Alert>}
                 {isPending && <Spinner label="Loading your request..." />}
@@ -51,7 +51,7 @@ export default function EditRequestPage() {
                     <Button variant="secondary" onClick={() => void refetch()} busy={isFetching} busyLabel="Trying...">Try again</Button>
                 </div>}
                 {(unavailable || (data && !editable)) && <Alert variant="info">This request can&apos;t be edited now.</Alert>}
-                {data && editable && <RequestForm single createdAt={data.createdAt} submitLabel="Save changes" busy={action.isPending}
+                {data && editable && <RequestForm single createdAt={data.createdAt} submitLabel="Save changes" cancelHref={back} busy={action.isPending}
                     currentPhoto={data.photoUrl ? { url: data.photoUrl, refetch: () => void refetch() } : undefined}
                     fieldErrors={action.error instanceof ApiError ? action.error.fields : {}}
                     initialValues={{
