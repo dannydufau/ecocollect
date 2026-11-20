@@ -9,6 +9,7 @@ import { formatTimestamp } from "@/lib/time";
 import type { RequestDetail } from "@/lib/types";
 import { useRequestDetail } from "@/lib/use-request";
 import CancelRequest, { type Notice } from "./cancel-request";
+import ConfirmCollected from "./confirm-collected";
 import { RequestActions, type ResidentActionRenderers } from "./request-actions";
 import StatusHistory from "./status-history";
 
@@ -40,7 +41,11 @@ export default function ResidentRequestDetail({ requestId, actionRenderers }: {
     </section>;
 
     // The cancel button goes in with the other actions, so they all sit in one group
-    const renderers: ResidentActionRenderers = { cancel: request => <CancelRequest request={request} onNotice={setNotice} />, ...actionRenderers };
+    const renderers: ResidentActionRenderers = {
+        cancel: request => <CancelRequest request={request} onNotice={setNotice} />,
+        confirm_collected: request => <ConfirmCollected request={request} onNotice={setNotice} />,
+        ...actionRenderers,
+    };
     return <ResidentRequestView request={data} onPhotoError={() => { void refetch(); }} actionRenderers={renderers} notice={notice} />;
 }
 
