@@ -11,6 +11,7 @@ function isObject(value: unknown): value is Fields {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
+// Checks the contract's postal-code format; confirming the address is in Calgary is separate.
 export function isCalgaryPostalCode(code: unknown): code is string {
   return typeof code === 'string' && code.length === 6 && /^T[0-9][A-Z][0-9][A-Z][0-9]$/.test(code);
 }

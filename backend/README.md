@@ -12,6 +12,8 @@ The layout follows the Request Service on branch `102-request-service`. Database
 
 `validation/account.ts` exports `validateAccount(body, now)` and `isCalgaryPostalCode(code)`. Pass the database's current time as `now`; the validator calculates the date in Calgary and returns field errors without changing the input. It checks optional address and preferred-code fields whenever supplied, for either role. An address is required only for residents. The shared address schema permits an optional `city` only when it is `Calgary`. The registration handler decides which role details to save and checks whether the supplied terms ID is current (#233).
 
+The [User database setup](scripts/user/README.md) creates the account and terms tables, service login and outbox. It also explains the local and Compose connection settings and the database tests.
+
 ## Auth module (`src/api/auth/`)
 
 This checks Firebase users for the gateway. It lives in the API server for now, but it has its own router so it can become a separate service later.
@@ -69,3 +71,9 @@ TEST_DATABASE_URL=postgres://ecocollect:change_me@localhost:5432/ecocollect npm 
 ```
 
 Use a scratch database for that, not the demo one: the outbox tests mark every unsent event as sent. They add their own users with random postal codes and remove them afterwards.
+
+## User account helpers
+
+`src/user/firebase/accounts.ts` wraps account creation, role claims, disabling and re-enabling. Each helper takes an Auth object, so tests use a fake without credentials. `createAccountUser(auth, accountExists, input, now)` also takes the database's current time. It only removes a conflicting Firebase account when it is more than ten minutes old and `accountExists(uid)` explicitly returns false, then retries creation once. Username and email conflicts return typed 409 errors. Role claims get at most three attempts. If initial claims fail, the helper removes the newly created Firebase account; it preserves both errors if cleanup also fails.
+
+The registration handler owns deletion after a failed database write. The role handler owns reversing a database change after failed claims. Deactivation disables first and revokes tokens second; errors propagate to the handler, which owns recovery if a later step fails. `enableUser` re-enables the account without restoring revoked tokens. These helpers do not open database connections or initialize Firebase.

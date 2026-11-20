@@ -74,8 +74,20 @@ test('password minimum counts characters and names reject blank text', () => {
 test('Calgary birthdays use the local day even when UTC is already tomorrow', () => {
   assert.deepEqual(validateAccount({ ...account(), dateOfBirth: '2008-11-19' }, now), {});
   assert.ok(validateAccount({ ...account(), dateOfBirth: '2008-11-20' }, now).dateOfBirth);
-  assert.deepEqual(validateAccount({ ...account(), dateOfBirth: '2008-11-20' }, new Date('2026-11-20T06:00:00Z')), {});
   assert.ok(validateAccount({ ...account(), dateOfBirth: '2026-11-20' }, now).dateOfBirth?.includes('future'));
+});
+
+const midnight = new Date('2026-11-20T06:00:00Z');
+const midnightParts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'America/Edmonton', day: '2-digit', hour: '2-digit', hourCycle: 'h23',
+}).formatToParts(midnight).map(part => [part.type, part.value]));
+const oldCalgaryData = midnightParts.day === '19' && midnightParts.hour === '23';
+
+test('the eighteenth birthday begins at Calgary midnight with current November 2026 time zone data', {
+  skip: oldCalgaryData ? 'This Node build has older Calgary time zone data. Update Node/ICU to run the November 2026 midnight check.' : false,
+}, () => {
+  assert.ok(validateAccount({ ...account(), dateOfBirth: '2008-11-20' }, new Date(midnight.getTime() - 1)).dateOfBirth);
+  assert.deepEqual(validateAccount({ ...account(), dateOfBirth: '2008-11-20' }, midnight), {});
 });
 
 test('leap-day birthdays become 18 on March 1 in a non-leap year', () => {
