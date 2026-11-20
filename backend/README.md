@@ -67,3 +67,9 @@ TEST_DATABASE_URL=postgres://ecocollect:change_me@localhost:5432/ecocollect npm 
 ```
 
 Use a scratch database for that, not the demo one: the outbox tests mark every unsent event as sent. They add their own users with random postal codes and remove them afterwards.
+
+## User account helpers
+
+`src/user/firebase/accounts.ts` wraps account creation, role claims, disabling and re-enabling. Each helper takes an Auth object, so tests use a fake without credentials. `createAccountUser(auth, accountExists, input, now)` also takes the database's current time. It only removes a conflicting Firebase account when it is more than ten minutes old and `accountExists(uid)` explicitly returns false, then retries creation once. Username and email conflicts return typed 409 errors. Role claims get at most three attempts. If initial claims fail, the helper removes the newly created Firebase account; it preserves both errors if cleanup also fails.
+
+The registration handler owns deletion after a failed database write. The role handler owns reversing a database change after failed claims. Deactivation disables first and revokes tokens second; errors propagate to the handler, which owns recovery if a later step fails. `enableUser` re-enables the account without restoring revoked tokens. These helpers do not open database connections or initialize Firebase.
