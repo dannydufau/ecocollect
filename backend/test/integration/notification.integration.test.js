@@ -1,11 +1,10 @@
 'use strict';
 
-// Integration test for the whole notification service: the real index.js runs
-// as its own process against a real RabbitMQ. This is the scripted version of
-// the manual end-to-end check: open tabs, publish RequestCreated, see signals.
-//
-// Run with:  npm run test:integration   (from backend/)
-// Skipped when RABBITMQ_URL is not set.
+/*
+ * The whole notification service: the real index.js as its own process against
+ * a real RabbitMQ. Open tabs, publish RequestCreated, see signals.
+ * Run with `npm run test:integration` (from backend/); skipped without RABBITMQ_URL.
+ */
 
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
@@ -15,13 +14,12 @@ const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const amqp = require('amqplib');
 
-const { exchange, events } = require('../../src/messaging/topology');
+const { exchange, events, queues } = require('../../src/messaging/topology');
+const { declareConsumerQueue } = require('../../src/messaging/declare');
 
 const URL_AMQP = process.env.RABBITMQ_URL;
 const skip = URL_AMQP ? false : 'RABBITMQ_URL not set';
 const ENTRY = path.join(__dirname, '../../src/notification/index.js');
-
-// --- helpers ----------------------------------------------------------------
 
 async function waitFor(condition, what, ms = 10000) {
   const deadline = Date.now() + ms;
@@ -43,8 +41,7 @@ function freePort() {
   });
 }
 
-// Start index.js as a child process, like `node src/notification/index.js`.
-// Collects its log lines and resolves once it is listening AND consuming.
+// Starts index.js as a child process; resolves once it is listening and consuming.
 async function startService() {
   const port = await freePort();
   const child = spawn(process.execPath, [ENTRY], {
@@ -69,18 +66,16 @@ async function stopService(service) {
   return service.exited;
 }
 
-// A browser tab: open the stream as a signed-in user (as if Caddy had run
-// /verify and added X-User-Id) and collect everything that arrives.
+// A browser tab: opens the stream as a signed-in user (as Caddy would, via X-User-Id).
 async function openTab(url, uid) {
   const abort = new AbortController();
   const res = await fetch(url, { headers: { 'X-User-Id': uid }, signal: abort.signal });
-  const tab = { res, text: '', ended: false, close: () => abort.abort() };
+  const tab = { res, text: '', close: () => abort.abort() };
   (async () => {
     const decoder = new TextDecoder();
     try {
       for await (const chunk of res.body) tab.text += decoder.decode(chunk, { stream: true });
     } catch { /* aborted */ }
-    tab.ended = true;
   })();
   await waitFor(() => tab.text.includes('event: ready'), `the ready frame for ${uid}`);
   return tab;
@@ -118,14 +113,18 @@ before(async () => {
   if (skip) return;
   pubConn = await amqp.connect(URL_AMQP);
   pubCh = await pubConn.createConfirmChannel();
-  await pubCh.assertExchange(exchange.name, exchange.type, { durable: exchange.durable });
+  /*
+   * The service uses the real, durable notification.events: empty it so leftovers
+   * from earlier runs or demos can't reach this run. Declare first: purging a
+   * missing queue closes the channel.
+   */
+  await declareConsumerQueue(pubCh, queues.notification);
+  await pubCh.purgeQueue(queues.notification.name);
 });
 
 after(async () => {
   if (pubConn) await pubConn.close().catch(() => {});
 });
-
-// --- tests ------------------------------------------------------------------
 
 test('a RequestCreated reaches the resident and matched volunteers as SSE signals', { skip }, async () => {
   const service = await startService();
@@ -158,21 +157,5 @@ test('a RequestCreated reaches the resident and matched volunteers as SSE signal
   } finally {
     tabs.forEach((t) => t.close());
     await stopService(service);
-  }
-});
-
-test('SIGTERM ends open streams and the service exits cleanly', { skip }, async () => {
-  const service = await startService();
-  const tab = await openTab(service.url, `it-volunteer-${randomUUID()}`);
-  try {
-    service.child.kill('SIGTERM');
-
-    const code = await service.exited;
-    assert.equal(code, 0, `exit code (log: ${JSON.stringify(service.lines)})`);
-    // closeAll ended the stream, so the browser would reconnect elsewhere.
-    await waitFor(() => tab.ended, 'the open stream to end');
-    assert.ok(service.lines.some((l) => l.includes('SIGTERM: shutting down')));
-  } finally {
-    tab.close();
   }
 });

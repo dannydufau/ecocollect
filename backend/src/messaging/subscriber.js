@@ -1,24 +1,23 @@
 'use strict';
 
-// Per-instance subscriber for ecocollect.events.
-//
-// Each process declares its own server-named, exclusive, auto-delete queue,
-// so every running instance receives every event (signals fan out to whichever
-// instance holds the user's SSE connection). Nothing here is durable: events
-// published while no instance is running are dropped, which is fine for
-// refresh signals.
+/*
+ * Consumes one service's durable quorum queue (a topology.queues entry),
+ * declared with its DLQ by declare.js on every connect. Run one instance per
+ * queue: a second would split the events between them.
+ */
 
 const amqp = require('amqplib');
-const { exchange, events } = require('./topology');
+const { events, DELIVERY_LIMIT } = require('./topology');
+const { declareConsumerQueue } = require('./declare');
 
-const BINDING_KEY = 'request.*';
 const DEFAULT_RETRY_MS = 5000;
-const DEFAULT_PREFETCH = 20;
+const DEFAULT_PREFETCH = 1; // one message at a time keeps each request's events in order
 
 /**
- * Start consuming request.* events.
+ * Start consuming one queue.
  *
  * @param {object}   opts
+ * @param {object}   opts.queue       a topology.queues entry, e.g. topology.queues.notification
  * @param {string}   [opts.url]       AMQP URL (defaults to RABBITMQ_URL)
  * @param {object}   opts.handlers    { [eventType]: (envelope, fields) => void|Promise };
  *                                    keys must be event names from topology.events
@@ -29,6 +28,7 @@ const DEFAULT_PREFETCH = 20;
  * @returns {{ stop: () => Promise<void> }}
  */
 function startSubscriber({
+  queue: queueDef,
   url = process.env.RABBITMQ_URL,
   handlers = {},
   connect: openConnection = amqp.connect,
@@ -37,6 +37,7 @@ function startSubscriber({
   prefetch = DEFAULT_PREFETCH,
 } = {}) {
   if (!url) throw new Error('RABBITMQ_URL is not set');
+  if (!queueDef) throw new Error('queue is required (a topology.queues entry)');
   const handlerByType = buildHandlerMap(handlers);
 
   let current = null;  // the AMQP connection in use right now, or null
@@ -69,26 +70,20 @@ function startSubscriber({
       });
 
       const ch = await attempt.createChannel();
-      // A channel-level failure leaves the connection up but stops delivery.
-      // Close the connection so the normal reconnect path rebuilds everything.
+      /*
+       * A channel-level failure leaves the connection up but stops delivery.
+       * Close the connection so the normal reconnect path rebuilds everything.
+       */
       ch.on('error', (err) => log.error('[subscriber] channel error:', err.message));
       ch.on('close', () => {
         if (!stopped) attempt.close().catch(() => {});
       });
 
-      // Idempotent: creates the exchange if missing; errors (closing the
-      // channel) if it exists with different settings.
-      await ch.assertExchange(exchange.name, exchange.type, { durable: exchange.durable });
-      const { queue } = await ch.assertQueue('', {
-        exclusive: true,
-        autoDelete: true,
-        durable: false,
-      });
-      await ch.bindQueue(queue, exchange.name, BINDING_KEY);
+      const { queue } = await declareConsumerQueue(ch, queueDef);
       await ch.prefetch(prefetch);
       await ch.consume(queue, (msg) => onMessage(ch, attempt, msg), { noAck: false });
 
-      log.info(`[subscriber] consuming ${exchange.name} '${BINDING_KEY}' on ${queue}`);
+      log.info(`[subscriber] consuming ${queue}`);
     } catch (err) {
       if (current === attempt) current = null;
       scheduleReconnect(`connect failed: ${err.message}`);
@@ -98,7 +93,7 @@ function startSubscriber({
 
   function onMessage(ch, connection, msg) {
     if (msg === null) {
-      // Broker cancelled the consumer (e.g. queue deleted). Start over.
+      // The broker cancelled the consumer (e.g. queue deleted): start over.
       log.warn('[subscriber] consumer cancelled by broker');
       connection.close().catch(() => {});
       return;
@@ -108,15 +103,34 @@ function startSubscriber({
     try {
       envelope = JSON.parse(msg.content.toString('utf8'));
     } catch (err) {
-      log.error('[subscriber] dropping unparseable message:', err.message);
-      safeAck(ch, msg);
+      log.error(`[subscriber] unparseable message, dead-lettering: ${err.message}`);
+      safeReject(ch, msg, false);
       return;
     }
 
     const type = eventTypeOf(envelope);
+    if (typeof type !== 'string' || type === '') {
+      log.error(`[subscriber] message without an event type, dead-lettering (${msg.fields.routingKey})`);
+      safeReject(ch, msg, false);
+      return;
+    }
+
+    if (!Object.hasOwn(events, type)) {
+      log.error(`[subscriber] unknown type ${type}, dead-lettering (${msg.fields.routingKey})`);
+      safeReject(ch, msg, false);
+      return;
+    }
+
+    const problem = envelopeProblem(envelope);
+    if (problem) {
+      log.error(`[subscriber] invalid envelope (${problem}), dead-lettering: type=${type} eventId=${envelope.eventId} (${msg.fields.routingKey})`);
+      safeReject(ch, msg, false);
+      return;
+    }
+
     const handler = handlerByType.get(type);
     if (!handler) {
-      // Tolerant reader: other request.* events are not ours to handle.
+      // Tolerant reader: the bindings bring in events this service doesn't handle.
       log.debug?.(`[subscriber] no handler for ${type} (${msg.fields.routingKey}); skipping`);
       safeAck(ch, msg);
       return;
@@ -126,22 +140,38 @@ function startSubscriber({
       .then(
         () => safeAck(ch, msg),
         (err) => {
-          // No requeue: a handler bug would otherwise loop forever, and a
-          // dropped signal only costs a missed refresh.
-          log.error(`[subscriber] handler for ${type} failed:`, err);
-          safeNack(ch, msg);
+          /*
+           * Retry: RabbitMQ counts the reject and dead-letters the message
+           * on its 5th failure (x-delivery-limit), so this can't loop forever.
+           */
+          const attempt = deliveryCount(msg);
+          const dying = attempt >= DELIVERY_LIMIT;
+          (dying ? log.error : log.warn)(
+            `[subscriber] handler failed${dying ? ', dead-lettering' : ', will retry'}:`
+              + ` eventId=${envelope.eventId} type=${type} queue=${queueDef.name}`
+              + ` x-delivery-count=${attempt}: ${err && err.message}`,
+          );
+          safeReject(ch, msg, true);
         },
       );
   }
 
-  // If the channel closed mid-handler, ack/nack throws. The message dies with
-  // the exclusive queue anyway, so there is nothing to recover.
+  /*
+   * If the channel closed mid-handler, ack/reject throws. Nothing is lost: the
+   * unacked message is redelivered after we reconnect.
+   */
   function safeAck(ch, msg) {
     try { ch.ack(msg); } catch { /* channel closed */ }
   }
 
-  function safeNack(ch, msg) {
-    try { ch.nack(msg, false, false); } catch { /* channel closed */ }
+  function safeReject(ch, msg, requeue) {
+    try { ch.reject(msg, requeue); } catch { /* channel closed */ }
+  }
+
+  // RabbitMQ sets x-delivery-count on redeliveries; absent on the first attempt.
+  function deliveryCount(msg) {
+    const headers = msg.properties && msg.properties.headers;
+    return (headers && headers['x-delivery-count']) || 0;
   }
 
   async function stop() {
@@ -157,9 +187,11 @@ function startSubscriber({
   return { stop };
 }
 
-// Fail fast on startup: a misspelled event name would otherwise just never
-// fire. A Map (not the plain object) also means a message whose type is
-// "constructor" or "toString" can't reach an inherited Object method.
+/*
+ * Fail fast on startup: a misspelled event name would otherwise never fire.
+ * A Map (not a plain object) means a type like "constructor" can't reach an
+ * inherited Object method.
+ */
 function buildHandlerMap(handlers) {
   const map = new Map();
   for (const [type, fn] of Object.entries(handlers)) {
@@ -176,9 +208,18 @@ function buildHandlerMap(handlers) {
   return map;
 }
 
-// Envelope field that names the event. Adjust if asyncapi.yaml uses another name.
+// The envelope field that names the event.
 function eventTypeOf(envelope) {
   return envelope && envelope.type;
 }
 
-module.exports = { startSubscriber, BINDING_KEY };
+// What an envelope needs besides a known type; the reason it's unusable, or null.
+function envelopeProblem({ eventId, version, occurredAt, data }) {
+  if (typeof eventId !== 'string' || eventId === '') return 'no eventId';
+  if (!Number.isInteger(version) || version < 1) return 'no version';
+  if (typeof occurredAt !== 'string' || Number.isNaN(Date.parse(occurredAt))) return 'bad occurredAt';
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return 'no data';
+  return null;
+}
+
+module.exports = { startSubscriber };

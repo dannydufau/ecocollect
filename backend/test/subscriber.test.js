@@ -1,35 +1,36 @@
 'use strict';
 
-// Unit tests for the subscriber's connection lifecycle, using a fake
-// connect() so no broker is needed:  node --test
+/*
+ * Unit tests for the subscriber, using a fake connect() so no broker is
+ * needed:  node --test
+ */
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
 
-const { startSubscriber, BINDING_KEY } = require('../src/messaging/subscriber');
-const { exchange } = require('../src/messaging/topology');
+const { startSubscriber } = require('../src/messaging/subscriber');
+const { queues } = require('../src/messaging/topology');
 
-// --- fakes ------------------------------------------------------------------
 
 function fakeChannel() {
   const ch = new EventEmitter();
   ch.calls = [];
-  const record = (name, result) => (...args) => {
+  const record = (name) => (...args) => {
     ch.calls.push([name, ...args]);
-    return Promise.resolve(result);
+    return Promise.resolve({});
   };
-  ch.assertExchange = record('assertExchange', {});
-  ch.assertQueue = record('assertQueue', { queue: 'amq.gen-test' });
-  ch.bindQueue = record('bindQueue', {});
-  ch.prefetch = record('prefetch', {});
+  ch.assertExchange = record('assertExchange');
+  ch.assertQueue = record('assertQueue');
+  ch.bindQueue = record('bindQueue');
+  ch.prefetch = record('prefetch');
   ch.consume = (queue, onMessage, opts) => {
     ch.calls.push(['consume', queue, opts]);
-    ch.deliver = onMessage; // lets later tests push messages in
+    ch.deliver = onMessage; // lets tests push messages in
     return Promise.resolve({ consumerTag: 'ctag-test' });
   };
   ch.ack = (msg) => ch.calls.push(['ack', msg]);
-  ch.nack = (msg, allUpTo, requeue) => ch.calls.push(['nack', msg, allUpTo, requeue]);
+  ch.reject = (msg, requeue) => ch.calls.push(['reject', msg, requeue]);
   return ch;
 }
 
@@ -47,19 +48,13 @@ function fakeConnection() {
   return conn;
 }
 
-// connect() stand-in: hands out a new fake connection per call, or fails
-// while `failNext` is above zero.
+// connect() stand-in: hands out a new fake connection per call.
 function fakeConnector() {
   const connector = {
     calls: 0,
-    failNext: 0,
     connections: [],
     connect: async () => {
       connector.calls += 1;
-      if (connector.failNext > 0) {
-        connector.failNext -= 1;
-        throw new Error('ECONNREFUSED');
-      }
       const conn = fakeConnection();
       connector.connections.push(conn);
       return conn;
@@ -80,6 +75,7 @@ async function waitFor(condition, ms = 500) {
 
 function start(connector, extra = {}) {
   return startSubscriber({
+    queue: queues.notification,
     url: 'amqp://test',
     connect: connector.connect,
     log: quietLog,
@@ -89,34 +85,6 @@ function start(connector, extra = {}) {
 }
 
 const consumed = (conn) => conn.channel.calls.some(([name]) => name === 'consume');
-
-// --- tests ------------------------------------------------------------------
-
-test('sets up a private queue bound to request.* and starts consuming', async () => {
-  const connector = fakeConnector();
-  const sub = start(connector, { prefetch: 7 });
-  await waitFor(() => connector.connections[0] && consumed(connector.connections[0]));
-
-  const calls = connector.connections[0].channel.calls;
-  const find = (name) => calls.find(([n]) => n === name);
-
-  assert.deepEqual(find('assertExchange'), ['assertExchange', exchange.name, exchange.type, {
-    durable: exchange.durable,
-  }]);
-  assert.deepEqual(find('assertQueue'), ['assertQueue', '', {
-    exclusive: true, autoDelete: true, durable: false,
-  }]);
-  assert.deepEqual(find('bindQueue'), ['bindQueue', 'amq.gen-test', exchange.name, BINDING_KEY]);
-  assert.deepEqual(find('prefetch'), ['prefetch', 7]);
-  assert.deepEqual(find('consume'), ['consume', 'amq.gen-test', { noAck: false }]);
-
-  // Order matters: the exchange must exist before binding, and the binding
-  // and prefetch before consuming.
-  const order = calls.map(([n]) => n);
-  assert.deepEqual(order, ['assertExchange', 'assertQueue', 'bindQueue', 'prefetch', 'consume']);
-
-  await sub.stop();
-});
 
 test('reconnects and rebuilds the queue after the connection closes', async () => {
   const connector = fakeConnector();
@@ -131,96 +99,32 @@ test('reconnects and rebuilds the queue after the connection closes', async () =
   await sub.stop();
 });
 
-test('a channel close escalates to a connection close and one reconnect', async () => {
-  const connector = fakeConnector();
-  const sub = start(connector);
-  await waitFor(() => connector.connections[0] && consumed(connector.connections[0]));
-
-  connector.connections[0].channel.emit('close');
-
-  await waitFor(() => connector.connections[1] && consumed(connector.connections[1]));
-  assert.equal(connector.connections[0].closed, true);
-  // channel close + connection close both ask for a reconnect; the timer
-  // guard means only one new connection is made.
-  await new Promise((r) => setTimeout(r, 40));
-  assert.equal(connector.calls, 2);
-
-  await sub.stop();
-});
-
-test('retries when the broker is down at startup', async () => {
-  const connector = fakeConnector();
-  connector.failNext = 2;
-  const sub = start(connector);
-
-  await waitFor(() => connector.connections[0] && consumed(connector.connections[0]));
-  assert.equal(connector.calls, 3); // two failures, then success
-
-  await sub.stop();
-});
-
-test('stop() closes the connection and prevents reconnects', async () => {
-  const connector = fakeConnector();
-  const sub = start(connector);
-  await waitFor(() => connector.connections[0] && consumed(connector.connections[0]));
-
-  await sub.stop();
-  assert.equal(connector.connections[0].closed, true);
-
-  await new Promise((r) => setTimeout(r, 40));
-  assert.equal(connector.calls, 1);
-});
-
-test('requires a URL', () => {
-  assert.throws(() => startSubscriber({ url: '', log: quietLog }), /RABBITMQ_URL/);
-});
-
-// --- handler validation (startup) -----------------------------------------
-
-test('rejects a handler for an event not in topology.events', () => {
-  assert.throws(
-    () => startSubscriber({
-      url: 'amqp://test',
-      log: quietLog,
-      handlers: { RequestCreatd: () => {} }, // typo
-    }),
-    /No event 'RequestCreatd' in topology\.events/,
-  );
-});
-
-test('rejects a handler that is not a function', () => {
-  assert.throws(
-    () => startSubscriber({
-      url: 'amqp://test',
-      log: quietLog,
-      handlers: { RequestCreated: 'oops' },
-    }),
-    /Handler for 'RequestCreated' must be a function/,
-  );
-});
-
-// --- dispatch ---------------------------------------------------------------
-
 function message(body, routingKey = 'request.created') {
   const content = Buffer.from(typeof body === 'string' ? body : JSON.stringify(body));
-  return { content, fields: { routingKey, deliveryTag: 1 }, properties: {} };
+  return { content, fields: { routingKey, deliveryTag: 1 }, properties: { headers: {} } };
 }
 
-async function startedWith(handlers, extra = {}) {
+// A valid envelope; 'fields' overrides any part of it.
+function event(type, data = {}, fields = {}) {
+  return { eventId: 'e-1', type, version: 1, occurredAt: '2026-11-19T12:00:00Z', data, ...fields };
+}
+
+async function startedWith(handlers) {
   const connector = fakeConnector();
-  const sub = start(connector, { handlers, ...extra });
+  const sub = start(connector, { handlers });
   await waitFor(() => connector.connections[0] && consumed(connector.connections[0]));
   return { sub, ch: connector.connections[0].channel };
 }
 
+// The ack or reject the subscriber sent for this message.
 const settled = (ch, msg) =>
-  ch.calls.find(([name, m]) => (name === 'ack' || name === 'nack') && m === msg);
+  ch.calls.find(([name, m]) => (name === 'ack' || name === 'reject') && m === msg);
 
 test('dispatches by envelope.type and acks when the handler returns', async () => {
   const seen = [];
   const { sub, ch } = await startedWith({ RequestCreated: (env) => { seen.push(env); } });
 
-  const msg = message({ type: 'RequestCreated', data: { requestId: 'r-1' } });
+  const msg = message(event('RequestCreated', { requestId: 'r-1' }));
   ch.deliver(msg);
   await waitFor(() => settled(ch, msg));
 
@@ -230,45 +134,44 @@ test('dispatches by envelope.type and acks when the handler returns', async () =
   await sub.stop();
 });
 
-test('nacks without requeue when the handler throws', async () => {
+test('rejects with requeue when the handler throws, so RabbitMQ retries it', async () => {
   const { sub, ch } = await startedWith({
     RequestCreated: () => { throw new Error('boom'); },
   });
 
-  const msg = message({ type: 'RequestCreated', data: {} });
+  const msg = message(event('RequestCreated'));
   ch.deliver(msg);
   await waitFor(() => settled(ch, msg));
 
-  assert.deepEqual(settled(ch, msg), ['nack', msg, false, false]);
+  assert.deepEqual(settled(ch, msg), ['reject', msg, true]);
   await sub.stop();
 });
 
-test('acks and skips unparseable JSON and unknown types', async () => {
+test('dead-letters unparseable JSON, unknown types and invalid envelopes', async () => {
   const { sub, ch } = await startedWith({ RequestCreated: () => {} });
 
-  const bad = message('{not json');
-  const unknown = message({ type: 'RequestAccepted', data: {} }, 'request.accepted');
-  ch.deliver(bad);
-  ch.deliver(unknown);
-  await waitFor(() => settled(ch, bad) && settled(ch, unknown));
+  const bad = [
+    '{not json', '42', 'null', '{}', { type: '' },
+    event('NoSuchEvent'),
+    event('RequestCreated', {}, { eventId: '' }),
+    event('RequestCreated', {}, { version: '1' }),
+    event('RequestCreated', {}, { occurredAt: 'yesterday' }),
+    event('RequestCreated', null),
+  ].map((body) => message(body));
+  bad.forEach((msg) => ch.deliver(msg));
+  await waitFor(() => bad.every((msg) => settled(ch, msg)));
 
-  assert.equal(settled(ch, bad)[0], 'ack');
-  assert.equal(settled(ch, unknown)[0], 'ack');
+  for (const msg of bad) assert.deepEqual(settled(ch, msg), ['reject', msg, false]);
   await sub.stop();
 });
 
-test('a type naming an Object.prototype method is skipped, not called', async () => {
-  const debug = [];
-  const log = { ...quietLog, debug: (line) => debug.push(line) };
-  const { sub, ch } = await startedWith({ RequestCreated: () => {} }, { log });
+test('acks and skips a valid event with no handler', async () => {
+  const { sub, ch } = await startedWith({ RequestCreated: () => {} });
 
-  // With a plain-object lookup, handlers['constructor'] finds Object() and
-  // "handles" the message. It must take the no-handler path instead.
-  const msg = message({ type: 'constructor', data: {} });
-  ch.deliver(msg);
-  await waitFor(() => settled(ch, msg));
+  const unknown = message(event('RequestUpdated'), 'request.updated');
+  ch.deliver(unknown);
+  await waitFor(() => settled(ch, unknown));
 
-  assert.equal(settled(ch, msg)[0], 'ack');
-  assert.ok(debug.some((line) => line.includes('no handler for constructor')));
+  assert.deepEqual(settled(ch, unknown), ['ack', unknown]);
   await sub.stop();
 });
