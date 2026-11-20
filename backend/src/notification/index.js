@@ -8,6 +8,7 @@
  */
 
 const express = require('express');
+const { Pool } = require('pg');
 
 const { createHub } = require('./hub');
 const { createEventsRouter } = require('./events');
@@ -32,12 +33,19 @@ for (const name of ['VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'VAPID_SUBJECT']) {
   if (!process.env[name]) throw new Error(`${name} is not set, run npx web-push generate-vapid-keys (see .env.example)`);
 }
 
+if (!process.env.DATABASE_URL) {
+  throw new Error('DATABASE_URL is not set, see backend/README.md');
+}
+
+// One pool of Postgres connections for the process; the store borrows one per query.
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+pool.on('error', (err) => console.error(`[db] ${err.message}`));
+
 // One hub per process: the route adds and removes tabs, deliveries write to them.
 const hub = createHub();
 
-// Browsers' push subscriptions, in memory until new pg schema lands
-const subscriptions = createSubscriptionStore();
-
+// Browsers' push subscriptions (notifications.push_subscription).
+const subscriptions = createSubscriptionStore(pool);
 const pushSender = createWebPushSender({ vapid, subscriptions });
 
 // HTTP: the SSE endpoint
@@ -88,6 +96,7 @@ async function shutdown(signalName) {
   hub.closeAll();
   // Leave the broker. Our queue stays: events published meanwhile wait in it.
   await subscriber.stop();
+  await pool.end();
   server.close(() => process.exit(0));
   setTimeout(() => process.exit(1), 5000).unref();
 }
