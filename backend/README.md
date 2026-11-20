@@ -70,6 +70,12 @@ TEST_DATABASE_URL=postgres://ecocollect:change_me@localhost:5432/ecocollect npm 
 
 Use a scratch database for that, not the demo one: the outbox tests mark every unsent event as sent. They add their own users with random postal codes and remove them afterwards.
 
+## Public profiles
+
+`GET /api/public/profiles/:accountId` needs no login and reads no identity headers. It returns only `accountId`, `publicName`, `roles` and UTC `memberSince`. Invalid, unknown and deactivated accounts return `404 profile_not_found` with the same message. The lookup selects no private account fields and makes no Firebase calls. Profile stats remain on the Reward route.
+
+Run `node --test test/user-public-profile.test.js` from `backend/`. Set `TEST_DATABASE_URL` to a loaded scratch database to include the role and deactivation checks.
+
 ## User account helpers
 
 `src/user/firebase/accounts.ts` wraps account creation, role claims, disabling and re-enabling. Each helper takes an Auth object, so tests use a fake without credentials. `createAccountUser(auth, accountExists, input, now)` also takes the database's current time. It only removes a conflicting Firebase account when it is more than ten minutes old and `accountExists(uid)` explicitly returns false, then retries creation once. Username and email conflicts return typed 409 errors. Role claims get at most three attempts. If initial claims fail, the helper removes the newly created Firebase account; it preserves both errors if cleanup also fails.
