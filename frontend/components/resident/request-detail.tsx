@@ -8,6 +8,7 @@ import { nextStepText } from "@/lib/status-text";
 import { formatTimestamp } from "@/lib/time";
 import type { RequestDetail } from "@/lib/types";
 import { useRequestDetail } from "@/lib/use-request";
+import CancelAssignment from "./cancel-assignment";
 import CancelRequest, { type Notice } from "./cancel-request";
 import ConfirmCollected from "./confirm-collected";
 import { RequestActions, type ResidentActionRenderers } from "./request-actions";
@@ -44,6 +45,7 @@ export default function ResidentRequestDetail({ requestId, actionRenderers }: {
     const renderers: ResidentActionRenderers = {
         cancel: request => <CancelRequest request={request} onNotice={setNotice} />,
         confirm_collected: request => <ConfirmCollected request={request} onNotice={setNotice} />,
+        cancel_assignment: request => <CancelAssignment request={request} onNotice={setNotice} />,
         ...actionRenderers,
     };
     return <ResidentRequestView request={data} onPhotoError={() => { void refetch(); }} actionRenderers={renderers} notice={notice} />;
