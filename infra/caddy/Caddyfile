@@ -19,25 +19,88 @@
 }
 
 localhost {
-	@verify-path path /verify
-
 	# strip any headers, that would be used internally by the services
 	import strip-headers-add-request-id
 
 	handle /api/* {
-		# to configure cookies
-		handle /api/session {
+		# reward paths, public
+		# Match profile stats before the User Service's public profile route.
+		@reward-public-paths <<CEL
+			(method('GET') && (path('/api/public/stats') || path_regexp('^/api/public/profiles/[^/]+/stats$')))
+			CEL
+
+		handle @reward-public-paths {
+			reverse_proxy reward
+		}
+
+		# reward paths, auth
+		@reward-paths <<CEL
+			(method('GET') && path('/api/ecopoints'))
+			CEL
+
+		handle @reward-paths {
+			import verify-auth
+			reverse_proxy reward
+		}
+
+		# user paths, public
+		@user-public-paths <<CEL
+			(method('POST') && path('/api/accounts')) ||
+			(method('GET') && (path('/api/terms') || path_regexp('^/api/public/profiles/[^/]+$')))
+			CEL
+
+		handle @user-public-paths {
+			reverse_proxy user
+		}
+
+		# Session and verification stay on the backend until USER-04 moves them.
+		@session-paths {
+			method POST DELETE
+			path /api/session
+		}
+		handle @session-paths {
 			reverse_proxy auth
 		}
 
-		@pickup-paths path /api/categories /api/categories/* /api/requests /api/requests/* /api/profile /api/profile/*
+		# user paths, auth
+		@user-paths <<CEL
+			(method('GET', 'PATCH', 'DELETE') && path('/api/profile')) ||
+			(method('POST') && path('/api/profile/roles'))
+			CEL
 
-		handle @pickup-paths {
+		handle @user-paths {
 			import verify-auth
-			reverse_proxy pickup
+			reverse_proxy user
 		}
 
-		@notification-paths path /api/events /api/notifications /api/notifications/* /api/push/subscriptions
+		# request paths, auth
+		@request-paths <<CEL
+			(method('GET') && (path('/api/categories', '/api/facilities', '/api/requests') || path_regexp('^/api/requests/[^/]+$'))) ||
+			(method('POST') && (path('/api/uploads', '/api/requests') || path_regexp('^/api/requests/[^/]+/(cancel|assignment|assignment/(cancel|collected|missed|delivery))$'))) ||
+			(method('PATCH') && path_regexp('^/api/requests/[^/]+$'))
+			CEL
+
+		handle @request-paths {
+			import verify-auth
+			reverse_proxy request
+		}
+
+		# notification paths, public
+
+		@notification-public-paths <<CEL
+			(method('GET') && path('/api/public/events'))
+			CEL
+
+		handle @notification-public-paths {
+			reverse_proxy notification
+		}
+
+		@notification-paths <<CEL
+			(method('GET') && path('/api/events', '/api/notifications')) ||
+			(method('PATCH') && path_regexp('^/api/notifications/[^/]+/read$')) ||
+			(method('POST') && path('/api/notifications/read-all', '/api/push/subscriptions')) ||
+			(method('DELETE') && path('/api/push/subscriptions'))
+			CEL
 
 		handle @notification-paths {
 			import verify-auth
@@ -48,6 +111,8 @@ localhost {
 			error "Not found" 404
 		}
 	}
+
+	@verify-path path /verify
 
 	handle @verify-path {
 		error "Not found" 404
@@ -60,7 +125,18 @@ localhost {
 	handle_errors {
 		handle /api/* {
 			header Content-Type application/json
-			respond `{"status": {err.status_code}, "error": "{err.message}"}`
+			@404 expression `{err.status_code} == 404`
+			handle @404 {
+				respond `{"error":{"code":"not_found","message":"Not found."}}` 404
+			}
+			@unavailable expression `{err.status_code} in [502, 503, 504]`
+			handle @unavailable {
+				respond `{"error":{"code":"service_unavailable","message":"The service is unavailable. Try again."}}` {err.status_code}
+			}
+			# any other error Caddy raises itself (e.g. 400, 413)
+			handle {
+				respond `{"error":{"code":"gateway_error","message":"The request could not be handled."}}` {err.status_code}
+			}
 		}
 	}
 }

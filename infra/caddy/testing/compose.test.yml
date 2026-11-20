@@ -4,9 +4,14 @@ networks:
   public: {}
 
 services:
-  pickup:
+  reward:
     image: traefik/whoami
-    command: ["-name", "pickup"]
+    command: ["-name", "reward"]
+    networks: [internal]
+
+  request:
+    image: traefik/whoami
+    command: ["-name", "request"]
     networks: [internal]
 
   notification:
@@ -19,11 +24,16 @@ services:
     command: ["-name", "frontend", "-port", "3000"]
     networks: [internal]
 
+  user:
+    image: caddy:2
+    networks: [internal]
+    volumes:
+      - ./user-stub.Caddyfile:/etc/caddy/Caddyfile:ro
   auth:
     image: caddy:2
     networks: [internal]
     volumes:
-      - ./auth-stub.Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./user-stub.Caddyfile:/etc/caddy/Caddyfile:ro
   gateway:
     image: caddy:2
     ports: ["3030:443"]

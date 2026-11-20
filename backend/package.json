@@ -5,7 +5,7 @@
   "description": "EcoCollect backend: API server (auth, requests) and notification service",
   "main": "src/api/server.js",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.18"
   },
   "scripts": {
     "start": "node src/api/server.js",
