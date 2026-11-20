@@ -1,11 +1,5 @@
 import { now } from "../store.mjs";
 
-// A fresh mock with no delivery still shows some numbers
-const sample = [
-  { wasteType: "Electronics", deliveries: 3, itemsDelivered: 5, estimatedWeightKgDelivered: 12.5 },
-  { wasteType: "Displays", deliveries: 1, itemsDelivered: 1, estimatedWeightKgDelivered: 5 },
-];
-
 const round = (value) => Math.round(value * 100) / 100;
 
 // R2: community totals, no login. One delivered request is one delivery.
@@ -20,7 +14,7 @@ export function register(route, store) {
       row.estimatedWeightKgDelivered = round(row.estimatedWeightKgDelivered + request.estimatedWeightKg);
       byType.set(wasteType, row);
     }
-    const byWasteType = byType.size ? [...byType.values()] : sample;
+    const byWasteType = [...byType.values()];
     const total = (key) => round(byWasteType.reduce((sum, row) => sum + row[key], 0));
     const body = {
       deliveries: total("deliveries"),

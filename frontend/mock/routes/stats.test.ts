@@ -42,9 +42,8 @@ it("counts a delivered request", () => {
     expect(after.byWasteType).toContainEqual({ wasteType: "Mobile Devices", deliveries: 1, itemsDelivered: 4, estimatedWeightKgDelivered: 0.8 });
 });
 
-it("falls back to sample numbers when nothing was delivered", () => {
+it("answers zeros and no waste types when nothing was delivered", () => {
     for (const request of requests()) if (request.status === "Delivered") request.status = "Open";
     const { body } = getStats();
-    expect(body.deliveries).toBeGreaterThan(0);
-    expect(body.byWasteType.length).toBeGreaterThan(0);
+    expect(body).toMatchObject({ deliveries: 0, itemsDelivered: 0, estimatedWeightKgDelivered: 0, byWasteType: [] });
 });
