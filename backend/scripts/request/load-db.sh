@@ -2,7 +2,9 @@
 # Builds a fresh Request Service database inside the compose "postgres" container:
 #   1. drops and recreates the database
 #   2. the course database (the 608 physical model in MODEL_DIR): tables.sql,
-#      transactions.sql, seed.sql (schema ecocollect608)
+#      transactions.sql, seed.sql (schema ecocollect608). A stand-in until
+#      integration, for both the User Service's tables (later in "users") and this
+#      service's course tables (later in "requests"); see the 020 header.
 #   3. every db/request/*.sql file, in name order: the Request Service's own files
 #      (020_request_ops.sql first, then helpers, checks, reads and writes).
 #      A new SQL file is loaded just by adding it; this script doesn't change.
