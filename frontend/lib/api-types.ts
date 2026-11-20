@@ -206,7 +206,7 @@ export interface paths {
         };
         /**
          * Q2. Recycling facilities (volunteer)
-         * @description With `categoryId`, only the facilities that accept it (FR17).
+         * @description With `categoryId`, only the facilities that accept it (FR17). Every category has at least one accepting facility. An unknown categoryId returns 400 validation_failed with details.fields.categoryId.
          */
         get: operations["listFacilities"];
         put?: never;
@@ -711,7 +711,7 @@ export interface components {
              */
             windows: components["schemas"]["PickupWindowInput"][];
             notes?: string;
-            /** @description The terms document the resident just acknowledged. Must be the current one. */
+            /** @description Use the current terms UUID returned by U5. Check before database casts; malformed, unknown or outdated IDs return 409 terms_outdated. */
             termsDocumentId: string;
         };
         CreatedRequest: {
@@ -876,6 +876,7 @@ export interface components {
         AcceptRequest: {
             /** @description One of this request's active windows that has not started yet. */
             windowId: string;
+            /** @description Use the current terms UUID returned by U5. Check before database casts; malformed, unknown or outdated IDs return 409 terms_outdated. */
             termsDocumentId: string;
         };
         CancelAssignment: {
@@ -897,6 +898,7 @@ export interface components {
                  *     (the original `createdAt` when editing). Times are decided in Calgary time with the database clock.
                  */
                 windows: components["schemas"]["PickupWindowInput"][];
+                /** @description Use the current terms UUID returned by U5. Check before database casts; malformed, unknown or outdated IDs return 409 terms_outdated. */
                 termsDocumentId: string;
             };
         };
@@ -939,6 +941,7 @@ export interface components {
             address?: components["schemas"]["Address"];
             /** @description 0 to 3 distinct codes. Replaces the whole list. */
             preferredPostalCodes?: components["schemas"]["PostalCode"][];
+            /** @description Use the current terms UUID returned by U5. Check before database casts; malformed, unknown or outdated IDs return 409 terms_outdated. */
             termsDocumentId: string;
         };
         /** @description Any of these. */
@@ -951,6 +954,7 @@ export interface components {
         };
         ActivateRole: {
             role: components["schemas"]["Role"];
+            /** @description Use the current terms UUID returned by U5. Check before database casts; malformed, unknown or outdated IDs return 409 terms_outdated. */
             termsDocumentId: string;
             /** @description Required when activating resident. */
             address?: components["schemas"]["Address"];
@@ -1000,8 +1004,8 @@ export interface components {
             kind: "DELIVERY" | "CANCELLATION";
             earnedAs: components["schemas"]["Role"];
             points: components["schemas"]["Decimal"];
-            /** @enum {string} */
-            formula: "VOLUNTEER" | "RESIDENT";
+            /** @description Copy of the formula used when the award was created. */
+            formula: string;
             /** Format: uuid */
             requestId: string;
             assignmentId: string;
@@ -1303,7 +1307,7 @@ export interface operations {
                  *         "street": "123 4 Ave SW",
                  *         "postalCode": "T2P1J9"
                  *       },
-                 *       "termsDocumentId": "terms_3"
+                 *       "termsDocumentId": "00000001-0000-4000-8000-000000000002"
                  *     }
                  */
                 "application/json": components["schemas"]["CreateAccount"];
@@ -1519,7 +1523,7 @@ export interface operations {
                 /**
                  * @example {
                  *       "role": "resident",
-                 *       "termsDocumentId": "terms_3",
+                 *       "termsDocumentId": "00000001-0000-4000-8000-000000000002",
                  *       "address": {
                  *         "street": "9 Main St NW",
                  *         "postalCode": "T3A0B1"
@@ -1690,6 +1694,28 @@ export interface operations {
                     "application/json": components["schemas"]["Facility"][];
                 };
             };
+            /** @description Unknown categoryId. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "validation_failed",
+                     *         "message": "Choose an existing category.",
+                     *         "details": {
+                     *           "fields": {
+                     *             "categoryId": "Unknown category."
+                     *           }
+                     *         }
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
         };
@@ -1774,7 +1800,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description A repeat with the same key within 24 hours returns the first `201` (NFR06). */
+                /** @description 1 to 200 characters; an empty or longer key returns `400` (`details.fields`, e.g. `{ "Idempotency-Key": "must be 1 to 200 characters" }`). A repeat with the same key within 24 hours returns the first `201` (NFR06). */
                 "Idempotency-Key"?: string;
             };
             path?: never;
@@ -1804,7 +1830,7 @@ export interface operations {
                  *         }
                  *       ],
                  *       "notes": "Side door",
-                 *       "termsDocumentId": "terms_3"
+                 *       "termsDocumentId": "00000001-0000-4000-8000-000000000002"
                  *     }
                  */
                 "application/json": components["schemas"]["CreateRequests"];
@@ -2072,7 +2098,7 @@ export interface operations {
                 /**
                  * @example {
                  *       "windowId": "w_1",
-                 *       "termsDocumentId": "terms_3"
+                 *       "termsDocumentId": "00000001-0000-4000-8000-000000000002"
                  *     }
                  */
                 "application/json": components["schemas"]["AcceptRequest"];
@@ -2220,7 +2246,7 @@ export interface operations {
                  *             "startHour": 10
                  *           }
                  *         ],
-                 *         "termsDocumentId": "terms_3"
+                 *         "termsDocumentId": "00000001-0000-4000-8000-000000000002"
                  *       }
                  *     }
                  */
@@ -2555,7 +2581,7 @@ export interface operations {
                      *           "kind": "DELIVERY",
                      *           "earnedAs": "volunteer",
                      *           "points": 26,
-                     *           "formula": "VOLUNTEER",
+                     *           "formula": "3 * quantity + 4 * estimatedWeightKg",
                      *           "requestId": "6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11",
                      *           "assignmentId": "a_9",
                      *           "categoryName": "Computers/Laptops",

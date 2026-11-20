@@ -173,7 +173,7 @@ paths:
               address:
                 street: 123 4 Ave SW
                 postalCode: T2P1J9
-              termsDocumentId: terms_3
+              termsDocumentId: 00000001-0000-4000-8000-000000000002
       responses:
         '201':
           description: Registered.
@@ -369,7 +369,7 @@ paths:
               $ref: '#/components/schemas/ActivateRole'
             example:
               role: resident
-              termsDocumentId: terms_3
+              termsDocumentId: 00000001-0000-4000-8000-000000000002
               address:
                 street: 9 Main St NW
                 postalCode: T3A0B1
@@ -507,7 +507,7 @@ paths:
       operationId: listFacilities
       summary: Q2. Recycling facilities (volunteer)
       x-readme-id: Q2
-      description: With `categoryId`, only the facilities that accept it (FR17).
+      description: With `categoryId`, only the facilities that accept it (FR17). Every category has at least one accepting facility. An unknown categoryId returns 400 validation_failed with details.fields.categoryId.
       security:
         - bearerAuth: []
       parameters:
@@ -526,6 +526,19 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Facility'
+        '400':
+          description: Unknown categoryId.
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/Error
+              example:
+                error:
+                  code: validation_failed
+                  message: Choose an existing category.
+                  details:
+                    fields:
+                      categoryId: Unknown category.
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -588,7 +601,9 @@ paths:
           schema:
             type: string
             minLength: 1
-          description: A repeat with the same key within 24 hours returns the first `201` (NFR06).
+            maxLength: 200
+          description: >-
+            1 to 200 characters; an empty or longer key returns `400` (`details.fields`, e.g. `{ "Idempotency-Key": "must be 1 to 200 characters" }`). A repeat with the same key within 24 hours returns the first `201` (NFR06).
       requestBody:
         required: true
         content:
@@ -607,7 +622,7 @@ paths:
                 - date: '2026-11-22'
                   startHour: 14
               notes: Side door
-              termsDocumentId: terms_3
+              termsDocumentId: 00000001-0000-4000-8000-000000000002
       responses:
         '201':
           description: Created, one per item.
@@ -946,7 +961,7 @@ paths:
               $ref: '#/components/schemas/AcceptRequest'
             example:
               windowId: w_1
-              termsDocumentId: terms_3
+              termsDocumentId: 00000001-0000-4000-8000-000000000002
       responses:
         '201':
           description: 'Accepted: the request detail, now with the address.'
@@ -1113,7 +1128,7 @@ paths:
                 windows:
                   - date: '2026-11-24'
                     startHour: 10
-                termsDocumentId: terms_3
+                termsDocumentId: 00000001-0000-4000-8000-000000000002
       responses:
         '200':
           description: The missed request, and the new one if rescheduled.
@@ -1496,7 +1511,7 @@ paths:
                     kind: DELIVERY
                     earnedAs: volunteer
                     points: 26.0
-                    formula: VOLUNTEER
+                    formula: "3 * quantity + 4 * estimatedWeightKg"
                     requestId: 6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11
                     assignmentId: a_9
                     categoryName: Computers/Laptops
@@ -1672,6 +1687,7 @@ components:
             - 'null'
         acceptedCategoryIds:
           type: array
+          minItems: 1
           items:
             type: string
             minLength: 1
@@ -1806,9 +1822,9 @@ components:
         notes:
           type: string
         termsDocumentId:
+          description: Use the current terms UUID returned by U5. Check before database casts; malformed, unknown or outdated IDs return 409 terms_outdated.
           type: string
           minLength: 1
-          description: The terms document the resident just acknowledged. Must be the current one.
     CreatedRequest:
       type: object
       additionalProperties: false
@@ -2255,6 +2271,7 @@ components:
           minLength: 1
           description: One of this request's active windows that has not started yet.
         termsDocumentId:
+          description: Use the current terms UUID returned by U5. Check before database casts; malformed, unknown or outdated IDs return 409 terms_outdated.
           type: string
           minLength: 1
     CancelAssignment:
@@ -2302,6 +2319,7 @@ components:
                 1 to 3 distinct slots. Each starts in the future and ends by `createdAt + 30 days`
                 (the original `createdAt` when editing). Times are decided in Calgary time with the database clock.
             termsDocumentId:
+              description: Use the current terms UUID returned by U5. Check before database casts; malformed, unknown or outdated IDs return 409 terms_outdated.
               type: string
               minLength: 1
     RecordDelivery:
@@ -2414,6 +2432,7 @@ components:
             $ref: ./schemas/common.yaml#/PostalCode
           description: 0 to 3 distinct codes. Replaces the whole list.
         termsDocumentId:
+          description: Use the current terms UUID returned by U5. Check before database casts; malformed, unknown or outdated IDs return 409 terms_outdated.
           type: string
           minLength: 1
     ProfileEdit:
@@ -2447,6 +2466,7 @@ components:
         role:
           $ref: ./schemas/common.yaml#/Role
         termsDocumentId:
+          description: Use the current terms UUID returned by U5. Check before database casts; malformed, unknown or outdated IDs return 409 terms_outdated.
           type: string
           minLength: 1
         address:
@@ -2599,9 +2619,8 @@ components:
           $ref: ./schemas/common.yaml#/Decimal
         formula:
           type: string
-          enum:
-            - VOLUNTEER
-            - RESIDENT
+          minLength: 1
+          description: Copy of the formula used when the award was created.
         requestId:
           type: string
           format: uuid
