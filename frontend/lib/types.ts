@@ -35,50 +35,8 @@ export type RequestStatus = Schemas["RequestStatus"];
 export type Role = Schemas["Role"];
 export type AllowedAction = RequestDetail["allowedActions"][number];
 
-// Old shapes. Current pages still use them. The cleanup ticket removes them.
+// The window shape the pages and time helpers use
 export type PickupWindow = {
     date: string; // Calgary calendar date, YYYY-MM-DD
     startHour: number; // 0 to 23, Calgary time
-};
-
-export type CreateRequestsBody = {
-    items: { categoryId: string; quantity: number; description?: string }[];
-    windows: PickupWindow[];
-    notes?: string;
-    safetyAcknowledged: true;
-};
-
-export type OldCreatedRequest = {
-    requestId: string;
-    categoryId: string;
-    quantity: number;
-    estimatedWeightKg: number;
-    status: "Open";
-    createdAt: string;
-    expiresAt: string;
-};
-
-export type OldMyRequest = {
-    requestId: string;
-    category: string;
-    quantity: number;
-    estimatedWeightKg: number;
-    status: RequestStatus;
-    createdAt: string;
-    expiresAt: string;
-};
-
-export type OldAvailableRequest = {
-    requestId: string;
-    category: string;
-    quantity: number;
-    estimatedWeightKg: number;
-    postalCode: string;
-    windows: PickupWindow[];
-    expiresAt: string;
-};
-
-export type SseSignal = {
-    type: "NEW_MATCHING_REQUEST" | "REQUEST_CREATED";
-    requestId: string;
 };

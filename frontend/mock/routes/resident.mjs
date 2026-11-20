@@ -2,7 +2,6 @@ import { randomUUID } from "node:crypto";
 import { currentUser, now, sendError } from "../store.mjs";
 import { buildDetail, requestSummary, windowStart } from "../detail.mjs";
 import { registerResidentActions } from "../resident-actions.mjs";
-import { register as registerLegacy } from "./legacy.mjs";
 import { volunteerList } from "./volunteer.mjs";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -157,10 +156,6 @@ export function register(route, store, { notify = () => {} } = {}) {
   if (!store.requests.length) seedRequests(store);
   store.termsAcceptances = [];
   const savedResponses = new Map();
-  let legacyList;
-  registerLegacy((method, path, handler) => {
-    if (method === "GET" && path === "/api/requests") legacyList = handler;
-  });
 
   route("GET", "/api/categories", (req, res) => {
     if (authenticate(req, res)) send(res, 200, store.categories);
@@ -211,7 +206,7 @@ export function register(route, store, { notify = () => {} } = {}) {
   route("GET", "/api/requests", (req, res, context) => {
     const { url } = context;
     if (["available", "volunteer"].includes(url.searchParams.get("view"))) return volunteerList(req, res, context);
-    if (url.searchParams.get("view") !== "mine") return legacyList(req, res, context);
+    if (url.searchParams.get("view") !== "mine") return sendError(res, 400, "validation_error", "Choose a valid view.", { view: "Use mine, available or volunteer." });
     const user = authenticate(req, res, "resident");
     if (!user) return;
     const status = url.searchParams.get("status");
