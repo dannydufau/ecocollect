@@ -41,7 +41,7 @@ function show(detail: RequestDetail) {
 beforeEach(() => { vi.spyOn(api, "getWithMeta"); });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
-it("shows an Open request without address, notes or resident, and a disabled Accept button", async () => {
+it("shows an Open request without address, notes or resident, and an Accept button", async () => {
     expect(await show(open)).toHaveTextContent("2 × Computers/Laptops");
     expect(api.getWithMeta).toHaveBeenCalledWith("/api/requests/r1");
     expect(screen.getByText("5.00 kg")).toBeInTheDocument();
@@ -52,7 +52,7 @@ it("shows an Open request without address, notes or resident, and a disabled Acc
     expect(screen.queryByRole("heading", { name: "Your pickup" })).not.toBeInTheDocument();
     const actions = screen.getByRole("region", { name: "Request actions" });
     expect(within(actions).getAllByRole("button").map(button => button.textContent)).toEqual(["Accept request"]);
-    expect(within(actions).getByRole("button", { name: "Accept request" })).toBeDisabled();
+    expect(within(actions).getByRole("button", { name: "Accept request" })).toBeEnabled();
 });
 
 it("shows when an Open request closes", async () => {

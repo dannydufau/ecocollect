@@ -1,17 +1,19 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { Alert, Button, RequestPhoto, Spinner, StatusBadge, card, pageTitle, textLink } from "@/components/ui";
 import { isAuthError } from "@/lib/api";
 import { nextStepText } from "@/lib/status-text";
 import { formatTimestamp, formatWindow, friendlyWindow } from "@/lib/time";
 import type { PickupWindow } from "@/lib/types";
 import { useRequestDetail } from "@/lib/use-request";
+import AcceptRequest from "./accept-request";
 
 const cardStyle = `${card} min-w-0 space-y-3`;
 const cardTitle = "text-[22px]";
 
-// Disabled until FE-050, FE-052 and FE-055 put the real controls here
+// Disabled until FE-052 and FE-055 put the real controls here
 const actions = [
     { action: "accept", label: "Accept request", variant: "primary" },
     { action: "cancel_assignment", label: "Cancel assignment", variant: "danger-outline" },
@@ -29,6 +31,8 @@ function Windows({ windows }: { windows: PickupWindow[] }) {
 
 export default function VolunteerRequestDetail({ requestId }: { requestId: string }) {
     const { data: request, isPending, isError, unavailable, error, refetch, isFetching } = useRequestDetail(requestId);
+    // What the last action did, shown above the buttons
+    const [notice, setNotice] = useState("");
     const back = <Link href="/volunteer" className={textLink}>Back to available requests</Link>;
 
     if (unavailable) return <section className="space-y-3">
@@ -58,10 +62,13 @@ export default function VolunteerRequestDetail({ requestId }: { requestId: strin
             <p className="text-[17px]"><span className="font-semibold">What happens next:</span> {nextStepText(request.status, "volunteer")}</p>
         </header>
 
+        {notice && <Alert variant="success">{notice}</Alert>}
         {request.viewer === "owner" && <Alert variant="info">This is your own request. You can accept it like any other volunteer.</Alert>}
         {request.allowedActions.includes("record_delivery") && <Alert variant="info">Your action is needed: record the delivery.</Alert>}
         {buttons.length > 0 && <section aria-label="Request actions" className="flex flex-wrap gap-3">
-            {buttons.map(({ action, label, variant }) => <Button key={action} variant={variant} disabled>{label}</Button>)}
+            {buttons.map(({ action, label, variant }) => action === "accept"
+                ? <AcceptRequest key={action} request={request} onDone={setNotice} />
+                : <Button key={action} variant={variant} disabled>{label}</Button>)}
         </section>}
 
         <section aria-labelledby="details-heading" className={cardStyle}>
