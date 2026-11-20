@@ -601,7 +601,9 @@ paths:
           schema:
             type: string
             minLength: 1
-          description: A repeat with the same key within 24 hours returns the first `201` (NFR06).
+            maxLength: 200
+          description: >-
+            1 to 200 characters; a longer key returns `400` (`details.fields`, e.g. `{ "Idempotency-Key": "must be 1 to 200 characters" }`). A repeat with the same key within 24 hours returns the first `201` (NFR06).
       requestBody:
         required: true
         content:
