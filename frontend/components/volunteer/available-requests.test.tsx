@@ -76,7 +76,21 @@ it("shows the photo mark only when the request has a photo", async () => {
 it("shows the empty state", async () => {
     serve([]);
     renderWithClient(<AvailableRequests />);
-    expect(await screen.findByText("Nothing available right now")).toBeInTheDocument();
+    expect(await screen.findByText("No open requests right now.")).toBeInTheDocument();
+    expect(screen.getByText("New ones show up here as residents post them.")).toBeInTheDocument();
+});
+
+it("with no saved codes, points to the profile", async () => {
+    renderWithClient(<AvailableRequests />);
+    expect(await screen.findByRole("link", { name: "profile" })).toHaveAttribute("href", "/profile");
+});
+
+it("with a filter and no results, says to try Show all areas", async () => {
+    vi.mocked(api.get).mockImplementation(async (path: string) => path === "/api/profile" ? { preferredPostalCodes: ["T2P1J9"] } : []);
+    renderWithClient(<AvailableRequests />);
+    expect(await screen.findByText("No open requests in these areas.")).toBeInTheDocument();
+    expect(screen.getByText("Try Show all areas.")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "profile" })).not.toBeInTheDocument();
 });
 
 it("shows an error", async () => {

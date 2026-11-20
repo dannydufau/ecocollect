@@ -30,12 +30,17 @@ export default function AvailableRequests() {
                 <Link href="/volunteer/history" className={textLink}>History</Link>
             </div>
             {codes && <PostalFilter codes={codes} onChange={setCodes} />}
+            {codes?.length === 0 && profile.data?.preferredPostalCodes.length === 0 && <p className="text-neutral-700">
+                Save preferred postal codes in your <Link href="/profile" className={textLink}>profile</Link> to see nearby requests first.
+            </p>}
             {isPending && <Spinner label="Loading requests..." />}
             {isError && <>
                 <Alert variant="error">We could not load the requests. Please try again.</Alert>
                 <div><Button variant="secondary" onClick={() => void refetch()} busy={isFetching} busyLabel="Trying...">Try again</Button></div>
             </>}
-            {data?.length === 0 && <EmptyState title="Nothing available right now" />}
+            {data?.length === 0 && (codes?.length
+                ? <EmptyState title="No open requests in these areas.">Try Show all areas.</EmptyState>
+                : <EmptyState title="No open requests right now.">New ones show up here as residents post them.</EmptyState>)}
             {data && data.length > 0 && <>
                 <p role="status" className="font-semibold">{data.length === 1 ? "1 request" : `${data.length} requests`}</p>
                 <ul className="space-y-3">
