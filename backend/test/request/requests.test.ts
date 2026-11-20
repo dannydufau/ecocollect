@@ -20,6 +20,8 @@ function calgaryTomorrow(): string {
   return t.toISOString().slice(0, 10);
 }
 
+type ErrorBody = { error: { code: string; details?: { fields?: Record<string, string> } } };
+
 describe('Q4 create requests', { skip: skipDb }, () => {
   let pool: pg.Pool;
   let server: Server;
@@ -34,30 +36,41 @@ describe('Q4 create requests', { skip: skipDb }, () => {
   });
   after(async () => { server.close(); await pool.end(); });
 
-  test('201 in the contract shape; a repeat with the same Idempotency-Key replays the same ids', async () => {
-    const post = () => fetch(`${base}/api/requests`, {
-      method: 'POST',
-      headers: {
-        'X-User-Id': SEED_RESIDENT_ONLY_ID, 'X-User-Roles': 'resident',
-        'Content-Type': 'application/json', 'Idempotency-Key': randomKey,
-      },
-      body: JSON.stringify({
-        items: [{ categoryId: SEED_CATEGORY_ID, quantity: 2 }],
-        windows: [{ date: calgaryTomorrow(), startHour: 12 }],
-        termsDocumentId: SEED_CURRENT_TERMS_ID,
-      }),
-    });
-    const randomKey = randomUUID();
+  // A valid one-item body from a resident, with the given Idempotency-Key.
+  const post = (key: string) => fetch(`${base}/api/requests`, {
+    method: 'POST',
+    headers: {
+      'X-User-Id': SEED_RESIDENT_ONLY_ID, 'X-User-Roles': 'resident',
+      'Content-Type': 'application/json', 'Idempotency-Key': key,
+    },
+    body: JSON.stringify({
+      items: [{ categoryId: SEED_CATEGORY_ID, quantity: 2 }],
+      windows: [{ date: calgaryTomorrow(), startHour: 12 }],
+      termsDocumentId: SEED_CURRENT_TERMS_ID,
+    }),
+  });
 
-    const first = await post();
+  test('201 in the contract shape; a repeat with the same Idempotency-Key replays the same ids', async () => {
+    const key = randomUUID();
+    const first = await post(key);
     const body = await first.json() as { requests: { requestId: string; quantity: number }[] };
     assert.equal(first.status, 201);
     assert.ok(is201(body));
     assert.equal(body.requests.length, 1);
     assert.equal(body.requests[0]!.quantity, 2);
 
-    const again = await post();
+    const again = await post(key);
     assert.equal(again.status, 201);
     assert.deepEqual(await again.json(), body);
+  });
+
+  test('an empty or 201-character Idempotency-Key is 400 under Idempotency-Key', async () => {
+    for (const key of ['', 'k'.repeat(201)]) {
+      const res = await post(key);
+      const body = await res.json() as ErrorBody;
+      assert.equal(res.status, 400);
+      assert.equal(body.error.code, 'validation_failed');
+      assert.ok(body.error.details?.fields?.['Idempotency-Key']);
+    }
   });
 });

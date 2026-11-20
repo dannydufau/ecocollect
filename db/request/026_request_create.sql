@@ -42,6 +42,7 @@ AS $$
 DECLARE
     v_now           TIMESTAMPTZ := now();   -- one moment for the whole action
     v_key_ttl       CONSTANT INTERVAL := INTERVAL '24 hours';   -- how long a key replays (NFR06)
+    v_key_max       CONSTANT INT := 200;    -- key length limit (contract Q4); the column is VARCHAR(200)
     v_count         INT := coalesce(cardinality(p_category_ids), 0);
     v_street        VARCHAR(255);
     v_postal_code   CHAR(6);
@@ -80,6 +81,17 @@ BEGIN
         RETURN;
     END IF;
 
+    -- 1b. A key, when given, is 1-200 characters (contract Q4). Checked before the
+    -- lookup, or a stored '' would replay. Postgres ignores the (200) on a
+    -- parameter, so without this a longer key would fail at the INSERT (a raise).
+    IF p_idempotency_key IS NOT NULL
+       AND char_length(p_idempotency_key) NOT BETWEEN 1 AND v_key_max THEN
+        error_fields   := ARRAY['Idempotency-Key'];
+        error_messages := ARRAY[format('must be 1 to %s characters', v_key_max)];
+        result_code    := 'validation_failed';
+        RETURN;
+    END IF;
+
     -- 2. A repeat within 24 h returns the first call's requests, whatever the body
     -- says now (its windows may be in the past by then).
     SELECT k.request_ids INTO created_request_ids
@@ -111,6 +123,12 @@ BEGIN
         ELSIF array_position(p_category_ids, p_category_ids[i]) < i THEN   -- first position is earlier
             error_fields   := array_append(error_fields, format('items[%s].categoryId', i - 1));
             error_messages := array_append(error_messages, 'already selected');
+        END IF;
+
+        -- Model rule (pickup_request_ck1): without this, 0 fails at the INSERT.
+        IF p_quantities[i] < 1 THEN
+            error_fields   := array_append(error_fields, format('items[%s].quantity', i - 1));
+            error_messages := array_append(error_messages, 'must be at least 1');
         END IF;
 
         -- A file is one photo row: never on two new items, never already stored
