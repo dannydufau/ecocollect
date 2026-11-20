@@ -31,7 +31,7 @@ function createWebPushSender({ vapid, subscriptions, log = console }) {
     const body = JSON.stringify(payload);
     let delivered = 0;
 
-    for (const sub of subscriptions.list(uid)) {
+    for (const sub of await subscriptions.list(uid)) {
       const req = webpush.generateRequestDetails(sub, body, {
         vapidDetails: vapid,      // { subject, publicKey, privateKey }
         TTL: 60 * 60,             // the push service holds it up to an hour if the device is offline
@@ -42,7 +42,7 @@ function createWebPushSender({ vapid, subscriptions, log = console }) {
 
       if (res.status === 404 || res.status === 410) {
         // Browser unsubscribed or the subscription expired: forget it (BR40).
-        subscriptions.remove(uid, sub.endpoint);
+        await subscriptions.remove(uid, sub.endpoint);
         log.info?.(`[push] removed dead subscription for ${uid}`);
       } else if (!res.ok) {
         log.warn?.(`[push] ${res.status} from push service for ${uid}`);

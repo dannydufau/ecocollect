@@ -14,26 +14,29 @@ function createPushRouter({ subscriptions }) {
   router.use('/api/push/subscriptions', gatewayUser, express.json());
 
   // Body: subscription.toJSON(), { endpoint, expirationTime, keys: { p256dh, auth } }.
-  router.post('/api/push/subscriptions', (req, res) => {
+  router.post('/api/push/subscriptions', async (req, res) => {
     try {
-      subscriptions.add(req.user.uid, req.body ?? {}, req.get('User-Agent') ?? null);
+      await subscriptions.add(req.user.uid, req.body ?? {}, req.get('User-Agent') ?? null);
     } catch (err) {
-      return res.status(400).json({ error: err.message });
+      if (err.status === 400) return res.status(400).json({ error: err.message });
+      // 23503: foreign key violation, the uid has no row in users.account.
+      if (err.code === '23503') return res.status(400).json({ error: 'unknown account' });
+      console.error(`[push] saving a subscription failed: ${err.message}`);
+      return res.status(500).json({ error: 'internal error' });
     }
     res.status(201).end();
   });
 
-  // on logout. Nothing to remove is still a 204.
-  router.delete('/api/push/subscriptions', (req, res) => {
+  // On logout. Nothing to remove is still a 204.
+  router.delete('/api/push/subscriptions', async (req, res) => {
     const { endpoint } = req.body ?? {};
-    if (endpoint) subscriptions.remove(req.user.uid, endpoint);
+    try {
+      if (endpoint) await subscriptions.remove(req.user.uid, endpoint);
+    } catch (err) {
+      console.error(`[push] removing a subscription failed: ${err.message}`);
+      return res.status(500).json({ error: 'internal error' });
+    }
     res.status(204).end();
-  });
-
-  // express.json() marks a body that is not JSON with status 400.
-  router.use((err, req, res, next) => {
-    if (err.status === 400) return res.status(400).json({ error: 'the body is not valid JSON' });
-    next(err);
   });
 
   return router;

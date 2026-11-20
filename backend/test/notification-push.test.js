@@ -12,10 +12,28 @@ const express = require('express');
 const webpush = require('web-push');
 
 const { pushPayload, createWebPushSender } = require('../src/notification/push');
-const { createSubscriptionStore } = require('../src/notification/subscriptions');
 const { createPushRouter } = require('../src/notification/push-router');
 
 const quiet = { info() {}, warn() {} };
+
+// Stands in for the Postgres store: the same three functions, rows kept in a Map.
+function fakeStore() {
+  const rows = new Map(); // endpoint -> { uid, endpoint, keys }
+  return {
+    async add(uid, { endpoint, keys }) {
+      if (!endpoint || !keys?.p256dh || !keys?.auth) {
+        throw Object.assign(new Error('endpoint, keys.p256dh and keys.auth are required'), { status: 400 });
+      }
+      rows.set(endpoint, { uid, endpoint, keys });
+    },
+    async list(uid) {
+      return [...rows.values()].filter((r) => r.uid === uid).map(({ endpoint, keys }) => ({ endpoint, keys }));
+    },
+    async remove(uid, endpoint) {
+      return rows.get(endpoint)?.uid === uid && rows.delete(endpoint);
+    },
+  };
+}
 
 // Our VAPID keys, made for the test (no .env needed).
 const keys = webpush.generateVAPIDKeys();
@@ -74,8 +92,8 @@ test('pushPayload keeps only what the OS notification needs, tagged by request o
 test('the sender POSTs a signed, encrypted push to each of the user\'s browsers', async (t) => {
   const service = await fakePushService(201);
   t.after(service.close);
-  const subscriptions = createSubscriptionStore();
-  subscriptions.add('uid_v1', browserSubscription(service.endpoint));
+  const subscriptions = fakeStore();
+  await subscriptions.add('uid_v1', browserSubscription(service.endpoint));
   const payload = { title: 'New pickup near you', tag: 'request-r1' };
 
   const delivered = await createWebPushSender({ vapid, subscriptions, log: quiet }).send('uid_v1', payload);
@@ -92,17 +110,17 @@ test('the sender POSTs a signed, encrypted push to each of the user\'s browsers'
 test('a 410 from the push service forgets that subscription', async (t) => {
   const service = await fakePushService(410);
   t.after(service.close);
-  const subscriptions = createSubscriptionStore();
-  subscriptions.add('uid_v1', browserSubscription(service.endpoint));
+  const subscriptions = fakeStore();
+  await subscriptions.add('uid_v1', browserSubscription(service.endpoint));
 
   const delivered = await createWebPushSender({ vapid, subscriptions, log: quiet }).send('uid_v1', { title: 'x' });
 
   assert.equal(delivered, 0);
-  assert.deepEqual(subscriptions.list('uid_v1'), []);
+  assert.deepEqual(await subscriptions.list('uid_v1'), []);
 });
 
 test('POST /api/push/subscriptions saves the caller\'s subscription, DELETE removes it', async (t) => {
-  const subscriptions = createSubscriptionStore();
+  const subscriptions = fakeStore();
   const server = express().use(createPushRouter({ subscriptions })).listen(0);
   t.after(() => server.close());
   const url = `http://127.0.0.1:${server.address().port}/api/push/subscriptions`;
@@ -115,8 +133,7 @@ test('POST /api/push/subscriptions saves the caller\'s subscription, DELETE remo
   assert.equal((await call('POST', user, { endpoint: 'https://push.example/abc' })).status, 400);
 
   assert.equal((await call('POST', user, sub)).status, 201);
-  assert.equal(subscriptions.list('uid_v1')[0].endpoint, sub.endpoint);
-
+assert.equal((await subscriptions.list('uid_v1'))[0].endpoint, sub.endpoint);
   assert.equal((await call('DELETE', user, { endpoint: sub.endpoint })).status, 204);
-  assert.deepEqual(subscriptions.list('uid_v1'), []);
+  assert.deepEqual(await subscriptions.list('uid_v1'), []);
 });
