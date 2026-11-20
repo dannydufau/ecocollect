@@ -29,11 +29,6 @@ services:
     networks: [internal]
     volumes:
       - ./user-stub.Caddyfile:/etc/caddy/Caddyfile:ro
-  auth:
-    image: caddy:2
-    networks: [internal]
-    volumes:
-      - ./user-stub.Caddyfile:/etc/caddy/Caddyfile:ro
   gateway:
     image: caddy:2
     ports: ["3030:443"]

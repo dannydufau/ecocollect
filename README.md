@@ -10,7 +10,7 @@
 
    Set `POSTGRES_PASSWORD` and `RABBITMQ_PASSWORD` (letters, numbers, `_` and `-` only, they end up inside URLs) and the Firebase web config (`NEXT_PUBLIC_FIREBASE_*`, from the Firebase console under Project settings).
 
-2. Save the Firebase Admin key as `secrets/firebase-admin.json` (see [secrets/README.md](./secrets/README.md)). Compose mounts it into the backend. Never commit it.
+2. Save the Firebase Admin key as `secrets/firebase-admin.json` (see [secrets/README.md](./secrets/README.md)). Compose mounts it only into the User Service. Never commit it.
 
 3. Start it:
 
@@ -29,7 +29,7 @@
 | `postgres` | The database. Tables in `db/init` are created on the first start only, see [db/README.md](./db/README.md). | `localhost:5432` |
 | `rabbitmq` | The message broker | management UI <http://localhost:15672> |
 
-If your copy of the repo is in iCloud Drive (the Desktop or Documents folder with "Optimize Mac Storage" on), macOS can swap files for cloud placeholders, and the containers then fail to read them with `resource deadlock avoided`. The backend can't read the Firebase key and Caddy can't read the Caddyfile. Keep the repo outside those folders, or open the files on your Mac first so they download: `cat secrets/firebase-admin.json infra/caddy/Caddyfile db/init/*.sql > /dev/null`.
+If your copy of the repo is in iCloud Drive (the Desktop or Documents folder with "Optimize Mac Storage" on), macOS can swap files for cloud placeholders, and the containers then fail to read them with `resource deadlock avoided`. The User Service can't read the Firebase key and Caddy can't read the Caddyfile. Keep the repo outside those folders, or open the files on your Mac first so they download: `cat secrets/firebase-admin.json infra/caddy/Caddyfile db/init/*.sql > /dev/null`.
 
 The seed script that creates the demo users isn't in Compose yet, it's still run by hand, see [scripts/seed/README.md](./scripts/seed/README.md).
 

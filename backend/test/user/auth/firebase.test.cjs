@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { getFirebaseAuth } = require('../src/api/auth/firebase');
+const { getFirebaseAuth } = require('../../../src/user/auth/firebase.cjs');
 
 test('fails with a clear message when the key file is missing', () => {
   delete process.env.FIREBASE_AUTH_EMULATOR_HOST;
