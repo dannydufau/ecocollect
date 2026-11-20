@@ -1,5 +1,7 @@
 # EcoCollect frontend
 
+The web app for EcoCollect, Calgary's community e-waste courier: residents request pickups, volunteers collect the items and deliver them to a facility.
+
 Next.js (App Router), React, TypeScript, Tailwind and TanStack Query. Login goes through Firebase, everything else through the `/api` gateway.
 
 ## Run it
@@ -24,6 +26,27 @@ Next.js (App Router), React, TypeScript, Tailwind and TanStack Query. Login goes
    ```
 
    Open <http://localhost:3000>. Sign in with a seeded demo account, set up as in [scripts/seed/README.md](../scripts/seed/README.md). Login always uses the real Firebase project, even with the mock API.
+
+## Environment variables
+
+All of them go in `.env.local` (copied from `.env.example`). The `NEXT_PUBLIC_` ones are baked in at build time.
+
+| Variable | What it is for |
+|---|---|
+| `NEXT_PUBLIC_FIREBASE_API_KEY` | Firebase web config: the project's browser API key |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | Firebase web config: the sign-in domain |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | Firebase web config: the project id |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | Firebase web config, part of the standard snippet (the app stores no files in Firebase) |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Firebase web config, part of the standard snippet |
+| `NEXT_PUBLIC_FIREBASE_APP_ID` | Firebase web config: the web app id |
+| `GATEWAY_URL` | Where the Next.js rewrite sends `/api/*`, server side only (the mock or the Caddy gateway) |
+| `NEXT_PUBLIC_VAPID_KEY` | Public VAPID key for web push. Empty turns the notifications button into a "not set up" message |
+
+Not in the example: `NEXT_PUBLIC_DEMO=true` builds the demo version (banner and Start demo page instead of login).
+
+## Contracts
+
+The API and event contracts live at the repo root: `contracts/openapi.yaml` (every endpoint and body) and `contracts/README.md` (the rules behind them). `npm run types` reads `contracts/openapi.yaml`.
 
 ## Commands
 
