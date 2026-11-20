@@ -2,7 +2,7 @@
 
 ## User Service (`src/user/`)
 
-Run `node src/user/index.ts` from `backend/` with Node 22.18 or newer. It listens on port 3004 locally, or `PORT` when set. Compose starts the same backend image with this entry point on port 80, without exposing a host port. `GET /health` returns `{ "status": "ok" }`; other paths return the JSON error shape until their endpoint tickets are added.
+Run `node src/user/index.ts` from `backend/` with Node 22.18 or newer. It listens on port 3004 locally, or `PORT` when set. Compose starts the same backend image with this entry point on port 80, without exposing a host port. `GET /health` returns `{ "status": "ok" }`. Public `GET /api/terms` returns the current terms; other paths return the JSON error shape until their endpoint tickets are added.
 
 Add endpoint files to `src/user/routes/`. Each file exports `register(app)` and registers its routes on the Express app. Files are loaded in filename order before the shared 404 and error handlers. Protected handlers use the gateway's verified user headers; public handlers do not read them. `http/errors.ts` provides `HttpError` and `validationFailed(fields)`.
 
@@ -11,6 +11,8 @@ Session creation, logout and `/verify` stay on the existing backend through the 
 The layout follows the Request Service on branch `102-request-service`. Database setup and endpoints are separate User Service tickets. `npm test` includes the User Service tests.
 
 The [User database setup](scripts/user/README.md) creates the account and terms tables, service login and outbox. It also explains the local and Compose connection settings and the database tests.
+
+`db/terms.ts` exports `getCurrentTerms(client)` for registration and role activation. It selects the document with the latest `published_at`, using its ID to break ties, and returns only `termsDocumentId`, `content` and UTC `publishedAt`. The public route uses the same lookup and reads no identity headers. An empty terms table returns a JSON 500 error. Run `node --test test/user-terms.test.js` from `backend/`; set `TEST_DATABASE_URL` to a loaded scratch database to include the newest-document database test.
 
 ## Auth module (`src/api/auth/`)
 
