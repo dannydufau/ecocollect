@@ -8,7 +8,10 @@ import { nextStepText } from "@/lib/status-text";
 import { formatTimestamp } from "@/lib/time";
 import type { RequestDetail } from "@/lib/types";
 import { useRequestDetail } from "@/lib/use-request";
+import CancelAssignment from "./cancel-assignment";
 import CancelRequest, { type Notice } from "./cancel-request";
+import ConfirmCollected from "./confirm-collected";
+import ReportMissed from "./report-missed";
 import { RequestActions, type ResidentActionRenderers } from "./request-actions";
 import StatusHistory from "./status-history";
 
@@ -22,12 +25,13 @@ function UnavailableRequest() {
     </section>;
 }
 
-export default function ResidentRequestDetail({ requestId, actionRenderers }: {
+export default function ResidentRequestDetail({ requestId, rescheduled = false, actionRenderers }: {
     requestId: string;
+    rescheduled?: boolean;
     actionRenderers?: ResidentActionRenderers;
 }) {
     const { data, isPending, isError, unavailable, error, refetch, isFetching } = useRequestDetail(requestId);
-    const [notice, setNotice] = useState<Notice | null>(null);
+    const [notice, setNotice] = useState<Notice | null>(rescheduled ? { kind: "success", text: "Missed pickup reported. Your new request is open." } : null);
     if (unavailable || (data && data.viewer !== "owner")) return <UnavailableRequest />;
     if (isPending) return <Spinner label="Loading your request..." />;
     if (isError || !data) return <section className="space-y-3">
@@ -44,6 +48,9 @@ export default function ResidentRequestDetail({ requestId, actionRenderers }: {
         edit: request => <Link href={`/resident/requests/${encodeURIComponent(request.requestId)}/edit`}
             className="inline-flex min-h-11 items-center rounded-full border border-neutral-600 px-5 py-2 font-[family-name:var(--font-heading)] text-text hover:bg-text/10">Edit request</Link>,
         cancel: request => <CancelRequest request={request} onNotice={setNotice} />,
+        confirm_collected: request => <ConfirmCollected request={request} onNotice={setNotice} />,
+        cancel_assignment: request => <CancelAssignment request={request} onNotice={setNotice} />,
+        report_missed: request => <ReportMissed request={request} onNotice={setNotice} />,
         ...actionRenderers,
     };
     return <ResidentRequestView request={data} onPhotoError={() => { void refetch(); }} actionRenderers={renderers} notice={notice} />;

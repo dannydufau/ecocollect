@@ -28,12 +28,14 @@ let server: Server | undefined;
 const dirs: string[] = [];
 
 // Starts the mock on a free port with a temp routes folder (inside mock/ so Vitest can import from it)
-async function start(withLegacy = false) {
+async function start(withOlder = false) {
   const dir = fs.mkdtempSync(path.join(__dirname, "tmp-routes-"));
   dirs.push(dir);
   fs.writeFileSync(path.join(dir, "things.mjs"), routeFile);
   fs.copyFileSync(path.join(__dirname, "routes", "notifications.mjs"), path.join(dir, "notifications.mjs"));
-  if (withLegacy) fs.copyFileSync(path.join(__dirname, "routes", "legacy.mjs"), path.join(dir, "legacy.mjs"));
+  if (withOlder) fs.writeFileSync(path.join(dir, "zz-older.mjs"), `export function register(route) {
+  route("DELETE", "/api/session", (req, res) => res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ from: "older route" })));
+}`);
   server = await startServer({ port: 0, routesDir: dir });
   return `http://localhost:${(server!.address() as AddressInfo).port}`;
 }
@@ -93,7 +95,7 @@ describe("mock server", () => {
     expect((await res.json()).error.code).toBe("invalid_path");
   });
 
-  it("lets a new route beat legacy.mjs on the same path", async () => {
+  it("uses the first route file by name when two files have the same path", async () => {
     const base = await start(true);
     const res = await fetch(`${base}/api/session`, { method: "DELETE" });
     expect(res.status).toBe(200);

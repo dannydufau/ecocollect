@@ -232,3 +232,9 @@ it("links Edit request to the edit page when the request can be edited", async (
     await screen.findByRole("button", { name: "Cancel request" });
     expect(screen.queryByRole("link", { name: "Edit request" })).not.toBeInTheDocument();
 });
+
+it("shows the missed pickup message after a reschedule", async () => {
+    vi.mocked(api.getWithMeta).mockResolvedValue({ data: detail(), serverDate: new Date() } as never);
+    renderWithClient(<ResidentRequestDetail requestId="r1" rescheduled />);
+    expect(await screen.findByText("Missed pickup reported. Your new request is open.")).toBeInTheDocument();
+});
