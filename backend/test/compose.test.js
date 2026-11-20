@@ -44,11 +44,12 @@ test('the notification service is the backend image started with its own entry p
   assert.strictEqual(String(notification.environment.PORT), port);
 });
 
-test('the notification service only gets the broker: no database, no Firebase key', () => {
+test('the notification service gets the broker and Postgres, but no Firebase key', () => {
   const { environment, depends_on: dependsOn, secrets } = compose.services.notification;
   assert.match(environment.RABBITMQ_URL, /@rabbitmq:5672$/);
   assert.strictEqual(dependsOn.rabbitmq.condition, 'service_healthy');
-  assert.strictEqual(environment.DATABASE_URL, undefined);
+  assert.match(environment.DATABASE_URL, /@postgres:5432\//);
+  assert.strictEqual(dependsOn.postgres.condition, 'service_healthy');
   assert.strictEqual(environment.GOOGLE_APPLICATION_CREDENTIALS, undefined);
   assert.strictEqual(secrets, undefined);
 });
