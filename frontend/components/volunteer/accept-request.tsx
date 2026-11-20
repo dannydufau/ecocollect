@@ -10,7 +10,7 @@ import { formatWindow, friendlyWindow } from "@/lib/time";
 import type { AcceptRequest as AcceptBody, RequestDetail } from "@/lib/types";
 import { useRequestAction } from "@/lib/use-request";
 
-export default function AcceptRequest({ request }: { request: RequestDetail }) {
+export default function AcceptRequest({ request, onDone }: { request: RequestDetail; onDone: (message: string) => void }) {
     const queryClient = useQueryClient();
     const name = useId();
     const [open, setOpen] = useState(false);
@@ -32,7 +32,10 @@ export default function AcceptRequest({ request }: { request: RequestDetail }) {
     function confirm() {
         if (action.isPending || !windowId || !termsId) return;
         action.run({ windowId, termsDocumentId: termsId }, {
-            onSuccess: () => setOpen(false),
+            onSuccess: () => {
+                setOpen(false);
+                onDone("You accepted this request. The pickup address is shown below.");
+            },
             onError: error => {
                 setFailed(true);
                 if (error instanceof ApiError && error.code === "terms_outdated") void queryClient.invalidateQueries({ queryKey: queryKeys.terms });
@@ -42,10 +45,11 @@ export default function AcceptRequest({ request }: { request: RequestDetail }) {
 
     return <>
         <Button onClick={start}>Accept request</Button>
-        <ConfirmDialog open={open} title="Accept this request?" confirmLabel={action.isPending ? "Accepting..." : "Accept"}
+        <ConfirmDialog open={open} title="Accept this request" confirmLabel={action.isPending ? "Accepting..." : "Accept request"}
             confirmDisabled={!windowId || !termsId} busy={action.isPending} error={failed ? action.message ?? undefined : undefined}
             onConfirm={confirm} onCancel={() => setOpen(false)}>
             <div className="space-y-4">
+                <p>Pick one pickup window. The street address is shown after you accept.</p>
                 <fieldset className="min-w-0 space-y-2">
                     <legend className="mb-1 font-semibold">Pickup window</legend>
                     {request.windows.map(window => (

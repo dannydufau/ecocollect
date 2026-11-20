@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { Alert, Button, RequestPhoto, Spinner, StatusBadge, card, pageTitle, textLink } from "@/components/ui";
 import { isAuthError } from "@/lib/api";
 import { nextStepText } from "@/lib/status-text";
@@ -31,6 +32,8 @@ function Windows({ windows }: { windows: PickupWindow[] }) {
 
 export default function VolunteerRequestDetail({ requestId }: { requestId: string }) {
     const { data: request, isPending, isError, unavailable, error, refetch, isFetching } = useRequestDetail(requestId);
+    // What the last action did, shown above the buttons
+    const [notice, setNotice] = useState("");
     const back = <Link href="/volunteer" className={textLink}>Back to available requests</Link>;
 
     if (unavailable) return <section className="space-y-3">
@@ -60,10 +63,11 @@ export default function VolunteerRequestDetail({ requestId }: { requestId: strin
             <p className="text-[17px]"><span className="font-semibold">What happens next:</span> {nextStepText(request.status, "volunteer")}</p>
         </header>
 
+        {notice && <Alert variant="success">{notice}</Alert>}
         {request.viewer === "owner" && <Alert variant="info">This is your own request. You can accept it like any other volunteer.</Alert>}
         {request.allowedActions.includes("record_delivery") && <Alert variant="info">Your action is needed: record the delivery.</Alert>}
         {buttons.length > 0 && <section aria-label="Request actions" className="flex flex-wrap gap-3">
-            {buttons.map(({ action, Control }) => <Control key={action} request={request} />)}
+            {buttons.map(({ action, Control }) => <Control key={action} request={request} onDone={setNotice} />)}
         </section>}
 
         <section aria-labelledby="details-heading" className={cardStyle}>
