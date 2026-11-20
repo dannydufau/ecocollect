@@ -140,5 +140,5 @@ volumes:
   caddy_config:
 
 secrets:
-  firebase-admin.json:              # mounted in the backend at /run/secrets/firebase-admin.json
+  firebase-admin.json:              # mounted in the user service at /run/secrets/firebase-admin.json
     file: ./secrets/firebase-admin.json
