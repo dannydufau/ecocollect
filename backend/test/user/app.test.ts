@@ -46,7 +46,7 @@ test('the User Service exits before listening when the Firebase key is missing',
 
 test('unknown routes and methods use the JSON error shape', async t => {
   const base = await start(t);
-  for (const [method, url] of [['GET', '/api/terms'], ['GET', '/api/nothing-here'], ['DELETE', '/health']]) {
+  for (const [method, url] of [['GET', '/api/no-such-route'], ['GET', '/api/nothing-here'], ['DELETE', '/health']]) {
     const response = await fetch(base + url, { method });
     assert.equal(response.status, 404);
     assert.deepEqual(await response.json(), { error: { code: 'not_found', message: 'Not found.' } });
