@@ -46,11 +46,12 @@ export function validate(values: RequestValues, createdAt = new Date().toISOStri
     return errors;
 }
 
-export default function RequestForm({ initialValues, createdAt, single = false, currentPhoto, onValid, fieldErrors = {}, busy = false, submitDisabled = false, submitHint, submitLabel = "Review request", onEdit, children }: {
+export default function RequestForm({ initialValues, createdAt, single = false, currentPhoto, cancelHref, onValid, fieldErrors = {}, busy = false, submitDisabled = false, submitHint, submitLabel = "Review request", onEdit, children }: {
     initialValues?: RequestValues;
     createdAt?: string;
     single?: boolean;
     currentPhoto?: { url: string; refetch: () => void };
+    cancelHref?: string;
     onValid?: (values: RequestValues) => void;
     fieldErrors?: Record<string, string>;
     busy?: boolean;
@@ -67,6 +68,8 @@ export default function RequestForm({ initialValues, createdAt, single = false, 
     });
     // Rows are removed from the middle, so each one keeps its own key and its photo stays with it
     const [keys, setKeys] = useState(() => values.items.map((_, index) => index));
+    // Replacing keeps the saved photo until a new one is uploaded
+    const [replacing, setReplacing] = useState(false);
     const [tried, setTried] = useState(false);
     const [failedSubmits, setFailedSubmits] = useState(0);
     const formRef = useRef<HTMLFormElement>(null);
@@ -127,11 +130,14 @@ export default function RequestForm({ initialValues, createdAt, single = false, 
                                     </div>
                                 </div>
                                 <p>Estimated weight: <strong>{weight === null ? "—" : `${weight} kg`}</strong></p>
-                                {currentPhoto && item.photo === undefined ? <div className="space-y-2">
+                                {currentPhoto && item.photo === undefined && !replacing ? <div className="space-y-2">
                                     <div className="max-w-xs"><RequestPhoto src={currentPhoto.url} alt="Photo of the items" refetch={currentPhoto.refetch} /></div>
-                                    <Button variant="secondary" onClick={() => update({ photo: null })}>Remove photo</Button>
+                                    <div className="flex flex-wrap gap-3">
+                                        <Button variant="secondary" onClick={() => setReplacing(true)}>Replace photo</Button>
+                                        <Button variant="secondary" onClick={() => update({ photo: null })}>Remove photo</Button>
+                                    </div>
                                 </div> : <PhotoPicker purpose="item_photo" optional onUploaded={fileId => update({ photo: { fileId } })}
-                                    onClear={() => update({ photo: currentPhoto ? null : undefined })} />}
+                                    onClear={() => { update({ photo: replacing ? undefined : currentPhoto ? null : undefined }); setReplacing(false); }} />}
                                 {photoError && <p role="alert" className="text-[13px] font-semibold text-danger">{photoError}</p>}
                                 {!single && values.items.length > 1 && <div><Button variant="secondary" aria-label={`Remove item ${index + 1}`}
                                     onClick={() => {
@@ -156,10 +162,12 @@ export default function RequestForm({ initialValues, createdAt, single = false, 
                         rows={3} placeholder="For example: Side door" className={`${textarea} min-w-0`} />
                     {errors.notes && <p id={`${id}-notes-error`} role="alert" className="text-[13px] font-semibold text-danger">{errors.notes}</p>}
                 </div>
-                <p>We collect from the address in your profile. <Link href="/profile" className="text-accent-700 underline underline-offset-4">Change address</Link></p>
+                {single ? <p>The pickup address comes from your profile and can&apos;t be changed here.</p>
+                    : <p>We collect from the address in your profile. <Link href="/profile" className="text-accent-700 underline underline-offset-4">Change address</Link></p>}
                 {children}
                 <div className="flex flex-wrap items-center gap-3">
                     <Button type="submit" busy={busy} busyLabel="Sending..." disabled={submitDisabled} aria-describedby={submitHint ? `${id}-hint` : undefined} className="px-7">{submitLabel}</Button>
+                    {cancelHref && <Link href={cancelHref} className="inline-flex min-h-11 items-center rounded-full border border-neutral-600 px-5 py-2 font-[family-name:var(--font-heading)] text-text hover:bg-text/10">Cancel</Link>}
                     {submitHint && <p id={`${id}-hint`} className="text-[13px] text-neutral-700">{submitHint}</p>}
                 </div>
             </fieldset>

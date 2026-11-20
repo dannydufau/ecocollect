@@ -200,4 +200,17 @@ describe("editing", () => {
         fireEvent.click(screen.getByRole("button", { name: "Review request" }));
         expect(onValid.mock.lastCall![0].items[0].photo).toBeNull();
     });
+
+    it("keeps the saved photo when a replacement is started and cleared", async () => {
+        const onValid = vi.fn();
+        renderWithClient(<RequestForm single initialValues={valid()} currentPhoto={{ url: "https://images.example.test/item.jpg", refetch: vi.fn() }} onValid={onValid} />);
+        await screen.findByLabelText("Category");
+        fireEvent.click(screen.getByRole("button", { name: "Replace photo" }));
+        expect(screen.queryByRole("img", { name: "Photo of the items" })).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole("button", { name: "Upload photo" }));
+        fireEvent.click(screen.getByRole("button", { name: "Clear photo" }));
+        expect(screen.getByRole("img", { name: "Photo of the items" })).toBeInTheDocument();
+        fireEvent.click(screen.getByRole("button", { name: "Review request" }));
+        expect(onValid.mock.lastCall![0].items[0].photo).toBeUndefined();
+    });
 });
