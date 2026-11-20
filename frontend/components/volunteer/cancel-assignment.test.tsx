@@ -42,6 +42,12 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); router.push.mockReset(); });
 
+it("says what happens to the request and that no EcoPoints are earned", () => {
+    const dialog = openDialog();
+    expect(within(dialog).getByRole("heading", { name: "Cancel your assignment?" })).toBeInTheDocument();
+    expect(dialog).toHaveTextContent("The request goes back to Open if it still has future pickup windows. You do not earn EcoPoints for cancelling.");
+});
+
 it("sends as volunteer without a reason when none was typed", async () => {
     confirm(openDialog());
     await waitFor(() => expect(api.post).toHaveBeenCalledWith("/api/requests/r1/assignment/cancel", { as: "volunteer" }));
@@ -56,7 +62,7 @@ it("sends the typed reason", async () => {
 
 it("sends nothing when the dialog is dismissed", () => {
     const dialog = openDialog();
-    fireEvent.click(within(dialog).getByRole("button", { name: "Keep pickup" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Keep assignment" }));
     expect(dialog).not.toHaveAttribute("open");
     expect(api.post).not.toHaveBeenCalled();
 });

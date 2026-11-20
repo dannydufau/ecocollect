@@ -28,11 +28,11 @@ export default function CancelAssignment({ request }: { request: RequestDetail }
 
     return <>
         <Button variant="danger-outline" onClick={() => { setReason(""); setFailed(false); setOpen(true); }}>Cancel assignment</Button>
-        <ConfirmDialog open={open} title="Cancel this pickup?" danger confirmLabel={action.isPending ? "Cancelling..." : "Cancel assignment"}
-            cancelLabel="Keep pickup" busy={action.isPending} error={failed ? action.message ?? undefined : undefined}
+        <ConfirmDialog open={open} title="Cancel your assignment?" danger confirmLabel={action.isPending ? "Cancelling..." : "Cancel assignment"}
+            cancelLabel="Keep assignment" busy={action.isPending} error={failed ? action.message ?? undefined : undefined}
             onConfirm={confirm} onCancel={() => setOpen(false)}>
             <div className="space-y-3">
-                <p>The resident will be told and the request goes back to the available list.</p>
+                <p>The request goes back to Open if it still has future pickup windows. You do not earn EcoPoints for cancelling.</p>
                 <Field label="Reason" optional>
                     {control => <textarea {...control} value={reason} onChange={event => setReason(event.target.value)} disabled={action.isPending}
                         rows={3} className={textarea} />}
