@@ -44,10 +44,9 @@ function readBody(req) {
   });
 }
 
-// legacy.mjs goes last so a new route file always beats an old route on the same path
+// Files load in name order, and the first route that matches a request wins
 async function loadRoutes(routesDir, route) {
   const files = fs.readdirSync(routesDir).filter((f) => f.endsWith(".mjs")).sort();
-  files.sort((a, b) => (a === "legacy.mjs") - (b === "legacy.mjs"));
   for (const file of files) {
     const mod = await import(pathToFileURL(path.join(routesDir, file)).href);
     mod.register(route, store, { notify, emitPublic });

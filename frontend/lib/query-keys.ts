@@ -1,5 +1,4 @@
 export const queryKeys = {
-    allRequests: ["requests"],
     myRequests: ["requests", "mine"],
     availableRequests: ["requests", "available"],
     volunteerRequests: ["requests", "volunteer"],
