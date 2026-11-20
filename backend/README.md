@@ -10,6 +10,8 @@ Session creation, logout and `/verify` stay on the existing backend through the 
 
 The layout follows the Request Service on branch `102-request-service`. Database setup and endpoints are separate User Service tickets. `npm test` includes the User Service tests.
 
+`validation/account.ts` exports `validateAccount(body, now)` and `isCalgaryPostalCode(code)`. Pass the database's current time as `now`; the validator calculates the date in Calgary and returns field errors without changing the input. It checks optional address and preferred-code fields whenever supplied, for either role. An address is required only for residents. The shared address schema permits an optional `city` only when it is `Calgary`. The registration handler decides which role details to save and checks whether the supplied terms ID is current (#233).
+
 The [User database setup](scripts/user/README.md) creates the account and terms tables, service login and outbox. It also explains the local and Compose connection settings and the database tests.
 
 ## Auth module (`src/api/auth/`)
