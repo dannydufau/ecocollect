@@ -2,6 +2,16 @@
 
 This PostgreSQL 16 implementation follows the final [logical model](<../2. Logical model/README.md>): 25 tables, 100 columns and 30 foreign keys. The [normalization document](<../3. Normalization/README.md>) explains how the tables fit together.
 
+## Submission checklist
+
+- [x] Database structure: [tables.sql](tables.sql) creates all 25 tables with the columns and types in the final logical model.
+- [x] Keys: [tables.sql](tables.sql) defines the primary keys, 30 foreign keys and required unique constraints.
+- [x] Constraints: [tables.sql](tables.sql) checks individual rows; [transactions.sql](transactions.sql) checks rules involving related rows.
+- [x] Population: [seed.sql](seed.sql) fills every table with related sample data covering the request states and main workflows.
+- [x] Reproducible setup: the commands below create, populate and check a fresh database using only the submitted files. [verify.sql](verify.sql) and [verify_concurrency.py](verify_concurrency.py) provide the checks.
+
+Rechecked on PostgreSQL 16.6: the documented file order builds a fresh database successfully, repeat verification passes, and all 41 rejected-write checks and six concurrency checks pass. This confirms the standalone course submission; application service integration remains tracked separately in #191.
+
 ## Files
 
 | File | Purpose |
