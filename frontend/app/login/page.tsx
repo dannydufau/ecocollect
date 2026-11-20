@@ -3,9 +3,10 @@
 import { Suspense, useEffect, useState, type FormEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { redirect, useRouter, useSearchParams } from "next/navigation";
 import { FirebaseError } from "firebase/app";
 import { useAuth } from "@/lib/auth-context";
+import { isDemo } from "@/lib/demo";
 import { Alert, Button, Field, card, input } from "@/components/ui";
 
 function errorMessage(err: unknown): string {
@@ -34,6 +35,7 @@ function ExpiredNotice() {
 }
 
 export default function LoginPage() {
+  if (isDemo) redirect("/demo");
   const router = useRouter();
   const { user, roles, loading, signIn, signOut } = useAuth();
   const [email, setEmail] = useState("");

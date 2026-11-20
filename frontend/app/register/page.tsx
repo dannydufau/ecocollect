@@ -3,19 +3,21 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { redirect, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import RegisterForm from "@/components/register-form";
 import TermsCheckbox from "@/components/terms-checkbox";
 import { Alert, pageTitle, textLink } from "@/components/ui";
 import { ApiError, api, friendlyError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { isDemo } from "@/lib/demo";
 import { queryKeys } from "@/lib/query-keys";
 import { normalizePostalCode, normalizeUsername, type AccountValues } from "@/lib/validate-account";
 
 const formFields = /^(firstName|lastName|publicName|dateOfBirth|username|email|password|role|address\.street|address\.postalCode|preferredPostalCodes(\[\d+\])?)$/;
 
 export default function RegisterPage() {
+    if (isDemo) redirect("/demo");
     const router = useRouter();
     const queryClient = useQueryClient();
     const { user, roles, loading, signIn } = useAuth();
