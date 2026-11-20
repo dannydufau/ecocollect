@@ -11,6 +11,7 @@ import { useRequestDetail } from "@/lib/use-request";
 import CancelAssignment from "./cancel-assignment";
 import CancelRequest, { type Notice } from "./cancel-request";
 import ConfirmCollected from "./confirm-collected";
+import ReportMissed from "./report-missed";
 import { RequestActions, type ResidentActionRenderers } from "./request-actions";
 import StatusHistory from "./status-history";
 
@@ -46,6 +47,7 @@ export default function ResidentRequestDetail({ requestId, actionRenderers }: {
         cancel: request => <CancelRequest request={request} onNotice={setNotice} />,
         confirm_collected: request => <ConfirmCollected request={request} onNotice={setNotice} />,
         cancel_assignment: request => <CancelAssignment request={request} onNotice={setNotice} />,
+        report_missed: request => <ReportMissed request={request} onNotice={setNotice} />,
         ...actionRenderers,
     };
     return <ResidentRequestView request={data} onPhotoError={() => { void refetch(); }} actionRenderers={renderers} notice={notice} />;

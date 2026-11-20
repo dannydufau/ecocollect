@@ -10,6 +10,7 @@ import ResidentRequestDetail from "./request-detail";
 
 vi.mock("@/lib/firebase", () => ({ auth: {} }));
 vi.mock("firebase/auth", () => ({ signOut: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 HTMLDialogElement.prototype.showModal = function () { this.setAttribute("open", ""); };
 HTMLDialogElement.prototype.close = function () { this.removeAttribute("open"); };
 
