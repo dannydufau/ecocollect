@@ -30,9 +30,10 @@ const request: RequestDetail = {
 };
 
 let invalidate: ReturnType<typeof vi.spyOn>;
+const onDone = vi.fn();
 
 function openDialog() {
-    renderWithClient(<RecordDelivery request={request} />);
+    renderWithClient(<RecordDelivery request={request} onDone={onDone} />);
     fireEvent.click(screen.getByRole("button", { name: "Record delivery" }));
     return screen.getByRole("dialog");
 }
@@ -47,7 +48,7 @@ beforeEach(() => {
     vi.spyOn(api, "post").mockResolvedValue(request);
     invalidate = vi.spyOn(QueryClient.prototype, "invalidateQueries");
 });
-afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+afterEach(() => { cleanup(); vi.restoreAllMocks(); onDone.mockReset(); });
 
 it("keeps Confirm disabled until a facility and a photo are set", () => {
     const dialog = openDialog();
@@ -66,6 +67,13 @@ it("posts the facility and the photo id, then refreshes the request, history and
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["request", "r1"] });
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["requests", "volunteer"] });
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["ecopoints"] });
+    expect(onDone).toHaveBeenCalledWith("Delivery recorded. EcoPoints are on their way.");
+});
+
+it("explains who can see the delivery photo", () => {
+    const dialog = openDialog();
+    expect(within(dialog).getByRole("heading", { name: "Record delivery" })).toBeInTheDocument();
+    expect(dialog).toHaveTextContent("Add a photo of the items at the facility. Only you and the resident can see it.");
 });
 
 it("shows the server message for a 400 and keeps the form open", async () => {
