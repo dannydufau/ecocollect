@@ -23,16 +23,17 @@ const termsBox = "I have read and accept the terms and safety guidelines";
 const conflict = (code: string) => new ApiError(409, { error: { code, message: code } });
 
 let invalidate: ReturnType<typeof vi.spyOn>;
+const onDone = vi.fn();
 
 async function openDialog(detail = request) {
-    renderWithClient(<AcceptRequest request={detail} />);
+    renderWithClient(<AcceptRequest request={detail} onDone={onDone} />);
     fireEvent.click(screen.getByRole("button", { name: "Accept request" }));
     const dialog = screen.getByRole("dialog");
     await within(dialog).findByLabelText(termsBox);
     return dialog;
 }
 function confirmButton(dialog: HTMLElement) {
-    return within(dialog).getByRole("button", { name: "Accept" });
+    return within(dialog).getByRole("button", { name: "Accept request" });
 }
 async function fill(dialog: HTMLElement) {
     fireEvent.click(within(dialog).getByRole("radio", { name: /Sat, Nov 21, 14:00 to 15:00/ }));
@@ -45,7 +46,7 @@ beforeEach(() => {
     vi.spyOn(api, "post").mockResolvedValue(request);
     invalidate = vi.spyOn(QueryClient.prototype, "invalidateQueries");
 });
-afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+afterEach(() => { cleanup(); vi.restoreAllMocks(); onDone.mockReset(); });
 
 it("keeps Confirm disabled until a window and the terms are chosen", async () => {
     const dialog = await openDialog();
@@ -73,6 +74,13 @@ it("posts the window and the terms id, then refreshes the lists and closes", asy
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["request", "r1"] });
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["requests", "available"] });
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["requests", "volunteer"] });
+    expect(onDone).toHaveBeenCalledWith("You accepted this request. The pickup address is shown below.");
+});
+
+it("tells the volunteer to pick one window and that the address comes after", async () => {
+    const dialog = await openDialog();
+    expect(within(dialog).getByRole("heading", { name: "Accept this request" })).toBeInTheDocument();
+    expect(dialog).toHaveTextContent("Pick one pickup window. The street address is shown after you accept.");
 });
 
 it("says another volunteer was first and refetches the request", async () => {
