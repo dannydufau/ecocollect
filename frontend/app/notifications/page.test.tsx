@@ -7,8 +7,6 @@ import type { Notification } from "@/lib/types";
 import { renderWithClient } from "@/test/utils";
 import NotificationsPage from "./page";
 
-const router = { push: vi.fn() };
-vi.mock("next/navigation", () => ({ useRouter: () => router }));
 vi.mock("@/lib/api", () => ({ api: { get: vi.fn(), patch: vi.fn(), post: vi.fn() }, isAuthError: () => false }));
 
 const item = (n: number, patch: Partial<Notification> = {}): Notification => ({
@@ -19,8 +17,8 @@ const item = (n: number, patch: Partial<Notification> = {}): Notification => ({
 const page = (notifications: Notification[], unreadCount = notifications.filter(row => !row.isRead).length) => ({ unreadCount, notifications });
 const full = Array.from({ length: 30 }, (_, i) => item(i + 1, { isRead: true }));
 
-function button(title: string) {
-    return screen.getByText(title).closest("button")!;
+function row(title: string) {
+    return screen.getByText(title).closest("a")!;
 }
 
 let invalidate: ReturnType<typeof vi.spyOn>;
@@ -38,9 +36,9 @@ afterEach(() => {
 
 it("lists the notifications with title, body, time and the unread count", async () => {
     renderWithClient(<NotificationsPage />);
-    expect(await screen.findByText("1 unread")).toBeInTheDocument();
+    expect(await screen.findByText("1 unread")).toHaveAttribute("role", "status");
     expect(api.get).toHaveBeenCalledWith("/api/notifications");
-    const first = button("Title 1");
+    const first = row("Title 1");
     expect(first).toHaveTextContent("Body 1");
     expect(first).toHaveTextContent(formatTimestamp(item(1).createdAt));
     expect(screen.getAllByRole("listitem").map(row => row.textContent)).toEqual([expect.stringContaining("Title 1"), expect.stringContaining("Title 2")]);
@@ -49,38 +47,43 @@ it("lists the notifications with title, body, time and the unread count", async 
 it("marks unread rows in text, not only by color", async () => {
     renderWithClient(<NotificationsPage />);
     await screen.findByText("Title 1");
-    expect(within(button("Title 1")).getByText("Unread:")).toBeInTheDocument();
-    expect(within(button("Title 2")).queryByText("Unread:")).not.toBeInTheDocument();
+    expect(within(row("Title 1")).getByText("Unread:")).toBeInTheDocument();
+    expect(within(row("Title 2")).queryByText("Unread:")).not.toBeInTheDocument();
 });
 
-it("marks an unread row as read, then opens its page", async () => {
+it("every row is a link to its page", async () => {
     renderWithClient(<NotificationsPage />);
-    fireEvent.click((await screen.findByText("Title 1")).closest("button")!);
-    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/resident/requests/r1"));
-    expect(api.patch).toHaveBeenCalledWith("/api/notifications/n1/read");
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["notifications"] });
+    await screen.findByText("Title 1");
+    expect(row("Title 1")).toHaveAttribute("href", "/resident/requests/r1");
+    expect(row("Title 2")).toHaveAttribute("href", "/resident/requests/r2");
 });
 
-it("still opens the page when marking as read fails", async () => {
+it("marks an unread row as read when it is opened", async () => {
+    renderWithClient(<NotificationsPage />);
+    fireEvent.click((await screen.findByText("Title 1")).closest("a")!);
+    await waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: ["notifications"] }));
+    expect(api.patch).toHaveBeenCalledWith("/api/notifications/n1/read");
+});
+
+it("does not wait for the read mark, and a failing one changes nothing", async () => {
     vi.mocked(api.patch).mockRejectedValue(new Error("down"));
     renderWithClient(<NotificationsPage />);
-    fireEvent.click((await screen.findByText("Title 1")).closest("button")!);
-    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/resident/requests/r1"));
+    const link = (await screen.findByText("Title 1")).closest("a")!;
+    fireEvent.click(link);
+    expect(link).toHaveAttribute("href", "/resident/requests/r1");
+    await waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: ["notifications"] }));
 });
 
-it("only navigates for a row that is already read", async () => {
+it("does not mark a row that is already read", async () => {
     renderWithClient(<NotificationsPage />);
-    fireEvent.click((await screen.findByText("Title 2")).closest("button")!);
-    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/resident/requests/r2"));
+    fireEvent.click((await screen.findByText("Title 2")).closest("a")!);
     expect(api.patch).not.toHaveBeenCalled();
 });
 
-it.each(["https://evil.com", "//evil.com"])("does not follow %s", async url => {
+it.each(["https://evil.com", "//evil.com"])("does not link to %s", async url => {
     vi.mocked(api.get).mockResolvedValue(page([item(1, { url, isRead: true })]));
     renderWithClient(<NotificationsPage />);
-    fireEvent.click((await screen.findByText("Title 1")).closest("button")!);
-    await new Promise(resolve => setTimeout(resolve, 0));
-    expect(router.push).not.toHaveBeenCalled();
+    expect((await screen.findByText("Title 1")).closest("a")).toHaveAttribute("href", "/notifications");
 });
 
 it("marks all as read and refreshes the list", async () => {
