@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS users.outbox (
 ALTER TABLE users.outbox ADD COLUMN IF NOT EXISTS insertion_order BIGINT GENERATED ALWAYS AS IDENTITY;
 CREATE INDEX IF NOT EXISTS user_outbox_publish_order
     ON users.outbox (created_at, insertion_order) WHERE published_at IS NULL;
+DROP INDEX IF EXISTS users.user_outbox_pending;
 
 DO $$
 BEGIN
