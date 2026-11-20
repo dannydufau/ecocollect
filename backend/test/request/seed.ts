@@ -21,3 +21,6 @@ export const SEED_FACILITIES_FOR_CATEGORY = 2;
 
 /** An `account_id` in `INSERT INTO volunteer`. */
 export const SEED_VOLUNTEER_ID = 'volunteer1';
+
+/** An `account_id` in `INSERT INTO resident` and not in `INSERT INTO volunteer`. */
+export const SEED_RESIDENT_ONLY_ID = 'resident1';
