@@ -41,7 +41,7 @@ export default function AcceptRequest({ request }: { request: RequestDetail }) {
     }
 
     return <>
-        <Button onClick={start}>Accept</Button>
+        <Button onClick={start}>Accept request</Button>
         <ConfirmDialog open={open} title="Accept this request?" confirmLabel={action.isPending ? "Accepting..." : "Accept"}
             confirmDisabled={!windowId || !termsId} busy={action.isPending} error={failed ? action.message ?? undefined : undefined}
             onConfirm={confirm} onCancel={() => setOpen(false)}>

@@ -26,7 +26,7 @@ let invalidate: ReturnType<typeof vi.spyOn>;
 
 async function openDialog(detail = request) {
     renderWithClient(<AcceptRequest request={detail} />);
-    fireEvent.click(screen.getByRole("button", { name: "Accept" }));
+    fireEvent.click(screen.getByRole("button", { name: "Accept request" }));
     const dialog = screen.getByRole("dialog");
     await within(dialog).findByLabelText(termsBox);
     return dialog;
