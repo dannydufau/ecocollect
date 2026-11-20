@@ -223,6 +223,16 @@ it("shows an authorization error without offering a retry", async () => {
     expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
 });
 
+it("links Edit request to the edit page when the request can be edited", async () => {
+    renderWithClient(<ResidentRequestDetail requestId="r1" />);
+    expect(await screen.findByRole("link", { name: "Edit request" })).toHaveAttribute("href", "/resident/requests/r1/edit");
+    cleanup();
+    vi.mocked(api.getWithMeta).mockResolvedValue(response(detail({ allowedActions: ["cancel"] })));
+    renderWithClient(<ResidentRequestDetail requestId="r1" />);
+    await screen.findByRole("button", { name: "Cancel request" });
+    expect(screen.queryByRole("link", { name: "Edit request" })).not.toBeInTheDocument();
+});
+
 it("shows the missed pickup message after a reschedule", async () => {
     vi.mocked(api.getWithMeta).mockResolvedValue({ data: detail(), serverDate: new Date() } as never);
     renderWithClient(<ResidentRequestDetail requestId="r1" rescheduled />);
