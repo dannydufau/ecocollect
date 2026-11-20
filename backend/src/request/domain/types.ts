@@ -80,3 +80,29 @@ export type FacilityRow = {
   special_instructions: string | null;
   accepted_category_ids: string[];
 };
+
+// The values requests.req_create_requests takes (Q4), already shape-checked.
+// Items are parallel arrays: element i of each is one item; an item without a
+// photo has null in both photo arrays. Windows the same: dates[i] + hours[i].
+export type CreateRequestsInput = {
+  residentId: string;
+  idempotencyKey: string | null;       // null when the header is absent
+  termsDocumentId: string;             // a well-formed UUID (checked before the call)
+  categoryIds: string[];
+  quantities: number[];
+  photoFileIds: (string | null)[];
+  photoPaths: (string | null)[];
+  dates: string[];                     // 'YYYY-MM-DD'
+  hours: number[];
+  notes: string | null;
+  demo: boolean;
+  traceId: string | null;
+};
+
+// The one row requests.req_create_requests returns.
+export type CreateRequestsRow = {
+  result_code: 'ok' | 'replayed' | 'forbidden' | 'terms_outdated' | 'validation_failed';
+  error_fields: string[];              // paired with error_messages, element by element
+  error_messages: string[];
+  created_request_ids: string[] | null; // set for 'ok' and 'replayed'
+};

@@ -226,8 +226,8 @@ CREATE TABLE IF NOT EXISTS requests.processed_events (
 
 -- Q4 Idempotency-Key: a repeat with the same key from the same resident within
 -- 24 h returns the requests the first call created (contract Q4, NFR06). The
--- response is rebuilt from these ids by reading the requests again. Keys older
--- than 24 h are deleted by the service.
+-- response is rebuilt from these ids by reading the requests again. A key older
+-- than 24 h is overwritten when the same resident uses it again (contract section 8).
 CREATE TABLE IF NOT EXISTS requests.idempotency_keys (
     resident_id     VARCHAR(50)  NOT NULL,           -- account_id (same type as the model)
     idempotency_key VARCHAR(200) NOT NULL,

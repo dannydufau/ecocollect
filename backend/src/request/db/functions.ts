@@ -1,7 +1,9 @@
 // One typed wrapper per database function the service calls. Each is a single
 // pool.query: one function call that PostgreSQL commits on its own.
 import type pg from 'pg';
-import type { CategoryRow, FacilityRow } from '../domain/types.ts';
+import type {
+  CategoryRow, CreateRequestsInput, CreateRequestsRow, FacilityRow,
+} from '../domain/types.ts';
 
 export async function listCategories(pool: pg.Pool): Promise<CategoryRow[]> {
   const { rows } = await pool.query<CategoryRow>(
@@ -14,4 +16,19 @@ export async function listFacilities(pool: pg.Pool, categoryId: string | null): 
   const { rows } = await pool.query<FacilityRow>(
     'SELECT * FROM requests.req_list_facilities($1)', [categoryId]);
   return rows;
+}
+
+// Q4. One call creates every request, its events and the idempotency key, or
+// nothing. SELECT * FROM, never SELECT (f(...)).*: the second form can run the
+// function once per output column, repeating the writes. The casts say which
+// array type each parameter is: pg sends JS arrays as untyped array text.
+export async function createRequests(pool: pg.Pool, input: CreateRequestsInput): Promise<CreateRequestsRow> {
+  const { rows } = await pool.query<CreateRequestsRow>(
+    `SELECT * FROM requests.req_create_requests(
+       $1, $2, $3::uuid, $4::text[], $5::int[], $6::text[], $7::text[],
+       $8::date[], $9::smallint[], $10, $11, $12)`,
+    [input.residentId, input.idempotencyKey, input.termsDocumentId,
+    input.categoryIds, input.quantities, input.photoFileIds, input.photoPaths,
+    input.dates, input.hours, input.notes, input.demo, input.traceId]);
+  return rows[0]!;
 }
