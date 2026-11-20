@@ -7,6 +7,7 @@ const router = { replace: vi.fn(), push: vi.fn() };
 let pathname = "/resident";
 vi.mock("next/navigation", () => ({ useRouter: () => router, usePathname: () => pathname }));
 vi.mock("@/lib/auth-context", () => ({ useAuth: vi.fn() }));
+vi.mock("@/components/notification-bell", () => ({ default: () => <span data-slot="bell" /> }));
 
 const setActiveRole = vi.fn();
 
