@@ -39,3 +39,12 @@ export const SEED_OPEN_REQUEST_2_ID = '00000003-0000-4000-8000-000000000008';
 
 /** The `pickup_postal_code` of `SEED_OPEN_REQUEST_2_ID`. */
 export const SEED_OPEN_REQUEST_2_POSTAL_CODE = 'T2T4M3';
+
+/** An `account_id` in `INSERT INTO resident`, not in `INSERT INTO volunteer`, other than `SEED_RESIDENT_ONLY_ID`. */
+export const SEED_OTHER_RESIDENT_ONLY_ID = 'resident2';
+
+/** A `pickup_request_id` whose last `status_change` is `Assigned`. */
+export const SEED_ASSIGNED_REQUEST_ID = '00000003-0000-4000-8000-000000000002';
+
+/** The volunteer (`terms_acceptance.account_id`) of an `assignment` on `SEED_ASSIGNED_REQUEST_ID` with `end_reason` `Volunteer_Cancelled`. */
+export const SEED_CANCELLED_VOLUNTEER_ID = 'volunteer3';
