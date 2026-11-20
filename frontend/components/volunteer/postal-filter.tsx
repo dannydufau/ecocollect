@@ -23,16 +23,16 @@ export default function PostalFilter({ codes, onChange }: { codes: string[]; onC
     }
 
     return (
-        <section aria-label="Postal code filter" className="min-w-0 space-y-3">
-            {codes.length > 0 ? <ul className="flex flex-wrap gap-2">
+        <form role="search" aria-label="Filter by postal code" onSubmit={add} noValidate className="min-w-0 space-y-3">
+            {codes.length > 0 ? <><p className="font-semibold">Showing requests in:</p><ul className="flex flex-wrap gap-2">
                 {codes.map(code => <li key={code}>
                     <button type="button" onClick={() => onChange(codes.filter(other => other !== code))} aria-label={`Remove ${formatPostalCode(code)}`}
                         className="inline-flex min-h-11 items-center gap-2 rounded-full border border-neutral-600 bg-neutral-100 px-4 font-semibold hover:bg-text/10">
                         {formatPostalCode(code)} <span aria-hidden="true">×</span>
                     </button>
                 </li>)}
-            </ul> : <p className="text-neutral-700">Showing all postal codes.</p>}
-            <form onSubmit={add} noValidate className="flex flex-wrap items-end gap-3">
+            </ul></> : <p className="text-neutral-700">Showing all postal codes.</p>}
+            <div className="flex flex-wrap items-end gap-3">
                 <div className="min-w-0 flex-1 basis-48">
                     <Field label="Add a postal code" error={error || undefined}>
                         {control => <input {...control} type="text" autoComplete="off" value={text} className={input}
@@ -40,8 +40,8 @@ export default function PostalFilter({ codes, onChange }: { codes: string[]; onC
                     </Field>
                 </div>
                 <Button type="submit" variant="secondary">Add</Button>
-                {codes.length > 0 && <Button variant="secondary" onClick={() => { setError(""); onChange([]); }}>Show all</Button>}
-            </form>
-        </section>
+                {codes.length > 0 && <Button variant="secondary" onClick={() => { setError(""); onChange([]); }}>Show all areas</Button>}
+            </div>
+        </form>
     );
 }

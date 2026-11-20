@@ -32,6 +32,13 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+it("is a labelled search form", async () => {
+    profile = { preferredPostalCodes: ["T2P1J9"] };
+    await shown(["T2P1J9"]);
+    expect(screen.getByRole("search", { name: "Filter by postal code" })).toBeInTheDocument();
+    expect(screen.getByText("Showing requests in:")).toBeInTheDocument();
+});
+
 it("filters by the profile's preferred codes", async () => {
     profile = { preferredPostalCodes: ["T2P1J9", "T3A0B1"] };
     await shown(["T2P1J9", "T3A0B1"]);
@@ -100,9 +107,9 @@ it("refetches with the other codes when a chip is removed", async () => {
 it("Show all removes the postalCodes param", async () => {
     profile = { preferredPostalCodes: ["T2P1J9"] };
     await shown(["T2P1J9"]);
-    fireEvent.click(screen.getByRole("button", { name: "Show all" }));
+    fireEvent.click(screen.getByRole("button", { name: "Show all areas" }));
     await waitFor(() => expect(lists()).toContain(list));
-    expect(screen.queryByRole("button", { name: "Show all" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Show all areas" })).not.toBeInTheDocument();
 });
 
 it("loads the list without a filter when the profile fails", async () => {
