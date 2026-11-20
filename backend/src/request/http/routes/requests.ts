@@ -1,11 +1,13 @@
 // Q4 POST /api/requests (residents): one request per item, in one database call.
 // Q5-Q7 GET /api/requests: one handler, the view decides the role and the read.
+// Q8 GET /api/requests/:id: any signed-in caller; the database decides what they see.
 import { Router } from 'express';
+import * as v from 'valibot';
 import type { RouteDeps } from '../../app.ts';
-import { createRequests, getRequests, listAvailable, listMine } from '../../db/functions.ts';
-import { availableRequest, createdRequest, myRequest } from '../../json/responses.ts';
-import { parseCreateRequestsBody, termsOutdated } from '../create-requests-body.ts';
-import { forbidden, HttpError, validationFailed, validationFailedFromDb } from '../errors.ts';
+import { createRequests, getDetail, getRequests, listAvailable, listMine } from '../../db/functions.ts';
+import { availableRequest, createdRequest, myRequest, requestDetail } from '../../json/responses.ts';
+import { parseCreateRequestsBody, termsOutdated, Uuid } from '../create-requests-body.ts';
+import { forbidden, HttpError, requestUnavailable, validationFailed, validationFailedFromDb } from '../errors.ts';
 import { assertRole, callerOf, requireRole } from '../gateway-user.ts';
 import { parseAvailableQuery, parseMineQuery, parseView } from '../list-requests-query.ts';
 
@@ -85,6 +87,18 @@ export default function requestsRouter({ pool, nudgePublisher, demo }: RouteDeps
         // Temporary, until Q7 is built.
         throw new HttpError(501, 'not_implemented', `view=${view} is not available yet.`);
     }
+  });
+
+  // A malformed id is answered like an unknown one (404, never 400): checked here
+  // because the database would fail to cast it to UUID. No role check: a
+  // caller who may not see the request gets the same 404 (NFR03).
+  router.get('/api/requests/:id', async (req, res) => {
+    const caller = callerOf(res);
+    const id = req.params.id;
+    if (!v.is(Uuid, id)) throw requestUnavailable();
+    const row = await getDetail(pool, id, caller.id);
+    if (row.result_code !== 'ok') throw requestUnavailable();
+    res.json(requestDetail(row));
   });
 
   return router;

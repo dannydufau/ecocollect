@@ -7,7 +7,7 @@ import * as v from 'valibot';
 import { HttpError, validationFailed } from './errors.ts';
 
 const INT_MAX = 2_147_483_647;         // quantity is an INT parameter
-const Uuid = v.pipe(v.string(), v.uuid());
+export const Uuid = v.pipe(v.string(), v.uuid());
 
 // Runs after v.isoDate(), which checks the format (month 01-12, day 01-31) but
 // lets 2026-02-30 through; Postgres would refuse it with an error (a 500).

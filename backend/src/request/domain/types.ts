@@ -139,3 +139,53 @@ export type ListAvailableRow = {
   expires_at: Date;
   has_photo: boolean;
 };
+
+// The one row of requests.req_get_detail (Q8). For 'request_unavailable' every
+// other column is null. For 'ok' the columns the viewer may not see are null
+// (030's header says which); the window and history arrays line up like
+// ListAvailableRow's.
+export type GetDetailRow = {
+  result_code: 'ok' | 'request_unavailable';
+  viewer: 'owner' | 'assigned_volunteer' | 'volunteer' | null;
+  request_id: string;
+  status: string;
+  category_id: string;
+  category_name: string;
+  waste_type: string;
+  quantity: number;
+  estimated_weight_kg: string;         // NUMERIC
+  postal_code: string;
+  window_ids: string[];
+  window_dates: string[];              // 'YYYY-MM-DD'
+  window_hours: number[];
+  created_at: Date;
+  expires_at: Date;
+  notes: string | null;
+  street: string | null;               // set exactly when notes and address are visible
+  photo_path: string | null;
+  resident_id: string | null;
+  resident_public_name: string | null;
+  assignment_id: string | null;        // null: no assignment shown
+  assignment_volunteer_id: string | null;
+  assignment_volunteer_name: string | null;
+  assignment_window_id: string | null;
+  assignment_window_date: string | null;
+  assignment_window_hour: number | null;
+  assignment_status: string | null;
+  assignment_accepted_at: Date | null;
+  assignment_collected_at: Date | null;
+  assignment_ended_at: Date | null;
+  assignment_end_reason: string | null;
+  assignment_outside_window: boolean | null;
+  delivery_facility_id: string | null; // null: the shown assignment has no delivery
+  delivery_facility_name: string | null;
+  delivered_at: Date | null;
+  evidence_path: string | null;
+  rescheduled_from_id: string | null;
+  rescheduled_as_id: string | null;
+  history_at: Date[] | null;           // owner only
+  history_status: string[] | null;
+  history_reason: (string | null)[] | null;
+  allowed_actions: string[];
+  refresh_at: Date | null;
+};

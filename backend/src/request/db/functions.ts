@@ -2,8 +2,8 @@
 // pool.query: one function call that PostgreSQL commits on its own.
 import type pg from 'pg';
 import type {
-  CategoryRow, CreateRequestsInput, CreateRequestsRow, FacilityRow, GetRequestsRow,
-  ListAvailableRow, ListMineRow,
+  CategoryRow, CreateRequestsInput, CreateRequestsRow, FacilityRow, GetDetailRow,
+  GetRequestsRow, ListAvailableRow, ListMineRow,
 } from '../domain/types.ts';
 
 export async function listCategories(pool: pg.Pool): Promise<CategoryRow[]> {
@@ -58,4 +58,14 @@ export async function listAvailable(pool: pg.Pool, postalCodes: string[] | null)
   const { rows } = await pool.query<ListAvailableRow>(
     'SELECT * FROM requests.req_list_available($1::text[])', [postalCodes]);
   return rows;
+}
+
+// Q8: one request as the viewer may see it. Always one row; result_code
+// 'request_unavailable' covers both "no such request" and "not yours to see".
+// requestId must be a well-formed UUID (checked before the call).
+export async function getDetail(pool: pg.Pool, requestId: string, viewerId: string): Promise<GetDetailRow> {
+  const { rows } = await pool.query<GetDetailRow>(
+    'SELECT * FROM requests.req_get_detail($1::uuid, $2)', [requestId, viewerId]);
+  // a function with OUT parameters always returns exactly one row, so the ! (not-null assertion) is safe.
+  return rows[0]!;
 }
