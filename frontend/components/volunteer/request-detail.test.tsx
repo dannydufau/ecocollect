@@ -8,6 +8,7 @@ import VolunteerRequestDetail from "./request-detail";
 
 vi.mock("@/lib/firebase", () => ({ auth: {} }));
 vi.mock("firebase/auth", () => ({ signOut: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 const open: RequestDetail = {
     requestId: "r1", status: "Open", viewer: "volunteer",
@@ -67,7 +68,7 @@ it("shows the address, notes, resident and assignment for the assigned volunteer
     expect(screen.getByText("Jas")).toBeInTheDocument();
     const pickup = screen.getByRole("region", { name: "Your pickup" });
     expect(pickup).toHaveTextContent(`Accepted ${formatTimestamp(assignment.acceptedAt)}`);
-    expect(screen.getByRole("button", { name: "Cancel assignment" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Cancel assignment" })).toBeEnabled();
     expect(screen.queryByRole("button", { name: "Accept" })).not.toBeInTheDocument();
 });
 

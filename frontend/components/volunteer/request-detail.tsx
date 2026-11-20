@@ -8,11 +8,12 @@ import { formatTimestamp, formatWindow, friendlyWindow } from "@/lib/time";
 import type { PickupWindow } from "@/lib/types";
 import { useRequestDetail } from "@/lib/use-request";
 import AcceptRequest from "./accept-request";
+import CancelAssignment from "./cancel-assignment";
 
 const cardStyle = `${card} min-w-0 space-y-3`;
 const cardTitle = "text-[22px]";
 
-// Disabled until FE-052 and FE-055 put the real controls here
+// Disabled until FE-055 puts the real control here
 const actions = [
     { action: "accept", label: "Accept", variant: "primary" },
     { action: "cancel_assignment", label: "Cancel assignment", variant: "danger-outline" },
@@ -63,6 +64,7 @@ export default function VolunteerRequestDetail({ requestId }: { requestId: strin
         {buttons.length > 0 && <section aria-label="Request actions" className="flex flex-wrap gap-3">
             {buttons.map(({ action, label, variant }) => action === "accept"
                 ? <AcceptRequest key={action} request={request} />
+                : action === "cancel_assignment" ? <CancelAssignment key={action} request={request} />
                 : <Button key={action} variant={variant} disabled>{label}</Button>)}
         </section>}
 
