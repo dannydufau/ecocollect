@@ -34,6 +34,7 @@ export default function ReviewRequest({ values, busy, accepted, onBack, onConfir
                 return <li key={item.categoryId} className={`${card} flex flex-col gap-0.5 break-words`}>
                     <span className="font-[family-name:var(--font-heading)] text-[21px]">{item.quantity} × {found?.name ?? item.categoryId}</span>
                     {found && <span>Estimated weight: <strong>{(found.standardWeightKg * Number(item.quantity)).toFixed(2)} kg</strong></span>}
+                    {item.photo && <span>Photo attached</span>}
                 </li>;
             })}</ul>
             {values.items.length > 1 && <p className="text-neutral-800">This creates {values.items.length} separate requests, one per item.</p>}

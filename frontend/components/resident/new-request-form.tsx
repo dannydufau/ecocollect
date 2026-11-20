@@ -49,7 +49,7 @@ export default function NewRequestForm() {
         setFields({});
         try {
             const body: CreateRequests = {
-                items: values.items.map(item => ({ categoryId: item.categoryId, quantity: Number(item.quantity) })),
+                items: values.items.map(item => ({ categoryId: item.categoryId, quantity: Number(item.quantity), ...(item.photo ? { photo: item.photo } : {}) })),
                 windows: values.windows.map(({ date, startHour }) => ({ date, startHour })),
                 ...(values.notes ? { notes: values.notes } : {}),
                 termsDocumentId,
