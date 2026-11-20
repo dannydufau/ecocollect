@@ -11,7 +11,7 @@
 # They are not in db/init: Postgres runs db/init on every new Compose volume, where
 # the course schema doesn't exist yet, so these files would stop the database.
 #
-# Usage (from anywhere in the repo):
+# Usage (from any directory):
 #   backend/scripts/request/load-db.sh                          # dev database: ecocollect_request
 #   backend/scripts/request/load-db.sh ecocollect_request_test  # test database
 #
@@ -20,7 +20,8 @@ set -euo pipefail
 
 DB="${1:-ecocollect_request}"
 MODEL_DIR="docs/Final Submission/ENSF608/4. Physical model"
-ROOT="$(git rev-parse --show-toplevel)"
+# The repo root, from this script's own place (backend/scripts/request/).
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 
 # The name goes into SQL text, so allow plain lowercase names only.
 if [[ ! "$DB" =~ ^[a-z_][a-z0-9_]*$ ]]; then
