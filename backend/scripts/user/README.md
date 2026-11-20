@@ -1,6 +1,6 @@
 # User database
 
-Run the loader against a database you created for EcoCollect. It needs PostgreSQL 16, Bash and `psql` on PATH. Use an admin connection for setup; the service uses its own login afterwards.
+Run the loader against a database you created for EcoCollect. It needs a PostgreSQL 16 server, Bash and a psql client version 15 or newer on PATH. The loader checks the client version before running any SQL. Use an admin connection for setup; the service uses its own login afterwards.
 
 ```bash
 export DATABASE_URL='postgres://admin:your_password@localhost:5432/ecocollect_user'
@@ -10,7 +10,7 @@ bash backend/scripts/user/load-db.sh
 
 The command works from any folder. It runs these files in one transaction, stopping on the first error:
 
-1. `db/init/029_user_tables.sql`: the six account, role, postal-code and terms tables.
+1. `db/init/005_user_tables.sql`: the six account, role, postal-code and terms tables. The 005 prefix puts shared User tables before the reserved 010/020 service files when Compose initializes a fresh volume.
 2. `db/init/030_user_ops.sql`: the User outbox and database permissions.
 3. `db/init/031_user_seed.sql`: one terms document, using the current terms ID from the physical-model seed.
 4. `set-password.sql`: enables the `ecocollect_user` login with `USER_DB_PASSWORD`. The password is read from the environment, not committed in SQL.
