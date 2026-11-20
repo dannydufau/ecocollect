@@ -11,6 +11,7 @@ import type pg from 'pg';
 import { createApp } from '../../src/request/app.ts';
 import { createPool } from '../../src/request/db/pool.ts';
 import { skipDb, testDatabaseUrl } from './db.ts';
+import { responseSchema } from './contract.ts';
 import {
   SEED_DELIVERED_REQUEST_ID, SEED_OPEN_REQUEST_2_ID, SEED_OPEN_REQUEST_2_POSTAL_CODE,
   SEED_OPEN_REQUEST_ID, SEED_RESIDENT_ONLY_ID, SEED_VOLUNTEER_ID,
@@ -27,14 +28,15 @@ describe('Q6 available requests', { skip: skipDb }, () => {
   let server: Server;
   let base: string;
   let isAvailableList: (body: unknown) => boolean;
-  let isError: (body: unknown) => boolean;
+  let isBadRequest: (body: unknown) => boolean;
+  let isForbidden: (body: unknown) => boolean;
   before(async () => {
     const { default: contracts } = await import('../../../contracts/test/helpers.js');
     // The view=available branch itself: listRequests' 200 is an anyOf of the three views.
     isAvailableList = contracts.inline(contracts.openapi,
       { type: 'array', items: { $ref: '#/components/schemas/AvailableRequest' } });
-    // The contract's Error shape (listRequests' 400 and 403 are $refs to the same schema).
-    isError = contracts.inline(contracts.openapi, contracts.responseBody('get', '/api/facilities', '400'));
+    isBadRequest = contracts.inline(contracts.openapi, responseSchema(contracts.openapi, 'get', '/api/requests', '400'));
+    isForbidden = contracts.inline(contracts.openapi, responseSchema(contracts.openapi, 'get', '/api/requests', '403'));
     pool = createPool(testDatabaseUrl);
     server = createApp({ pool }).listen(0);
     base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -63,12 +65,12 @@ describe('Q6 available requests', { skip: skipDb }, () => {
   test('a malformed postal code is 400 under postalCodes; a caller without the volunteer role is 403', async () => {
     const bad = await list('view=available&postalCodes=t2p1j9', volunteer);
     assert.equal(bad.status, 400);
-    assert.ok(isError(bad.body));
+    assert.ok(isBadRequest(bad.body));
     assert.ok((bad.body as ErrorBody).error.details?.fields?.postalCodes);
 
     const notVolunteer = await list('view=available', residentOnly);
     assert.equal(notVolunteer.status, 403);
-    assert.ok(isError(notVolunteer.body));
+    assert.ok(isForbidden(notVolunteer.body));
     assert.equal((notVolunteer.body as ErrorBody).error.code, 'forbidden');
   });
 });

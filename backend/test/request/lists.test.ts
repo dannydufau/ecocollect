@@ -9,6 +9,7 @@ import type pg from 'pg';
 import { createApp } from '../../src/request/app.ts';
 import { createPool } from '../../src/request/db/pool.ts';
 import { skipDb, testDatabaseUrl } from './db.ts';
+import { responseSchema } from './contract.ts';
 import {
   SEED_CATEGORY_COUNT, SEED_CATEGORY_ID, SEED_FACILITIES_FOR_CATEGORY, SEED_RESIDENT_ONLY_ID,
   SEED_VOLUNTEER_ID,
@@ -27,15 +28,16 @@ describe('lists', { skip: skipDb }, () => {
   let server: Server;
   let base: string;
   let schemaOf: (route: string) => (body: unknown) => boolean;
-  let isError: (body: unknown) => boolean;
+  let isBadRequest: (body: unknown) => boolean;
+  let isForbidden: (body: unknown) => boolean;
   before(async () => {
     // Imported here, not at the top: the validator needs `npm ci` in contracts/,
     // and a skipped run shouldn't need it.
     const { default: contracts } = await import('../../../contracts/test/helpers.js');
     schemaOf = (route) =>
       contracts.inline(contracts.openapi, contracts.responseBody('get', route, '200'));
-    // The contract's Error shape; Q2's 400 and the shared 403 both use it.
-    isError = contracts.inline(contracts.openapi, contracts.responseBody('get', '/api/facilities', '400'));
+    isBadRequest = contracts.inline(contracts.openapi, responseSchema(contracts.openapi, 'get', '/api/facilities', '400'));
+    isForbidden = contracts.inline(contracts.openapi, responseSchema(contracts.openapi, 'get', '/api/facilities', '403'));
     pool = createPool(testDatabaseUrl);
     server = createApp({ pool }).listen(0);
     base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -58,7 +60,7 @@ describe('lists', { skip: skipDb }, () => {
     const res = await fetch(`${base}/api/facilities?categoryId=${UNKNOWN_CATEGORY_ID}`, { headers: volunteer });
     const body = await res.json() as ErrorBody;
     assert.equal(res.status, 400);
-    assert.ok(isError(body));
+    assert.ok(isBadRequest(body));
     assert.equal(body.error.code, 'validation_failed');
     assert.ok(body.error.details?.fields?.categoryId);
   });
@@ -67,7 +69,7 @@ describe('lists', { skip: skipDb }, () => {
     const res = await fetch(`${base}/api/facilities?categoryId=${SEED_CATEGORY_ID}`, { headers: residentOnly });
     const body = await res.json() as ErrorBody;
     assert.equal(res.status, 403);
-    assert.ok(isError(body));
+    assert.ok(isForbidden(body));
     assert.equal(body.error.code, 'forbidden');
   });
 });

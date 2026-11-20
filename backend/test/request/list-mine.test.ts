@@ -10,6 +10,7 @@ import type pg from 'pg';
 import { createApp } from '../../src/request/app.ts';
 import { createPool } from '../../src/request/db/pool.ts';
 import { skipDb, testDatabaseUrl } from './db.ts';
+import { responseSchema } from './contract.ts';
 import {
   SEED_DELIVERED_REQUEST_ID, SEED_OPEN_REQUEST_ID, SEED_RESIDENT_ONLY_ID, SEED_VOLUNTEER_ID,
 } from './seed.ts';
@@ -25,12 +26,13 @@ describe('Q5 my requests', { skip: skipDb }, () => {
   let server: Server;
   let base: string;
   let is200: (body: unknown) => boolean;
-  let isError: (body: unknown) => boolean;
+  let isBadRequest: (body: unknown) => boolean;
+  let isForbidden: (body: unknown) => boolean;
   before(async () => {
     const { default: contracts } = await import('../../../contracts/test/helpers.js');
     is200 = contracts.inline(contracts.openapi, contracts.responseBody('get', '/api/requests', '200'));
-    // The contract's Error shape (listRequests' 400 and 403 are $refs to the same schema).
-    isError = contracts.inline(contracts.openapi, contracts.responseBody('get', '/api/facilities', '400'));
+    isBadRequest = contracts.inline(contracts.openapi, responseSchema(contracts.openapi, 'get', '/api/requests', '400'));
+    isForbidden = contracts.inline(contracts.openapi, responseSchema(contracts.openapi, 'get', '/api/requests', '403'));
     pool = createPool(testDatabaseUrl);
     server = createApp({ pool }).listen(0);
     base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -61,12 +63,12 @@ describe('Q5 my requests', { skip: skipDb }, () => {
   test('an unknown status is 400 under status; a caller without the resident role is 403', async () => {
     const bad = await list('view=mine&status=Nope', residentOnly);
     assert.equal(bad.status, 400);
-    assert.ok(isError(bad.body));
+    assert.ok(isBadRequest(bad.body));
     assert.ok((bad.body as ErrorBody).error.details?.fields?.status);
 
     const notResident = await list('view=mine', volunteer);
     assert.equal(notResident.status, 403);
-    assert.ok(isError(notResident.body));
+    assert.ok(isForbidden(notResident.body));
     assert.equal((notResident.body as ErrorBody).error.code, 'forbidden');
   });
 });
