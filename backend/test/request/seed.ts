@@ -33,3 +33,9 @@ export const SEED_OPEN_REQUEST_ID = '00000003-0000-4000-8000-000000000001';
 
 /** A `pickup_request_id` of `SEED_RESIDENT_ONLY_ID` whose last `status_change` is `Delivered`. */
 export const SEED_DELIVERED_REQUEST_ID = '00000003-0000-4000-8000-000000000004';
+
+/** A `pickup_request_id` whose last `status_change` is `Open`, with a `pickup_postal_code` other than `SEED_OPEN_REQUEST_ID`'s. */
+export const SEED_OPEN_REQUEST_2_ID = '00000003-0000-4000-8000-000000000008';
+
+/** The `pickup_postal_code` of `SEED_OPEN_REQUEST_2_ID`. */
+export const SEED_OPEN_REQUEST_2_POSTAL_CODE = 'T2T4M3';
