@@ -14,8 +14,6 @@ const { createEventsRouter, READY_FRAME, PING_FRAME } = require('../src/notifica
 const signal = { type: 'NEW_MATCHING_REQUEST', requestId: '0b7e3f2a-6d1c-4a52-9a43-6a1f5e0f1c11' };
 const quietLog = { info() {} };
 
-// --- helpers ----------------------------------------------------------------
-
 // Start the events router on a random free port with a fresh hub.
 // heartbeatMs is tiny so the ping test doesn't wait 25 s.
 async function startServer({ heartbeatMs = 60000 } = {}) {
@@ -80,8 +78,6 @@ async function waitFor(condition, what, ms = 2000) {
   }
 }
 
-// --- tests ------------------------------------------------------------------
-
 test('without X-User-Id the request gets 401 and no stream is opened', async () => {
   const { hub, url, stop } = await startServer();
   try {
@@ -116,7 +112,7 @@ test('hub.send reaches the open tab as a signal frame', async () => {
   const tab = await connect(url, 'firebaseUid_v1');
   try {
     await tab.waitFor(READY_FRAME);
-    assert.equal(hub.send('firebaseUid_v1', signal), 1);
+    assert.equal(hub.send('firebaseUid_v1', 'signal', signal), 1);
     await tab.waitFor(`event: signal\ndata: ${JSON.stringify(signal)}\n\n`);
   } finally {
     tab.disconnect();

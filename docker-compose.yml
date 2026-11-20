@@ -65,6 +65,9 @@ services:
       PORT: "80"                    # Caddy proxies to notification without a port, which means 80
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-ecocollect}:${RABBITMQ_PASSWORD:?copy .env.example to .env first}@rabbitmq:5672
                                     # no DATABASE_URL and no Firebase key: it needs neither
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:?run npx web-push generate-vapid-keys, see .env.example}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:?run npx web-push generate-vapid-keys, see .env.example}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:?add a mailto contact, see .env.example}
     sysctls:
       net.ipv4.ip_unprivileged_port_start: 0   # the container runs as a normal user, which may then use port 80
     depends_on:
