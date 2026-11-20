@@ -222,3 +222,9 @@ it("shows an authorization error without offering a retry", async () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Please log in again as a resident.");
     expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
 });
+
+it("shows the missed pickup message after a reschedule", async () => {
+    vi.mocked(api.getWithMeta).mockResolvedValue({ data: detail(), serverDate: new Date() } as never);
+    renderWithClient(<ResidentRequestDetail requestId="r1" rescheduled />);
+    expect(await screen.findByText("Missed pickup reported. Your new request is open.")).toBeInTheDocument();
+});

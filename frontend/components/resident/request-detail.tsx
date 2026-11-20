@@ -11,6 +11,7 @@ import { useRequestDetail } from "@/lib/use-request";
 import CancelAssignment from "./cancel-assignment";
 import CancelRequest, { type Notice } from "./cancel-request";
 import ConfirmCollected from "./confirm-collected";
+import ReportMissed from "./report-missed";
 import { RequestActions, type ResidentActionRenderers } from "./request-actions";
 import StatusHistory from "./status-history";
 
@@ -24,12 +25,13 @@ function UnavailableRequest() {
     </section>;
 }
 
-export default function ResidentRequestDetail({ requestId, actionRenderers }: {
+export default function ResidentRequestDetail({ requestId, rescheduled = false, actionRenderers }: {
     requestId: string;
+    rescheduled?: boolean;
     actionRenderers?: ResidentActionRenderers;
 }) {
     const { data, isPending, isError, unavailable, error, refetch, isFetching } = useRequestDetail(requestId);
-    const [notice, setNotice] = useState<Notice | null>(null);
+    const [notice, setNotice] = useState<Notice | null>(rescheduled ? { kind: "success", text: "Missed pickup reported. Your new request is open." } : null);
     if (unavailable || (data && data.viewer !== "owner")) return <UnavailableRequest />;
     if (isPending) return <Spinner label="Loading your request..." />;
     if (isError || !data) return <section className="space-y-3">
@@ -46,6 +48,7 @@ export default function ResidentRequestDetail({ requestId, actionRenderers }: {
         cancel: request => <CancelRequest request={request} onNotice={setNotice} />,
         confirm_collected: request => <ConfirmCollected request={request} onNotice={setNotice} />,
         cancel_assignment: request => <CancelAssignment request={request} onNotice={setNotice} />,
+        report_missed: request => <ReportMissed request={request} onNotice={setNotice} />,
         ...actionRenderers,
     };
     return <ResidentRequestView request={data} onPhotoError={() => { void refetch(); }} actionRenderers={renderers} notice={notice} />;
