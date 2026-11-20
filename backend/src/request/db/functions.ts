@@ -2,7 +2,7 @@
 // pool.query: one function call that PostgreSQL commits on its own.
 import type pg from 'pg';
 import type {
-  CategoryRow, CreateRequestsInput, CreateRequestsRow, FacilityRow, GetRequestsRow,
+  CategoryRow, CreateRequestsInput, CreateRequestsRow, FacilityRow, GetRequestsRow, ListMineRow,
 } from '../domain/types.ts';
 
 export async function listCategories(pool: pg.Pool): Promise<CategoryRow[]> {
@@ -40,5 +40,13 @@ export async function createRequests(pool: pg.Pool, input: CreateRequestsInput):
 export async function getRequests(pool: pg.Pool, requestIds: string[], viewerId: string): Promise<GetRequestsRow[]> {
   const { rows } = await pool.query<GetRequestsRow>(
     'SELECT * FROM requests.req_get_requests($1::uuid[], $2)', [requestIds, viewerId]);
+  return rows;
+}
+
+// Q5: the resident's own requests, newest first. statuses null = every status;
+// the cast makes pg send the JS array as text[].
+export async function listMine(pool: pg.Pool, residentId: string, statuses: string[] | null): Promise<ListMineRow[]> {
+  const { rows } = await pool.query<ListMineRow>(
+    'SELECT * FROM requests.req_list_mine($1, $2::text[])', [residentId, statuses]);
   return rows;
 }

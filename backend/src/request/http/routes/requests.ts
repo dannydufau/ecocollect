@@ -1,11 +1,13 @@
 // Q4 POST /api/requests (residents): one request per item, in one database call.
+// Q5-Q7 GET /api/requests: one handler, the view decides the role and the read.
 import { Router } from 'express';
 import type { RouteDeps } from '../../app.ts';
-import { createRequests, getRequests } from '../../db/functions.ts';
-import { createdRequest } from '../../json/responses.ts';
+import { createRequests, getRequests, listMine } from '../../db/functions.ts';
+import { createdRequest, myRequest } from '../../json/responses.ts';
 import { parseCreateRequestsBody, termsOutdated } from '../create-requests-body.ts';
-import { forbidden, validationFailed, validationFailedFromDb } from '../errors.ts';
-import { callerOf, requireRole } from '../gateway-user.ts';
+import { forbidden, HttpError, validationFailed, validationFailedFromDb } from '../errors.ts';
+import { assertRole, callerOf, requireRole } from '../gateway-user.ts';
+import { parseMineQuery, parseView } from '../list-requests-query.ts';
 
 const IDEMPOTENCY_KEY_MAX = 200;       // idempotency_keys.idempotency_key is VARCHAR(200)
 
@@ -58,6 +60,26 @@ export default function requestsRouter({ pool, nudgePublisher, demo }: RouteDeps
       throw new Error(`Q4: ${result.result_code} with ${ids.length} ids, ${rows.length} rows read`);
     }
     res.status(201).json({ requests: rows.map(createdRequest) });
+  });
+
+  // Order: view (400), role for that view (403), the view's filter (400), one read.
+  router.get('/api/requests', async (req, res) => {
+    const caller = callerOf(res);
+    const { view, role } = parseView(req);
+    assertRole(caller, role);
+
+    switch (view) {
+      case 'mine': {
+        const { statuses } = parseMineQuery(req);
+        const rows = await listMine(pool, caller.id, statuses);
+        res.json(rows.map(myRequest));
+        return;
+      }
+      case 'available':
+      case 'volunteer':
+        // Temporary, until Q6 and Q7 are built.
+        throw new HttpError(501, 'not_implemented', `view=${view} is not available yet.`);
+    }
   });
 
   return router;

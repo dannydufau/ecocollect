@@ -34,10 +34,16 @@ export function callerOf(res: Response): Caller {
   return res.locals.caller as Caller;
 }
 
-// Route guard: the endpoint needs this role (contract: missing role -> 403).
+// The caller needs this role (contract: missing role -> 403). For routes where
+// the role depends on the request (GET /api/requests: on view).
+export function assertRole(caller: Caller, role: Role): void {
+  if (!caller.roles.includes(role)) throw forbidden(`This needs the ${role} role.`);
+}
+
+// Route guard: the endpoint always needs this role.
 export function requireRole(role: Role): RequestHandler {
   return (_req, res, next) => {
-    if (!callerOf(res).roles.includes(role)) throw forbidden(`This needs the ${role} role.`);
+    assertRole(callerOf(res), role);
     next();
   };
 }

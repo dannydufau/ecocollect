@@ -119,3 +119,6 @@ export type GetRequestsRow = {
   created_at: Date;
   expires_at: Date;
 };
+
+// req_list_mine (Q5): the same columns plus has_photo.
+export type ListMineRow = GetRequestsRow & { has_photo: boolean };

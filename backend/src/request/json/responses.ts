@@ -1,5 +1,5 @@
 // Read-function rows -> response bodies in openapi.yaml's shape.
-import type { CategoryRow, FacilityRow, GetRequestsRow } from '../domain/types.ts';
+import type { CategoryRow, FacilityRow, GetRequestsRow, ListMineRow } from '../domain/types.ts';
 
 // Q1, CategoryWithWeight. NUMERIC arrives as a string; the contract wants a number.
 export function category(row: CategoryRow) {
@@ -34,4 +34,9 @@ export function createdRequest(row: GetRequestsRow) {
     createdAt: row.created_at.toISOString(),
     expiresAt: row.expires_at.toISOString(),
   };
+}
+
+// Q5, MyRequest: CreatedRequest's fields plus hasPhoto (the photo itself is in Q8).
+export function myRequest(row: ListMineRow) {
+  return { ...createdRequest(row), hasPhoto: row.has_photo };
 }
