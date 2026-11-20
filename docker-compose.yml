@@ -56,24 +56,26 @@ services:
       timeout: 3s
       retries: 10
 
-  notification:                     # SSE live updates (issue #25): RabbitMQ events in, /api/events streams out
+  notification:
     build:
-      context: ./backend            # same image as the backend, started with a different entry point
+      context: ./backend
     command: ["node", "src/notification/index.js"]
     restart: unless-stopped
     environment:
-      PORT: "80"                    # Caddy proxies to notification without a port, which means 80
+      PORT: "80"
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-ecocollect}:${RABBITMQ_PASSWORD:?copy .env.example to .env first}@rabbitmq:5672
-                                    # no DATABASE_URL and no Firebase key: it needs neither
+      DATABASE_URL: postgres://${POSTGRES_USER:-ecocollect}:${POSTGRES_PASSWORD:?copy .env.example to .env first}@postgres:5432/${POSTGRES_DB:-ecocollect}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:?run npx web-push generate-vapid-keys, see .env.example}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:?run npx web-push generate-vapid-keys, see .env.example}
       VAPID_SUBJECT: ${VAPID_SUBJECT:?add a mailto contact, see .env.example}
     sysctls:
-      net.ipv4.ip_unprivileged_port_start: 0   # the container runs as a normal user, which may then use port 80
+      net.ipv4.ip_unprivileged_port_start: 0
     depends_on:
       rabbitmq:
         condition: service_healthy
-    healthcheck:                    # /api/events answers 401 without X-User-Id, so a 401 means it is up
+      postgres:
+        condition: service_healthy
+    healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:80/api/events').then((r) => process.exit(r.status === 401 ? 0 : 1), () => process.exit(1))"]
       interval: 5s
       timeout: 3s
