@@ -102,7 +102,8 @@ export default function RequestForm({ initialValues, createdAt, single = false, 
                     {values.items.map((item, index) => {
                         const categoryError = errors[`items[${index}].categoryId`];
                         const quantityError = errors[`items[${index}].quantity`];
-                        const photoError = errors[`items[${index}].photo`];
+                        // The Request Service names the field items[i].photo.fileId when it is the file that failed
+                        const photoError = errors[`items[${index}].photo`] ?? errors[`items[${index}].photo.fileId`];
                         const category = categories.find(category => category.categoryId === item.categoryId);
                         const weight = category && Number(item.quantity) > 0 && Number.isSafeInteger(Number(item.quantity))
                             ? (category.standardWeightKg * Number(item.quantity)).toFixed(2) : null;
