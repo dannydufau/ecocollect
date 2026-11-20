@@ -1,18 +1,16 @@
 'use strict';
 
-// Unit tests for the connection hub (uid -> open SSE responses).
-// No HTTP: a fake response records what is written to it.
-// Run with:  npm test   (from backend/)
+/*
+ * The connection hub (uid -> open SSE responses). No HTTP: a fake response
+ * records what is written to it.
+ */
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 
 const { createHub, frame } = require('../src/notification/hub');
 
-// --- fakes ------------------------------------------------------------------
-
-// Stands in for an Express response held open as an SSE stream: just the
-// parts the hub uses (write, end, writableEnded), plus a record of writes.
+// Just what the hub uses of an Express response, plus a record of writes.
 function fakeRes() {
   return {
     written: [],
@@ -24,8 +22,6 @@ function fakeRes() {
 
 const signal = { type: 'NEW_MATCHING_REQUEST', requestId: '0b7e3f2a-6d1c-4a52-9a43-6a1f5e0f1c11' };
 
-// --- tests ------------------------------------------------------------------
-
 test('send reaches every open tab of that user, and nobody else', () => {
   const hub = createHub();
   const v1tab1 = fakeRes();
@@ -35,35 +31,31 @@ test('send reaches every open tab of that user, and nobody else', () => {
   hub.add('firebaseUid_v1', v1tab2);
   hub.add('firebaseUid_v2', v2tab);
 
-  const reached = hub.send('firebaseUid_v1', signal);
-
-  assert.equal(reached, 2);
-  assert.deepEqual(v1tab1.written, [frame(signal)]);
-  assert.deepEqual(v1tab2.written, [frame(signal)]);
+  assert.equal(hub.send('firebaseUid_v1', 'signal', signal), 2);
+  assert.deepEqual(v1tab1.written, [frame('signal', signal)]);
+  assert.deepEqual(v1tab2.written, [frame('signal', signal)]);
   assert.deepEqual(v2tab.written, [], 'another user must not get it');
 });
 
-test('send to a user with no open stream is a no-op that returns 0', () => {
+test('send to a user with no open tab returns 0 and adds nothing', () => {
   const hub = createHub();
-  // Offline on this instance is normal: they catch up over REST next load.
-  assert.equal(hub.send('firebaseUid_nobody', signal), 0);
-  assert.deepEqual(hub.stats(), { users: 0, connections: 0 }, 'sending must not create an entry');
+  assert.equal(hub.send('firebaseUid_nobody', 'signal', signal), 0);
+  assert.deepEqual(hub.stats(), { users: 0, connections: 0 });
 });
 
-test('send skips a stream that already ended instead of throwing', () => {
+test('send skips a tab that already ended instead of throwing', () => {
   const hub = createHub();
   const closing = fakeRes();
   const open = fakeRes();
   hub.add('firebaseUid_v1', closing);
   hub.add('firebaseUid_v1', open);
 
-  // A tab closes just as a signal arrives: ended, but its 'close' handler
-  // hasn't removed it from the hub yet.
+  // Ended, but its 'close' handler hasn't removed it yet.
   closing.end();
 
-  assert.equal(hub.send('firebaseUid_v1', signal), 1);
+  assert.equal(hub.send('firebaseUid_v1', 'signal', signal), 1);
   assert.deepEqual(closing.written, []);
-  assert.deepEqual(open.written, [frame(signal)]);
+  assert.deepEqual(open.written, [frame('signal', signal)]);
 });
 
 test('remove forgets one tab; the user goes away with their last tab', () => {
@@ -75,27 +67,25 @@ test('remove forgets one tab; the user goes away with their last tab', () => {
 
   hub.remove('firebaseUid_v1', tab1);
   assert.deepEqual(hub.stats(), { users: 1, connections: 1 });
-  assert.equal(hub.send('firebaseUid_v1', signal), 1, 'the other tab still gets signals');
+  assert.equal(hub.send('firebaseUid_v1', 'signal', signal), 1);
   assert.deepEqual(tab1.written, []);
 
   hub.remove('firebaseUid_v1', tab2);
   assert.deepEqual(hub.stats(), { users: 0, connections: 0 }, 'no empty entries left behind');
 });
 
-test('remove for an unknown user or stream does nothing', () => {
+test('remove for an unknown user or tab does nothing', () => {
   const hub = createHub();
-  const tab = fakeRes();
-  hub.add('firebaseUid_v1', tab);
+  hub.add('firebaseUid_v1', fakeRes());
 
-  // 'close' can fire for a stream the hub never had (e.g. a request rejected
-  // before add), so remove must be safe to call anyway.
+  // 'close' can fire for a tab the hub never had (rejected before add).
   hub.remove('firebaseUid_nobody', fakeRes());
   hub.remove('firebaseUid_v1', fakeRes());
 
   assert.deepEqual(hub.stats(), { users: 1, connections: 1 });
 });
 
-test('closeAll ends every open stream and empties the hub', () => {
+test('closeAll ends every open tab and empties the hub', () => {
   const hub = createHub();
   const a = fakeRes();
   const b = fakeRes();
@@ -110,13 +100,15 @@ test('closeAll ends every open stream and empties the hub', () => {
   assert.deepEqual(hub.stats(), { users: 0, connections: 0 });
 });
 
-test('frame is one SSE message: event line, one-line JSON data, blank line', () => {
-  const text = frame(signal);
+test('frame is one SSE message, with an id line only when given', () => {
+  // The signal frame is byte-for-byte what the frontend already reads.
   assert.equal(
-    text,
+    frame('signal', signal),
     'event: signal\ndata: {"type":"NEW_MATCHING_REQUEST","requestId":"0b7e3f2a-6d1c-4a52-9a43-6a1f5e0f1c11"}\n\n',
   );
-  // A newline inside data would split the message in the browser.
-  const dataLine = text.split('\n')[1];
-  assert.ok(dataLine.startsWith('data: ') && !dataLine.slice(6).includes('\n'));
+  assert.equal(
+    frame('notification', { notificationId: 'n_1' }, 'n_1'),
+    'id: n_1\nevent: notification\ndata: {"notificationId":"n_1"}\n\n',
+  );
+  assert.throws(() => frame('notification', {}, 'n_1\nevent: fake'), /one line/);
 });

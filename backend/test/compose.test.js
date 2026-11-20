@@ -112,7 +112,7 @@ test('the backend image uses a Node version the backend supports', () => {
 
 test('the compose file asks for the .env values it needs instead of guessing', () => {
   const text = read('docker-compose.yml');
-  for (const name of ['POSTGRES_PASSWORD', 'RABBITMQ_PASSWORD', 'NEXT_PUBLIC_FIREBASE_API_KEY']) {
+  for (const name of ['POSTGRES_PASSWORD', 'RABBITMQ_PASSWORD', 'NEXT_PUBLIC_FIREBASE_API_KEY', 'VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'VAPID_SUBJECT']) {
     assert.match(text, new RegExp(`\\$\\{${name}:\\?`), `${name} should be required`);
   }
 });
