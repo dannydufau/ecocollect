@@ -75,7 +75,7 @@ it("shows the address, notes, resident and assignment for the assigned volunteer
 it("shows Record delivery with the action needed alert when collected", async () => {
     await show(collected);
     expect(screen.getByRole("status")).toHaveTextContent("Your action is needed: record the delivery.");
-    expect(screen.getByRole("button", { name: "Record delivery" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Record delivery" })).toBeEnabled();
     expect(screen.getByRole("region", { name: "Your pickup" })).toHaveTextContent(`Collected ${formatTimestamp("2026-11-20T18:30:00Z")}`);
 });
 
