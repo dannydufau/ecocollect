@@ -63,7 +63,7 @@ export default function ReportMissed({ request, onNotice }: { request: RequestDe
             onSuccess: result => {
                 setOpen(false);
                 const next = (result as { rescheduledRequest: CreatedRequest | null }).rescheduledRequest;
-                if (next) router.push(`/resident/requests/${encodeURIComponent(next.requestId)}`);
+                if (next) router.push(`/resident/requests/${encodeURIComponent(next.requestId)}?rescheduled=1`);
             },
             onError: error => {
                 if (error instanceof ApiError && error.code === "terms_outdated") {
@@ -78,11 +78,11 @@ export default function ReportMissed({ request, onNotice }: { request: RequestDe
     if (request.viewer !== "owner" || !request.allowedActions.includes("report_missed")) return null;
     return <>
         <Button variant="danger-outline" onClick={start}>Report missed pickup</Button>
-        <ConfirmDialog open={open} title="Report a missed pickup?" confirmLabel={action.isPending ? "Reporting..." : "Report missed pickup"} cancelLabel="Go back"
+        <ConfirmDialog open={open} title="Report a missed pickup?" confirmLabel={action.isPending ? "Reporting..." : "Report missed pickup"} cancelLabel="Cancel"
             danger busy={action.isPending} confirmDisabled={!ready} error={action.message ?? undefined}
             onConfirm={confirm} onCancel={() => { if (!sending.current) setOpen(false); }}>
             <div className="space-y-3">
-                <p>The request will be marked as missed. You can reschedule it once with new pickup windows.</p>
+                <p>Use this if the volunteer did not come. The request will be marked Missed.</p>
                 <Field label="Reason" optional>
                     {control => <textarea {...control} value={reason} onChange={event => setReason(event.target.value)} disabled={action.isPending}
                         rows={3} className={textarea} />}
@@ -90,7 +90,7 @@ export default function ReportMissed({ request, onNotice }: { request: RequestDe
                 <label className="flex min-h-11 items-center gap-2.5">
                     <input type="checkbox" className="h-5 w-5 flex-none accent-accent" checked={reschedule} disabled={action.isPending}
                         onChange={event => setReschedule(event.target.checked)} />
-                    Reschedule this request
+                    Create a new request with new pickup windows
                 </label>
                 {reschedule && <>
                     <WindowsPicker value={windows} onChange={setWindows} />

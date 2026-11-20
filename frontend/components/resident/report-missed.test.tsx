@@ -40,7 +40,7 @@ function open() {
 }
 const confirmButton = (dialog: HTMLElement) => within(dialog).getByRole("button", { name: "Report missed pickup" });
 async function fillReschedule(dialog: HTMLElement) {
-    fireEvent.click(within(dialog).getByLabelText("Reschedule this request"));
+    fireEvent.click(within(dialog).getByLabelText("Create a new request with new pickup windows"));
     fireEvent.change(within(dialog).getByLabelText("Date 1"), { target: { value: tomorrow } });
     fireEvent.change(within(dialog).getByLabelText("Start hour 1"), { target: { value: "10" } });
     fireEvent.click(await within(dialog).findByLabelText(termsBox));
@@ -67,7 +67,7 @@ it("sends no reschedule without the checkbox and stays on the request", async ()
 
 it("keeps Confirm disabled until the new windows are valid and the terms accepted, then sends them", async () => {
     const dialog = open();
-    fireEvent.click(within(dialog).getByLabelText("Reschedule this request"));
+    fireEvent.click(within(dialog).getByLabelText("Create a new request with new pickup windows"));
     expect(confirmButton(dialog)).toBeDisabled();
     fireEvent.change(within(dialog).getByLabelText("Date 1"), { target: { value: tomorrow } });
     fireEvent.change(within(dialog).getByLabelText("Start hour 1"), { target: { value: "10" } });
@@ -85,7 +85,7 @@ it("opens the new request when it was rescheduled", async () => {
     const dialog = open();
     await fillReschedule(dialog);
     fireEvent.click(confirmButton(dialog));
-    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/resident/requests/r-new"));
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/resident/requests/r-new?rescheduled=1"));
 });
 
 it("shows the window_not_ended message", async () => {
