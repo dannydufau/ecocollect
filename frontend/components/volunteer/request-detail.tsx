@@ -10,15 +10,15 @@ import type { PickupWindow } from "@/lib/types";
 import { useRequestDetail } from "@/lib/use-request";
 import AcceptRequest from "./accept-request";
 import CancelAssignment from "./cancel-assignment";
+import RecordDelivery from "./record-delivery";
 
 const cardStyle = `${card} min-w-0 space-y-3`;
 const cardTitle = "text-[22px]";
 
-// Disabled until FE-055 puts the real control here
 const actions = [
-    { action: "accept", label: "Accept request", variant: "primary" },
-    { action: "cancel_assignment", label: "Cancel assignment", variant: "danger-outline" },
-    { action: "record_delivery", label: "Record delivery", variant: "primary" },
+    { action: "accept", Control: AcceptRequest },
+    { action: "cancel_assignment", Control: CancelAssignment },
+    { action: "record_delivery", Control: RecordDelivery },
 ] as const;
 
 function Windows({ windows }: { windows: PickupWindow[] }) {
@@ -67,10 +67,7 @@ export default function VolunteerRequestDetail({ requestId }: { requestId: strin
         {request.viewer === "owner" && <Alert variant="info">This is your own request. You can accept it like any other volunteer.</Alert>}
         {request.allowedActions.includes("record_delivery") && <Alert variant="info">Your action is needed: record the delivery.</Alert>}
         {buttons.length > 0 && <section aria-label="Request actions" className="flex flex-wrap gap-3">
-            {buttons.map(({ action, label, variant }) => action === "accept"
-                ? <AcceptRequest key={action} request={request} onDone={setNotice} />
-                : action === "cancel_assignment" ? <CancelAssignment key={action} request={request} />
-                : <Button key={action} variant={variant} disabled>{label}</Button>)}
+            {buttons.map(({ action, Control }) => <Control key={action} request={request} onDone={setNotice} />)}
         </section>}
 
         <section aria-labelledby="details-heading" className={cardStyle}>
