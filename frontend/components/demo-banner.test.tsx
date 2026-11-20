@@ -22,4 +22,5 @@ it("renders nothing without the demo flag", async () => {
 it("shows the demo banner in a demo build", async () => {
     await banner("true");
     expect(screen.getByText(/Everyone shares this demo data. It resets every night./)).toBeInTheDocument();
+    expect(screen.getByRole("note")).toBeInTheDocument();
 });
