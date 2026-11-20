@@ -25,12 +25,13 @@ function UnavailableRequest() {
     </section>;
 }
 
-export default function ResidentRequestDetail({ requestId, actionRenderers }: {
+export default function ResidentRequestDetail({ requestId, rescheduled = false, actionRenderers }: {
     requestId: string;
+    rescheduled?: boolean;
     actionRenderers?: ResidentActionRenderers;
 }) {
     const { data, isPending, isError, unavailable, error, refetch, isFetching } = useRequestDetail(requestId);
-    const [notice, setNotice] = useState<Notice | null>(null);
+    const [notice, setNotice] = useState<Notice | null>(rescheduled ? { kind: "success", text: "Missed pickup reported. Your new request is open." } : null);
     if (unavailable || (data && data.viewer !== "owner")) return <UnavailableRequest />;
     if (isPending) return <Spinner label="Loading your request..." />;
     if (isError || !data) return <section className="space-y-3">
