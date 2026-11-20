@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { calgaryHour, calgaryToday, formatDate, formatWindow, friendlyWindow, isValidWindow } from "./time";
+import { calgaryHour, calgaryInstant, calgaryToday, formatDate, formatWindow, friendlyWindow, isValidWindow } from "./time";
 import { nextStepText } from "./status-text";
 
 afterEach(() => { vi.useRealTimers(); });
@@ -42,5 +42,24 @@ describe("window formatting", () => {
         expect(nextStepText("Assigned", "resident")).toBe(
             "A volunteer will collect your items in the selected window.",
         );
+    });
+});
+
+describe("calgaryInstant", () => {
+    // Formats the answer back in Calgary time, so the check does not use calgaryInstant itself
+    const calgary = (instant: Date) => new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Edmonton", hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", timeZoneName: "short",
+    }).format(instant);
+
+    it.each([
+        ["2026-03-07", 3], ["2026-03-08", 1], ["2026-03-08", 3], ["2026-03-08", 10], ["2026-03-09", 3],
+        ["2026-10-31", 2], ["2026-11-01", 2], ["2026-11-01", 10], ["2026-11-02", 2],
+    ])("%s at %i:00 is that hour in Calgary", (date, hour) => {
+        expect(calgary(calgaryInstant(date, hour))).toMatch(new RegExp(`^${date}, ${String(hour).padStart(2, "0")} `));
+    });
+
+    it("gives the earlier one of the hour that happens twice in November", () => {
+        expect(calgary(calgaryInstant("2026-11-01", 1))).toBe("2026-11-01, 01 MDT");
+        expect(calgaryInstant("2026-11-01", 1).toISOString()).toBe("2026-11-01T07:00:00.000Z");
     });
 });
