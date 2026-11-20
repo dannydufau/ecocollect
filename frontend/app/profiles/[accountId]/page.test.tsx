@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { usePublicStream } from "@/lib/public-stream";
-import { formatTimestamp } from "@/lib/time";
+import { calgaryToday, formatDate } from "@/lib/time";
 import { renderWithClient } from "@/test/utils";
 import PublicProfilePage from "./page";
 
@@ -37,8 +37,10 @@ afterEach(() => {
 it("shows the public name, roles, member since and EcoPoints, signed out", async () => {
     renderWithClient(<PublicProfilePage />);
     expect(await screen.findByRole("heading", { name: "Maya C." })).toBeInTheDocument();
-    expect(screen.getByText("Resident and Volunteer")).toBeInTheDocument();
-    expect(screen.getByText(formatTimestamp(profile.memberSince))).toBeInTheDocument();
+    expect(screen.getByText("@maya")).toBeInTheDocument();
+    expect(screen.getByText("Resident")).toBeInTheDocument();
+    expect(screen.getByText("Volunteer")).toBeInTheDocument();
+    expect(screen.getByText(formatDate(calgaryToday(new Date(profile.memberSince))))).toBeInTheDocument();
     expect(await screen.findByText("39.00")).toBeInTheDocument();
     expect(fetcher).toHaveBeenCalledWith("/api/public/profiles/maya");
     expect(fetcher).toHaveBeenCalledWith("/api/public/profiles/maya/stats");
@@ -61,6 +63,7 @@ it("shows not found and no EcoPoints for a 404", async () => {
     answer(404);
     renderWithClient(<PublicProfilePage />);
     expect(await screen.findByRole("heading", { name: "Profile not found" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "See the community stats" })).toHaveAttribute("href", "/stats");
     expect(screen.queryByText("EcoPoints")).not.toBeInTheDocument();
     expect(screen.queryByText("39.00")).not.toBeInTheDocument();
 });

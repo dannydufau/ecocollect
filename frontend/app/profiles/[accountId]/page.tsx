@@ -7,7 +7,7 @@ import { Alert, Button, Spinner, card, pageTitle, textLink } from "@/components/
 import { ApiError } from "@/lib/api";
 import { usePublicStream } from "@/lib/public-stream";
 import { queryKeys } from "@/lib/query-keys";
-import { formatTimestamp } from "@/lib/time";
+import { calgaryToday, formatDate } from "@/lib/time";
 import type { PublicProfile } from "@/lib/types";
 
 const roleNames = { resident: "Resident", volunteer: "Volunteer" };
@@ -40,7 +40,7 @@ export default function PublicProfilePage() {
             <div className="mx-auto max-w-3xl space-y-6">
                 <h1 className={pageTitle}>Profile not found</h1>
                 <p>This profile does not exist or is no longer active.</p>
-                <Link href="/" className={textLink}>Go to the home page</Link>
+                <Link href="/stats" className={textLink}>See the community stats</Link>
             </div>
         </main>
     );
@@ -49,7 +49,10 @@ export default function PublicProfilePage() {
     return (
         <main className="p-4 sm:p-8">
             <div className="mx-auto max-w-3xl space-y-6">
-                <h1 className={`break-words ${pageTitle}`}>{data ? data.publicName : "Public profile"}</h1>
+                <div>
+                    <h1 className={`break-words ${pageTitle}`}>{data ? data.publicName : "Public profile"}</h1>
+                    {data && <p className="break-all font-mono text-neutral-700">@{data.accountId}</p>}
+                </div>
                 {profile.isPending && <Spinner label="Loading the profile..." />}
                 {profile.isError && <div className="space-y-2">
                     <Alert variant="error">We could not load this profile. Check your connection and try again.</Alert>
@@ -57,8 +60,10 @@ export default function PublicProfilePage() {
                 </div>}
                 {data && <section className={card} aria-label="Profile details">
                     <dl className="grid gap-3 sm:grid-cols-3">
-                        <div><dt className="text-neutral-700">Roles</dt><dd>{data.roles.map(role => roleNames[role]).join(" and ")}</dd></div>
-                        <div><dt className="text-neutral-700">Member since</dt><dd>{formatTimestamp(data.memberSince)}</dd></div>
+                        <div><dt className="text-neutral-700">Roles</dt><dd className="flex flex-wrap gap-2">{data.roles.map(role => (
+                            <span key={role} className="rounded-full bg-accent-2-200 px-3 py-0.5 text-xs font-semibold text-accent-2-900">{roleNames[role]}</span>
+                        ))}</dd></div>
+                        <div><dt className="text-neutral-700">Member since</dt><dd>{formatDate(calgaryToday(new Date(data.memberSince)))}</dd></div>
                         <div>
                             <dt className="text-neutral-700">EcoPoints</dt>
                             <dd className="font-[family-name:var(--font-heading)] text-[26px] tabular-nums">
