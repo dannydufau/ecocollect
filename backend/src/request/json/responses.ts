@@ -1,5 +1,7 @@
 // Read-function rows -> response bodies in openapi.yaml's shape.
-import type { CategoryRow, FacilityRow, GetRequestsRow, ListMineRow } from '../domain/types.ts';
+import type {
+  CategoryRow, FacilityRow, GetRequestsRow, ListAvailableRow, ListMineRow,
+} from '../domain/types.ts';
 
 // Q1, CategoryWithWeight. NUMERIC arrives as a string; the contract wants a number.
 export function category(row: CategoryRow) {
@@ -39,4 +41,23 @@ export function createdRequest(row: GetRequestsRow) {
 // Q5, MyRequest: CreatedRequest's fields plus hasPhoto (the photo itself is in Q8).
 export function myRequest(row: ListMineRow) {
   return { ...createdRequest(row), hasPhoto: row.has_photo };
+}
+
+// Q6, AvailableRequest: no street, notes, photo or resident (NFR03). The SQL
+// returns the windows as three arrays that line up; index i is one PickupWindow.
+export function availableRequest(row: ListAvailableRow) {
+  return {
+    requestId: row.request_id,
+    category: { categoryId: row.category_id, name: row.category_name, wasteType: row.waste_type },
+    quantity: row.quantity,
+    estimatedWeightKg: Number(row.estimated_weight_kg),
+    postalCode: row.postal_code,
+    windows: row.window_ids.map((windowId, i) => ({
+      windowId,
+      date: row.window_dates[i],
+      startHour: row.window_hours[i],
+    })),
+    expiresAt: row.expires_at.toISOString(),
+    hasPhoto: row.has_photo,
+  };
 }

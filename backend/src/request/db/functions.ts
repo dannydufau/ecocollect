@@ -2,7 +2,8 @@
 // pool.query: one function call that PostgreSQL commits on its own.
 import type pg from 'pg';
 import type {
-  CategoryRow, CreateRequestsInput, CreateRequestsRow, FacilityRow, GetRequestsRow, ListMineRow,
+  CategoryRow, CreateRequestsInput, CreateRequestsRow, FacilityRow, GetRequestsRow,
+  ListAvailableRow, ListMineRow,
 } from '../domain/types.ts';
 
 export async function listCategories(pool: pg.Pool): Promise<CategoryRow[]> {
@@ -48,5 +49,13 @@ export async function getRequests(pool: pg.Pool, requestIds: string[], viewerId:
 export async function listMine(pool: pg.Pool, residentId: string, statuses: string[] | null): Promise<ListMineRow[]> {
   const { rows } = await pool.query<ListMineRow>(
     'SELECT * FROM requests.req_list_mine($1, $2::text[])', [residentId, statuses]);
+  return rows;
+}
+
+// Q6: the Open requests any volunteer can accept, newest first. postalCodes
+// null = every code.
+export async function listAvailable(pool: pg.Pool, postalCodes: string[] | null): Promise<ListAvailableRow[]> {
+  const { rows } = await pool.query<ListAvailableRow>(
+    'SELECT * FROM requests.req_list_available($1::text[])', [postalCodes]);
   return rows;
 }

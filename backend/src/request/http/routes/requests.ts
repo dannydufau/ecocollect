@@ -2,12 +2,12 @@
 // Q5-Q7 GET /api/requests: one handler, the view decides the role and the read.
 import { Router } from 'express';
 import type { RouteDeps } from '../../app.ts';
-import { createRequests, getRequests, listMine } from '../../db/functions.ts';
-import { createdRequest, myRequest } from '../../json/responses.ts';
+import { createRequests, getRequests, listAvailable, listMine } from '../../db/functions.ts';
+import { availableRequest, createdRequest, myRequest } from '../../json/responses.ts';
 import { parseCreateRequestsBody, termsOutdated } from '../create-requests-body.ts';
 import { forbidden, HttpError, validationFailed, validationFailedFromDb } from '../errors.ts';
 import { assertRole, callerOf, requireRole } from '../gateway-user.ts';
-import { parseMineQuery, parseView } from '../list-requests-query.ts';
+import { parseAvailableQuery, parseMineQuery, parseView } from '../list-requests-query.ts';
 
 const IDEMPOTENCY_KEY_MAX = 200;       // idempotency_keys.idempotency_key is VARCHAR(200)
 
@@ -75,9 +75,14 @@ export default function requestsRouter({ pool, nudgePublisher, demo }: RouteDeps
         res.json(rows.map(myRequest));
         return;
       }
-      case 'available':
+      case 'available': {
+        const { postalCodes } = parseAvailableQuery(req);
+        const rows = await listAvailable(pool, postalCodes);
+        res.json(rows.map(availableRequest));
+        return;
+      }
       case 'volunteer':
-        // Temporary, until Q6 and Q7 are built.
+        // Temporary, until Q7 is built.
         throw new HttpError(501, 'not_implemented', `view=${view} is not available yet.`);
     }
   });

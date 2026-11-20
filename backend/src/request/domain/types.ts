@@ -122,3 +122,20 @@ export type GetRequestsRow = {
 
 // req_list_mine (Q5): the same columns plus has_photo.
 export type ListMineRow = GetRequestsRow & { has_photo: boolean };
+
+// One row of requests.req_list_available (Q6). The window arrays line up:
+// element i of each is one future window.
+export type ListAvailableRow = {
+  request_id: string;
+  category_id: string;
+  category_name: string;
+  waste_type: string;
+  quantity: number;
+  estimated_weight_kg: string;         // NUMERIC
+  postal_code: string;
+  window_ids: string[];
+  window_dates: string[];              // 'YYYY-MM-DD'
+  window_hours: number[];
+  expires_at: Date;
+  has_photo: boolean;
+};

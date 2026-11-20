@@ -61,3 +61,25 @@ export function parseMineQuery(req: Request): { statuses: string[] | null } {
   }
   return { statuses };
 }
+
+// common.yaml PostalCode, and the most codes one call may give (listRequests).
+const POSTAL_CODE = /^T[0-9][A-Z][0-9][A-Z][0-9]$/;
+const POSTAL_CODES_MAX = 10;
+
+// view=available: the postalCodes filter, null = all. Each code exactly as the
+// contract writes it (upper case, no space, so ' T2P1J9' or 't2p1j9' is 400);
+// an empty code (postalCodes= or T2P1J9,) is 400. A repeated code is harmless
+// and counts toward the 10. Called after the role check, like parseMineQuery.
+export function parseAvailableQuery(req: Request): { postalCodes: string[] | null } {
+  refuseOtherFilters(req, 'available');
+  const value = single(req, 'postalCodes');
+  if (value === undefined) return { postalCodes: null };
+  const postalCodes = value.split(',');
+  if (postalCodes.length > POSTAL_CODES_MAX) {
+    throw validationFailed({ postalCodes: `must be at most ${POSTAL_CODES_MAX} postal codes` });
+  }
+  if (postalCodes.some((code) => !POSTAL_CODE.test(code))) {
+    throw validationFailed({ postalCodes: 'each must be a postal code like T2P1J9' });
+  }
+  return { postalCodes };
+}
