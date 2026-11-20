@@ -36,31 +36,27 @@ services:
       timeout: 5s
       retries: 10
 
-  backend:                          # auth and the request service, one process (see backend/README.md)
+  backend:                          # legacy request service (see backend/README.md)
     build:
       context: ./backend
     restart: unless-stopped
     environment:
-      PORT: "80"                    # Caddy proxies to auth and pickup without a port, which means 80
+      PORT: "80"                    # legacy pickup alias listens on port 80
       DATABASE_URL: postgres://${POSTGRES_USER:-ecocollect}:${POSTGRES_PASSWORD:?copy .env.example to .env first}@postgres:5432/${POSTGRES_DB:-ecocollect}
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-ecocollect}:${RABBITMQ_PASSWORD:?copy .env.example to .env first}@rabbitmq:5672
-      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/firebase-admin.json
-    secrets:
-      - firebase-admin.json
     sysctls:
       net.ipv4.ip_unprivileged_port_start: 0   # the container runs as a normal user, which may then use port 80
     networks:
       default:
-        aliases:                    # the names Caddy looks for, both are this one container
-          - auth
+        aliases:
           - pickup
     depends_on:
       postgres:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-    healthcheck:                    # /verify answers 401 without credentials, so a 401 means it is up
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:80/verify').then((r) => process.exit(r.status === 401 ? 0 : 1), () => process.exit(1))"]
+    healthcheck:                    # the legacy request service has its own health endpoint
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:80/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
       interval: 5s
       timeout: 3s
       retries: 10

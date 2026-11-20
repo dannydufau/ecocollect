@@ -6,15 +6,15 @@ Run `node src/user/index.ts` from `backend/` with Node 22.18 or newer. It listen
 
 Add endpoint files to `src/user/routes/`. Each file exports `register(app)` and registers its routes on the Express app. Files are loaded in filename order before the shared 404 and error handlers. Protected handlers use the gateway's verified user headers; public handlers do not read them. `http/errors.ts` provides `HttpError` and `validationFailed(fields)`.
 
-Session creation, logout and `/verify` stay on the existing backend through the `auth` alias until USER-04 (#229) moves them together. The Firebase key remains mounted on the backend during this transition and is also mounted on the new User Service. Request, Reward and Notification services do not receive it.
+Session creation, logout and internal `/verify` run in the User Service. Caddy sends both sessions and verification to `user`. Only User mounts the Firebase key; the legacy request backend keeps its pickup alias and `/health` endpoint without Firebase access.
 
 The layout follows the Request Service on branch `102-request-service`. Database setup and endpoints are separate User Service tickets. `npm test` includes the User Service tests.
 
 The [User database setup](scripts/user/README.md) creates the account and terms tables, service login and outbox. It also explains the local and Compose connection settings and the database tests.
 
-## Auth module (`src/api/auth/`)
+## Auth module (`src/user/auth/`)
 
-This checks Firebase users for the gateway. It lives in the API server for now, but it has its own router so it can become a separate service later.
+This checks Firebase users for the gateway. The CommonJS implementation stays in `.cjs` files to preserve its existing behavior inside the TypeScript User Service. It is mounted before the shared JSON parser so malformed session bodies keep their original response. A one-line compatibility export at `src/api/auth/firebase.js` keeps the initializer import used by the open profile PR working; it contains no separate Firebase setup.
 
 | Route | What it does |
 |---|---|

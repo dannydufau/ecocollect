@@ -19,20 +19,20 @@ for (const service of Object.values(compose.services)) {
 const upstreams = [...caddyfile.matchAll(/reverse_proxy\s+([\w-]+)(?::(\d+))?/g)].map((m) => [m[1], m[2] ?? '80']);
 
 test('every upstream in the Caddyfile is a service or an alias in Compose', () => {
-  assert.ok(upstreams.length >= 4, 'expected auth, pickup, notification and frontend');
+  assert.ok(upstreams.length >= 4, 'expected user, request, reward, notification and frontend');
   for (const [host] of upstreams) {
     assert.ok(names.has(host), `Caddy proxies to "${host}" but Compose has no service or alias with that name`);
   }
 });
 
-test('the backend answers to auth and pickup, on the port Caddy uses', () => {
+test('the legacy request backend keeps pickup and its own health check without Firebase', () => {
   const backend = compose.services.backend;
   assert.strictEqual(backend.build.context, './backend');
-  assert.deepStrictEqual(backend.networks.default.aliases.sort(), ['auth', 'pickup']);
-  for (const host of ['auth', 'pickup']) {
-    const [, port] = upstreams.find(([h]) => h === host);
-    assert.strictEqual(String(backend.environment.PORT), port, `${host} is proxied to port ${port}`);
-  }
+  assert.deepStrictEqual(backend.networks.default.aliases, ['pickup']);
+  assert.strictEqual(String(backend.environment.PORT), '80');
+  assert.ok(backend.healthcheck.test.join(' ').includes('/health'));
+  assert.strictEqual(backend.environment.GOOGLE_APPLICATION_CREDENTIALS, undefined);
+  assert.strictEqual(backend.secrets, undefined);
 });
 
 test('the notification service is the backend image started with its own entry point, on the port Caddy uses', () => {
@@ -68,8 +68,8 @@ test('the backend finds Postgres and RabbitMQ by service name, and waits for the
   }
 });
 
-test('the Firebase key reaches the backend as a secret at the path it is told to read', () => {
-  const { environment, secrets } = compose.services.backend;
+test('the Firebase key reaches the User Service as a secret at the path it is told to read', () => {
+  const { environment, secrets } = compose.services.user;
   const mounted = `/run/secrets/${secrets[0]}`;
   assert.strictEqual(environment.GOOGLE_APPLICATION_CREDENTIALS, mounted);
   assert.strictEqual(compose.secrets[secrets[0]].file, './secrets/firebase-admin.json');
