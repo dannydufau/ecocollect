@@ -1,4 +1,5 @@
--- Request Service read functions for the reference lists (schema "ecocollect608"):
+-- Created in "requests"; course tables are named without a schema (see 020).
+-- Request Service read functions for the reference lists:
 -- Q1 categories, Q2 facilities. Called by TypeScript, one call each.
 -- Needs the 608 physical model's tables.sql loaded first (load-db.sh does that).
 --
@@ -8,7 +9,7 @@
 
 -- Q1: every category, by name. standard_weight_kg is NUMERIC: node-postgres
 -- returns it as a string, TypeScript converts it to a JSON number.
-CREATE OR REPLACE FUNCTION ecocollect608.req_list_categories()
+CREATE OR REPLACE FUNCTION requests.req_list_categories()
 RETURNS TABLE (
     category_id        TEXT,
     name               TEXT,
@@ -17,7 +18,7 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql
 STABLE
-SET search_path TO ecocollect608, pg_temp
+SET search_path TO requests, ecocollect608, pg_temp
 AS $$
 BEGIN
     RETURN QUERY
@@ -33,7 +34,7 @@ $$;
 -- least one facility (not enforced by the tables), so no rows for a given
 -- p_category_id means it isn't a category. accepted_category_ids lists
 -- everything the facility accepts (not only p_category_id), sorted.
-CREATE OR REPLACE FUNCTION ecocollect608.req_list_facilities(p_category_id TEXT DEFAULT NULL)
+CREATE OR REPLACE FUNCTION requests.req_list_facilities(p_category_id TEXT DEFAULT NULL)
 RETURNS TABLE (
     facility_id           UUID,
     name                  TEXT,
@@ -44,7 +45,7 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql
 STABLE
-SET search_path TO ecocollect608, pg_temp
+SET search_path TO requests, ecocollect608, pg_temp
 AS $$
 BEGIN
     RETURN QUERY

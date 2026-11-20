@@ -3,20 +3,21 @@
 -- order, after its writes, so the snapshot shows the request AFTER the change
 -- (contract 10.2). Internal: called by other functions, never by TypeScript.
 -- Needs 020 (outbox) and 022 (helpers).
+-- Created in "requests"; course tables are named without a schema (see 020).
 --
 -- The caller must already hold the pickup_request row lock (every write function
 -- starts with SELECT ... FOR UPDATE), so request_seq stays consecutive.
 --
 -- Parameters after p_at are only for some events; leave them out (DEFAULT NULL)
 -- when an event doesn't use them, and call with named arguments, e.g.
---   PERFORM req_enqueue_event(p_request_id => v_id, p_event_type => 'RequestCancelled',
+--   PERFORM requests.req_enqueue_event(p_request_id => v_id, p_event_type => 'RequestCancelled',
 --                             p_transition_id => v_tid, p_at => v_now,
 --                             p_trace_id => p_trace_id, p_reason => p_reason);
 -- What each event must and must not carry is checked by outbox_e1_ck ... outbox_e10_ck
 -- (020): a wrong combination raises and rolls back the whole action (a bug).
 --
 -- Returns the new event's id.
-CREATE OR REPLACE FUNCTION ecocollect608.req_enqueue_event(
+CREATE OR REPLACE FUNCTION requests.req_enqueue_event(
     p_request_id     UUID,
     p_event_type     TEXT,
     p_transition_id  UUID,                    -- one per action, shared by its events
@@ -31,7 +32,7 @@ CREATE OR REPLACE FUNCTION ecocollect608.req_enqueue_event(
 )
 RETURNS UUID
 LANGUAGE plpgsql
-SET search_path TO ecocollect608, requests, pg_temp
+SET search_path TO requests, ecocollect608, pg_temp
 AS $$
 DECLARE
     v_event_id     UUID := gen_random_uuid();
@@ -63,14 +64,14 @@ BEGIN
     -- Every other event adds 1.
     IF p_event_type = 'RequestCreated' THEN
         SELECT p.request_seq INTO v_seq
-        FROM ecocollect608.pickup_request p
+        FROM pickup_request p
         WHERE p.pickup_request_id = p_request_id;
 
         IF v_seq IS DISTINCT FROM 1 THEN     -- also catches a missing request (NULL)
             RAISE EXCEPTION 'req_enqueue_event: RequestCreated for request % with request_seq %', p_request_id, v_seq;
         END IF;
     ELSE
-        UPDATE ecocollect608.pickup_request
+        UPDATE pickup_request
         SET request_seq = request_seq + 1
         WHERE pickup_request_id = p_request_id
         RETURNING request_seq INTO v_seq;
@@ -83,8 +84,8 @@ BEGIN
     -- 3. The assignment must belong to this request (a bug otherwise).
     IF p_assignment_id IS NOT NULL AND NOT EXISTS (
         SELECT 1
-        FROM ecocollect608.assignment a
-        JOIN ecocollect608.pickup_window w ON w.pickup_window_id = a.pickup_window_id
+        FROM assignment a
+        JOIN pickup_window w ON w.pickup_window_id = a.pickup_window_id
         WHERE a.assignment_id = p_assignment_id
           AND w.pickup_request_id = p_request_id
     ) THEN
@@ -96,7 +97,7 @@ BEGIN
            array_agg(w.pickup_date      ORDER BY w.pickup_date, w.start_hour),
            array_agg(w.start_hour       ORDER BY w.pickup_date, w.start_hour)
     INTO v_window_ids, v_window_dates, v_window_hours
-    FROM ecocollect608.pickup_window w
+    FROM pickup_window w
     WHERE w.pickup_request_id = p_request_id
       AND w.is_active;
 
@@ -116,11 +117,11 @@ BEGIN
     SELECT
         v_event_id, p_event_type, v_version, v_routing_key, p_at, p_trace_id,
         p.pickup_request_id, v_seq, p_transition_id,
-        ecocollect608.req_current_status(p.pickup_request_id),
-        ecocollect608.req_owner_id(p.pickup_request_id),
+        requests.req_current_status(p.pickup_request_id),
+        requests.req_owner_id(p.pickup_request_id),
         p.category_id, c.name, c.waste_type, p.quantity, p.estimated_weight_kg, p.pickup_postal_code,
         v_window_ids, v_window_dates, v_window_hours, p.created_at,
-        ecocollect608.req_expires_at(p.pickup_request_id),
+        requests.req_expires_at(p.pickup_request_id),
         a.assignment_id, vta.account_id, aw.pickup_window_id, aw.pickup_date,
         aw.start_hour, a.accepted_at, a.collected_at, a.ended_at, a.end_reason,
         f.facility_id, f.name,
@@ -130,20 +131,20 @@ BEGIN
         p_outside_window,
         CASE WHEN p_event_type = 'RequestAssignmentMissed' THEN p_at END,     -- reportedAt
         CASE WHEN p_event_type = 'RequestAssignmentMissed' THEN               -- rescheduledAsRequestId
-            (SELECT n.pickup_request_id FROM ecocollect608.pickup_request n
+            (SELECT n.pickup_request_id FROM pickup_request n
              WHERE n.rescheduled_from_request_id = p.pickup_request_id) END,
         CASE WHEN p_event_type = 'RequestCreated' THEN p.rescheduled_from_request_id END,
         CASE WHEN p_event_type IN ('RequestCreated', 'RequestUpdated') THEN
-            ecocollect608.req_matched_volunteers(p.pickup_request_id, p_demo) END,
+            requests.req_matched_volunteers(p.pickup_request_id, p_demo) END,
         p_changed, p_reason, p_trigger
-    FROM ecocollect608.pickup_request p
-    JOIN ecocollect608.item_category c        ON c.category_id = p.category_id
-    LEFT JOIN ecocollect608.assignment a      ON a.assignment_id = p_assignment_id
-    LEFT JOIN ecocollect608.pickup_window aw  ON aw.pickup_window_id = a.pickup_window_id
-    LEFT JOIN ecocollect608.terms_acceptance vta ON vta.terms_acceptance_id = a.terms_acceptance_id
-    LEFT JOIN ecocollect608.delivery d        ON d.assignment_id = a.assignment_id
+    FROM pickup_request p
+    JOIN item_category c        ON c.category_id = p.category_id
+    LEFT JOIN assignment a      ON a.assignment_id = p_assignment_id
+    LEFT JOIN pickup_window aw  ON aw.pickup_window_id = a.pickup_window_id
+    LEFT JOIN terms_acceptance vta ON vta.terms_acceptance_id = a.terms_acceptance_id
+    LEFT JOIN delivery d        ON d.assignment_id = a.assignment_id
                                              AND p_event_type = 'RequestAssignmentDelivered'
-    LEFT JOIN ecocollect608.recycling_facility f ON f.facility_id = d.facility_id
+    LEFT JOIN recycling_facility f ON f.facility_id = d.facility_id
     WHERE p.pickup_request_id = p_request_id;
 
     RETURN v_event_id;

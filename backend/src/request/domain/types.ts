@@ -63,7 +63,7 @@ export type OutboxRow = {
   published_at: Date | null;
 };
 
-// One row of ecocollect608.req_list_categories (Q1).
+// One row of requests.req_list_categories (Q1).
 export type CategoryRow = {
   category_id: string;
   name: string;
@@ -71,7 +71,7 @@ export type CategoryRow = {
   standard_weight_kg: string;          // NUMERIC
 };
 
-// One row of ecocollect608.req_list_facilities (Q2).
+// One row of requests.req_list_facilities (Q2).
 export type FacilityRow = {
   facility_id: string;
   name: string;

@@ -3,6 +3,14 @@
 -- all of the service's functions live here. The course tables are still in
 -- "ecocollect608" (the 608 physical model) until integration; then the ones this
 -- service writes move into "requests" too.
+-- Convention for every function in db/request/: it is created in "requests";
+-- its body names the course tables WITHOUT a schema (pickup_request, not
+-- ecocollect608.pickup_request) and calls the service's own functions as
+-- requests.req_...; its SET search_path TO requests, ecocollect608, pg_temp
+-- finds the tables.
+-- At integration: create this service's course tables (pickup_request, assignment,
+-- ...) in "requests" first, then change ecocollect608 to users in every
+-- SET search_path line. Function bodies stay as they are.
 -- These tables are outside the course's logical model (contract section 8) and
 -- reference none of its tables, so this file loads with or without the course
 -- schema. The service reaches them only through functions, never directly.
