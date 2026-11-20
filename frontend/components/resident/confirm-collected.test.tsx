@@ -77,3 +77,8 @@ it("keeps the not_assigned message on the page when the refetch removes the butt
     expect(screen.queryByRole("button", { name: "Confirm collected" })).not.toBeInTheDocument();
     expect(screen.getByRole("alert")).toHaveTextContent("This request is no longer assigned.");
 });
+
+it("asks the resident to confirm only after the items were taken", async () => {
+    mount();
+    expect(await screen.findByText("Confirm only after the volunteer has taken your items.")).toBeInTheDocument();
+});

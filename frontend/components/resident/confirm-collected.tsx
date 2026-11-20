@@ -32,5 +32,8 @@ export default function ConfirmCollected({ request, onNotice }: { request: Reque
     }
 
     if (request.viewer !== "owner" || !request.allowedActions.includes("confirm_collected")) return null;
-    return <Button onClick={confirm} busy={action.isPending} busyLabel="Confirming...">Confirm collected</Button>;
+    return <div className="space-y-2">
+        <p>Confirm only after the volunteer has taken your items.</p>
+        <Button onClick={confirm} busy={action.isPending} busyLabel="Confirming...">Confirm collected</Button>
+    </div>;
 }
