@@ -24,7 +24,7 @@ export default function StatsPage() {
     return (
         <main className="p-4 sm:p-8">
             <div className="mx-auto max-w-3xl space-y-6">
-                <h1 className={pageTitle}>Community stats</h1>
+                <h1 className={pageTitle}>Community impact</h1>
                 {isPending && <Spinner label="Loading stats..." />}
                 {isError && <div className="space-y-2">
                     <Alert variant="error">We could not load the stats. Check your connection and try again.</Alert>
@@ -35,7 +35,7 @@ export default function StatsPage() {
                         {[
                             { label: "Deliveries", value: String(data.deliveries) },
                             { label: "Items delivered", value: String(data.itemsDelivered) },
-                            { label: "Estimated kg delivered", value: data.estimatedWeightKgDelivered.toFixed(2) },
+                            { label: "Estimated weight (kg)", value: data.estimatedWeightKgDelivered.toFixed(2) },
                             { label: "EcoPoints awarded", value: data.ecopointsAwarded.toFixed(2) },
                         ].map(({ label, value }) => (
                             <div key={label} className={`${card} min-w-0`}>
@@ -47,19 +47,20 @@ export default function StatsPage() {
                     <section className="space-y-3" aria-labelledby="waste-types">
                         <h2 id="waste-types" className="text-2xl">By waste type</h2>
                         {!data.byWasteType.length ? <EmptyState title="No deliveries yet." /> : (
-                            <table className="w-full text-left text-[15px]">
+                            <div className="overflow-x-auto"><table className="w-full text-left text-[15px]">
+                                <caption className="sr-only">Deliveries by waste type</caption>
                                 <thead className="text-neutral-700">
-                                    <tr><th scope="col" className="py-2 pr-2">Waste type</th><th scope="col" className="py-2 pr-2">Deliveries</th><th scope="col" className="py-2 pr-2">Items</th><th scope="col" className="py-2">Kg</th></tr>
+                                    <tr><th scope="col" className="py-2 pr-2">Waste type</th><th scope="col" className="py-2 pr-2 text-right">Deliveries</th><th scope="col" className="py-2 pr-2 text-right">Items</th><th scope="col" className="py-2 text-right">Estimated kg</th></tr>
                                 </thead>
                                 <tbody>
                                     {data.byWasteType.map(row => <tr key={row.wasteType} className="border-t border-divider">
                                         <th scope="row" className="break-words py-2 pr-2 font-semibold">{row.wasteType}</th>
-                                        <td className="py-2 pr-2 tabular-nums">{row.deliveries}</td>
-                                        <td className="py-2 pr-2 tabular-nums">{row.itemsDelivered}</td>
-                                        <td className="py-2 tabular-nums">{row.estimatedWeightKgDelivered.toFixed(2)}</td>
+                                        <td className="py-2 pr-2 text-right tabular-nums">{row.deliveries}</td>
+                                        <td className="py-2 pr-2 text-right tabular-nums">{row.itemsDelivered}</td>
+                                        <td className="py-2 text-right tabular-nums">{row.estimatedWeightKgDelivered.toFixed(2)}</td>
                                     </tr>)}
                                 </tbody>
-                            </table>
+                            </table></div>
                         )}
                     </section>
                     <p className="text-[13px] text-neutral-700">Updated <time dateTime={data.updatedAt}>{formatTimestamp(data.updatedAt)}</time></p>

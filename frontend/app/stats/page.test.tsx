@@ -41,10 +41,10 @@ it("shows the four totals, the table and the update time", async () => {
     expect(fetcher).toHaveBeenCalledWith("/api/public/stats");
     expect(value("Deliveries")).toHaveTextContent("4");
     expect(value("Items delivered")).toHaveTextContent("7");
-    expect(value("Estimated kg delivered")).toHaveTextContent("17.50");
+    expect(value("Estimated weight (kg)")).toHaveTextContent("17.50");
     expect(value("EcoPoints awarded")).toHaveTextContent("141.75");
     const rows = within(screen.getByRole("table")).getAllByRole("row");
-    expect(rows.map(row => row.textContent)).toEqual(["Waste typeDeliveriesItemsKg", "Electronics3612.50", "Displays115.00"]);
+    expect(rows.map(row => row.textContent)).toEqual(["Waste typeDeliveriesItemsEstimated kg", "Electronics3612.50", "Displays115.00"]);
     expect(screen.getByText(formatTimestamp(stats.updatedAt))).toBeInTheDocument();
 });
 
@@ -54,7 +54,7 @@ it("shows zeros, not blanks or NaN, when nothing was delivered", async () => {
     expect(await screen.findByText("Deliveries", { selector: "dt" })).toBeInTheDocument();
     expect(value("Deliveries")).toHaveTextContent("0");
     expect(value("Items delivered")).toHaveTextContent("0");
-    expect(value("Estimated kg delivered")).toHaveTextContent("0.00");
+    expect(value("Estimated weight (kg)")).toHaveTextContent("0.00");
     expect(value("EcoPoints awarded")).toHaveTextContent("0.00");
     expect(document.body.textContent).not.toContain("NaN");
 });
