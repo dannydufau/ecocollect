@@ -5,6 +5,21 @@ import { renderWithClient } from "@/test/utils";
 import RequestForm, { validate, type RequestValues } from "./request-form";
 
 vi.mock("@/lib/api", () => ({ api: { get: vi.fn() } }));
+// A picker that remembers its own upload, so a picker moved to the wrong row would show the wrong id
+vi.mock("@/components/photo-picker", async () => {
+    const { useState } = await import("react");
+    let count = 0;
+    return {
+        default: function PhotoPicker({ onUploaded, onClear }: { onUploaded: (fileId: string) => void; onClear: () => void }) {
+            const [shown, setShown] = useState("");
+            return <div>
+                <button type="button" onClick={() => { const fileId = `f${++count}`; setShown(fileId); onUploaded(fileId); }}>Upload photo</button>
+                <button type="button" onClick={() => { setShown(""); onClear(); }}>Clear photo</button>
+                {shown && <span>Preview {shown}</span>}
+            </div>;
+        },
+    };
+});
 
 const categories = [
     { categoryId: "laptops", name: "Computers/Laptops", wasteType: "Electronics", standardWeightKg: 2.5 },
@@ -107,5 +122,57 @@ describe("RequestForm", () => {
         expect(onValid).toHaveBeenCalledWith(valid());
         expect(screen.queryByRole("alert")).not.toBeInTheDocument();
         expect(api.get).toHaveBeenCalledWith("/api/categories");
+    });
+});
+
+describe("item photo", () => {
+    it("puts the uploaded photo on its item and leaves it out when nothing was uploaded", async () => {
+        const onValid = vi.fn();
+        renderWithClient(<RequestForm initialValues={valid()} onValid={onValid} />);
+        await screen.findByLabelText("Category");
+        fireEvent.click(screen.getByRole("button", { name: "Review request" }));
+        expect(onValid.mock.lastCall![0].items[0]).toEqual({ categoryId: "laptops", quantity: "2" });
+        fireEvent.click(screen.getByRole("button", { name: "Upload photo" }));
+        fireEvent.click(screen.getByRole("button", { name: "Review request" }));
+        expect(onValid.mock.lastCall![0].items[0].photo).toEqual({ fileId: expect.stringMatching(/^f\d+$/) });
+    });
+
+    it("removes the photo when the picker is cleared", async () => {
+        const onValid = vi.fn();
+        renderWithClient(<RequestForm initialValues={valid()} onValid={onValid} />);
+        await screen.findByLabelText("Category");
+        fireEvent.click(screen.getByRole("button", { name: "Upload photo" }));
+        fireEvent.click(screen.getByRole("button", { name: "Clear photo" }));
+        fireEvent.click(screen.getByRole("button", { name: "Review request" }));
+        expect(onValid.mock.lastCall![0].items[0].photo).toBeUndefined();
+    });
+
+    it("shows the server's photo error under its row", async () => {
+        renderWithClient(<RequestForm initialValues={valid()} fieldErrors={{ "items[0].photo": "This photo could not be used." }} />);
+        await screen.findByLabelText("Category");
+        const row = screen.getByRole("group", { name: "Item 1" });
+        expect(within(row).getByRole("alert")).toHaveTextContent("This photo could not be used.");
+    });
+
+    it("shows the photo error when the server names photo.fileId", async () => {
+        renderWithClient(<RequestForm initialValues={valid()} fieldErrors={{ "items[0].photo.fileId": "This photo is already used." }} />);
+        await screen.findByLabelText("Category");
+        const row = screen.getByRole("group", { name: "Item 1" });
+        expect(within(row).getByRole("alert")).toHaveTextContent("This photo is already used.");
+    });
+
+    it("keeps each photo with its own item when an earlier item is removed", async () => {
+        const onValid = vi.fn();
+        const two = { ...valid(), items: [{ categoryId: "laptops", quantity: "2" }, { categoryId: "phones", quantity: "1" }] };
+        renderWithClient(<RequestForm initialValues={two} onValid={onValid} />);
+        await screen.findAllByLabelText("Category");
+        const [first, second] = screen.getAllByRole("button", { name: "Upload photo" });
+        fireEvent.click(first);
+        fireEvent.click(second);
+        const secondId = within(screen.getByRole("group", { name: "Item 2" })).getByText(/^Preview /).textContent!.replace("Preview ", "");
+        fireEvent.click(screen.getByRole("button", { name: "Remove item 1" }));
+        expect(within(screen.getByRole("group", { name: "Item 1" })).getByText(`Preview ${secondId}`)).toBeInTheDocument();
+        fireEvent.click(screen.getByRole("button", { name: "Review request" }));
+        expect(onValid.mock.lastCall![0].items).toEqual([{ categoryId: "phones", quantity: "1", photo: { fileId: secondId } }]);
     });
 });

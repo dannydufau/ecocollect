@@ -9,6 +9,21 @@ const { push } = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 vi.mock("@/lib/firebase", () => ({ auth: {} }));
 vi.mock("firebase/auth", () => ({ signOut: vi.fn() }));
+// Hands back a file id like the real picker after an upload
+vi.mock("@/components/photo-picker", async () => {
+    const { useState } = await import("react");
+    let count = 0;
+    return {
+        default: function PhotoPicker({ onUploaded, onClear }: { onUploaded: (fileId: string) => void; onClear: () => void }) {
+            const [shown, setShown] = useState("");
+            return <div>
+                <button type="button" onClick={() => { const fileId = `f${++count}`; setShown(fileId); onUploaded(fileId); }}>Upload photo</button>
+                <button type="button" onClick={() => { setShown(""); onClear(); }}>Clear photo</button>
+                {shown && <span>Preview {shown}</span>}
+            </div>;
+        },
+    };
+});
 const categories = [
     { categoryId: "laptops", name: "Computers/Laptops", wasteType: "Computers", standardWeightKg: 2.5 },
     { categoryId: "phones", name: "Phones", wasteType: "Mobile Devices", standardWeightKg: 0.2 },
@@ -209,4 +224,32 @@ it("says how many requests the items will create", async () => {
     fireEvent.click(screen.getByRole("button", { name: "Review" }));
     expect(await screen.findByText("This creates 2 separate requests, one per item.")).toBeInTheDocument();
     expect(screen.getByText("1 × Phones")).toBeInTheDocument();
+});
+it("sends the item photo only when one was uploaded, and says so in the review", async () => {
+    mount(); await fill();
+    fireEvent.click(screen.getByRole("button", { name: "Upload photo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+    expect(await screen.findByText("Photo attached")).toBeInTheDocument();
+    await accept();
+    fireEvent.click(button());
+    await waitFor(() => expect(apiModule.apiFetch).toHaveBeenCalled());
+    const body = JSON.parse(vi.mocked(apiModule.apiFetch).mock.calls[0][1]!.body as string);
+    expect(body.items).toEqual([{ categoryId: "laptops", quantity: 2, photo: { fileId: expect.stringMatching(/^f\d+$/) } }]);
+});
+it("leaves photo out of the item when nothing was uploaded", async () => {
+    mount(); await fill(); await accept();
+    fireEvent.click(button());
+    await waitFor(() => expect(apiModule.apiFetch).toHaveBeenCalled());
+    const body = JSON.parse(vi.mocked(apiModule.apiFetch).mock.calls[0][1]!.body as string);
+    expect(body.items).toEqual([{ categoryId: "laptops", quantity: 2 }]);
+    expect(screen.queryByText("Photo attached")).not.toBeInTheDocument();
+});
+it("shows the invalid_photo field error under the item's picker", async () => {
+    vi.mocked(apiModule.apiFetch).mockRejectedValue(failure(400, "invalid_photo", { "items[0].photo": "This photo could not be used." }));
+    mount(); await fill();
+    fireEvent.click(screen.getByRole("button", { name: "Upload photo" }));
+    await accept();
+    fireEvent.click(button());
+    const row = await screen.findByRole("group", { name: "Item 1" });
+    await waitFor(() => expect(within(row).getByRole("alert")).toHaveTextContent("This photo could not be used."));
 });

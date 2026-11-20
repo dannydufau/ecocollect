@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
+import PhotoPicker from "@/components/photo-picker";
 import { Button, card, input, textarea } from "@/components/ui";
 import { CategoryPicker, useCategories } from "./category-picker";
 import { WindowsPicker } from "./windows-picker";
@@ -9,7 +10,7 @@ import { calgaryInstant, isValidWindow } from "@/lib/time";
 import type { PickupWindow } from "@/lib/types";
 
 export type RequestValues = {
-    items: { categoryId: string; quantity: string }[];
+    items: { categoryId: string; quantity: string; photo?: { fileId: string } }[];
     windows: PickupWindow[];
     notes: string;
 };
@@ -61,6 +62,8 @@ export default function RequestForm({ initialValues, createdAt, onValid, fieldEr
     const [values, setValues] = useState<RequestValues>(() => initialValues ?? {
         items: [{ categoryId: "", quantity: "1" }], windows: [], notes: "",
     });
+    // Rows are removed from the middle, so each one keeps its own key and its photo stays with it
+    const [keys, setKeys] = useState(() => values.items.map((_, index) => index));
     const [tried, setTried] = useState(false);
     const [failedSubmits, setFailedSubmits] = useState(0);
     const formRef = useRef<HTMLFormElement>(null);
@@ -96,11 +99,13 @@ export default function RequestForm({ initialValues, createdAt, onValid, fieldEr
                     {values.items.map((item, index) => {
                         const categoryError = errors[`items[${index}].categoryId`];
                         const quantityError = errors[`items[${index}].quantity`];
+                        // The Request Service names the field items[i].photo.fileId when it is the file that failed
+                        const photoError = errors[`items[${index}].photo`] ?? errors[`items[${index}].photo.fileId`];
                         const category = categories.find(category => category.categoryId === item.categoryId);
                         const weight = category && Number(item.quantity) > 0 && Number.isSafeInteger(Number(item.quantity))
                             ? (category.standardWeightKg * Number(item.quantity)).toFixed(2) : null;
                         const update = (patch: Partial<typeof item>) => updateValues({ ...values, items: values.items.map((row, rowIndex) => rowIndex === index ? { ...row, ...patch } : row) });
-                        return <fieldset key={index} className={`${card} min-w-0 space-y-3`}>
+                        return <fieldset key={keys[index]} className={`${card} min-w-0 space-y-3`}>
                             <legend className="float-left mb-3 font-[family-name:var(--font-heading)] text-[22px]">Item {index + 1}</legend>
                             <div className="clear-both space-y-3">
                                 <div className="grid min-w-0 gap-3 sm:grid-cols-[2fr_1fr] sm:items-start">
@@ -119,13 +124,22 @@ export default function RequestForm({ initialValues, createdAt, onValid, fieldEr
                                     </div>
                                 </div>
                                 <p>Estimated weight: <strong>{weight === null ? "—" : `${weight} kg`}</strong></p>
+                                <PhotoPicker purpose="item_photo" optional onUploaded={fileId => update({ photo: { fileId } })}
+                                    onClear={() => update({ photo: undefined })} />
+                                {photoError && <p role="alert" className="text-[13px] font-semibold text-danger">{photoError}</p>}
                                 {values.items.length > 1 && <div><Button variant="secondary" aria-label={`Remove item ${index + 1}`}
-                                    onClick={() => updateValues({ ...values, items: values.items.filter((_, rowIndex) => rowIndex !== index) })}>Remove item</Button></div>}
+                                    onClick={() => {
+                                        setKeys(keys.filter((_, rowIndex) => rowIndex !== index));
+                                        updateValues({ ...values, items: values.items.filter((_, rowIndex) => rowIndex !== index) });
+                                    }}>Remove item</Button></div>}
                             </div>
                         </fieldset>;
                     })}
                     <div><Button variant="secondary" disabled={!categories.length || values.items.length >= categories.length}
-                        onClick={() => updateValues({ ...values, items: [...values.items, { categoryId: "", quantity: "1" }] })}>Add another item</Button></div>
+                        onClick={() => {
+                            setKeys([...keys, Math.max(-1, ...keys) + 1]);
+                            updateValues({ ...values, items: [...values.items, { categoryId: "", quantity: "1" }] });
+                        }}>Add another item</Button></div>
                 </fieldset>
                 <WindowsPicker value={values.windows} onChange={windows => updateValues({ ...values, windows })} createdAt={createdAt} />
                 {windowErrors.length > 0 && <p role="alert" tabIndex={-1} className="text-[13px] font-semibold text-danger">{windowErrors.join(" ")}</p>}
