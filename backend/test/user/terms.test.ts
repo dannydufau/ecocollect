@@ -79,22 +79,28 @@ test('unsupported terms methods do not read the database', async t => {
   assert.equal(response.status, 404);
 });
 
-test('real terms lookup selects the newest publication and uses a stable tie break', {
+test('real terms lookup skips scheduled publications and breaks ties at the current time', {
   skip: process.env.TEST_DATABASE_URL ? false : 'set TEST_DATABASE_URL to a scratch database loaded with the User scripts',
 }, async () => {
   const pool = createPool(process.env.TEST_DATABASE_URL);
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const latest = (await client.query('SELECT COALESCE(MAX(published_at), now()) AS published FROM users.terms_document')).rows[0].published;
-    const older = new Date(latest.getTime() + 86400000);
-    const newer = new Date(older.getTime() + 86400000);
     const olderId = randomUUID();
+    const futureId = randomUUID();
     const firstId = 'ffffffff-ffff-4fff-8fff-fffffffffff0';
     const secondId = 'ffffffff-ffff-4fff-8fff-fffffffffff1';
-    await client.query('INSERT INTO users.terms_document VALUES ($1,$2,$3),($4,$5,$6)', [firstId, 'Newer terms', newer, olderId, 'Older terms', older]);
+    const { rows: [{ published_at: newer }] } = await client.query(
+      'INSERT INTO users.terms_document VALUES ($1,$2,now()) RETURNING published_at',
+      [firstId, 'Newer terms'],
+    );
+    await client.query(
+      `INSERT INTO users.terms_document VALUES
+       ($1,$2,now() - interval '1 day'), ($3,$4,now() + interval '1 day')`,
+      [olderId, 'Older terms', futureId, 'Scheduled terms'],
+    );
     assert.deepEqual(await getCurrentTerms(client), { termsDocumentId: firstId, content: 'Newer terms', publishedAt: newer.toISOString() });
-    await client.query('INSERT INTO users.terms_document VALUES ($1,$2,$3)', [secondId, 'Same-time terms', newer]);
+    await client.query('INSERT INTO users.terms_document VALUES ($1,$2,now())', [secondId, 'Same-time terms']);
     assert.equal((await getCurrentTerms(client)).termsDocumentId, secondId);
   } finally {
     await client.query('ROLLBACK');
