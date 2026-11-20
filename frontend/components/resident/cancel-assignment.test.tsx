@@ -35,10 +35,10 @@ function mount(node = <CancelAssignment request={detail()} onNotice={onNotice} /
     return render(<QueryClientProvider client={client}>{node}</QueryClientProvider>);
 }
 function open() {
-    fireEvent.click(screen.getByRole("button", { name: "Cancel assignment" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel volunteer" }));
     return screen.getByRole("dialog");
 }
-const confirm = (dialog: HTMLElement) => fireEvent.click(within(dialog).getByRole("button", { name: "Cancel assignment" }));
+const confirm = (dialog: HTMLElement) => fireEvent.click(within(dialog).getByRole("button", { name: "Cancel volunteer" }));
 
 beforeEach(() => {
     onNotice.mockReset();
@@ -50,7 +50,7 @@ it("always sends as resident, with no reason or windows when none were entered",
     mount();
     confirm(open());
     await waitFor(() => expect(api.post).toHaveBeenCalledExactlyOnceWith("/api/requests/r%2F1/assignment/cancel", { as: "resident" }));
-    expect(onNotice).toHaveBeenCalledWith({ kind: "success", text: "Pickup cancelled. The volunteer will be told." });
+    expect(onNotice).toHaveBeenCalledWith({ kind: "success", text: "The assignment was cancelled." });
 });
 
 it("sends the reason and the new windows when they were entered", async () => {
@@ -81,16 +81,16 @@ it("does not send windows in the past", () => {
 
 it("warns about points only when the cancel is close to the pickup", () => {
     mount(<CancelAssignment request={detail(true)} onNotice={onNotice} />);
-    expect(within(open()).getByText("Cancelling this close to the pickup gives the volunteer points.")).toBeInTheDocument();
+    expect(within(open()).getByText("The pickup is less than 24 hours away. The volunteer will receive EcoPoints for this cancellation.")).toBeInTheDocument();
     cleanup();
     mount();
-    expect(within(open()).queryByText(/gives the volunteer points/)).not.toBeInTheDocument();
+    expect(within(open()).queryByText(/will receive EcoPoints/)).not.toBeInTheDocument();
 });
 
 it("sends nothing when dismissed", () => {
     mount();
     const dialog = open();
-    fireEvent.click(within(dialog).getByRole("button", { name: "Keep pickup" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Keep volunteer" }));
     expect(dialog).not.toHaveAttribute("open");
     expect(api.post).not.toHaveBeenCalled();
 });
@@ -104,10 +104,10 @@ it("keeps the window_ended sentence on the page and refreshes the request", asyn
     });
     mount(<ResidentRequestDetail requestId="r/1" />);
     const invalidate = vi.spyOn(client, "invalidateQueries");
-    await screen.findByRole("button", { name: "Cancel assignment" });
+    await screen.findByRole("button", { name: "Cancel volunteer" });
     confirm(open());
     const sentence = "The pickup window has ended. Confirm the collection or report a missed pickup.";
-    await waitFor(() => expect(screen.queryByRole("button", { name: "Cancel assignment" })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Cancel volunteer" })).not.toBeInTheDocument());
     expect(screen.getAllByRole("alert").some(alert => alert.textContent?.includes(sentence))).toBe(true);
     expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.request("r/1") });
 });
