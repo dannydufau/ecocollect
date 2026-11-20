@@ -8,7 +8,9 @@ CREATE TABLE IF NOT EXISTS users.outbox (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     published_at TIMESTAMPTZ
 );
-CREATE INDEX IF NOT EXISTS user_outbox_pending ON users.outbox (published_at, created_at, event_id);
+ALTER TABLE users.outbox ADD COLUMN IF NOT EXISTS insertion_order BIGINT GENERATED ALWAYS AS IDENTITY;
+CREATE INDEX IF NOT EXISTS user_outbox_publish_order
+    ON users.outbox (created_at, insertion_order) WHERE published_at IS NULL;
 
 DO $$
 BEGIN

@@ -16,14 +16,15 @@ function checkTable(table) {
 // Takes one unsent event, hands it to `send`, and marks it sent only if `send` worked.
 // The row stays locked until then, so two publishers never take the same event.
 // `table` is the service's outbox, e.g. 'rewards.outbox' (contract 9.3).
-async function publishNext(pool, send, { table = 'outbox' } = {}) {
+async function publishNext(pool, send, { table = 'outbox', orderByInsertion = false } = {}) {
   checkTable(table);
+  const tieBreaker = orderByInsertion ? 'insertion_order' : 'event_id';
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     const { rows } = await client.query(
       `SELECT event_id, event_type, routing_key, payload FROM ${table}
-       WHERE published_at IS NULL ORDER BY created_at, event_id
+       WHERE published_at IS NULL ORDER BY created_at, ${tieBreaker}
        LIMIT 1 FOR UPDATE SKIP LOCKED`,
     );
     if (!rows[0]) {
@@ -64,7 +65,7 @@ function sendConfirmed(channel, timeoutMs = CONFIRM_TIMEOUT_MS) {
 
 // Keeps looking for unsent events. If the broker is down it just tries again on the next tick,
 // and the events wait safely in the database.
-function startOutboxPublisher({ pool, url, intervalMs = 1000, table = 'outbox' }) {
+function startOutboxPublisher({ pool, url, intervalMs = 1000, table = 'outbox', orderByInsertion = false }) {
   checkTable(table);
   let connection;
   let channel;
@@ -84,11 +85,12 @@ function startOutboxPublisher({ pool, url, intervalMs = 1000, table = 'outbox' }
         // Without a listener an 'error' event would crash the whole server.
         connection.on('error', (err) => console.error('RabbitMQ connection:', err.message));
         connection.on('close', () => (channel = undefined));
+        if (stopped) return drop();
         channel = await connection.createConfirmChannel();
         await channel.assertExchange(exchange.name, exchange.type, { durable: exchange.durable });
       }
       const send = sendConfirmed(channel);
-      while (await publishNext(pool, send, { table }));
+      while (!stopped && await publishNext(pool, send, { table, orderByInsertion }));
     } catch (err) {
       console.error('Outbox publisher:', err.message);
       await drop();
