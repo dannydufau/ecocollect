@@ -16,11 +16,10 @@ const mockStore = store as unknown as { requests: StoredRequest[]; terms: { term
 let routes: { method: string; regex: RegExp; names: string[]; handler: Handler }[];
 let notify: ReturnType<typeof vi.fn>;
 
-// The same route order as server.mjs: files sorted by name, legacy.mjs last, first match wins
+// The same route order as server.mjs: files sorted by name, first match wins
 async function loadRoutes() {
     routes = [];
     const files = fs.readdirSync(__dirname).filter((file) => file.endsWith(".mjs")).sort();
-    files.sort((a, b) => Number(a === "legacy.mjs") - Number(b === "legacy.mjs"));
     for (const file of files) {
         const mod = await import(path.join(__dirname, file));
         mod.register((method: string, pattern: string, handler: Handler) => {
@@ -76,7 +75,7 @@ beforeEach(async () => {
 });
 afterEach(() => vi.useRealTimers());
 
-it("Q6 comes from the volunteer route, not the legacy list", () => {
+it("Q6 comes from the volunteer route", () => {
     addOpen({ photo: { fileId: "f1" } });
     const result = call("GET", "/api/requests?view=available");
     expect(result.status).toBe(200);

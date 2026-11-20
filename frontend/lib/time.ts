@@ -6,20 +6,24 @@ const TZ = "America/Edmonton"; // Calgary
 export function calgaryInstant(date: string, hour: number): Date {
     const [y, m, d] = date.split("-").map(Number);
     const guess = Date.UTC(y, m - 1, d, hour);
-    const parts = Object.fromEntries(
-        new Intl.DateTimeFormat("en-US", {
-            timeZone: TZ,
-            hourCycle: "h23",
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-            hour: "2-digit",
-        })
-            .formatToParts(new Date(guess))
-            .map((p) => [p.type, p.value]),
-    );
-    const shown = Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour);
-    return new Date(guess - (shown - guess));
+    // How far the Calgary clock is from UTC at the instant t
+    const offset = (t: number) => {
+        const parts = Object.fromEntries(
+            new Intl.DateTimeFormat("en-US", {
+                timeZone: TZ,
+                hourCycle: "h23",
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+                hour: "2-digit",
+            })
+                .formatToParts(new Date(t))
+                .map((p) => [p.type, p.value]),
+        );
+        return Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour) - t;
+    };
+    // On a clock-change day the offset at the guess can be the old one, so read it again at the corrected time
+    return new Date(guess - offset(guess - offset(guess)));
 }
 
 // A date in Calgary as YYYY-MM-DD, today by default (for the date picker's min and max).
