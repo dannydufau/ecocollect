@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import LogoutButton from "@/components/logout-button";
+import NotificationBell from "@/components/notification-bell";
 import { linkButton, textLink } from "@/components/ui";
 import { useAuth } from "@/lib/auth-context";
 import type { Role } from "@/lib/auth";
@@ -134,7 +135,7 @@ export default function AppHeader() {
                 <div className="ml-auto flex flex-wrap items-center gap-3">
                     {switcher}
                     {roleTag}
-                    <span data-slot="bell" />
+                    <NotificationBell />
                     {navLinks([profile], topLink)}
                     <LogoutButton />
                 </div>
@@ -147,7 +148,7 @@ export default function AppHeader() {
             <Bar home={home}>
                 <div className="ml-auto flex items-center gap-2">
                     {roleTag}
-                    <span data-slot="bell" />
+                    <NotificationBell />
                 </div>
             </Bar>
             <nav aria-label="Mobile" className="fixed inset-x-0 bottom-0 z-10 border-t border-divider bg-bg">
