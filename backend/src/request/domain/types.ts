@@ -2,7 +2,7 @@
 // delivers them through createPool (db/pool.ts): DATE as 'YYYY-MM-DD',
 // TIMESTAMPTZ as Date, BIGINT and NUMERIC as string.
 
-// One row of request_ops.outbox, as request_ops.req_outbox_claim returns it.
+// One row of requests.outbox, as requests.req_outbox_claim returns it.
 // Which of the nullable columns are set depends on event_type; the outbox_eN_ck
 // CHECKs in 020_request_ops.sql say which (contract 10.3).
 export type OutboxRow = {

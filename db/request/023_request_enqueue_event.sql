@@ -1,4 +1,4 @@
--- req_enqueue_event: stores one event in request_ops.outbox, in the
+-- req_enqueue_event: stores one event in requests.outbox, in the
 -- caller's transaction. Every write function calls it once per event, in event
 -- order, after its writes, so the snapshot shows the request AFTER the change
 -- (contract 10.2). Internal: called by other functions, never by TypeScript.
@@ -31,7 +31,7 @@ CREATE OR REPLACE FUNCTION ecocollect608.req_enqueue_event(
 )
 RETURNS UUID
 LANGUAGE plpgsql
-SET search_path TO ecocollect608, request_ops, pg_temp
+SET search_path TO ecocollect608, requests, pg_temp
 AS $$
 DECLARE
     v_event_id     UUID := gen_random_uuid();
@@ -102,7 +102,7 @@ BEGIN
 
     -- 5. One outbox row. The LEFT JOINs give NULLs when there is no assignment
     -- (p_assignment_id NULL) or no delivery (every event except E5).
-    INSERT INTO request_ops.outbox (
+    INSERT INTO requests.outbox (
         event_id, event_type, event_version, routing_key, occurred_at, trace_id,
         pickup_request_id, request_seq, transition_id, status, resident_id,
         category_id, category_name, waste_type, quantity, estimated_weight_kg, postal_code,

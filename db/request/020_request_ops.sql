@@ -1,10 +1,13 @@
--- Request Service operational tables (schema "request_ops").
--- These are outside the course's logical model (contract section 8): the model's
--- tables live in "ecocollect608" (the 608 physical model). Nothing here references them, so this
--- file loads with or without the course schema. The service reaches these tables
--- only through functions, never directly.
+-- Request Service operational tables (schema "requests").
+-- "requests" is the Request Service's own schema (contract 2.1): these tables and
+-- all of the service's functions live here. The course tables are still in
+-- "ecocollect608" (the 608 physical model) until integration; then the ones this
+-- service writes move into "requests" too.
+-- These tables are outside the course's logical model (contract section 8) and
+-- reference none of its tables, so this file loads with or without the course
+-- schema. The service reaches them only through functions, never directly.
 
-CREATE SCHEMA IF NOT EXISTS request_ops;
+CREATE SCHEMA IF NOT EXISTS requests;
 
 -- One row per event waiting to be published. A write function inserts it (through
 -- req_enqueue_event) in the same transaction as the change it describes.
@@ -12,7 +15,7 @@ CREATE SCHEMA IF NOT EXISTS request_ops;
 -- envelope from them at send time. Column types copy the ecocollect608 columns
 -- they come from. Columns an event doesn't use are NULL (contract 10.3 lists
 -- which fields each event carries).
-CREATE TABLE IF NOT EXISTS request_ops.outbox (
+CREATE TABLE IF NOT EXISTS requests.outbox (
     -- Envelope (contract 10.1)
     event_id      UUID          NOT NULL,              -- also the AMQP messageId
     event_type    TEXT          NOT NULL,              -- e.g. 'RequestCreated', also AMQP type
@@ -207,7 +210,7 @@ CREATE TABLE IF NOT EXISTS request_ops.outbox (
 
 -- Events this service has already handled (CleanupRequest). Inserted first in
 -- the handler's transaction, so a redelivered message is skipped.
-CREATE TABLE IF NOT EXISTS request_ops.processed_events (
+CREATE TABLE IF NOT EXISTS requests.processed_events (
     event_id     UUID        NOT NULL,
     processed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT processed_events_pk PRIMARY KEY (event_id)
@@ -217,7 +220,7 @@ CREATE TABLE IF NOT EXISTS request_ops.processed_events (
 -- 24 h returns the requests the first call created (contract Q4, NFR06). The
 -- response is rebuilt from these ids by reading the requests again. Keys older
 -- than 24 h are deleted by the service.
-CREATE TABLE IF NOT EXISTS request_ops.idempotency_keys (
+CREATE TABLE IF NOT EXISTS requests.idempotency_keys (
     resident_id     VARCHAR(50)  NOT NULL,           -- account_id (same type as the model)
     idempotency_key VARCHAR(200) NOT NULL,
     request_ids     UUID[]       NOT NULL,           -- the requests the first call created

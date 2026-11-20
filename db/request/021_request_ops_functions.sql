@@ -1,4 +1,4 @@
--- Request Service outbox functions (schema "request_ops").
+-- Request Service outbox functions (schema "requests").
 -- The publisher (TypeScript) calls only these two; it never touches the outbox
 -- table directly. Each call is its own transaction (autocommit), so the claim is
 -- committed before the network send, and the lease (claimed_until) stands in
@@ -13,14 +13,14 @@
 -- Strict first-in-line: it never skips past the oldest unsent event, so events
 -- go out in the order they were stored, and a failed send holds back the later
 -- ones until it is retried (at most one lease later).
--- Call as: SELECT * FROM request_ops.req_outbox_claim(30)
-CREATE OR REPLACE FUNCTION request_ops.req_outbox_claim(p_lease_seconds INTEGER)
-RETURNS request_ops.outbox
+-- Call as: SELECT * FROM requests.req_outbox_claim(30)
+CREATE OR REPLACE FUNCTION requests.req_outbox_claim(p_lease_seconds INTEGER)
+RETURNS requests.outbox
 LANGUAGE plpgsql
-SET search_path TO request_ops, pg_temp
+SET search_path TO requests, pg_temp
 AS $$
 DECLARE
-    v_row request_ops.outbox;
+    v_row requests.outbox;
     v_now TIMESTAMPTZ;
 BEGIN
     -- A bad lease is a bug in the caller, not a business failure.
@@ -34,7 +34,7 @@ BEGIN
     -- first one's (very short) transaction, then sees its lease and gets nothing.
     -- request_seq breaks a tie in enqueued_at between two events of one action.
     SELECT * INTO v_row
-    FROM request_ops.outbox
+    FROM requests.outbox
     WHERE published_at IS NULL
     ORDER BY enqueued_at, request_seq
     LIMIT 1
@@ -52,7 +52,7 @@ BEGIN
         RETURN NULL;                          -- leased by an earlier claim: wait
     END IF;
 
-    UPDATE request_ops.outbox
+    UPDATE requests.outbox
     SET claimed_until = v_now + make_interval(secs => p_lease_seconds)
     WHERE event_id = v_row.event_id
     RETURNING * INTO v_row;
@@ -65,14 +65,14 @@ $$;
 -- Returns false when nothing changed: the event doesn't exist or was already
 -- marked (another claim sent it again after this one's lease ran out; consumers
 -- ignore the duplicate by event id). The publisher logs that, nothing more.
--- Call as: SELECT request_ops.req_outbox_mark_published($1)
-CREATE OR REPLACE FUNCTION request_ops.req_outbox_mark_published(p_event_id UUID)
+-- Call as: SELECT requests.req_outbox_mark_published($1)
+CREATE OR REPLACE FUNCTION requests.req_outbox_mark_published(p_event_id UUID)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
-SET search_path TO request_ops, pg_temp
+SET search_path TO requests, pg_temp
 AS $$
 BEGIN
-    UPDATE request_ops.outbox
+    UPDATE requests.outbox
     SET published_at = clock_timestamp()
     WHERE event_id = p_event_id
       AND published_at IS NULL;

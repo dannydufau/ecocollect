@@ -38,14 +38,14 @@ type ClaimRow = OutboxRow | { [K in keyof OutboxRow]: null };
 
 async function claim(pool: pg.Pool, leaseSeconds: number): Promise<OutboxRow | null> {
   const { rows } = await pool.query<ClaimRow>(
-    'SELECT * FROM request_ops.req_outbox_claim($1)', [leaseSeconds]);
+    'SELECT * FROM requests.req_outbox_claim($1)', [leaseSeconds]);
   const row = rows[0];
   return row === undefined || row.event_id === null ? null : row;
 }
 
 async function markPublished(pool: pg.Pool, eventId: string): Promise<void> {
   const { rows } = await pool.query<{ marked: boolean }>(
-    'SELECT request_ops.req_outbox_mark_published($1) AS marked', [eventId]);
+    'SELECT requests.req_outbox_mark_published($1) AS marked', [eventId]);
   // false: already marked by a claim that re-sent it after this lease ran out.
   if (rows[0]?.marked !== true) console.warn(`request publisher: ${eventId} was already marked published`);
 }
