@@ -169,3 +169,28 @@ describe("item photo", () => {
         expect(onValid.mock.lastCall![0].items).toEqual([{ categoryId: "phones", quantity: "1", photo: { fileId: secondId } }]);
     });
 });
+
+describe("editing", () => {
+    it("has no add or remove item buttons in single mode", async () => {
+        renderWithClient(<RequestForm single initialValues={valid()} />);
+        await screen.findByLabelText("Category");
+        expect(screen.queryByRole("button", { name: "Add another item" })).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: /Remove item/ })).not.toBeInTheDocument();
+    });
+
+    it("shows the saved photo until it is removed, then offers the picker and sends null", async () => {
+        const onValid = vi.fn();
+        renderWithClient(<RequestForm single initialValues={valid()} currentPhoto={{ url: "https://images.example.test/item.jpg", refetch: vi.fn() }} onValid={onValid} />);
+        await screen.findByLabelText("Category");
+        expect(screen.getByRole("img", { name: "Photo of the items" })).toHaveAttribute("src", "https://images.example.test/item.jpg");
+        expect(screen.queryByRole("button", { name: "Upload photo" })).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole("button", { name: "Remove photo" }));
+        expect(screen.queryByRole("img", { name: "Photo of the items" })).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole("button", { name: "Review request" }));
+        expect(onValid.mock.lastCall![0].items[0].photo).toBeNull();
+        fireEvent.click(screen.getByRole("button", { name: "Upload photo" }));
+        fireEvent.click(screen.getByRole("button", { name: "Clear photo" }));
+        fireEvent.click(screen.getByRole("button", { name: "Review request" }));
+        expect(onValid.mock.lastCall![0].items[0].photo).toBeNull();
+    });
+});

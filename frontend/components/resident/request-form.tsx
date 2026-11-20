@@ -3,14 +3,15 @@
 import Link from "next/link";
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import PhotoPicker from "@/components/photo-picker";
-import { Button, card, input, textarea } from "@/components/ui";
+import { Button, RequestPhoto, card, input, textarea } from "@/components/ui";
 import { CategoryPicker, useCategories } from "./category-picker";
 import { WindowsPicker } from "./windows-picker";
 import { calgaryInstant, isValidWindow } from "@/lib/time";
 import type { PickupWindow } from "@/lib/types";
 
 export type RequestValues = {
-    items: { categoryId: string; quantity: string; photo?: { fileId: string } }[];
+    // photo null removes the saved photo when editing
+    items: { categoryId: string; quantity: string; photo?: { fileId: string } | null }[];
     windows: PickupWindow[];
     notes: string;
 };
@@ -45,9 +46,11 @@ export function validate(values: RequestValues, createdAt = new Date().toISOStri
     return errors;
 }
 
-export default function RequestForm({ initialValues, createdAt, onValid, fieldErrors = {}, busy = false, submitDisabled = false, submitHint, submitLabel = "Review request", onEdit, children }: {
+export default function RequestForm({ initialValues, createdAt, single = false, currentPhoto, onValid, fieldErrors = {}, busy = false, submitDisabled = false, submitHint, submitLabel = "Review request", onEdit, children }: {
     initialValues?: RequestValues;
     createdAt?: string;
+    single?: boolean;
+    currentPhoto?: { url: string; refetch: () => void };
     onValid?: (values: RequestValues) => void;
     fieldErrors?: Record<string, string>;
     busy?: boolean;
@@ -123,10 +126,13 @@ export default function RequestForm({ initialValues, createdAt, onValid, fieldEr
                                     </div>
                                 </div>
                                 <p>Estimated weight: <strong>{weight === null ? "—" : `${weight} kg`}</strong></p>
-                                <PhotoPicker purpose="item_photo" optional onUploaded={fileId => update({ photo: { fileId } })}
-                                    onClear={() => update({ photo: undefined })} />
+                                {currentPhoto && item.photo === undefined ? <div className="space-y-2">
+                                    <div className="max-w-xs"><RequestPhoto src={currentPhoto.url} alt="Photo of the items" refetch={currentPhoto.refetch} /></div>
+                                    <Button variant="secondary" onClick={() => update({ photo: null })}>Remove photo</Button>
+                                </div> : <PhotoPicker purpose="item_photo" optional onUploaded={fileId => update({ photo: { fileId } })}
+                                    onClear={() => update({ photo: currentPhoto ? null : undefined })} />}
                                 {photoError && <p role="alert" className="text-[13px] font-semibold text-danger">{photoError}</p>}
-                                {values.items.length > 1 && <div><Button variant="secondary" aria-label={`Remove item ${index + 1}`}
+                                {!single && values.items.length > 1 && <div><Button variant="secondary" aria-label={`Remove item ${index + 1}`}
                                     onClick={() => {
                                         setKeys(keys.filter((_, rowIndex) => rowIndex !== index));
                                         updateValues({ ...values, items: values.items.filter((_, rowIndex) => rowIndex !== index) });
@@ -134,11 +140,11 @@ export default function RequestForm({ initialValues, createdAt, onValid, fieldEr
                             </div>
                         </fieldset>;
                     })}
-                    <div><Button variant="secondary" disabled={!categories.length || values.items.length >= categories.length}
+                    {!single && <div><Button variant="secondary" disabled={!categories.length || values.items.length >= categories.length}
                         onClick={() => {
                             setKeys([...keys, Math.max(-1, ...keys) + 1]);
                             updateValues({ ...values, items: [...values.items, { categoryId: "", quantity: "1" }] });
-                        }}>Add another item</Button></div>
+                        }}>Add another item</Button></div>}
                 </fieldset>
                 <WindowsPicker value={values.windows} onChange={windows => updateValues({ ...values, windows })} createdAt={createdAt} />
                 {windowErrors.length > 0 && <p role="alert" tabIndex={-1} className="text-[13px] font-semibold text-danger">{windowErrors.join(" ")}</p>}
