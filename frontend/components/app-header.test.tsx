@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { afterEach, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { useAuth } from "@/lib/auth-context";
 import AppHeader from "./app-header";
 
@@ -15,14 +15,14 @@ function signedIn(roles: string[], activeRole: string | null = roles.length === 
     vi.mocked(useAuth).mockReturnValue({ user: { uid: "u1" }, roles, activeRole, loading: false, setActiveRole, signOut: vi.fn() } as never);
 }
 
-function setWidth(width: number) {
-    act(() => {
-        window.innerWidth = width;
-        window.dispatchEvent(new Event("resize"));
-    });
+// Both navs are in the page, CSS shows one of them, so each check looks inside the nav it is about
+const main = () => screen.getByRole("navigation", { name: "Main" });
+const mobile = () => screen.getByRole("navigation", { name: "Mobile" });
+function openMore() {
+    const more = within(mobile()).getByRole("button", { name: "More" });
+    fireEvent.click(more);
+    return { more, menu: document.getElementById(more.getAttribute("aria-controls")!)! };
 }
-
-beforeEach(() => setWidth(1200));
 
 afterEach(() => {
     cleanup();
@@ -44,8 +44,10 @@ it("shows the volunteer links", () => {
     pathname = "/volunteer";
     signedIn(["volunteer"]);
     render(<AppHeader />);
-    expect(screen.getByRole("link", { name: "History" })).toHaveAttribute("href", "/volunteer/history");
-    expect(screen.getByRole("link", { name: "Available" })).toBeInTheDocument();
+    expect(within(main()).getByRole("link", { name: "Assignments" })).toHaveAttribute("href", "/volunteer/history");
+    expect(within(mobile()).getByRole("link", { name: "Assignments" })).toHaveAttribute("href", "/volunteer/history");
+    expect(within(main()).getByRole("link", { name: "Available" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "History" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "New request" })).not.toBeInTheDocument();
 });
 
@@ -92,10 +94,14 @@ it("sends the brand link to /choose-role before a role is picked and to /login w
 it("shows the active role tag for a both-roles account only on a phone", () => {
     signedIn(["resident", "volunteer"], "volunteer");
     render(<AppHeader />);
-    const group = screen.getByRole("group", { name: "Active role" });
-    expect(screen.getAllByText("Volunteer")).toEqual([within(group).getByText("Volunteer")]);
-    setWidth(500);
-    expect(screen.getByText("Volunteer", { selector: "span" })).toBeInTheDocument();
+    expect(screen.getByText("Volunteer", { selector: "span" })).toHaveClass("min-[960px]:hidden");
+    expect(screen.getByRole("group", { name: "Active role" }).parentElement!.parentElement).toHaveClass("hidden", "min-[960px]:block");
+});
+
+it("keeps the one-role tag at every width", () => {
+    signedIn(["resident"]);
+    render(<AppHeader />);
+    expect(screen.getByText("Resident", { selector: "span" })).not.toHaveClass("min-[960px]:hidden");
 });
 
 it("shows a role tag and no switcher for one role", () => {
@@ -141,29 +147,42 @@ it("shows the brand and Log out on /choose-role", () => {
 it("uses a bottom bar with three short links and a More menu below 960px", () => {
     signedIn(["resident"]);
     render(<AppHeader />);
-    setWidth(500);
-    expect(screen.queryByRole("navigation", { name: "Main" })).not.toBeInTheDocument();
-    const nav = screen.getByRole("navigation", { name: "Mobile" });
-    expect(within(nav).getAllByRole("link").map((link) => link.textContent)).toEqual(["Requests", "New", "Points"]);
+    expect(within(mobile()).getAllByRole("link").map((link) => link.textContent)).toEqual(["Requests", "New", "Points"]);
+    expect(within(mobile()).getAllByRole("link").every((link) => link.querySelector("svg[aria-hidden=true]"))).toBe(true);
 
-    const more = within(nav).getByRole("button", { name: "More" });
-    expect(more).toHaveAttribute("aria-expanded", "false");
-    fireEvent.click(more);
+    const { more, menu } = openMore();
     expect(more).toHaveAttribute("aria-expanded", "true");
-    const menu = document.getElementById(more.getAttribute("aria-controls")!)!;
     expect(within(menu).queryByRole("link", { name: "Notifications" })).not.toBeInTheDocument();
     expect(within(menu).getByRole("link", { name: "Profile" })).toBeInTheDocument();
+    expect(within(menu).getByRole("link", { name: "Community stats" })).toHaveAttribute("href", "/stats");
     expect(within(menu).getByRole("button", { name: "Log out" })).toBeInTheDocument();
+});
 
+it("closes More on Escape and gives focus back to the More button", () => {
+    signedIn(["resident"]);
+    render(<AppHeader />);
+    const { more, menu } = openMore();
+    within(menu).getByRole("link", { name: "Profile" }).focus();
     fireEvent.keyDown(document, { key: "Escape" });
     expect(more).toHaveAttribute("aria-expanded", "false");
-    expect(within(nav).queryByRole("link", { name: "Profile" })).not.toBeInTheDocument();
+    expect(within(mobile()).queryByRole("link", { name: "Profile" })).not.toBeInTheDocument();
+    expect(more).toHaveFocus();
+});
+
+it("closes More on a click outside it and gives focus back to the More button", () => {
+    signedIn(["resident"]);
+    render(<AppHeader />);
+    const { more, menu } = openMore();
+    fireEvent.pointerDown(within(menu).getByRole("link", { name: "Profile" }));
+    expect(more).toHaveAttribute("aria-expanded", "true");
+    fireEvent.pointerDown(document.body);
+    expect(more).toHaveAttribute("aria-expanded", "false");
+    expect(more).toHaveFocus();
 });
 
 it("shows the volunteer short links and puts the switcher in More", () => {
     pathname = "/volunteer";
     signedIn(["resident", "volunteer"], "volunteer");
-    setWidth(500);
     render(<AppHeader />);
     const nav = screen.getByRole("navigation", { name: "Mobile" });
     expect(within(nav).getAllByRole("link").map((link) => link.textContent)).toEqual(["Available", "Assignments", "Points"]);
@@ -176,11 +195,9 @@ it("shows the volunteer short links and puts the switcher in More", () => {
 
 it("closes More when a link is chosen and when the page changes", () => {
     signedIn(["resident"]);
-    setWidth(500);
     const { rerender } = render(<AppHeader />);
-    const more = screen.getByRole("button", { name: "More" });
-    fireEvent.click(more);
-    fireEvent.click(screen.getByRole("link", { name: "Profile" }));
+    const { more, menu } = openMore();
+    fireEvent.click(within(menu).getByRole("link", { name: "Profile" }));
     expect(more).toHaveAttribute("aria-expanded", "false");
 
     fireEvent.click(more);
@@ -189,11 +206,30 @@ it("closes More when a link is chosen and when the page changes", () => {
     expect(more).toHaveAttribute("aria-expanded", "false");
 });
 
-it("has no bottom bar at 1200px", () => {
+it("switches between the top nav and the bottom bar with CSS at 960px", () => {
     signedIn(["resident"]);
     render(<AppHeader />);
-    expect(screen.queryByRole("navigation", { name: "Mobile" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "More" })).not.toBeInTheDocument();
+    expect(main()).toHaveClass("hidden", "min-[960px]:flex");
+    expect(mobile()).toHaveClass("min-[960px]:hidden");
+    expect(screen.getByRole("button", { name: "Log out" }).parentElement).toHaveClass("hidden", "min-[960px]:flex");
+});
+
+it("shows Community stats to signed-in users on the wide header", () => {
+    signedIn(["volunteer"]);
+    render(<AppHeader />);
+    const stats = screen.getByRole("link", { name: "Community stats" });
+    expect(stats).toHaveAttribute("href", "/stats");
+    expect(stats.parentElement).toHaveClass("min-[960px]:flex");
+});
+
+it("marks the current bottom link with aria-current, the role colour and a bar", () => {
+    pathname = "/volunteer/history";
+    signedIn(["volunteer"]);
+    render(<AppHeader />);
+    const link = within(mobile()).getByRole("link", { name: "Assignments" });
+    expect(link).toHaveAttribute("aria-current", "page");
+    expect(link).toHaveClass("aria-[current=page]:text-accent-2-800", "aria-[current=page]:font-bold", "aria-[current=page]:after:h-[3px]");
+    expect(within(mobile()).getByRole("link", { name: "Available" })).not.toHaveAttribute("aria-current");
 });
 
 it("marks only the best matching link as the current page", () => {
@@ -203,6 +239,7 @@ it("marks only the best matching link as the current page", () => {
     expect(screen.getByRole("link", { name: "New request" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "My requests" })).not.toHaveAttribute("aria-current");
     expect(screen.getByRole("link", { name: "EcoPoints" })).not.toHaveAttribute("aria-current");
+    expect(within(mobile()).getByRole("link", { name: "New" })).toHaveAttribute("aria-current", "page");
 });
 
 it("has the bell slot and the logout button for a signed-in user", () => {
