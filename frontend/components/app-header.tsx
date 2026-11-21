@@ -59,16 +59,15 @@ export default function AppHeader() {
 
     useEffect(() => {
         if (!moreOpen) return;
-        const close = () => {
+        const onKey = (event: KeyboardEvent) => {
+            if (event.key !== "Escape") return;
             setMoreOpenOn(null);
             moreButton.current?.focus();
         };
-        const onKey = (event: KeyboardEvent) => {
-            if (event.key === "Escape") close();
-        };
+        // A click outside only closes it. Focus stays on whatever the person clicked.
         const onPointer = (event: PointerEvent) => {
             const target = event.target as Node;
-            if (!moreMenu.current?.contains(target) && !moreButton.current?.contains(target)) close();
+            if (!moreMenu.current?.contains(target) && !moreButton.current?.contains(target)) setMoreOpenOn(null);
         };
         document.addEventListener("keydown", onKey);
         document.addEventListener("pointerdown", onPointer);

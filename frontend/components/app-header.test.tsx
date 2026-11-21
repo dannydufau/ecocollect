@@ -169,7 +169,7 @@ it("closes More on Escape and gives focus back to the More button", () => {
     expect(more).toHaveFocus();
 });
 
-it("closes More on a click outside it and gives focus back to the More button", () => {
+it("closes More on a click outside it and leaves focus where the click put it", () => {
     signedIn(["resident"]);
     render(<AppHeader />);
     const { more, menu } = openMore();
@@ -177,7 +177,7 @@ it("closes More on a click outside it and gives focus back to the More button", 
     expect(more).toHaveAttribute("aria-expanded", "true");
     fireEvent.pointerDown(document.body);
     expect(more).toHaveAttribute("aria-expanded", "false");
-    expect(more).toHaveFocus();
+    expect(more).not.toHaveFocus();
 });
 
 it("shows the volunteer short links and puts the switcher in More", () => {
