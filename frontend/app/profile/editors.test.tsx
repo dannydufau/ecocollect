@@ -166,3 +166,39 @@ it("shows a message and keeps the form for any other failure", async () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("We could not reach the server.");
     expect(screen.getByLabelText("Public name")).toBeInTheDocument();
 });
+
+it("keeps a typed draft when another card is opened, and highlights the one being edited", async () => {
+    await show(both);
+    edit("Edit public name");
+    type("Public name", "Half typed");
+    edit("Edit address");
+    expect(screen.queryByLabelText("Public name")).not.toBeInTheDocument();
+    expect(screen.getByText("You have unsaved changes here. Press Edit to finish them.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Address" }).closest("section")).toHaveClass("ring-2");
+    expect(screen.getByRole("heading", { name: "Account" }).closest("section")).not.toHaveClass("ring-2");
+    edit("Edit public name");
+    expect(screen.getByLabelText("Public name")).toHaveValue("Half typed");
+});
+
+it("clears a kept draft on Cancel", async () => {
+    await show(resident);
+    edit("Edit public name");
+    type("Public name", "Half typed");
+    edit("Edit address");
+    edit("Edit public name");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByText(/unsaved changes/)).not.toBeInTheDocument();
+    edit("Edit public name");
+    expect(screen.getByLabelText("Public name")).toHaveValue("Maya C.");
+});
+
+it("keeps the lock note on the address after the server says it is locked", async () => {
+    await show(resident);
+    vi.mocked(api.patch).mockRejectedValue(new ApiError(409, { error: { code: "address_locked", message: "locked" } }));
+    edit("Edit address");
+    type("Street", "9 New Rd");
+    save();
+    await screen.findByRole("alert");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getByText("Locked while you have an Open or Assigned request.")).toBeInTheDocument();
+});

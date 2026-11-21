@@ -119,3 +119,29 @@ it("keeps the success message after the role card is gone", async () => {
     expect(screen.queryByRole("heading", { name: "Become a volunteer" })).not.toBeInTheDocument();
     expect(screen.getByText("You can now use EcoCollect as a volunteer.")).toBeInTheDocument();
 });
+
+it("has a Notifications card with a plain status", async () => {
+    vi.mocked(api.get).mockResolvedValue(resident);
+    renderWithClient(<ProfilePage />);
+    const card = (await screen.findByRole("heading", { name: "Notifications" })).closest("section")!;
+    expect(card.querySelector("svg[aria-hidden=true]")).not.toBeNull();
+    expect(await screen.findByText("This browser does not support device notifications.")).toBeInTheDocument();
+});
+
+it("shows the public profile link near the top, before the Account card", async () => {
+    vi.mocked(api.get).mockResolvedValue(resident);
+    renderWithClient(<ProfilePage />);
+    const account = await screen.findByRole("heading", { name: "Account" });
+    const link = screen.getByRole("link", { name: "View my public profile" });
+    expect(link.compareDocumentPosition(account) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});
+
+it("puts a divider between the account list and the public name, and marks the danger zone", async () => {
+    vi.mocked(api.get).mockResolvedValue(resident);
+    renderWithClient(<ProfilePage />);
+    const account = (await screen.findByRole("heading", { name: "Account" })).closest("section")!;
+    expect(account.querySelector("dl + hr")).not.toBeNull();
+    const danger = screen.getByRole("heading", { name: "Deactivate account" }).closest("section")!;
+    expect(danger).toHaveClass("border-danger-border");
+    expect(danger.querySelector("h2 svg[aria-hidden=true]")).not.toBeNull();
+});

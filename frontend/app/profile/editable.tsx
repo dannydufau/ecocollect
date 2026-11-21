@@ -4,10 +4,11 @@ import { useEffect, useRef, type FormEvent, type ReactNode } from "react";
 import { Alert, Button } from "@/components/ui";
 
 // A read view with an Edit button, or a small form with Save and Cancel. The cards decide what goes inside.
-export function Editable({ id, editLabel, open, onOpen, onClose, saving, message, onSubmit, read, fields }: {
+export function Editable({ id, editLabel, open, unsaved, onOpen, onClose, saving, message, onSubmit, read, fields }: {
     id: string;
     editLabel: string;
     open: boolean;
+    unsaved: boolean;
     onOpen: () => void;
     onClose: () => void;
     saving: boolean;
@@ -26,7 +27,10 @@ export function Editable({ id, editLabel, open, onOpen, onClose, saving, message
     if (!open) {
         return (
             <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="min-w-0">{read}</div>
+                <div className="min-w-0">
+                    {read}
+                    {unsaved && <p className="mt-1 text-[13px] font-semibold text-accent-700">You have unsaved changes here. Press Edit to finish them.</p>}
+                </div>
                 <Button id={`edit-${id}`} variant="secondary" aria-label={editLabel} onClick={onOpen}>Edit</Button>
             </div>
         );
