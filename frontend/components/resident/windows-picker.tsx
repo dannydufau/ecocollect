@@ -17,10 +17,11 @@ function dateLabel(date: string): string {
     return formatWindow({ date, startHour: 0 }).split(", ").slice(0, 2).join(", ");
 }
 
-export function WindowsPicker({ value, onChange, createdAt }: {
+export function WindowsPicker({ value, onChange, createdAt, embedded = false }: {
     value: PickupWindow[];
     onChange: (windows: PickupWindow[]) => void;
     createdAt?: string;
+    embedded?: boolean;
 }) {
     const id = useId();
     const [draft, setDraft] = useState(() => ({ value, emitted: value, rows: rowsFrom(value) }));
@@ -47,8 +48,8 @@ export function WindowsPicker({ value, onChange, createdAt }: {
     }
 
     return (
-        <fieldset className={`${card} min-w-0`}>
-            <legend className="float-left mb-2 text-xl font-bold">Pickup windows</legend>
+        <fieldset className={embedded ? "min-w-0" : `${card} min-w-0`}>
+            <legend className={`float-left mb-2 ${embedded ? "font-semibold" : "text-xl font-bold"}`}>Pickup windows</legend>
             <div className="clear-both flex flex-col gap-3">
                 <p className="text-[13px] text-text-muted">Each window is one hour (Calgary time). Offer up to 3. They must start in the future and within 30 days.</p>
                 {draft.rows.map((row, index) => {

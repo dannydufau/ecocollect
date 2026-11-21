@@ -123,3 +123,8 @@ it("Spinner stops spinning for people who ask for less motion", () => {
     render(<Spinner />);
     expect(screen.getByRole("status").querySelector("[aria-hidden=true]")).toHaveClass("motion-reduce:animate-none");
 });
+
+it.each([[undefined, "max-w-md"], ["md", "max-w-md"], ["lg", "max-w-xl"]] as const)("ConfirmDialog with size %s uses %s", (size, width) => {
+    const { container } = render(<ConfirmDialog open={false} size={size} title="T" confirmLabel="OK" onConfirm={vi.fn()} onCancel={vi.fn()}>Body</ConfirmDialog>);
+    expect(container.querySelector("dialog")).toHaveClass(width);
+});
