@@ -139,6 +139,15 @@ describe("WindowsPicker", () => {
         expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     });
 
+    it("has its own card by default and none when embedded", () => {
+        const { container, unmount } = render(<Picker />);
+        expect(container.querySelector("fieldset")).toHaveClass("rounded-2xl", "border", "p-5", "bg-surface-elevated");
+        unmount();
+        const embedded = render(<WindowsPicker embedded value={[]} onChange={vi.fn()} />);
+        const fieldset = embedded.container.querySelector("fieldset")!;
+        for (const name of ["rounded-2xl", "border", "p-5", "bg-surface-elevated", "shadow-rest"]) expect(fieldset).not.toHaveClass(name);
+    });
+
     it("disables the hours already past today, and none on a later day", () => {
         render(<Picker />);
         fireEvent.change(screen.getByLabelText("Date 1"), { target: { value: "2026-11-14" } });

@@ -13,12 +13,13 @@ type Props = {
     busy?: boolean;
     error?: string;
     danger?: boolean;
+    size?: "md" | "lg";
     onConfirm: () => void;
     onCancel: () => void;
 };
 
 export function ConfirmDialog({ open, title, children, confirmLabel, cancelLabel = "Cancel", confirmDisabled = false,
-    busy = false, error, danger = false, onConfirm, onCancel }: Props) {
+    busy = false, error, danger = false, size = "md", onConfirm, onCancel }: Props) {
     const ref = useRef<HTMLDialogElement>(null);
     const titleId = useId();
 
@@ -31,7 +32,7 @@ export function ConfirmDialog({ open, title, children, confirmLabel, cancelLabel
 
     return (
         <dialog ref={ref} onCancel={(event) => { event.preventDefault(); if (!busy) onCancel(); }}
-            className="m-auto max-h-[90dvh] w-[calc(100%-2rem)] max-w-md overflow-y-auto rounded-2xl bg-surface-elevated p-5 text-text shadow-dialog backdrop:bg-scrim"
+            className={`m-auto max-h-[90dvh] w-[calc(100%-2rem)] ${size === "lg" ? "max-w-xl" : "max-w-md"} overflow-y-auto rounded-2xl bg-surface-elevated p-5 text-text shadow-dialog backdrop:bg-scrim`}
             aria-labelledby={titleId} aria-busy={busy}>
             <h2 id={titleId} className="text-xl">{title}</h2>
             <div className="mt-3">{open && children}</div>
