@@ -7,7 +7,9 @@ import { Button, RequestPhoto, card, input, textarea, secondaryLinkButton } from
 import { CategoryPicker, useCategories } from "./category-picker";
 import { WindowsPicker } from "./windows-picker";
 import { calgaryInstant, isValidWindow } from "@/lib/time";
+import { formatPostalCode } from "@/lib/postal-code";
 import type { PickupWindow } from "@/lib/types";
+import { useProfile } from "@/lib/use-profile";
 
 export type RequestValues = {
     // photo null removes the saved photo when editing
@@ -44,6 +46,14 @@ export function validate(values: RequestValues, createdAt = new Date().toISOStri
         slots.add(slot);
     });
     return errors;
+}
+
+function PickupAddress() {
+    const address = useProfile().data?.address;
+    return <p>
+        We collect from {address ? `${address.street}, ${formatPostalCode(address.postalCode)}` : "the address in your profile"}.{" "}
+        <Link href="/profile" target="_blank" rel="noopener noreferrer" className="text-accent-700 underline underline-offset-4">Change address<span className="sr-only"> (opens in a new tab)</span></Link>
+    </p>;
 }
 
 export default function RequestForm({ initialValues, createdAt, single = false, currentPhoto, cancelHref, onValid, fieldErrors = {}, busy = false, submitDisabled = false, submitHint, submitLabel = "Review request", onEdit, children }: {
@@ -163,7 +173,7 @@ export default function RequestForm({ initialValues, createdAt, single = false, 
                     {errors.notes && <p id={`${id}-notes-error`} role="alert" className="text-[13px] font-semibold text-danger">{errors.notes}</p>}
                 </div>
                 {single ? <p>The pickup address comes from your profile and can&apos;t be changed here.</p>
-                    : <p>We collect from the address in your profile. <Link href="/profile" className="text-accent-700 underline underline-offset-4">Change address</Link></p>}
+                    : <PickupAddress />}
                 {children}
                 <div className="flex flex-wrap items-center gap-3">
                     <Button type="submit" busy={busy} busyLabel="Sending..." disabled={submitDisabled} aria-describedby={submitHint ? `${id}-hint` : undefined} className="px-7">{submitLabel}</Button>

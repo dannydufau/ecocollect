@@ -18,11 +18,12 @@ export default function StatusHistory({ statusHistory = [], rescheduledFrom, res
         </section>}
         {history.length > 0 && <section aria-labelledby="status-history-heading" className={cardStyle}>
             <h2 id="status-history-heading" className="text-[22px]">History</h2>
-            <ol className="space-y-4">
-                {history.map((entry, index) => <li key={`${entry.changedAt}-${index}`} className="min-w-0 space-y-2">
+            <ol className="ml-1.5 space-y-5 border-l-2 border-border">
+                {history.map((entry, index) => <li key={`${entry.changedAt}-${index}`}
+                    className="relative min-w-0 space-y-2 pl-5 before:absolute before:-left-[7px] before:top-2 before:size-3 before:rounded-full before:bg-accent-700">
                     <div className="flex flex-wrap items-center gap-2">
                         <StatusBadge status={entry.status} />
-                        <time dateTime={entry.changedAt} className="text-neutral-700">{formatTimestamp(entry.changedAt)}</time>
+                        <time dateTime={entry.changedAt} className="text-sm text-text-muted">{formatTimestamp(entry.changedAt)}</time>
                     </div>
                     {entry.reason && <p className="whitespace-pre-wrap break-words text-neutral-800">Reason: {entry.reason}</p>}
                 </li>)}

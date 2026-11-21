@@ -85,7 +85,7 @@ it("shows a message under each empty field, sends nothing and moves focus to the
     expect(label("Public name")).toHaveAccessibleDescription(/Enter a public name\./);
     expect(label("Username")).toHaveAccessibleDescription(/Use 3 to 50 characters: a to z, 0 to 9, _ and -\./);
     expect(label("Email")).toHaveAccessibleDescription("Enter a valid email.");
-    expect(label("Password")).toHaveAccessibleDescription("Choose a password.");
+    expect(label("Password")).toHaveAccessibleDescription(/Choose a password\./);
     expect(screen.getByText("Choose how you want to use EcoCollect.")).toBeInTheDocument();
     expect(label("First name")).toHaveFocus();
 });
@@ -179,4 +179,27 @@ it("disables the form while sending and ignores a submit when the button is disa
     rerender(<RegisterForm onValid={onValid} busy />);
     expect(screen.getByRole("button", { name: "Creating account..." })).toBeDisabled();
     expect(label("Email")).toBeDisabled();
+});
+
+it("shows and hides the password with a button and says the length rule", () => {
+    render(<RegisterForm />);
+    const field = label("Password");
+    const toggle = screen.getByRole("button", { name: "Show password" });
+    expect(field).toHaveAccessibleDescription("Use at least 6 characters.");
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(toggle);
+    expect(field).toHaveAttribute("type", "text");
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+});
+
+it("picks a role card with the keyboard and marks it without relying on colour", async () => {
+    render(<RegisterForm />);
+    const resident = screen.getByRole("radio", { name: "Request pickups (Resident)" });
+    resident.focus();
+    await userEvent.keyboard(" ");
+    expect(resident).toBeChecked();
+    expect(resident.closest("label")!.querySelector("svg[aria-hidden=true]")).not.toBeNull();
+    await userEvent.keyboard("{ArrowRight}");
+    expect(screen.getByRole("radio", { name: "Collect and deliver items (Volunteer)" })).toBeChecked();
+    expect(screen.getByRole("group", { name: "Your role" })).toBeInTheDocument();
 });

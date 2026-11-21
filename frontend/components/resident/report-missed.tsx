@@ -79,7 +79,7 @@ export default function ReportMissed({ request, onNotice }: { request: RequestDe
     return <>
         <Button variant="danger-outline" onClick={start}>Report missed pickup</Button>
         <ConfirmDialog open={open} title="Report a missed pickup?" confirmLabel={action.isPending ? "Reporting..." : "Report missed pickup"} cancelLabel="Cancel"
-            danger busy={action.isPending} confirmDisabled={!ready} error={action.message ?? undefined}
+            danger size="lg" busy={action.isPending} confirmDisabled={!ready} error={action.message ?? undefined}
             onConfirm={confirm} onCancel={() => { if (!sending.current) setOpen(false); }}>
             <div className="space-y-3">
                 <p>Use this if the volunteer did not come. The request will be marked Missed.</p>
@@ -93,7 +93,7 @@ export default function ReportMissed({ request, onNotice }: { request: RequestDe
                     Create a new request with new pickup windows
                 </label>
                 {reschedule && <>
-                    <WindowsPicker value={windows} onChange={setWindows} />
+                    <WindowsPicker embedded value={windows} onChange={setWindows} />
                     <TermsCheckbox value={termsId} onChange={setTermsId} />
                 </>}
             </div>

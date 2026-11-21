@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Alert, QueryError, RoleBadge, Spinner, card, pageTitle, textLink } from "@/components/ui";
+import EnableNotifications from "@/components/enable-notifications";
+import { Alert, BellIcon, QueryError, RoleBadge, Spinner, card, pageTitle, textLink } from "@/components/ui";
 import { ApiError, isAuthError } from "@/lib/api";
 import { formatDate, formatTimestamp } from "@/lib/time";
 import type { Profile } from "@/lib/types";
@@ -33,10 +34,14 @@ export default function ProfilePage() {
         return {
             open: editing === card,
             onOpen: () => { setNotice(null); setEditing(card); },
-            onClose: () => setEditing(null),
-            onSaved: () => { setNotice({ variant: "success", text: "Profile saved." }); setEditing(null); },
+            onClose: () => setEditing((current) => (current === card ? null : current)),
+            onSaved: () => {
+                setNotice({ variant: "success", text: "Profile saved." });
+                setEditing((current) => (current === card ? null : current));
+            },
         };
     }
+    const section = (card: Card) => `${cardStyle} ${editing === card ? "ring-2 ring-accent-700" : ""}`;
 
     return (
         <main className="mx-auto flex w-full max-w-4xl min-w-0 flex-col gap-6 p-4 sm:p-8">
@@ -51,7 +56,7 @@ export default function ProfilePage() {
                         : error instanceof ApiError && error.status === 404
                             ? "We could not find your profile."
                             : "We could not load this page. Check your connection and try again."} onRetry={() => refetch()} busy={isFetching} />}
-            {profile && <section className={cardStyle} aria-labelledby="account-heading">
+            {profile && <section className={section("name")} aria-labelledby="account-heading">
                 <h2 id="account-heading" className={cardTitle}>Account</h2>
                 <dl className="grid gap-x-4 gap-y-3 sm:grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
                     <Row name="Username"><span className="font-mono">{profile.accountId}</span></Row>
@@ -67,15 +72,21 @@ export default function ProfilePage() {
                         </span>
                     </Row>
                 </dl>
+                <hr className="border-border" />
                 <PublicNameEditor profile={profile} {...editor("name")} />
             </section>}
-            {profile?.roles.includes("resident") && profile.address && <section className={cardStyle} aria-labelledby="address-heading">
+            {profile?.roles.includes("resident") && profile.address && <section className={section("address")} aria-labelledby="address-heading">
                 <h2 id="address-heading" className={cardTitle}>Address</h2>
                 <AddressEditor profile={profile} {...editor("address")} />
             </section>}
-            {profile?.roles.includes("volunteer") && <section className={cardStyle} aria-labelledby="codes-heading">
+            {profile?.roles.includes("volunteer") && <section className={section("codes")} aria-labelledby="codes-heading">
                 <h2 id="codes-heading" className={cardTitle}>Preferred postal codes</h2>
                 <CodesEditor profile={profile} {...editor("codes")} />
+            </section>}
+            {profile && <section className={cardStyle} aria-labelledby="notifications-heading">
+                <h2 id="notifications-heading" className={`${cardTitle} flex items-center gap-2`}><BellIcon className="size-5" />Notifications</h2>
+                <p>Get a device notification when something changes on your requests.</p>
+                <EnableNotifications />
             </section>}
             {profile && <SecondRole profile={profile} onDone={setNotice} />}
             {profile && <DeactivateAccount />}

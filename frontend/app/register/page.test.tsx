@@ -60,7 +60,9 @@ it("shows the form, a link to sign in and the logo", async () => {
     renderWithClient(<RegisterPage />);
     expect(screen.getByRole("heading", { level: 1, name: "Create your account" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Create account" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Already have an account? Sign in" })).toHaveAttribute("href", "/login");
+    const signIn = screen.getAllByRole("link", { name: "Already have an account? Sign in" });
+    expect(signIn).toHaveLength(2);
+    for (const link of signIn) expect(link).toHaveAttribute("href", "/login");
     expect(document.querySelector("img[src*='ecocollect-mark']")).not.toBeNull();
     await screen.findByRole("checkbox", { name: termsBox });
 });

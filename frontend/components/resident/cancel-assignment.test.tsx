@@ -111,3 +111,10 @@ it("keeps the window_ended sentence on the page and refreshes the request", asyn
     expect(screen.getAllByRole("alert").some(alert => alert.textContent?.includes(sentence))).toBe(true);
     expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.request("r/1") });
 });
+
+it("uses the wide dialog and the picker has no card of its own", () => {
+    mount();
+    const dialog = open();
+    expect(dialog).toHaveClass("max-w-xl");
+    expect(within(dialog).getByRole("group", { name: "Pickup windows" })).not.toHaveClass("bg-surface-elevated");
+});
