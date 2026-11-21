@@ -94,3 +94,7 @@ it.each([
     expect(await within(dialog).findByRole("alert")).toHaveTextContent(text);
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["request", "r1"] });
 });
+
+it("uses the wide dialog", () => {
+    expect(openDialog()).toHaveClass("max-w-xl");
+});

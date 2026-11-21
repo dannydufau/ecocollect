@@ -7,7 +7,7 @@ import { redirect, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import RegisterForm from "@/components/register-form";
 import TermsCheckbox from "@/components/terms-checkbox";
-import { Alert, pageTitle, textLink } from "@/components/ui";
+import { Alert, card, pageTitle, textLink } from "@/components/ui";
 import { ApiError, api, friendlyError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { isDemo } from "@/lib/demo";
@@ -75,11 +75,17 @@ export default function RegisterPage() {
 
     return <main className="mx-auto w-full max-w-xl min-w-0 space-y-6 p-4 sm:p-8">
         <Image src="/ecocollect-mark.png" alt="" width={61} height={64} priority />
-        <h1 className={pageTitle}>Create your account</h1>
+        <div>
+            <h1 className={pageTitle}>Create your account</h1>
+            <Link href="/login" className={textLink}>Already have an account? Sign in</Link>
+        </div>
         <RegisterForm onValid={create} fieldErrors={fieldErrors} busy={busy} submitDisabled={!termsDocumentId || created}
             submitHint={!termsDocumentId && !created ? "Accept the terms above to continue." : undefined}
             onEdit={() => setFieldErrors({})}>
-            <TermsCheckbox value={termsDocumentId} onChange={setTermsDocumentId} />
+            <section aria-labelledby="terms-heading" className={`${card} min-w-0 space-y-3`}>
+                <h2 id="terms-heading">Terms</h2>
+                <TermsCheckbox value={termsDocumentId} onChange={setTermsDocumentId} />
+            </section>
             {error && <Alert variant="error">{error}</Alert>}
             {created && <Alert variant="warning">
                 Your account was created, but we could not sign you in. Please sign in. <Link href="/login" className={textLink}>Go to sign in</Link>

@@ -30,7 +30,7 @@ export default function TermsCheckbox({ value, onChange }: Props) {
                 role="region"
                 aria-label="Terms and safety guidelines"
                 tabIndex={0}
-                className="max-h-[120px] overflow-y-auto whitespace-pre-wrap rounded-2xl bg-neutral-100 px-4 py-3 text-[13px] leading-normal text-neutral-800"
+                className="max-h-56 overflow-y-auto whitespace-pre-wrap rounded-xl border border-border-strong bg-neutral-100 px-4 py-3 text-sm leading-normal text-neutral-800"
             >
                 {data.content}
             </div>

@@ -38,7 +38,7 @@ export default function RecordDelivery({ request, onDone }: { request: RequestDe
 
     return <>
         <Button onClick={start}>Record delivery</Button>
-        <ConfirmDialog open={open} title="Record delivery" confirmLabel={action.isPending ? "Saving..." : "Record delivery"}
+        <ConfirmDialog open={open} size="lg" title="Record delivery" confirmLabel={action.isPending ? "Saving..." : "Record delivery"}
             confirmDisabled={!facilityId || !fileId} busy={action.isPending} error={failed ? action.message ?? undefined : undefined}
             onConfirm={confirm} onCancel={() => setOpen(false)}>
             <div className="space-y-4">

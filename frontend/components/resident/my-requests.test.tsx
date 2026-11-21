@@ -22,7 +22,8 @@ it("renders the current contract fields and keeps server order", async () => {
     expect(within(rows[0]).getByRole("link")).toHaveAttribute("href", "/resident/requests/r1");
     expect(within(rows[1]).getByRole("link")).toHaveAttribute("href", "/resident/requests/r2");
     expect(within(rows[0]).getByText("Open")).toBeInTheDocument();
-    expect(within(rows[0]).getByText(/5.00 kg · Created/)).toBeInTheDocument();
+    expect(within(rows[0]).getByText("5.00 kg")).toBeInTheDocument();
+    expect(within(rows[0]).getByText(/Created/)).toBeInTheDocument();
     expect(within(rows[0]).getByText(/Expires/)).toBeInTheDocument();
     expect(within(rows[1]).queryByText(/Expires/)).not.toBeInTheDocument();
     expect(within(rows[0]).getByText(/Has photo/)).toBeInTheDocument();
@@ -91,4 +92,50 @@ it("keeps rows visible while a different filter loads, then replaces them", asyn
     await act(async () => resolve([]));
     expect(await screen.findByText("You have no missed requests.")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "2 × Computers/Laptops" })).not.toBeInTheDocument();
+});
+it("puts the filters in one scrolling row that wraps on wider screens and still selects", async () => {
+    renderWithClient(<MyRequests />);
+    await screen.findByRole("link", { name: "2 × Computers/Laptops" });
+    const row = screen.getByRole("group", { name: "Filter requests by status" });
+    expect(row).toHaveClass("overflow-x-auto", "sm:flex-wrap");
+    fireEvent.click(within(row).getByRole("button", { name: "Delivered" }));
+    expect(within(row).getByRole("button", { name: "Delivered" })).toHaveAttribute("aria-pressed", "true");
+});
+it("dims the old list while a new filter loads", async () => {
+    let resolve!: (value: MyRequest[]) => void;
+    vi.mocked(api.get).mockResolvedValueOnce([request()]).mockReturnValueOnce(new Promise<MyRequest[]>(done => { resolve = done; }));
+    renderWithClient(<MyRequests />);
+    const link = await screen.findByRole("link", { name: "2 × Computers/Laptops" });
+    expect(link.closest("ul")).not.toHaveClass("opacity-60");
+    fireEvent.click(screen.getByRole("button", { name: "Missed" }));
+    await waitFor(() => expect(screen.getByRole("list")).toHaveClass("opacity-60"));
+    await act(async () => resolve([request()]));
+    await waitFor(() => expect(screen.getByRole("list")).not.toHaveClass("opacity-60"));
+});
+it("resets an empty filter with Show all requests", async () => {
+    renderWithClient(<MyRequests />);
+    await screen.findByRole("link", { name: "2 × Computers/Laptops" });
+    vi.mocked(api.get).mockImplementation(async (path: string) => path.includes("status=Expired") ? [] : [request()]);
+    fireEvent.click(screen.getByRole("button", { name: "Expired" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Show all requests" }));
+    expect(screen.getByRole("button", { name: "All" })).toHaveAttribute("aria-pressed", "true");
+    expect(await screen.findByRole("link", { name: "2 × Computers/Laptops" })).toBeInTheDocument();
+});
+it("lets the created banner be dismissed", async () => {
+    renderWithClient(<MyRequests created="1" />);
+    await screen.findByRole("link", { name: "2 × Computers/Laptops" });
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+    expect(screen.queryByText("Your request was created.")).not.toBeInTheDocument();
+});
+it("shows Expires on Open cards only and quiets closed ones", async () => {
+    vi.mocked(api.get).mockResolvedValue([request(), request({ requestId: "r2", status: "Cancelled" }), request({ requestId: "r3", status: "Expired" })]);
+    renderWithClient(<MyRequests />);
+    await screen.findAllByRole("link", { name: "2 × Computers/Laptops" });
+    const [open, cancelled, expired] = screen.getAllByRole("listitem");
+    expect(within(open).getByText(/Expires/)).toBeInTheDocument();
+    expect(open).not.toHaveClass("border-dashed");
+    for (const row of [cancelled, expired]) {
+        expect(within(row).queryByText(/Expires/)).not.toBeInTheDocument();
+        expect(row).toHaveClass("border-dashed");
+    }
 });

@@ -83,3 +83,11 @@ it("shows an error with a retry", async () => {
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(await screen.findByText("Deliveries", { selector: "dt" })).toBeInTheDocument();
 });
+
+it("keeps a very large number in one piece", async () => {
+    answer(200, { ...stats, ecopointsAwarded: 1234567.5 });
+    renderWithClient(<StatsPage />);
+    const number = await screen.findByText("1234567.50");
+    expect(number).toHaveClass("whitespace-nowrap", "tabular-nums");
+    expect(number).not.toHaveClass("break-all");
+});

@@ -24,3 +24,10 @@ it("shows the demo banner in a demo build", async () => {
     expect(screen.getByText(/Everyone shares this demo data. It resets every night./)).toBeInTheDocument();
     expect(screen.getByRole("note")).toBeInTheDocument();
 });
+
+it("has a hidden info icon inside the header width", async () => {
+    await banner("true");
+    const note = screen.getByRole("note");
+    expect(note.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+    expect(note.querySelector("p")).toHaveClass("max-w-5xl");
+});

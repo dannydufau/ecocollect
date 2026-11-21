@@ -116,3 +116,13 @@ it("sends nothing when the dialog is cancelled", async () => {
     expect(dialog).not.toHaveAttribute("open");
     expect(api.post).not.toHaveBeenCalled();
 });
+
+it("uses the wide dialog and marks the chosen window", async () => {
+    const dialog = await openDialog();
+    expect(dialog).toHaveClass("max-w-xl");
+    const radio = within(dialog).getByRole("radio", { name: /Sat, Nov 21/ });
+    fireEvent.click(radio);
+    expect(radio).toBeChecked();
+    expect(radio.closest("label")).toHaveClass("border-accent-2-700");
+    expect(radio.closest("label")!.querySelector("svg[aria-hidden=true]")).not.toBeNull();
+});
