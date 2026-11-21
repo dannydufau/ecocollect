@@ -8,7 +8,7 @@ import { fetchMyRequests } from "@/lib/my-requests";
 import { queryKeys } from "@/lib/query-keys";
 import { formatTimestamp } from "@/lib/time";
 import type { RequestStatus } from "@/lib/types";
-import { Alert, Button, CalendarIcon, CameraIcon, ClockIcon, EmptyState, FilterTabs, ScaleIcon, Spinner, StatusBadge, clickableCard, linkButton, pageTitle, stretchedLink } from "@/components/ui";
+import { Alert, Button, CalendarIcon, CameraIcon, ClockIcon, EmptyState, FilterTabs, QueryError, ScaleIcon, Spinner, StatusBadge, clickableCard, linkButton, pageTitle, stretchedLink } from "@/components/ui";
 
 const statuses: RequestStatus[] = ["Open", "Assigned", "Collected", "Delivered", "Cancelled", "Expired", "Missed"];
 const detail = "inline-flex items-center gap-1.5";
@@ -38,10 +38,7 @@ export default function MyRequests({ created }: { created?: string }) {
             <FilterTabs label="Filter requests by status" options={["All", ...statuses]} value={status ?? "All"}
                 onChange={option => setStatus(option === "All" ? undefined : option)} />
             {isPending && <Spinner label="Loading your requests..." />}
-            {isError && <>
-                <Alert variant="error">{isAuthError(error) ? "You are not allowed to see this list. Please log in again as a resident." : "We could not load your requests. Please try again."}</Alert>
-                <div><Button variant="secondary" onClick={() => refetch()} busy={isFetching} busyLabel="Trying...">Try again</Button></div>
-            </>}
+            {isError && <QueryError message={isAuthError(error) ? "You are not allowed to see this list. Please log in again as a resident." : "We could not load your requests. Please try again."} onRetry={() => refetch()} busy={isFetching} />}
             {!isPlaceholderData && data?.length === 0 && (status
                 ? <EmptyState title={`You have no ${status.toLowerCase()} requests.`}>
                     <Button variant="secondary" onClick={() => setStatus(undefined)}>Show all requests</Button>

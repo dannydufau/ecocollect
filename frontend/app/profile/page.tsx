@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import EnableNotifications from "@/components/enable-notifications";
-import { Alert, BellIcon, Button, Spinner, card, pageTitle, textLink } from "@/components/ui";
+import { Alert, BellIcon, QueryError, RoleBadge, Spinner, card, pageTitle, textLink } from "@/components/ui";
 import { ApiError, isAuthError } from "@/lib/api";
 import { formatDate, formatTimestamp } from "@/lib/time";
 import type { Profile } from "@/lib/types";
@@ -13,7 +13,6 @@ import { AddressEditor, CodesEditor, PublicNameEditor } from "./editors";
 import type { Notice } from "./notice";
 import { SecondRole } from "./second-role";
 
-const roleNames = { resident: "Resident", volunteer: "Volunteer" };
 const cardTitle = "text-[22px]";
 const cardStyle = `${card} min-w-0 space-y-3`;
 
@@ -52,16 +51,11 @@ export default function ProfilePage() {
             </div>
             {notice && <Alert variant={notice.variant}>{notice.text}</Alert>}
             {isPending && <Spinner label="Loading your profile..." />}
-            {isError && <div className="space-y-2">
-                <Alert variant="error">
-                    {isAuthError(error)
+            {isError && <QueryError message={isAuthError(error)
                         ? "Please log in to view your profile."
                         : error instanceof ApiError && error.status === 404
                             ? "We could not find your profile."
-                            : "We could not load this page. Check your connection and try again."}
-                </Alert>
-                <Button variant="secondary" onClick={() => refetch()} disabled={isFetching}>Try again</Button>
-            </div>}
+                            : "We could not load this page. Check your connection and try again."} onRetry={() => refetch()} busy={isFetching} />}
             {profile && <section className={section("name")} aria-labelledby="account-heading">
                 <h2 id="account-heading" className={cardTitle}>Account</h2>
                 <dl className="grid gap-x-4 gap-y-3 sm:grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
@@ -73,7 +67,7 @@ export default function ProfilePage() {
                     <Row name="Roles">
                         <span className="flex flex-wrap gap-1.5">
                             {profile.roles.map((role) => (
-                                <span key={role} className={`rounded-full px-3 py-0.5 text-xs font-semibold text-white ${role === "resident" ? "bg-accent-700" : "bg-accent-2-800"}`}>{roleNames[role]}</span>
+                                <RoleBadge key={role} role={role} />
                             ))}
                         </span>
                     </Row>

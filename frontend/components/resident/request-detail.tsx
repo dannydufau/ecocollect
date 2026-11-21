@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Alert, Button, RequestPhoto, Spinner, StatusBadge, WindowList, card, pageTitle, textLink } from "@/components/ui";
+import { Alert, QueryError, RequestPhoto, Spinner, StatusBadge, WindowList, card, pageTitle, secondaryLinkButton, textLink } from "@/components/ui";
 import { isAuthError } from "@/lib/api";
 import { formatPostalCode } from "@/lib/postal-code";
 import { nextStepText } from "@/lib/status-text";
@@ -38,17 +38,16 @@ export default function ResidentRequestDetail({ requestId, rescheduled = false, 
     if (isPending) return <Spinner label="Loading your request..." />;
     if (isError || !data) return <section className="space-y-3">
         <h1 className={pageTitle}>Pickup request</h1>
-        <Alert variant="error">{isAuthError(error)
-            ? "You are not allowed to see this request. Please log in again as a resident."
-            : "We could not load your request. Please try again."}</Alert>
-        {!isAuthError(error) && <div><Button variant="secondary" onClick={() => void refetch()} busy={isFetching} busyLabel="Trying...">Try again</Button></div>}
+        {isAuthError(error)
+            ? <Alert variant="error">You are not allowed to see this request. Please log in again as a resident.</Alert>
+            : <QueryError message="We could not load your request. Please try again." onRetry={() => void refetch()} busy={isFetching} />}
         <Link href="/resident" className={textLink}>Back to my requests</Link>
     </section>;
 
     // The cancel button goes in with the other actions, so they all sit in one group
     const renderers: ResidentActionRenderers = {
         edit: request => <Link href={`/resident/requests/${encodeURIComponent(request.requestId)}/edit`}
-            className="inline-flex min-h-11 items-center rounded-full border border-neutral-600 px-5 py-2 font-semibold text-text hover:bg-text/10">Edit request</Link>,
+            className={secondaryLinkButton}>Edit request</Link>,
         cancel: request => <CancelRequest request={request} onNotice={setNotice} />,
         confirm_collected: request => <ConfirmCollected request={request} onNotice={setNotice} />,
         cancel_assignment: request => <CancelAssignment request={request} onNotice={setNotice} />,

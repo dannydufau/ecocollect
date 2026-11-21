@@ -2,7 +2,7 @@
 
 import { useId } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Alert, Button, CheckIcon, MapPinIcon, Spinner, mono } from "@/components/ui";
+import { CheckIcon, MapPinIcon, QueryError, Spinner, mono } from "@/components/ui";
 import { api } from "@/lib/api";
 import { formatPostalCode } from "@/lib/postal-code";
 import { queryKeys } from "@/lib/query-keys";
@@ -21,10 +21,7 @@ export function FacilityPicker({ categoryId, value, onChange }: {
 
     if (isPending) return <Spinner label="Loading facilities..." />;
     if (isError) return (
-        <div className="space-y-2">
-            <Alert variant="error">We could not load the facilities. Please try again.</Alert>
-            <Button variant="secondary" onClick={() => void refetch()} busy={isFetching} busyLabel="Trying...">Try again</Button>
-        </div>
+        <QueryError message="We could not load the facilities. Please try again." onRetry={() => void refetch()} busy={isFetching} />
     );
 
     return (

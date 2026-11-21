@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Alert, Button, RequestPhoto, Spinner, StatusBadge, card, pageTitle, panel, textLink } from "@/components/ui";
+import { Alert, QueryError, RequestPhoto, Spinner, StatusBadge, card, pageTitle, panel, textLink } from "@/components/ui";
 import { isAuthError } from "@/lib/api";
 import { formatPostalCode } from "@/lib/postal-code";
 import { nextStepText } from "@/lib/status-text";
@@ -44,10 +44,9 @@ export default function VolunteerRequestDetail({ requestId }: { requestId: strin
     if (isPending) return <Spinner label="Loading the request..." />;
     if (isError || !request) return <section className="space-y-3">
         <h1 className={pageTitle}>Pickup request</h1>
-        <Alert variant="error">{isAuthError(error)
+        <QueryError message={isAuthError(error)
             ? "You are not allowed to see this request. Please log in again as a volunteer."
-            : "We could not load this request. Please try again."}</Alert>
-        <div><Button variant="secondary" onClick={() => void refetch()} busy={isFetching} busyLabel="Trying...">Try again</Button></div>
+            : "We could not load this request. Please try again."} onRetry={() => void refetch()} busy={isFetching} />
         {back}
     </section>;
 

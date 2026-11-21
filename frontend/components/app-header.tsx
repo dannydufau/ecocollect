@@ -6,7 +6,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import LogoutButton from "@/components/logout-button";
 import NotificationBell from "@/components/notification-bell";
-import { ChevronRightIcon, LeafIcon, MapPinIcon, PackageIcon, PlusIcon, TruckIcon, linkButton, textLink } from "@/components/ui";
+import { ChevronRightIcon, LeafIcon, MapPinIcon, PackageIcon, PlusIcon, RoleBadge, TruckIcon, linkButton, textLink } from "@/components/ui";
 import { useAuth } from "@/lib/auth-context";
 import type { Role } from "@/lib/auth";
 
@@ -122,7 +122,7 @@ export default function AppHeader() {
     // A one-role account always has its role. A both-roles account shows the tag only on a phone, where the switcher is in More.
     const shownRole = activeRole ?? (roles.length === 1 ? roles[0] : null);
     const roleTag = shownRole && (
-        <span className={`rounded-full px-3 py-1 text-sm font-bold text-white ${roleColors[shownRole]} ${both ? "min-[960px]:hidden" : ""}`}>{roleNames[shownRole]}</span>
+        <RoleBadge role={shownRole} className={both ? "min-[960px]:hidden" : ""} />
     );
     const switcher = both && (
         <div className="flex items-center gap-3">

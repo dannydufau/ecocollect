@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { Alert, Button, Spinner } from "@/components/ui";
+import { QueryError, Spinner } from "@/components/ui";
 import { useTerms } from "@/lib/use-terms";
 
 type Props = {
@@ -20,10 +20,7 @@ export default function TermsCheckbox({ value, onChange }: Props) {
     if (isPending) return <Spinner label="Loading terms..." />;
     if (isError) {
         return (
-            <div className="space-y-2">
-                <Alert variant="error">We could not load the terms. Please try again.</Alert>
-                <Button variant="secondary" onClick={() => refetch()} disabled={isFetching}>Try again</Button>
-            </div>
+            <QueryError message="We could not load the terms. Please try again." onRetry={() => refetch()} busy={isFetching} />
         );
     }
 

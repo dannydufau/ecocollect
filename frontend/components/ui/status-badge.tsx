@@ -1,4 +1,5 @@
-type Status = "Open" | "Assigned" | "Collected" | "Delivered" | "Cancelled" | "Expired" | "Missed";
+type Status = "Open" | "Assigned" | "Collected" | "Delivered" | "Cancelled" | "Expired" | "Missed"
+    | "Active" | "Cancelled by me" | "Cancelled by resident";
 
 // The prototype's pill colors. White or pale text on the dark fills, dark text on the light ones.
 const styles: Record<Status, string> = {
@@ -9,11 +10,15 @@ const styles: Record<Status, string> = {
     Cancelled: "bg-neutral-300 text-neutral-900",
     Expired: "bg-neutral-300 text-neutral-900",
     Missed: "bg-danger text-white",
+    Active: "bg-accent-200 text-accent-900",
+    "Cancelled by me": "bg-neutral-300 text-neutral-900",
+    "Cancelled by resident": "bg-neutral-300 text-neutral-900",
 };
 
 const symbols: Record<Status, string> = {
     Open: "○", Assigned: "◐", Collected: "◕", Delivered: "✓",
     Cancelled: "✕", Expired: "–", Missed: "!",
+    Active: "◐", "Cancelled by me": "✕", "Cancelled by resident": "✕",
 };
 
 export function StatusBadge({ status }: { status: Status }) {

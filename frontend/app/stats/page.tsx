@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Alert, Button, EmptyState, Spinner, pageTitle } from "@/components/ui";
+import { EmptyState, QueryError, Spinner, pageTitle } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import type { operations } from "@/lib/api-types";
 import { usePublicStream } from "@/lib/public-stream";
@@ -28,10 +28,7 @@ export default function StatsPage() {
             <div className="mx-auto max-w-5xl space-y-6">
                 <h1 className={pageTitle}>Community impact</h1>
                 {isPending && <Spinner label="Loading stats..." />}
-                {isError && <div className="space-y-2">
-                    <Alert variant="error">We could not load the stats. Check your connection and try again.</Alert>
-                    <Button variant="secondary" onClick={() => refetch()} disabled={isFetching}>Try again</Button>
-                </div>}
+                {isError && <QueryError message="We could not load the stats. Check your connection and try again." onRetry={() => refetch()} busy={isFetching} />}
                 {data && <>
                     <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                         {[

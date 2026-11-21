@@ -8,6 +8,7 @@ export const input = control;
 export const textarea = control;
 // A link that looks like the primary Button, and a plain text link (accent-700 has enough contrast on the page color)
 export const linkButton = "inline-flex min-h-11 items-center justify-center rounded-full bg-accent px-5 py-2 font-semibold text-on-accent hover:bg-accent-700 active:bg-accent-800";
+export const secondaryLinkButton = "inline-flex min-h-11 items-center rounded-full border border-neutral-600 px-5 py-2 font-semibold text-text hover:bg-text/10";
 // Postal codes and @handles
 export const mono = "font-mono text-sm font-semibold";
 export const textLink = "inline-flex min-h-11 items-center text-accent-700 underline underline-offset-4";

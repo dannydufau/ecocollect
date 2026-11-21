@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import RequestForm, { type RequestValues } from "@/components/resident/request-form";
-import { Alert, Button, Spinner, pageTitle, textLink } from "@/components/ui";
+import { Alert, QueryError, Spinner, pageTitle, textLink } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import type { EditRequest, PickupWindow } from "@/lib/types";
@@ -46,10 +46,7 @@ export default function EditRequestPage() {
                 <h1 className={pageTitle}>Edit request</h1>
                 {action.message && <Alert variant="error">{action.message}</Alert>}
                 {isPending && <Spinner label="Loading your request..." />}
-                {isError && !unavailable && <div className="space-y-2">
-                    <Alert variant="error">We could not load your request. Please try again.</Alert>
-                    <Button variant="secondary" onClick={() => void refetch()} busy={isFetching} busyLabel="Trying...">Try again</Button>
-                </div>}
+                {isError && !unavailable && <QueryError message="We could not load your request. Please try again." onRetry={() => void refetch()} busy={isFetching} />}
                 {(unavailable || (data && !editable)) && <Alert variant="info">This request can&apos;t be edited now.</Alert>}
                 {data && editable && <RequestForm single createdAt={data.createdAt} submitLabel="Save changes" cancelHref={back} busy={action.isPending}
                     currentPhoto={data.photoUrl ? { url: data.photoUrl, refetch: () => void refetch() } : undefined}
