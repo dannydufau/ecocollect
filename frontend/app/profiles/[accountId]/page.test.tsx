@@ -86,3 +86,23 @@ it("shows an error with a retry", async () => {
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(await screen.findByRole("heading", { name: "Maya C." })).toBeInTheDocument();
 });
+
+it("shows an initials circle hidden from screen readers", async () => {
+    renderWithClient(<PublicProfilePage />);
+    await screen.findByRole("heading", { name: "Maya C." });
+    expect(screen.getByText("MC")).toHaveAttribute("aria-hidden", "true");
+});
+
+it("keeps a large EcoPoints number in one piece", async () => {
+    fetcher.mockImplementation(async (path: string) => path.endsWith("/stats") ? json(200, { accountId: "maya", ecopoints: 123456.5 }) : json(200, profile));
+    renderWithClient(<PublicProfilePage />);
+    const points = await screen.findByText("123456.50");
+    expect(points).toHaveClass("whitespace-nowrap", "tabular-nums");
+    expect(points).not.toHaveClass("break-all");
+});
+
+it("shows the fallback when the EcoPoints can't be loaded", async () => {
+    fetcher.mockImplementation(async (path: string) => path.endsWith("/stats") ? json(500, {}) : json(200, profile));
+    renderWithClient(<PublicProfilePage />);
+    expect(await screen.findByText("Not available right now")).toBeInTheDocument();
+});
