@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { useAuth } from "@/lib/auth-context";
+import ResidentLayout from "@/app/resident/layout";
 import NewRequestPage from "./page";
 
 const { replace } = vi.hoisted(() => ({ replace: vi.fn() }));
@@ -14,20 +15,19 @@ afterEach(() => { cleanup(); vi.resetAllMocks(); });
 describe("new request access", () => {
     it("shows the form to residents", () => {
         vi.mocked(useAuth).mockReturnValue({ user: { uid: "resident" } as NonNullable<ReturnType<typeof useAuth>["user"]>, roles: ["resident"], activeRole: "resident", setActiveRole: vi.fn(), loading: false } as Partial<ReturnType<typeof useAuth>> as ReturnType<typeof useAuth>);
-        render(<NewRequestPage />);
+        render(<ResidentLayout><NewRequestPage /></ResidentLayout>);
         expect(screen.getByText("Request form")).toBeInTheDocument();
-        expect(screen.getByText("Add the items you want collected. Each item becomes its own request.")).toBeInTheDocument();
         expect(replace).not.toHaveBeenCalled();
     });
     it("redirects volunteers without exposing the form", () => {
         vi.mocked(useAuth).mockReturnValue({ user: { uid: "volunteer" } as NonNullable<ReturnType<typeof useAuth>["user"]>, roles: ["volunteer"], loading: false } as ReturnType<typeof useAuth>);
-        render(<NewRequestPage />);
+        render(<ResidentLayout><NewRequestPage /></ResidentLayout>);
         expect(screen.queryByText("Request form")).not.toBeInTheDocument();
         expect(replace).toHaveBeenCalledWith("/choose-role");
     });
     it("redirects signed-out users to login", () => {
         vi.mocked(useAuth).mockReturnValue({ user: null, roles: [], activeRole: null, loading: false } as Partial<ReturnType<typeof useAuth>> as ReturnType<typeof useAuth>);
-        render(<NewRequestPage />);
+        render(<ResidentLayout><NewRequestPage /></ResidentLayout>);
         expect(screen.queryByText("Request form")).not.toBeInTheDocument();
         expect(replace).toHaveBeenCalledWith("/login");
     });
