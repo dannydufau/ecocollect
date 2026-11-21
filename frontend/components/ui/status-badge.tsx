@@ -4,8 +4,8 @@ type Status = "Open" | "Assigned" | "Collected" | "Delivered" | "Cancelled" | "E
 const styles: Record<Status, string> = {
     Open: "bg-accent-2-200 text-accent-2-900",
     Assigned: "bg-accent-200 text-accent-900",
-    Collected: "bg-accent-2-700 text-white",
-    Delivered: "bg-accent-2-900 text-accent-2-100",
+    Collected: "bg-accent-2-700 text-on-moss",
+    Delivered: "bg-accent-2-900 text-on-moss",
     Cancelled: "bg-neutral-300 text-neutral-900",
     Expired: "bg-neutral-300 text-neutral-900",
     Missed: "bg-danger text-white",

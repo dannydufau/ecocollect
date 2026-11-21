@@ -40,7 +40,7 @@ export default function EcoPointsPage() {
                             { label: "As resident", points: data.asResident },
                             { label: "As volunteer", points: data.asVolunteer },
                         ].map(({ label, points }) => (
-                            <div key={label} className={`min-w-0 ${label === "Total" ? `${panel} border-transparent bg-accent-2-800 text-accent-2-100` : card}`}>
+                            <div key={label} className={`min-w-0 ${label === "Total" ? `${panel} border-transparent bg-accent-2-800 text-on-moss` : card}`}>
                                 <dt className={label === "Total" ? "" : "text-neutral-700"}>{label}</dt>
                                 <dd className="mt-1 break-all text-[40px] font-bold leading-none tabular-nums">{points.toFixed(2)}</dd>
                             </div>

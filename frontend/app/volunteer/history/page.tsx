@@ -15,8 +15,8 @@ type AssignmentStatus = VolunteerAssignment["assignment"]["status"];
 // Words and a symbol, so the status is not told by color alone
 const statuses: Record<AssignmentStatus, { label: string; symbol: string; style: string }> = {
     Active: { label: "Active", symbol: "◐", style: "bg-accent-200 text-accent-900" },
-    Collected: { label: "Collected", symbol: "◕", style: "bg-accent-2-700 text-white" },
-    Delivered: { label: "Delivered", symbol: "✓", style: "bg-accent-2-900 text-accent-2-100" },
+    Collected: { label: "Collected", symbol: "◕", style: "bg-accent-2-700 text-on-moss" },
+    Delivered: { label: "Delivered", symbol: "✓", style: "bg-accent-2-900 text-on-moss" },
     Volunteer_Cancelled: { label: "Cancelled by me", symbol: "✕", style: "bg-neutral-300 text-neutral-900" },
     Resident_Cancelled: { label: "Cancelled by resident", symbol: "✕", style: "bg-neutral-300 text-neutral-900" },
     Missed_Pickup: { label: "Missed", symbol: "!", style: "bg-danger text-white" },
