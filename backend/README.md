@@ -41,6 +41,30 @@ Creates and lists pickup requests, following [contracts/](../contracts/). It tru
 
 The outbox publisher runs in the same process. Every second it sends unsent outbox rows to the `ecocollect.events` topic exchange (routing key `request.created`, persistent) and waits for the broker's confirm before marking a row as sent. If RabbitMQ is down it logs the error and tries again, and the events just wait in the database. It creates the exchange itself if it's missing.
 
+## Cleanup Service (`src/cleanup/`)
+
+Keeps one expiry job per Open request and reminds the Request Service when it is due (contract 14). It has no HTTP routes.
+
+| File | What it does |
+|---|---|
+| `handlers.js` | E1 and E2 set the job at `expiresAt`; E3, E9 and E10 end it |
+| `store.js` | Saves job changes only if `requestSeq` is higher (contract 11), fires due jobs and the daily run, writes the outbox |
+| `consumer.js` | Consumes `cleanup.request-events` through the shared subscriber |
+| `timers.js` | Every 30 s fires due jobs (`CleanupRequest`, again every 5 min until a non-Open event ends the job; a warning at 12 fires). Every minute checks for the daily `NotificationCleanupRequested`, once per Calgary day from 03:00 |
+| `index.js` | Starts the consumer, the timers and the outbox publisher for `cleanup.outbox`; stops them in order on SIGTERM |
+
+Setup on an existing database volume (a new volume runs `db/init/020_cleanup.sql` by itself), from the repo root:
+
+```bash
+docker compose exec -T postgres psql -U ecocollect -d ecocollect < db/init/020_cleanup.sql
+docker compose exec -T -e CLEANUP_DB_PASSWORD='<CLEANUP_DB_PASSWORD from .env>' postgres psql -U ecocollect -d ecocollect < backend/scripts/cleanup/set-password.sql
+docker compose up -d --build cleanup
+```
+
+The service logs in as `ecocollect_cleanup`: full rights on `cleanup`, read-only on the other schemas. Compose passes `CLEANUP_DATABASE_URL` as its `DATABASE_URL`.
+
+Tests: `test/cleanup-*.test.js` (the store tests need `TEST_DATABASE_URL`), and `test/integration/cleanup.integration.test.js`, which needs `TEST_DATABASE_URL` and `RABBITMQ_URL`. Stop the `cleanup` container before the integration test, or it takes the test events.
+
 ## Run it
 
 ```bash
