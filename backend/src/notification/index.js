@@ -19,6 +19,7 @@ const { queues } = require('../messaging/topology');
 const { createPushRouter } = require('./push-router');
 const { createSubscriptionStore } = require('./subscriptions');
 const { createNotificationStore } = require('./notification-store');
+const { createNotificationsRouter } = require('./notifications-router');
 
 const vapid = {
   subject: process.env.VAPID_SUBJECT,
@@ -57,6 +58,7 @@ const notifications = createNotificationStore(pool);
 const app = express();
 app.use(createEventsRouter(hub));
 app.use(createPushRouter({ subscriptions }));
+app.use(createNotificationsRouter({ notifications, hub }));
 
 /*
  * Compose sets PORT=80 (Caddy proxies to "notification" without a port).

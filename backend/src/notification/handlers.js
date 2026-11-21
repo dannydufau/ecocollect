@@ -15,11 +15,18 @@ const SIGNAL = Object.freeze({
 
 /*
  * Per notification type: its title, the page its url opens (contract 16.14),
- * and whether it also goes by Web Push (contract 13.1).
+ * whether it also goes by Web Push (contract 13.1), and the body the stored list shows
+ * until the request's details can be joined (the request tables aren't in db/init yet).
  */
 const NOTIFICATION_TYPES = Object.freeze({
-  REQUEST_CREATED: { title: 'Request posted', path: '/resident/requests/', push: false },
-  NEW_MATCHING_REQUEST: { title: 'New pickup near you', path: '/volunteer/requests/', push: true },
+  REQUEST_CREATED: {
+    title: 'Request posted', path: '/resident/requests/', push: false,
+    listBody: 'Your pickup request is posted',
+  },
+  NEW_MATCHING_REQUEST: {
+    title: 'New pickup near you', path: '/volunteer/requests/', push: true,
+    listBody: 'A pickup request matches your area',
+  },
 });
 
 // The only shape a signal may have: type + requestId. Built from scratch,
@@ -104,4 +111,4 @@ function requestCreated(envelope) {
   return out;
 }
 
-module.exports = { requestCreated, SIGNAL };
+module.exports = { requestCreated, SIGNAL, NOTIFICATION_TYPES };

@@ -74,7 +74,12 @@ async function startService() {
     `the service to start (log so far: ${JSON.stringify(lines)})`,
   );
   const base = `http://127.0.0.1:${port}`;
-  return { child, lines, exited, url: `${base}/api/events`, subscriptionsUrl: `${base}/api/push/subscriptions` };
+  return {
+    child, lines, exited,
+    url: `${base}/api/events`,
+    subscriptionsUrl: `${base}/api/push/subscriptions`,
+    notificationsUrl: `${base}/api/notifications`,
+  };
 }
 
 async function stopService(service) {
@@ -280,6 +285,17 @@ test('a RequestCreated reaches the resident and matched volunteers as signals, n
       [requestId],
     );
     assert.deepEqual(stored.rows.map((r) => r.account_id), [offline, resident, volunteer].sort());
+
+    // Done-when: the volunteer's list shows it (N3), and it can be marked read (N4).
+    const asVolunteer = { headers: { 'X-User-Id': volunteer } };
+    const list = await (await fetch(service.notificationsUrl, asVolunteer)).json();
+    assert.equal(list.unreadCount, 1);
+    assert.equal(list.notifications[0].notificationId, toVolunteer.id);
+    assert.equal(list.notifications[0].url, `/volunteer/requests/${requestId}`);
+    const read = await fetch(`${service.notificationsUrl}/${toVolunteer.id}/read`, { ...asVolunteer, method: 'PATCH' });
+    assert.equal(read.status, 204);
+    assert.equal((await (await fetch(service.notificationsUrl, asVolunteer)).json()).unreadCount, 0);
+    await waitFor(() => framesIn(volunteerTab, 'notification-read').length === 1, 'notification-read at the volunteer');
 
     // The same event again saves and sends nothing. A second, new request after it shows
     // the redelivery was handled (the queue delivers one at a time, in order).

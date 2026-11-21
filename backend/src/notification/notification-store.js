@@ -41,7 +41,57 @@ function createNotificationStore(pool) {
     }
   }
 
-  return { saveRequestNotifications };
+  /*
+   * One page of the account's unexpired notifications, newest first, and its unread count.
+   * `before` (a createdAt) gives the page after one already shown.
+   */
+  async function listForAccount(uid, { before = null, limit = 30 } = {}) {
+    const { rows } = await pool.query(
+      `SELECT n.notification_id, n.type, n.created_at, n.is_read, rn.pickup_request_id
+       FROM notifications.request_notification rn
+       JOIN notifications.notification n ON n.notification_id = rn.notification_id
+       WHERE rn.account_id = $1
+         AND NOT n.is_expired
+         AND ($2::timestamptz IS NULL OR n.created_at < $2)
+       ORDER BY n.created_at DESC, n.notification_id
+       LIMIT $3`,
+      [uid, before, limit],
+    );
+    // Award notifications join here too once award_notification exists (UNION ALL, same columns).
+    const unread = await pool.query(
+      `SELECT count(*)::int AS n
+       FROM notifications.request_notification rn
+       JOIN notifications.notification n ON n.notification_id = rn.notification_id
+       WHERE rn.account_id = $1 AND NOT n.is_expired AND NOT n.is_read`,
+      [uid],
+    );
+    return { rows, unreadCount: unread.rows[0].n };
+  }
+
+  // Marks one of the account's notifications read; false if it isn't theirs or doesn't exist.
+  async function markRead(uid, notificationId) {
+    const { rowCount } = await pool.query(
+      `UPDATE notifications.notification n SET is_read = true
+       FROM notifications.request_notification rn
+       WHERE n.notification_id = rn.notification_id
+         AND rn.account_id = $1 AND n.notification_id = $2`,
+      [uid, notificationId],
+    );
+    return rowCount > 0;
+  }
+
+  // Marks all of the account's notifications read.
+  async function markAllRead(uid) {
+    await pool.query(
+      `UPDATE notifications.notification n SET is_read = true
+       FROM notifications.request_notification rn
+       WHERE n.notification_id = rn.notification_id
+         AND rn.account_id = $1 AND NOT n.is_read`,
+      [uid],
+    );
+  }
+
+  return { saveRequestNotifications, listForAccount, markRead, markAllRead };
 }
 
 module.exports = { createNotificationStore };
