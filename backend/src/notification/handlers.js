@@ -14,8 +14,8 @@ const SIGNAL = Object.freeze({
 });
 
 /*
- * Per notification type: its title, the page its url opens (contract 16.14),
- * whether it also goes by Web Push (contract 13.1), and the body the stored list shows
+ * Per notification type: its title, the page its url opens,
+ * whether it also goes by Web Push, and the body the stored list shows
  * until the request's details can be joined (the request tables aren't in db/init yet).
  */
 const NOTIFICATION_TYPES = Object.freeze({
