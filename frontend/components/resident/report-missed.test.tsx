@@ -108,3 +108,10 @@ it("asks to accept the terms again when they changed", async () => {
     expect(confirmButton(dialog)).toBeDisabled();
     expect(onNotice).not.toHaveBeenCalledWith(expect.objectContaining({ kind: "error" }));
 });
+
+it("uses the wide dialog and the picker has no card of its own", () => {
+    const dialog = open();
+    expect(dialog).toHaveClass("max-w-xl");
+    fireEvent.click(within(dialog).getByLabelText(/new request with new pickup windows/));
+    expect(within(dialog).getByRole("group", { name: "Pickup windows" })).not.toHaveClass("bg-surface-elevated");
+});

@@ -117,7 +117,7 @@ describe("RequestForm", () => {
         const onValid = vi.fn();
         renderWithClient(<RequestForm initialValues={valid()} onValid={onValid} />);
         await screen.findByLabelText("Category");
-        expect(screen.getByRole("link", { name: "Change address" })).toHaveAttribute("href", "/profile");
+        expect(screen.getByRole("link", { name: /Change address/ })).toHaveAttribute("href", "/profile");
         fireEvent.click(screen.getByRole("button", { name: "Review request" }));
         expect(onValid).toHaveBeenCalledWith(valid());
         expect(screen.queryByRole("alert")).not.toBeInTheDocument();

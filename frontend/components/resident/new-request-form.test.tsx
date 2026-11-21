@@ -253,3 +253,30 @@ it("shows the invalid_photo field error under the item's picker", async () => {
     const row = await screen.findByRole("group", { name: "Item 1" });
     await waitFor(() => expect(within(row).getByRole("alert")).toHaveTextContent("This photo could not be used."));
 });
+it("has one heading and the step indicator on each step", async () => {
+    mount(); await fill();
+    expect(screen.getAllByRole("heading", { level: 1 }).map(heading => heading.textContent)).toEqual(["New pickup request"]);
+    expect(screen.getByText("Add the items you want collected. Each item becomes its own request.")).toBeInTheDocument();
+    expect(screen.getByText("Step 1 of 2")).toHaveAttribute("aria-current", "step");
+    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+    expect(await screen.findByText("Step 2 of 2")).toHaveAttribute("aria-current", "step");
+    expect(screen.getAllByRole("heading", { level: 1 }).map(heading => heading.textContent)).toEqual(["Review your request"]);
+});
+it("shows the profile address on step 1 and opens Change address in a new tab", async () => {
+    mount();
+    expect(await screen.findByText(/We collect from 123 Main Street, T2P 1J9\./)).toBeInTheDocument();
+    const link = screen.getByRole("link", { name: /Change address/ });
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+});
+it("shows the total weight on review only with two or more items", async () => {
+    mount(); await fill();
+    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+    await screen.findByRole("heading", { name: "Review your request" });
+    expect(screen.queryByText(/Total estimated weight/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Back to edit" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add another item" }));
+    fireEvent.change(screen.getAllByLabelText("Category")[1], { target: { value: "phones" } });
+    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+    expect((await screen.findByText(/Total estimated weight/)).querySelector("strong")).toHaveTextContent("5.20 kg");
+});

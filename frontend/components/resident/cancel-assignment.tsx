@@ -56,7 +56,7 @@ export default function CancelAssignment({ request, onNotice }: { request: Reque
     return <>
         <Button variant="danger-outline" onClick={start}>Cancel volunteer</Button>
         <ConfirmDialog open={open} title="Cancel the volunteer's assignment?" confirmLabel={action.isPending ? "Cancelling..." : "Cancel volunteer"} cancelLabel="Keep volunteer"
-            danger busy={action.isPending} error={windowError || action.message || undefined}
+            danger size="lg" busy={action.isPending} error={windowError || action.message || undefined}
             onConfirm={confirm} onCancel={() => { if (!sending.current) setOpen(false); }}>
             <div className="space-y-3">
                 <p>Your request stays active. It goes back to Open if it still has future pickup windows. You can offer new windows below.</p>
@@ -66,7 +66,7 @@ export default function CancelAssignment({ request, onNotice }: { request: Reque
                         rows={3} className={textarea} />}
                 </Field>
                 <p className="text-[13px] text-text-muted">Optional: offer new pickup windows. Leave them empty to keep the current ones.</p>
-                <WindowsPicker value={windows} onChange={setWindows} createdAt={request.createdAt} />
+                <WindowsPicker embedded value={windows} onChange={setWindows} createdAt={request.createdAt} />
             </div>
         </ConfirmDialog>
     </>;
