@@ -30,11 +30,15 @@ const PickupWindowInput = v.strictObject({
 export const PickupWindows = v.message(v.pipe(v.array(PickupWindowInput), v.minLength(1), v.maxLength(3)),
                                        'must have 1 to 3 windows');
 
+// One item's category and quantity: also the shape of Q9's fields.
+export const CategoryId = v.message(v.pipe(v.string(), v.minLength(1)), 'must be a category id');
+export const Quantity = v.message(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(INT_MAX)),
+                                  `must be a whole number from 1 to ${INT_MAX}`);
+
 const CreateRequests = v.strictObject({
   items: v.message(v.pipe(v.array(v.strictObject({
-    categoryId: v.message(v.pipe(v.string(), v.minLength(1)), 'must be a category id'),
-    quantity: v.message(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(INT_MAX)),
-                        `must be a whole number from 1 to ${INT_MAX}`),
+    categoryId: CategoryId,
+    quantity: Quantity,
     photo: v.optional(v.never('photos are not supported yet')),
   })), v.minLength(1)), 'must have at least 1 item'),
   windows: PickupWindows,

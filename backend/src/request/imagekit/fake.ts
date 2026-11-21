@@ -9,4 +9,5 @@ export const fakePhotos: Photos = {
     purpose === 'delivery_evidence'
       ? `${ROOT_FOLDER}/delivery-evidence/${callerId}/${requestId}/${fileId}.jpg`
       : `${ROOT_FOLDER}/item-photos/${callerId}/${fileId}.jpg`,
+  remove: async () => {},              // a test that checks deletions passes its own
 };

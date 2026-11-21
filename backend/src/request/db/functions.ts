@@ -4,7 +4,7 @@ import type pg from 'pg';
 import type {
   AcceptInput, AcceptRow, CancelAssignmentInput, CancelAssignmentRow, CancelInput, CancelRow, CategoryRow, ConfirmCollectedInput, ConfirmCollectedRow, CreateRequestsInput,
   CreateRequestsRow, FacilityRow, GetDetailRow, GetRequestsRow, ListAvailableRow, ListMineRow,
-  RecordDeliveryInput, RecordDeliveryRow, ReportMissedInput, ReportMissedRow,
+  RecordDeliveryInput, RecordDeliveryRow, ReportMissedInput, ReportMissedRow, EditInput, EditRow,
 } from '../domain/types.ts';
 
 export async function listCategories(pool: pg.Pool): Promise<CategoryRow[]> {
@@ -123,6 +123,18 @@ export async function recordDelivery(pool: pg.Pool, input: RecordDeliveryInput):
   const { rows } = await pool.query<RecordDeliveryRow>(
     'SELECT * FROM requests.req_record_delivery($1::uuid, $2, $3::uuid, $4, $5, $6)',
     [input.requestId, input.volunteerId, input.facilityId, input.fileId, input.filePath, input.traceId]);
+  // a function with OUT parameters always returns exactly one row, so the ! (not-null assertion) is safe.
+  return rows[0]!;
+}
+
+// Q9. One call locks the request, checks it, writes only what differs and queues
+// RequestUpdated; an overdue request is expired instead (RequestExpired).
+export async function edit(pool: pg.Pool, input: EditInput): Promise<EditRow> {
+  const { rows } = await pool.query<EditRow>(
+    `SELECT * FROM requests.req_edit(
+       $1::uuid, $2, $3::text[], $4, $5::int, $6, $7::date[], $8::smallint[], $9, $10, $11, $12)`,
+    [input.requestId, input.residentId, input.sent, input.categoryId, input.quantity, input.notes,
+     input.dates, input.hours, input.fileId, input.filePath, input.demo, input.traceId]);
   // a function with OUT parameters always returns exactly one row, so the ! (not-null assertion) is safe.
   return rows[0]!;
 }

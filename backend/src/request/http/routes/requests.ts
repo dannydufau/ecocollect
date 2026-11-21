@@ -1,6 +1,7 @@
 // Q4 POST /api/requests (residents): one request per item, in one database call.
 // Q5-Q7 GET /api/requests: one handler, the view decides the role and the read.
 // Q8 GET /api/requests/:id: any signed-in caller; the database decides what they see.
+// Q9 PATCH /api/requests/:id (the owner): edit, delete an unused old photo, then the detail.
 // Q10 POST /api/requests/:id/cancel (the owner): cancel, then the detail.
 // Q11 POST /api/requests/:id/assignment (volunteers): accept, then the detail.
 // Q12 POST /api/requests/:id/assignment/cancel (owner or assigned volunteer): cancel the assignment, then the detail.
@@ -11,7 +12,7 @@ import { Router } from 'express';
 import * as v from 'valibot';
 import type { RouteDeps } from '../../app.ts';
 import {
-  accept, cancel, cancelAssignment, confirmCollected, createRequests, getDetail, getRequests, listAvailable, listMine, recordDelivery,
+  accept, cancel, cancelAssignment, confirmCollected, createRequests, edit, getDetail, getRequests, listAvailable, listMine, recordDelivery,
   reportMissed,
 } from '../../db/functions.ts';
 import { availableRequest, createdRequest, myRequest, requestDetail } from '../../json/responses.ts';
@@ -20,6 +21,7 @@ import { Uuid } from '../body-validation.ts';
 import { parseCancelAssignmentBody } from '../cancel-assignment-body.ts';
 import { parseCancelBody } from '../cancel-body.ts';
 import { parseCreateRequestsBody } from '../create-requests-body.ts';
+import { parseEditBody } from '../edit-body.ts';
 import { parseRecordDeliveryBody } from '../record-delivery-body.ts';
 import { parseReportMissedBody } from '../report-missed-body.ts';
 import {
@@ -113,6 +115,57 @@ export default function requestsRouter({ pool, nudgePublisher, demo, imagekit }:
     const caller = callerOf(res);
     const id = req.params.id;
     if (!v.is(Uuid, id)) throw requestUnavailable();
+    const row = await getDetail(pool, id, caller.id);
+    if (row.result_code !== 'ok') throw requestUnavailable();
+    res.json(requestDetail(row));
+  });
+
+  // Order: role (403), id (404), body shape (400), the ImageKit check of a new
+  // photo, one write call; after commit, delete the old photo if no request uses
+  // it (best effort, logged); then the detail. A failed photo check goes in as a
+  // null path: req_edit answers it with the other fields, after its state checks.
+  router.patch('/api/requests/:id', requireRole('resident'), async (req, res) => {
+    const caller = callerOf(res);
+    const id = req.params.id;
+    if (!v.is(Uuid, id)) throw requestUnavailable();
+    const body = parseEditBody(req.body);
+
+    let filePath: string | null = null;
+    if (body.fileId !== null) {
+      filePath = await imagekit.verify({
+        fileId: body.fileId, purpose: 'item_photo', callerId: caller.id, requestId: null,
+      });
+    }
+    const result = await edit(pool, {
+      requestId: id, residentId: caller.id, ...body, filePath, demo, traceId: caller.traceId,
+    });
+    switch (result.result_code) {
+      case 'request_unavailable':
+        throw requestUnavailable();
+      case 'forbidden':
+        throw forbidden('Only the owner of this request can edit it.');
+      case 'not_open':
+        throw new HttpError(409, 'not_open', 'Only an Open request can be edited.');
+      case 'expired':
+        nudgePublisher();              // the request was expired: RequestExpired is in the outbox
+        throw new HttpError(409, 'expired', 'This request has expired.');
+      case 'validation_failed':
+        throw validationFailedFromDb(result.error_fields, result.error_messages);
+      case 'ok':
+        nudgePublisher();              // RequestUpdated is in the outbox (none when nothing differed)
+        break;
+    }
+
+    // The edit is committed: a failed deletion only leaves an unused file behind.
+    if (result.unreferenced_file_id !== null) {
+      try {
+        await imagekit.remove(result.unreferenced_file_id);
+      } catch (err) {
+        console.error(`request service: could not delete photo ${result.unreferenced_file_id}`, err);
+      }
+    }
+
+    // Committed; a missing detail means another action changed it in between.
     const row = await getDetail(pool, id, caller.id);
     if (row.result_code !== 'ok') throw requestUnavailable();
     res.json(requestDetail(row));

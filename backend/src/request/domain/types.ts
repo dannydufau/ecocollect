@@ -224,6 +224,28 @@ export type ReportMissedRow = {
   rescheduled_request_id: string | null; // set for 'ok' with a reschedule
 };
 
+export type EditInput = {
+  requestId: string;                   // a well-formed UUID (checked before the call)
+  residentId: string;
+  sent: string[];                      // the body's keys that were present
+  categoryId: string | null;           // each value: null when not sent
+  quantity: number | null;
+  notes: string | null;                // null when not sent, or sent as null
+  dates: string[] | null;              // 'YYYY-MM-DD'
+  hours: number[] | null;              // paired with dates
+  fileId: string | null;               // null when not sent, or sent as null
+  filePath: string | null;             // null: no new file, or the ImageKit check failed
+  demo: boolean;
+  traceId: string | null;
+};
+
+export type EditRow = {
+  result_code: 'ok' | 'request_unavailable' | 'forbidden' | 'not_open' | 'expired' | 'validation_failed';
+  error_fields: string[];              // paired with error_messages, element by element
+  error_messages: string[];
+  unreferenced_file_id: string | null; // the old photo, to delete from ImageKit after commit
+};
+
 export type RecordDeliveryRow = {
   result_code: 'ok' | 'request_unavailable' | 'forbidden' | 'already_delivered' | 'not_collected'
   | 'validation_failed';
