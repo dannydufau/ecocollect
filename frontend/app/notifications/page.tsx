@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Alert, Button, EmptyState, Spinner, card, pageTitle } from "@/components/ui";
+import { Alert, BellIcon, Button, EmptyState, LeafIcon, MapPinIcon, Spinner, TruckIcon, pageTitle } from "@/components/ui";
 import { api, isAuthError } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { formatTimestamp } from "@/lib/time";
@@ -11,6 +11,14 @@ import type { Notification } from "@/lib/types";
 import { useNotifications } from "@/lib/use-notifications";
 
 const PAGE_SIZE = 30;
+
+function typeIcon(type: string) {
+    const className = "mt-0.5 size-5 flex-none";
+    if (type.startsWith("ECOPOINTS_")) return <LeafIcon className={className} />;
+    if (type === "NEW_MATCHING_REQUEST") return <MapPinIcon className={className} />;
+    if (type.startsWith("REQUEST_COLLECTED_") || type.startsWith("REQUEST_DELIVERED_")) return <TruckIcon className={className} />;
+    return <BellIcon className={className} />;
+}
 
 export default function NotificationsPage() {
     const queryClient = useQueryClient();
@@ -51,11 +59,11 @@ export default function NotificationsPage() {
 
     return (
         <main className="p-4 sm:p-8">
-            <div className="mx-auto max-w-3xl space-y-6">
+            <div className="mx-auto max-w-5xl space-y-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
+                    <div className="flex flex-wrap items-baseline gap-x-3">
                         <h1 className={pageTitle}>Notifications</h1>
-                        {data && <p role="status" className="font-semibold">{data.unreadCount} unread</p>}
+                        {data && <p role="status" className="font-semibold text-text-muted">{data.unreadCount} unread</p>}
                     </div>
                     {data && <Button variant="secondary" onClick={() => readAll.mutate()} disabled={data.unreadCount === 0}
                         busy={readAll.isPending} busyLabel="Marking...">Mark all read</Button>}
@@ -69,25 +77,25 @@ export default function NotificationsPage() {
                     <Button variant="secondary" onClick={() => refetch()} disabled={isFetching}>Try again</Button>
                 </div>}
                 {data && rows.length === 0 && <EmptyState title="No notifications yet.">You will see updates about your requests and pickups here.</EmptyState>}
-                {rows.length > 0 && <ul className="space-y-3">
-                    {rows.map(item => <li key={item.notificationId}>
+                {rows.length > 0 && <ul className="divide-y divide-border rounded-2xl border border-border bg-surface-elevated shadow-rest">
+                    {rows.map(item => <li key={item.notificationId} className="first:rounded-t-2xl last:rounded-b-2xl">
                         <Link href={ownPage(item.url)} onClick={() => markRead(item)}
-                            className={`${card} block w-full min-w-0 text-left hover:shadow-hover ${item.isRead ? "" : "ring-[1.5px] ring-inset ring-accent"}`}>
-                            <span className="flex items-start gap-2">
-                                {!item.isRead && <span aria-hidden="true" className="mt-2 size-2.5 flex-none rounded-full bg-accent" />}
-                                <span className="min-w-0 flex-1">
-                                    {!item.isRead && <span className="sr-only">Unread: </span>}
-                                    <span className={`block break-words ${item.isRead ? "" : "font-bold"}`}>{item.title}</span>
-                                    <span className="block break-words text-neutral-800">{item.body}</span>
-                                    <time dateTime={item.createdAt} className="block text-[13px] text-text-muted">{formatTimestamp(item.createdAt)}</time>
-                                </span>
+                            className={`flex min-h-11 w-full min-w-0 items-start gap-3 rounded-[inherit] border-l-4 p-4 text-left focus-visible:relative focus-visible:z-10 ${item.isRead ? "border-l-transparent text-text-muted hover:bg-surface" : "border-l-accent bg-accent-100 hover:bg-accent-200"}`}>
+                            {typeIcon(item.type)}
+                            <span className="min-w-0 flex-1">
+                                {!item.isRead && <span className="sr-only">Unread: </span>}
+                                <span className={`block break-words ${item.isRead ? "" : "font-bold text-text"}`}>{item.title}</span>
+                                <span className={`block break-words ${item.isRead ? "" : "text-neutral-800"}`}>{item.body}</span>
+                                <time dateTime={item.createdAt} className="block text-[13px] text-text-muted">{formatTimestamp(item.createdAt)}</time>
                             </span>
                         </Link>
                     </li>)}
                 </ul>}
                 {more.isError && <Alert variant="error">We could not load older notifications. Please try again.</Alert>}
-                {data && rows.length > 0 && hasMore && <Button variant="secondary" busy={more.isPending} busyLabel="Loading..."
-                    onClick={() => more.mutate(rows[rows.length - 1].createdAt)}>Load more</Button>}
+                {data && rows.length > 0 && hasMore && <div className="flex justify-center">
+                    <Button variant="secondary" busy={more.isPending} busyLabel="Loading..."
+                        onClick={() => more.mutate(rows[rows.length - 1].createdAt)}>Load more</Button>
+                </div>}
             </div>
         </main>
     );
