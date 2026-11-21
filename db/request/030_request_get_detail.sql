@@ -84,6 +84,9 @@ DECLARE
     k_viewer_assigned        CONSTANT TEXT := 'assigned_volunteer';
     k_viewer_volunteer       CONSTANT TEXT := 'volunteer';
     k_action_cancel          CONSTANT TEXT := 'cancel';
+    k_action_cancel_assignment CONSTANT TEXT := 'cancel_assignment';
+    k_as_resident            CONSTANT TEXT := 'resident';    -- req_check_cancel_assignment's p_as
+    k_as_volunteer           CONSTANT TEXT := 'volunteer';
     k_action_confirm_collected CONSTANT TEXT := 'confirm_collected';
     k_action_accept          CONSTANT TEXT := 'accept';
     k_action_record_delivery CONSTANT TEXT := 'record_delivery';
@@ -148,6 +151,13 @@ BEGIN
     allowed_actions := '{}';
     IF requests.req_check_cancel(p_request_id, p_viewer_id, v_now) = k_code_ok THEN
         allowed_actions := array_append(allowed_actions, k_action_cancel);
+    END IF;
+    -- Asked once per side, with `as` given, so a viewer on both sides (a
+    -- self-assignment) gets the action when either side may cancel.
+    IF requests.req_check_cancel_assignment(p_request_id, p_viewer_id, k_as_resident, v_now) = k_code_ok THEN
+        allowed_actions := array_append(allowed_actions, k_action_cancel_assignment);
+    ELSIF requests.req_check_cancel_assignment(p_request_id, p_viewer_id, k_as_volunteer, v_now) = k_code_ok THEN
+        allowed_actions := array_append(allowed_actions, k_action_cancel_assignment);
     END IF;
     IF requests.req_check_confirm_collected(p_request_id, p_viewer_id) = k_code_ok THEN
         allowed_actions := array_append(allowed_actions, k_action_confirm_collected);
