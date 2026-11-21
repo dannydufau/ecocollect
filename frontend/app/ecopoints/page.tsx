@@ -60,7 +60,7 @@ export default function EcoPointsPage() {
                                         <div className="min-w-0 flex-1 basis-60">
                                             <p className="flex flex-wrap items-center gap-x-2">
                                                 <strong>{award.kind === "DELIVERY" ? "Delivery" : "Cancellation"}</strong>{" "}
-                                                <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold text-white ${award.earnedAs === "resident" ? "bg-accent-700" : "bg-accent-2-800"}`}>as {award.earnedAs}</span>
+                                                <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${award.earnedAs === "resident" ? "bg-accent-700 text-on-accent" : "bg-accent-2-800 text-on-moss"}`}>as {award.earnedAs}</span>
                                             </p>
                                             {award.kind === "DELIVERY" && award.categoryName
                                                 ? <p className="break-words">{award.quantity} × {award.categoryName}, <span className="tabular-nums">{award.estimatedWeightKg?.toFixed(2)} kg</span></p>
