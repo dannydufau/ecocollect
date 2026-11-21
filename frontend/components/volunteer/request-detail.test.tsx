@@ -132,3 +132,31 @@ it("shows an error with a retry", async () => {
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(await screen.findByRole("heading", { name: "2 × Computers/Laptops" })).toBeInTheDocument();
 });
+
+it("keeps the status, next step and buttons in one top card", async () => {
+    await show(collected);
+    const top = screen.getByRole("region", { name: "2 × Computers/Laptops" });
+    expect(within(top).getByText("Collected")).toBeInTheDocument();
+    expect(within(top).getByText("What happens next:")).toBeInTheDocument();
+    expect(within(top).getByRole("button", { name: "Record delivery" })).toBeInTheDocument();
+});
+
+it("shows no street address before accepting, even if the server sent none for an Open request", async () => {
+    await show(open);
+    expect(document.body).not.toHaveTextContent("101 Example Street SW");
+    expect(document.body).not.toHaveTextContent("Side door");
+});
+
+it("shows the address card with a moss border after accepting, with a formatted postal code", async () => {
+    await show(active);
+    const card = screen.getByRole("region", { name: "Pickup address and notes" });
+    expect(card).toHaveClass("border-l-4", "border-l-accent-2-700");
+    expect(card).not.toHaveClass("bg-accent-200");
+    expect(within(card).getByText("T2P 1J9")).toHaveClass("font-mono");
+});
+
+it("does not repeat the category and quantity from the title in Details", async () => {
+    await show(open);
+    expect(screen.queryByText("Category")).not.toBeInTheDocument();
+    expect(screen.queryByText("Quantity")).not.toBeInTheDocument();
+});

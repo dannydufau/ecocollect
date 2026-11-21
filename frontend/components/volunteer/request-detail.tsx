@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Alert, QueryError, RequestPhoto, Spinner, StatusBadge, card, pageTitle, panel, textLink } from "@/components/ui";
+import { Alert, QueryError, RequestPhoto, Spinner, StatusBadge, card, mono, pageTitle, textLink } from "@/components/ui";
 import { isAuthError } from "@/lib/api";
 import { formatPostalCode } from "@/lib/postal-code";
 import { nextStepText } from "@/lib/status-text";
@@ -53,76 +53,82 @@ export default function VolunteerRequestDetail({ requestId }: { requestId: strin
     const buttons = actions.filter(({ action }) => request.allowedActions.includes(action));
     const assignment = request.assignment;
 
+    const side = Boolean(assignment || request.resident || request.photoUrl);
+
     return <>
         {back}
-        <header className="min-w-0 space-y-2">
-            <div className="flex flex-wrap items-center gap-3">
-                <h1 className={`break-words ${pageTitle}`}>{request.quantity} × {request.category.name}</h1>
-                <StatusBadge status={request.status} />
+        <section aria-labelledby="request-title" className={`${card} min-w-0 space-y-4`}>
+            <header className="min-w-0 space-y-2">
+                <div className="flex flex-wrap items-center gap-3">
+                    <h1 id="request-title" className={`break-words ${pageTitle}`}>{request.quantity} × {request.category.name}</h1>
+                    <StatusBadge status={request.status} />
+                </div>
+                <p className="text-[17px]"><span className="font-semibold">What happens next:</span> {nextStepText(request.status, "volunteer")}</p>
+            </header>
+            {notice && <Alert variant="success">{notice}</Alert>}
+            {request.viewer === "owner" && <Alert variant="info">This is your own request. You can accept it like any other volunteer.</Alert>}
+            {request.allowedActions.includes("record_delivery") && <Alert variant="info">Your action is needed: record the delivery.</Alert>}
+            {buttons.length > 0 && <section aria-label="Request actions" className="flex flex-wrap gap-3">
+                {buttons.map(({ action, Control }) => <Control key={action} request={request} onDone={setNotice} />)}
+            </section>}
+        </section>
+
+        <div className={`grid min-w-0 items-start gap-6 ${side ? "lg:grid-cols-[minmax(0,1fr)_340px]" : ""}`}>
+            <div className="min-w-0 space-y-6">
+                <section aria-labelledby="details-heading" className={cardStyle}>
+                    <h2 id="details-heading" className={cardTitle}>Details</h2>
+                    <dl className="grid gap-x-4 gap-y-3 sm:grid-cols-[repeat(auto-fit,minmax(160px,1fr))]">
+                        <div><dt className="text-[13px] text-text-muted">Estimated weight</dt><dd className="tabular-nums">{request.estimatedWeightKg.toFixed(2)} kg</dd></div>
+                        <div><dt className="text-[13px] text-text-muted">Postal code</dt><dd className={mono}>{formatPostalCode(request.postalCode)}</dd></div>
+                        {request.status === "Open" && <div><dt className="text-[13px] text-text-muted">Open until</dt><dd>{formatTimestamp(request.expiresAt)}</dd></div>}
+                    </dl>
+                    <div className="space-y-2 border-t border-border pt-3">
+                        <h3>Pickup windows</h3>
+                        <Windows windows={request.windows} />
+                        <p className="text-[13px] text-text-muted">Times are Calgary time.</p>
+                    </div>
+                </section>
+
+                {(request.address || request.notes) && <section aria-labelledby="address-heading" className={`${cardStyle} border-l-4 border-l-accent-2-700`}>
+                    <h2 id="address-heading" className={cardTitle}>Pickup address and notes</h2>
+                    {request.address && <div className="break-words">
+                        <p>{request.address.street}</p>
+                        <p>Calgary, <span className={mono}>{formatPostalCode(request.address.postalCode)}</span></p>
+                    </div>}
+                    {request.notes && <p className="whitespace-pre-wrap break-words"><span className="text-neutral-800">Notes:</span> {request.notes}</p>}
+                </section>}
+
+                {request.delivery && <section aria-labelledby="delivery-heading" className={cardStyle}>
+                    <h2 id="delivery-heading" className={cardTitle}>Delivery</h2>
+                    <p className="break-words">{request.delivery.facility.name}</p>
+                    <p>Delivered {formatTimestamp(request.delivery.deliveredAt)}</p>
+                    {request.delivery.evidencePhotoUrl && <div className="max-w-xs">
+                        <RequestPhoto src={request.delivery.evidencePhotoUrl} alt="Delivery photo" refetch={() => void refetch()} />
+                    </div>}
+                    <Link href="/ecopoints" className={textLink}>See my EcoPoints</Link>
+                </section>}
             </div>
-            <p className="text-[17px]"><span className="font-semibold">What happens next:</span> {nextStepText(request.status, "volunteer")}</p>
-        </header>
 
-        {notice && <Alert variant="success">{notice}</Alert>}
-        {request.viewer === "owner" && <Alert variant="info">This is your own request. You can accept it like any other volunteer.</Alert>}
-        {request.allowedActions.includes("record_delivery") && <Alert variant="info">Your action is needed: record the delivery.</Alert>}
-        {buttons.length > 0 && <section aria-label="Request actions" className="flex flex-wrap gap-3">
-            {buttons.map(({ action, Control }) => <Control key={action} request={request} onDone={setNotice} />)}
-        </section>}
+            {side && <div className="min-w-0 space-y-6">
+                {assignment && <section aria-labelledby="assignment-heading" className={cardStyle}>
+                    <h2 id="assignment-heading" className={cardTitle}>Your pickup</h2>
+                    <p>Accepted {formatTimestamp(assignment.acceptedAt)}</p>
+                    <h3>Selected pickup window</h3>
+                    <Windows windows={[assignment.window]} />
+                    {assignment.collectedAt && <p>Collected {formatTimestamp(assignment.collectedAt)}</p>}
+                    {assignment.status === "Active" && <p className="text-neutral-800">Waiting for the resident to confirm collection.</p>}
+                </section>}
 
-        <section aria-labelledby="details-heading" className={cardStyle}>
-            <h2 id="details-heading" className={cardTitle}>Details</h2>
-            <dl className="grid gap-x-4 gap-y-3 sm:grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
-                <div><dt className="text-[13px] text-text-muted">Category</dt><dd className="break-words">{request.category.name}</dd></div>
-                <div><dt className="text-[13px] text-text-muted">Quantity</dt><dd>{request.quantity}</dd></div>
-                <div><dt className="text-[13px] text-text-muted">Estimated weight</dt><dd>{request.estimatedWeightKg.toFixed(2)} kg</dd></div>
-                <div><dt className="text-[13px] text-text-muted">Postal code</dt><dd>{formatPostalCode(request.postalCode)}</dd></div>
-                {request.status === "Open" && <div><dt className="text-[13px] text-text-muted">Open until</dt><dd>{formatTimestamp(request.expiresAt)}</dd></div>}
-            </dl>
-        </section>
+                {request.resident && <section aria-labelledby="resident-heading" className={cardStyle}>
+                    <h2 id="resident-heading" className={cardTitle}>Resident</h2>
+                    <Link href={`/profiles/${encodeURIComponent(request.resident.accountId)}`} className={`break-words ${textLink}`}>{request.resident.publicName}</Link>
+                </section>}
 
-        <section aria-labelledby="windows-heading" className={cardStyle}>
-            <h2 id="windows-heading" className={cardTitle}>Pickup windows</h2>
-            <Windows windows={request.windows} />
-            <p className="text-[13px] text-text-muted">Times are Calgary time.</p>
-        </section>
-
-        {request.photoUrl && <section aria-labelledby="photo-heading" className={cardStyle}>
-            <h2 id="photo-heading" className={cardTitle}>Photo</h2>
-            <div className="max-w-xs"><RequestPhoto src={request.photoUrl} alt="Photo of the items" refetch={() => void refetch()} /></div>
-        </section>}
-
-        {(request.address || request.notes) && <section aria-labelledby="address-heading" className={`${panel} min-w-0 space-y-3 border-border bg-accent-200`}>
-            <h2 id="address-heading" className={cardTitle}>Pickup address and notes</h2>
-            {request.address && <div className="break-words">
-                <p>{request.address.street}</p>
-                <p>Calgary, {formatPostalCode(request.address.postalCode)}</p>
+                {request.photoUrl && <section aria-labelledby="photo-heading" className={cardStyle}>
+                    <h2 id="photo-heading" className={cardTitle}>Photo</h2>
+                    <div className="max-w-xs"><RequestPhoto src={request.photoUrl} alt="Photo of the items" refetch={() => void refetch()} /></div>
+                </section>}
             </div>}
-            {request.notes && <p className="whitespace-pre-wrap break-words"><span className="text-neutral-800">Notes:</span> {request.notes}</p>}
-        </section>}
-
-        {request.resident && <section aria-labelledby="resident-heading" className={cardStyle}>
-            <h2 id="resident-heading" className={cardTitle}>Resident</h2>
-            <Link href={`/profiles/${encodeURIComponent(request.resident.accountId)}`} className={`break-words ${textLink}`}>{request.resident.publicName}</Link>
-        </section>}
-
-        {assignment && <section aria-labelledby="assignment-heading" className={cardStyle}>
-            <h2 id="assignment-heading" className={cardTitle}>Your pickup</h2>
-            <p>Accepted {formatTimestamp(assignment.acceptedAt)}</p>
-            <h3 className="text-lg">Selected pickup window</h3>
-            <Windows windows={[assignment.window]} />
-            {assignment.collectedAt && <p>Collected {formatTimestamp(assignment.collectedAt)}</p>}
-            {assignment.status === "Active" && <p className="text-neutral-800">Waiting for the resident to confirm collection.</p>}
-        </section>}
-
-        {request.delivery && <section aria-labelledby="delivery-heading" className={cardStyle}>
-            <h2 id="delivery-heading" className={cardTitle}>Delivery</h2>
-            <p className="break-words">{request.delivery.facility.name}</p>
-            <p>Delivered {formatTimestamp(request.delivery.deliveredAt)}</p>
-            {request.delivery.evidencePhotoUrl && <div className="max-w-xs">
-                <RequestPhoto src={request.delivery.evidencePhotoUrl} alt="Delivery photo" refetch={() => void refetch()} />
-            </div>}
-            <Link href="/ecopoints" className={textLink}>See my EcoPoints</Link>
-        </section>}
+        </div>
     </>;
 }

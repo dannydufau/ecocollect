@@ -12,4 +12,5 @@ it("passes the id from the url to the detail", () => {
     render(<VolunteerRequestPage />);
     expect(screen.getByText("Details for request-123")).toBeInTheDocument();
     expect(screen.getByRole("main")).toBeInTheDocument();
+    expect(screen.getByRole("main").firstChild).toHaveClass("max-w-5xl");
 });
