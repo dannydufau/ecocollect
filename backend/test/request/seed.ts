@@ -48,3 +48,12 @@ export const SEED_ASSIGNED_REQUEST_ID = '00000003-0000-4000-8000-000000000002';
 
 /** The volunteer (`terms_acceptance.account_id`) of an `assignment` on `SEED_ASSIGNED_REQUEST_ID` with `end_reason` `Volunteer_Cancelled`. */
 export const SEED_CANCELLED_VOLUNTEER_ID = 'volunteer3';
+
+/** An `account_id` in `INSERT INTO volunteer` other than `SEED_VOLUNTEER_ID`. */
+export const SEED_OTHER_VOLUNTEER_ID = 'volunteer2';
+
+/** A `pickup_request_id` whose last `status_change` is `Open`, used by no other test: the Q11 test accepts it. */
+export const SEED_ACCEPT_REQUEST_ID = '00000003-0000-4000-8000-00000000000b';
+
+/** The `pickup_window_id` of `SEED_ACCEPT_REQUEST_ID` in `INSERT INTO pickup_window` (active, 3 days after the load). */
+export const SEED_ACCEPT_WINDOW_ID = '00000004-0000-4000-8000-00000000000b';
