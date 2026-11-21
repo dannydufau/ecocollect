@@ -41,7 +41,7 @@ export default function EnableNotifications() {
     }
 
     if (view === "checking") return null;
-    if (view === "on") return <p role="status" className="flex flex-wrap items-center gap-2"><BellIcon className="size-5" /><strong>On</strong> Device notifications are on.</p>;
+    if (view === "on") return <p role="status" className="flex flex-wrap items-center gap-2"><BellIcon className="size-5" /><strong>On</strong><span>You will get notifications on this device.</span></p>;
     if (view === "unsupported") return <p role="status">This browser does not support device notifications.</p>;
     if (view === "no-key") return <Alert variant="info">Notifications are not set up yet.</Alert>;
     if (view === "blocked") return <div className="space-y-2">

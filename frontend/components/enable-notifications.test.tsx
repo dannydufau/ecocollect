@@ -71,7 +71,7 @@ it("says On, with no button, when already subscribed", async () => {
     render(<EnableNotifications />);
 
     expect(await screen.findByText("On")).toBeInTheDocument();
-    expect(screen.getByText("Device notifications are on.")).toHaveAttribute("role", "status");
+    expect(screen.getByRole("status")).toHaveTextContent("You will get notifications on this device.");
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
     expect(requestPermission).not.toHaveBeenCalled();
 });
