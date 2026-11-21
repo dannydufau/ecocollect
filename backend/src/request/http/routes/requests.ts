@@ -5,12 +5,14 @@
 // Q11 POST /api/requests/:id/assignment (volunteers): accept, then the detail.
 // Q12 POST /api/requests/:id/assignment/cancel (owner or assigned volunteer): cancel the assignment, then the detail.
 // Q13 POST /api/requests/:id/assignment/collected (the owner): confirm, then the detail.
+// Q14 POST /api/requests/:id/assignment/missed (the owner): report missed, then the detail and the rescheduled request.
 // Q15 POST /api/requests/:id/assignment/delivery (the assigned volunteer): deliver, then the detail.
 import { Router } from 'express';
 import * as v from 'valibot';
 import type { RouteDeps } from '../../app.ts';
 import {
   accept, cancel, cancelAssignment, confirmCollected, createRequests, getDetail, getRequests, listAvailable, listMine, recordDelivery,
+  reportMissed,
 } from '../../db/functions.ts';
 import { availableRequest, createdRequest, myRequest, requestDetail } from '../../json/responses.ts';
 import { parseAcceptBody } from '../accept-body.ts';
@@ -19,6 +21,7 @@ import { parseCancelAssignmentBody } from '../cancel-assignment-body.ts';
 import { parseCancelBody } from '../cancel-body.ts';
 import { parseCreateRequestsBody } from '../create-requests-body.ts';
 import { parseRecordDeliveryBody } from '../record-delivery-body.ts';
+import { parseReportMissedBody } from '../report-missed-body.ts';
 import {
   forbidden, HttpError, requestUnavailable, termsOutdated, validationFailed, validationFailedFromDb,
 } from '../errors.ts';
@@ -249,6 +252,52 @@ export default function requestsRouter({ pool, nudgePublisher, demo, imagekit }:
     const row = await getDetail(pool, id, caller.id);
     if (row.result_code !== 'ok') throw requestUnavailable();
     res.json(requestDetail(row));
+  });
+
+  // Order: role (403), id (404), body shape (400), one write call; then the
+  // missed request's detail and, when rescheduled, the new request as Q4 returns
+  // it. Owner, state, terms and window checks come from req_report_missed.
+  router.post('/api/requests/:id/assignment/missed', requireRole('resident'), async (req, res) => {
+    const caller = callerOf(res);
+    const id = req.params.id;
+    if (!v.is(Uuid, id)) throw requestUnavailable();
+    const body = parseReportMissedBody(req.body);
+
+    const result = await reportMissed(pool, {
+      requestId: id, residentId: caller.id, ...body, demo, traceId: caller.traceId,
+    });
+    switch (result.result_code) {
+      case 'request_unavailable':
+        throw requestUnavailable();
+      case 'forbidden':
+        throw forbidden('Only the owner of this request can report a missed pickup.');
+      case 'not_assigned':
+        throw new HttpError(409, 'not_assigned', 'This request is not waiting for a pickup.');
+      case 'window_not_ended':
+        throw new HttpError(409, 'window_not_ended',
+          'The pickup window has not ended yet. You can report a missed pickup once it ends.');
+      case 'terms_outdated':
+        throw termsOutdated();
+      case 'validation_failed':
+        throw validationFailedFromDb(result.error_fields, result.error_messages);
+      case 'ok':
+        nudgePublisher();              // RequestAssignmentMissed, and RequestCreated if rescheduled, are in the outbox
+        break;
+    }
+
+    // Committed; a missing detail means another action changed it in between.
+    const row = await getDetail(pool, id, caller.id);
+    if (row.result_code !== 'ok') throw requestUnavailable();
+
+    // The new request is the caller's own and was just created, so a missing row is a bug.
+    let rescheduledRequest = null;
+    const newId = result.rescheduled_request_id;
+    if (newId !== null) {
+      const rows = await getRequests(pool, [newId], caller.id);
+      if (rows.length !== 1) throw new Error(`Q14: rescheduled request ${newId} not read back`);
+      rescheduledRequest = createdRequest(rows[0]!);
+    }
+    res.json({ request: requestDetail(row), rescheduledRequest });
   });
 
   // Order: role (403), id (404), body shape (400), the ImageKit check, one write

@@ -4,7 +4,7 @@ import type pg from 'pg';
 import type {
   AcceptInput, AcceptRow, CancelAssignmentInput, CancelAssignmentRow, CancelInput, CancelRow, CategoryRow, ConfirmCollectedInput, ConfirmCollectedRow, CreateRequestsInput,
   CreateRequestsRow, FacilityRow, GetDetailRow, GetRequestsRow, ListAvailableRow, ListMineRow,
-  RecordDeliveryInput, RecordDeliveryRow,
+  RecordDeliveryInput, RecordDeliveryRow, ReportMissedInput, ReportMissedRow,
 } from '../domain/types.ts';
 
 export async function listCategories(pool: pg.Pool): Promise<CategoryRow[]> {
@@ -104,6 +104,17 @@ export async function cancelAssignment(pool: pg.Pool, input: CancelAssignmentInp
   const { rows } = await pool.query<CancelAssignmentRow>(
     'SELECT * FROM requests.req_cancel_assignment($1::uuid, $2, $3, $4, $5::date[], $6::smallint[], $7, $8)',
     [input.requestId, input.actorId, input.as, input.reason, input.dates, input.hours, input.demo, input.traceId]);
+  // a function with OUT parameters always returns exactly one row, so the ! (not-null assertion) is safe.
+  return rows[0]!;
+}
+
+// Q14. One call locks the request, checks it, ends the assignment as missed and,
+// with a reschedule, creates the new request; its events go in the outbox.
+export async function reportMissed(pool: pg.Pool, input: ReportMissedInput): Promise<ReportMissedRow> {
+  const { rows } = await pool.query<ReportMissedRow>(
+    'SELECT * FROM requests.req_report_missed($1::uuid, $2, $3, $4, $5::uuid, $6::date[], $7::smallint[], $8, $9)',
+    [input.requestId, input.residentId, input.reason, input.reschedule, input.termsDocumentId,
+     input.dates, input.hours, input.demo, input.traceId]);
   // a function with OUT parameters always returns exactly one row, so the ! (not-null assertion) is safe.
   return rows[0]!;
 }

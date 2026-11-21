@@ -204,6 +204,26 @@ export type RecordDeliveryInput = {
   traceId: string | null;
 };
 
+export type ReportMissedInput = {
+  requestId: string;                   // a well-formed UUID (checked before the call)
+  residentId: string;
+  reason: string | null;               // normalised: at most 500 characters, blank -> null
+  reschedule: boolean;                 // the body has `reschedule`
+  termsDocumentId: string | null;      // null: no reschedule, or not a UUID
+  dates: string[] | null;              // 'YYYY-MM-DD'; null: no reschedule
+  hours: number[] | null;              // paired with dates
+  demo: boolean;
+  traceId: string | null;
+};
+
+export type ReportMissedRow = {
+  result_code: 'ok' | 'request_unavailable' | 'forbidden' | 'not_assigned' | 'window_not_ended'
+  | 'terms_outdated' | 'validation_failed';
+  error_fields: string[];              // paired with error_messages, element by element
+  error_messages: string[];
+  rescheduled_request_id: string | null; // set for 'ok' with a reschedule
+};
+
 export type RecordDeliveryRow = {
   result_code: 'ok' | 'request_unavailable' | 'forbidden' | 'already_delivered' | 'not_collected'
   | 'validation_failed';
