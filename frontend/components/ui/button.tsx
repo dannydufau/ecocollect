@@ -17,7 +17,7 @@ type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
 export function Button({ variant = "primary", busy = false, busyLabel, disabled, children, className = "", ...rest }: Props) {
     return (
         <button type="button" {...rest} disabled={disabled || busy} aria-busy={busy}
-            className={`min-h-11 rounded-full px-5 py-2 font-[family-name:var(--font-heading)] disabled:cursor-not-allowed disabled:opacity-60 ${variants[variant]} ${className}`}>
+            className={`min-h-11 rounded-full px-5 py-2 font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${variants[variant]} ${className}`}>
             {busy && busyLabel ? busyLabel : children}
         </button>
     );

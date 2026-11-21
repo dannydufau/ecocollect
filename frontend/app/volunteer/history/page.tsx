@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Alert, Button, EmptyState, FilterTabs, Spinner, clickableCard, card, pageTitle, stretchedLink } from "@/components/ui";
+import { Alert, Button, EmptyState, FilterTabs, Spinner, clickableCard, card, mono, pageTitle, stretchedLink } from "@/components/ui";
 import { api } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { formatPostalCode } from "@/lib/postal-code";
@@ -53,13 +53,13 @@ export default function VolunteerHistoryPage() {
                             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
                                 {row.category
                                     ? <Link href={`/volunteer/requests/${encodeURIComponent(row.requestId)}`} className={stretchedLink}>{row.quantity} × {row.category.name}</Link>
-                                    : <p className="font-[family-name:var(--font-heading)] text-[21px]">Request no longer available to you</p>}
+                                    : <p className="text-lg font-bold">Request no longer available to you</p>}
                                 <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-3.5 py-1 text-[13px] font-semibold ${status.style}`}>
                                     <span aria-hidden="true">{status.symbol}</span>{status.label}
                                 </span>
                             </div>
                             {row.assignment.status === "Collected" && <p className="text-[13px] font-semibold text-accent-800">Record delivery</p>}
-                            {row.estimatedWeightKg !== null && row.postalCode !== null && <p className="text-neutral-800">{row.estimatedWeightKg.toFixed(2)} kg · {formatPostalCode(row.postalCode)}</p>}
+                            {row.estimatedWeightKg !== null && row.postalCode !== null && <p className="text-neutral-800"><span className="tabular-nums">{row.estimatedWeightKg.toFixed(2)} kg</span> · <span className={mono}>{formatPostalCode(row.postalCode)}</span></p>}
                             <p>{formatWindow(row.assignment.window)}</p>
                             <p className="text-[13px] text-text-muted">Accepted {formatTimestamp(row.assignment.acceptedAt)}</p>
                             {row.assignment.endedAt && <p className="text-[13px] text-text-muted">Ended {formatTimestamp(row.assignment.endedAt)}</p>}

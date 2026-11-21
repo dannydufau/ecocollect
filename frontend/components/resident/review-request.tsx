@@ -32,7 +32,7 @@ export default function ReviewRequest({ values, busy, accepted, onBack, onConfir
             <ul className="space-y-3">{values.items.map(item => {
                 const found = category(item.categoryId);
                 return <li key={item.categoryId} className={`${card} flex flex-col gap-0.5 break-words`}>
-                    <span className="font-[family-name:var(--font-heading)] text-[21px]">{item.quantity} × {found?.name ?? item.categoryId}</span>
+                    <span className="text-lg font-bold">{item.quantity} × {found?.name ?? item.categoryId}</span>
                     {found && <span>Estimated weight: <strong>{(found.standardWeightKg * Number(item.quantity)).toFixed(2)} kg</strong></span>}
                     {item.photo && <span>Photo attached</span>}
                 </li>;
