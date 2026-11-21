@@ -64,7 +64,7 @@ export function PublicNameEditor(props: EditorProps) {
     const name = draft ?? profile.publicName;
 
     return (
-        <Editable id="public-name" editLabel="Edit public name" open={open} unsaved={draft !== null} saving={save.isPending} message={message}
+        <Editable id="public-name" editLabel="Edit public name" open={open} unsaved={draft !== null && draft !== profile.publicName} saving={save.isPending} message={message}
             onOpen={() => { reset(); onOpen(); }} onClose={cancel}
             onSubmit={() => {
                 const publicName = name.trim();
@@ -87,7 +87,7 @@ export function AddressEditor(props: EditorProps) {
     const postalCode = draft?.postalCode ?? address?.postalCode ?? "";
 
     return (
-        <Editable id="address" editLabel="Edit address" open={open} unsaved={draft !== null} saving={save.isPending} message={message}
+        <Editable id="address" editLabel="Edit address" open={open} unsaved={draft !== null && (street !== (address?.street ?? "") || postalCode !== (address?.postalCode ?? ""))} saving={save.isPending} message={message}
             onOpen={() => { reset(); onOpen(); }} onClose={cancel}
             onSubmit={() => {
                 const next = { street: street.trim(), postalCode: normalizePostalCode(postalCode) };
@@ -109,7 +109,7 @@ export function CodesEditor(props: EditorProps) {
     const codes = draft ?? profile.preferredPostalCodes;
 
     return (
-        <Editable id="codes" editLabel="Edit preferred postal codes" open={open} unsaved={draft !== null} saving={save.isPending} message={message}
+        <Editable id="codes" editLabel="Edit preferred postal codes" open={open} unsaved={draft !== null && codes.join() !== profile.preferredPostalCodes.join()} saving={save.isPending} message={message}
             onOpen={() => { reset(); onOpen(); }} onClose={cancel}
             onSubmit={() => {
                 const next = codes.map(normalizePostalCode).filter(Boolean);

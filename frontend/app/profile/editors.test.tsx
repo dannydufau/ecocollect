@@ -202,3 +202,12 @@ it("keeps the lock note on the address after the server says it is locked", asyn
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.getByText("Locked while you have an Open or Assigned request.")).toBeInTheDocument();
 });
+
+it("does not say there are unsaved changes when the typing is put back to the saved value", async () => {
+    await show(resident);
+    edit("Edit public name");
+    type("Public name", "Half typed");
+    type("Public name", "Maya C.");
+    edit("Edit address");
+    expect(screen.queryByText(/unsaved changes/)).not.toBeInTheDocument();
+});
