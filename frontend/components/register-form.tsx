@@ -143,7 +143,7 @@ export default function RegisterForm({ onValid, fieldErrors = {}, busy = false, 
                 {children}
                 <div className="flex flex-wrap items-center gap-4">
                     <Button type="submit" busy={busy} busyLabel="Creating account..." disabled={submitDisabled} aria-describedby={submitHint ? `${id}-submit-hint` : undefined} className="px-7">Create account</Button>
-                    {submitHint && <p id={`${id}-submit-hint`} className="text-[13px] text-neutral-700">{submitHint}</p>}
+                    {submitHint && <p id={`${id}-submit-hint`} className="text-[13px] text-text-muted">{submitHint}</p>}
                     <Link href="/login" className={textLink}>Already have an account? Sign in</Link>
                 </div>
             </fieldset>
