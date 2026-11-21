@@ -190,3 +190,18 @@ it("moves focus back to the file input after Remove", async () => {
     await userEvent.click(await screen.findByRole("button", { name: "Remove photo" }));
     expect(input).toHaveFocus();
 });
+
+it("shows the location note and a hidden input inside a dashed label with a camera icon", () => {
+    const { input } = setup();
+    expect(screen.getByText("Location and EXIF data are removed automatically.")).toBeInTheDocument();
+    expect(input).toHaveClass("sr-only");
+    const label = input.closest("label")!;
+    expect(label).toHaveClass("border-dashed", "has-[:focus-visible]:outline-3");
+    expect(label.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+});
+
+it("can be reached with the keyboard", async () => {
+    const { input } = setup();
+    await userEvent.tab();
+    expect(input).toHaveFocus();
+});

@@ -46,7 +46,7 @@ it("asks for permission, subscribes and posts the subscription", async () => {
     expect(subscribe).toHaveBeenCalledWith({ userVisibleOnly: true, applicationServerKey: new Uint8Array([1, 2, 3]) });
     expect(api.post).toHaveBeenCalledWith("/api/push/subscriptions", json);
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
-    expect(screen.getByText("Device notifications are on.")).toBeInTheDocument();
+    expect(screen.getByText("You will get notifications on this device.")).toBeInTheDocument();
 });
 
 it("shows the hint and posts nothing when permission is denied on click", async () => {
@@ -67,11 +67,12 @@ it("shows the hint without a button when permission was already denied", async (
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
 });
 
-it("says notifications are on, with no button, when already subscribed", async () => {
+it("says On, with no button, when already subscribed", async () => {
     const { requestPermission } = fakeBrowser({ permission: "granted", existing: { endpoint: json.endpoint } });
     render(<EnableNotifications />);
 
-    expect(await screen.findByText("Device notifications are on.")).toBeInTheDocument();
+    expect(await screen.findByText("On")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("You will get notifications on this device.");
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
     expect(requestPermission).not.toHaveBeenCalled();
 });
@@ -80,6 +81,19 @@ it("says so in a browser without push", async () => {
     render(<EnableNotifications />);
     expect(await screen.findByText("This browser does not support device notifications.")).toBeInTheDocument();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
+});
+
+it("says Blocked when permission was denied", async () => {
+    fakeBrowser({ permission: "denied" });
+    render(<EnableNotifications />);
+    expect(await screen.findByText("Blocked")).toBeInTheDocument();
+});
+
+it("offers Turn on with a hidden bell icon", async () => {
+    fakeBrowser();
+    render(<EnableNotifications />);
+    const button = await screen.findByRole("button", { name: "Turn on device notifications" });
+    expect(button.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
 });
 
 it("says notifications are not set up when the VAPID key is empty", async () => {

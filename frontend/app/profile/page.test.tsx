@@ -8,7 +8,6 @@ import ProfilePage from "./page";
 vi.mock("@/lib/firebase", () => ({ auth: {} }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }) }));
 vi.mock("@/lib/auth-context", () => ({ useAuth: () => ({ refreshRoles: async () => [], signOut: async () => {} }) }));
-vi.mock("@/lib/auth-context", () => ({ useAuth: () => ({ refreshRoles: async () => [] }) }));
 vi.mock("@/lib/api", async (importOriginal) => ({
     ...(await importOriginal<typeof import("@/lib/api")>()),
     api: { get: vi.fn(), post: vi.fn() },
