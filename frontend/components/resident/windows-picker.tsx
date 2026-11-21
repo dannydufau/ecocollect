@@ -82,15 +82,14 @@ export function WindowsPicker({ value, onChange, createdAt }: {
                                         className={`${input} min-w-0`}>
                                         <option value="" disabled>Choose an hour</option>
                                         {Array.from({ length: 24 }, (_, hour) => (
-                                            <option key={hour} value={hour}>{formatHour(hour)}</option>
+                                            <option key={hour} value={hour} disabled={row.date === today && hour <= currentHour}>{formatHour(hour)}</option>
                                         ))}
                                     </select>
                                 </div>
-                                <Button variant="secondary" aria-label={`Remove window ${index + 1}`}
-                                    disabled={draft.rows.length === 1}
+                                {draft.rows.length > 1 && <Button variant="secondary" aria-label={`Remove window ${index + 1}`}
                                     onClick={() => updateRows(draft.rows.filter((_, rowIndex) => rowIndex !== index))}>
                                     Remove
-                                </Button>
+                                </Button>}
                             </div>
                             {error && <p id={errorId} role="alert" className="mt-2 text-[13px] font-semibold text-danger">{error}</p>}
                         </div>

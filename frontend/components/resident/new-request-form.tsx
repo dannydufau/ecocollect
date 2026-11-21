@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import RequestForm, { validate, type RequestValues } from "./request-form";
 import ReviewRequest from "./review-request";
 import TermsCheckbox from "@/components/terms-checkbox";
-import { Alert } from "@/components/ui";
+import { Alert, pageTitle } from "@/components/ui";
 import { apiFetch, ApiError, friendlyError } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { useTerms } from "@/lib/use-terms";
@@ -84,6 +84,11 @@ export default function NewRequestForm() {
     }
 
     return <>
+        <p aria-current="step" className="text-sm font-semibold text-text-muted">Step {review ? 2 : 1} of 2</p>
+        {!review && <>
+            <h1 className={pageTitle}>New pickup request</h1>
+            <p>Add the items you want collected. Each item becomes its own request.</p>
+        </>}
         <div ref={editor} hidden={review !== null}>
             <RequestForm onValid={values => { clearErrors(); setTermsDocumentId(null); setReview(values); }} fieldErrors={fields} busy={busy} submitLabel="Review" onEdit={clearErrors}>
                 {message && !review && <Alert variant="error">{message}</Alert>}
