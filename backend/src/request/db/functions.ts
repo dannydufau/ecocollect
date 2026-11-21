@@ -2,7 +2,7 @@
 // pool.query: one function call that PostgreSQL commits on its own.
 import type pg from 'pg';
 import type {
-  AcceptInput, AcceptRow, CancelInput, CancelRow, CategoryRow, ConfirmCollectedInput, ConfirmCollectedRow, CreateRequestsInput,
+  AcceptInput, AcceptRow, CancelAssignmentInput, CancelAssignmentRow, CancelInput, CancelRow, CategoryRow, ConfirmCollectedInput, ConfirmCollectedRow, CreateRequestsInput,
   CreateRequestsRow, FacilityRow, GetDetailRow, GetRequestsRow, ListAvailableRow, ListMineRow,
   RecordDeliveryInput, RecordDeliveryRow,
 } from '../domain/types.ts';
@@ -96,6 +96,14 @@ export async function cancel(pool: pg.Pool, input: CancelInput): Promise<CancelR
   const { rows } = await pool.query<CancelRow>(
     'SELECT * FROM requests.req_cancel($1::uuid, $2, $3, $4)',
     [input.requestId, input.residentId, input.reason, input.traceId]);
+  // a function with OUT parameters always returns exactly one row, so the ! (not-null assertion) is safe.
+  return rows[0]!;
+}
+
+export async function cancelAssignment(pool: pg.Pool, input: CancelAssignmentInput): Promise<CancelAssignmentRow> {
+  const { rows } = await pool.query<CancelAssignmentRow>(
+    'SELECT * FROM requests.req_cancel_assignment($1::uuid, $2, $3, $4, $5::date[], $6::smallint[], $7, $8)',
+    [input.requestId, input.actorId, input.as, input.reason, input.dates, input.hours, input.demo, input.traceId]);
   // a function with OUT parameters always returns exactly one row, so the ! (not-null assertion) is safe.
   return rows[0]!;
 }

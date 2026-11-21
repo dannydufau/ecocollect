@@ -177,6 +177,24 @@ export type CancelRow = {
   result_code: 'ok' | 'request_unavailable' | 'forbidden' | 'window_ended' | 'not_cancellable' | 'expired';
 };
 
+export type CancelAssignmentInput = {
+  requestId: string;                   // a well-formed UUID (checked before the call)
+  actorId: string;                     // the owner or the assigned volunteer: SQL decides
+  as: 'resident' | 'volunteer' | null;
+  reason: string | null;               // normalised: at most 500 characters, blank -> null
+  dates: string[] | null;              // 'YYYY-MM-DD'; null: no windows sent
+  hours: number[] | null;              // paired with dates
+  demo: boolean;
+  traceId: string | null;
+};
+
+export type CancelAssignmentRow = {
+  result_code: 'ok' | 'request_unavailable' | 'forbidden' | 'already_collected' | 'no_active_assignment'
+  | 'window_ended' | 'validation_failed';
+  error_fields: string[];              // paired with error_messages, element by element
+  error_messages: string[];
+};
+
 export type RecordDeliveryInput = {
   requestId: string;                   // a well-formed UUID (checked before the call)
   volunteerId: string;

@@ -3,17 +3,19 @@
 // Q8 GET /api/requests/:id: any signed-in caller; the database decides what they see.
 // Q10 POST /api/requests/:id/cancel (the owner): cancel, then the detail.
 // Q11 POST /api/requests/:id/assignment (volunteers): accept, then the detail.
+// Q12 POST /api/requests/:id/assignment/cancel (owner or assigned volunteer): cancel the assignment, then the detail.
 // Q13 POST /api/requests/:id/assignment/collected (the owner): confirm, then the detail.
 // Q15 POST /api/requests/:id/assignment/delivery (the assigned volunteer): deliver, then the detail.
 import { Router } from 'express';
 import * as v from 'valibot';
 import type { RouteDeps } from '../../app.ts';
 import {
-  accept, cancel, confirmCollected, createRequests, getDetail, getRequests, listAvailable, listMine, recordDelivery,
+  accept, cancel, cancelAssignment, confirmCollected, createRequests, getDetail, getRequests, listAvailable, listMine, recordDelivery,
 } from '../../db/functions.ts';
 import { availableRequest, createdRequest, myRequest, requestDetail } from '../../json/responses.ts';
 import { parseAcceptBody } from '../accept-body.ts';
 import { Uuid } from '../body-validation.ts';
+import { parseCancelAssignmentBody } from '../cancel-assignment-body.ts';
 import { parseCancelBody } from '../cancel-body.ts';
 import { parseCreateRequestsBody } from '../create-requests-body.ts';
 import { parseRecordDeliveryBody } from '../record-delivery-body.ts';
@@ -182,6 +184,45 @@ export default function requestsRouter({ pool, nudgePublisher, demo, imagekit }:
     const row = await getDetail(pool, id, caller.id);
     if (row.result_code !== 'ok') throw requestUnavailable();
     res.status(201).json(requestDetail(row));
+  });
+
+  // Order: id (404), body shape (400), one write call; then the detail, as in
+  // Q11. No role guard: the caller is the owner or the assigned volunteer, which
+  // only the database knows; req_cancel_assignment decides the side, `as`, the
+  // state and the windows.
+  router.post('/api/requests/:id/assignment/cancel', async (req, res) => {
+    const caller = callerOf(res);
+    const id = req.params.id;
+    if (!v.is(Uuid, id)) throw requestUnavailable();
+    const body = parseCancelAssignmentBody(req.body);
+
+    const result = await cancelAssignment(pool, {
+      requestId: id, actorId: caller.id, ...body, demo, traceId: caller.traceId,
+    });
+    switch (result.result_code) {
+      case 'request_unavailable':
+        throw requestUnavailable();
+      case 'forbidden':
+        throw forbidden('Only the owner or the assigned volunteer can cancel this assignment.');
+      case 'already_collected':
+        throw new HttpError(409, 'already_collected', 'The items were already collected.');
+      case 'no_active_assignment':
+        throw new HttpError(409, 'no_active_assignment', 'This request has no active assignment.');
+      case 'window_ended':
+        throw new HttpError(409, 'window_ended',
+          'The pickup window has ended. Confirm the collection or report a missed pickup instead.');
+      case 'validation_failed':
+        throw validationFailedFromDb(result.error_fields, result.error_messages);
+      case 'ok':
+        nudgePublisher();              // E6 or E7, then E2 or E10, are in the outbox
+        break;
+    }
+
+    // Committed. A volunteer whose cancellation expired the request may no longer
+    // see it (Q8), so the answer is 404 as Q8 would give now, not a 500.
+    const row = await getDetail(pool, id, caller.id);
+    if (row.result_code !== 'ok') throw requestUnavailable();
+    res.json(requestDetail(row));
   });
 
   // Order: role (403), id (404), one write call; then the detail, as in Q11.
