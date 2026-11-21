@@ -51,7 +51,7 @@ export function PublicNameEditor(props: EditorProps) {
                 const publicName = name.trim();
                 send(publicName ? {} : { publicName: "Enter a public name." }, publicName !== profile.publicName ? { publicName } : {});
             }}
-            read={<><p className="text-[13px] text-neutral-700">Public name</p><p className="break-words">{profile.publicName}</p></>}
+            read={<><p className="text-[13px] text-text-muted">Public name</p><p className="break-words">{profile.publicName}</p></>}
             fields={<Field label="Public name" hint="Other people see this name." error={errors.publicName}>
                 {(control) => <input {...control} type="text" autoComplete="nickname" value={name} className={input}
                     onChange={(event) => setName(event.target.value)} />}

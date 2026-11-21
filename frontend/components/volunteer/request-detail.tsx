@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Alert, Button, RequestPhoto, Spinner, StatusBadge, card, pageTitle, textLink } from "@/components/ui";
+import { Alert, Button, RequestPhoto, Spinner, StatusBadge, card, pageTitle, panel, textLink } from "@/components/ui";
 import { isAuthError } from "@/lib/api";
 import { nextStepText } from "@/lib/status-text";
 import { formatTimestamp, formatWindow, friendlyWindow } from "@/lib/time";
@@ -25,7 +25,7 @@ function Windows({ windows }: { windows: PickupWindow[] }) {
     return <ul className="space-y-1">
         {windows.map((window, index) => <li key={`${window.date}-${window.startHour}-${index}`}>
             <strong>{friendlyWindow(window)}</strong><br />
-            <span className="text-[13px] text-neutral-700">{formatWindow(window)}</span>
+            <span className="text-[13px] text-text-muted">{formatWindow(window)}</span>
         </li>)}
     </ul>;
 }
@@ -73,18 +73,18 @@ export default function VolunteerRequestDetail({ requestId }: { requestId: strin
         <section aria-labelledby="details-heading" className={cardStyle}>
             <h2 id="details-heading" className={cardTitle}>Details</h2>
             <dl className="grid gap-x-4 gap-y-3 sm:grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
-                <div><dt className="text-[13px] text-neutral-700">Category</dt><dd className="break-words">{request.category.name}</dd></div>
-                <div><dt className="text-[13px] text-neutral-700">Quantity</dt><dd>{request.quantity}</dd></div>
-                <div><dt className="text-[13px] text-neutral-700">Estimated weight</dt><dd>{request.estimatedWeightKg.toFixed(2)} kg</dd></div>
-                <div><dt className="text-[13px] text-neutral-700">Postal code</dt><dd>{request.postalCode}</dd></div>
-                {request.status === "Open" && <div><dt className="text-[13px] text-neutral-700">Open until</dt><dd>{formatTimestamp(request.expiresAt)}</dd></div>}
+                <div><dt className="text-[13px] text-text-muted">Category</dt><dd className="break-words">{request.category.name}</dd></div>
+                <div><dt className="text-[13px] text-text-muted">Quantity</dt><dd>{request.quantity}</dd></div>
+                <div><dt className="text-[13px] text-text-muted">Estimated weight</dt><dd>{request.estimatedWeightKg.toFixed(2)} kg</dd></div>
+                <div><dt className="text-[13px] text-text-muted">Postal code</dt><dd>{request.postalCode}</dd></div>
+                {request.status === "Open" && <div><dt className="text-[13px] text-text-muted">Open until</dt><dd>{formatTimestamp(request.expiresAt)}</dd></div>}
             </dl>
         </section>
 
         <section aria-labelledby="windows-heading" className={cardStyle}>
             <h2 id="windows-heading" className={cardTitle}>Pickup windows</h2>
             <Windows windows={request.windows} />
-            <p className="text-[13px] text-neutral-700">Times are Calgary time.</p>
+            <p className="text-[13px] text-text-muted">Times are Calgary time.</p>
         </section>
 
         {request.photoUrl && <section aria-labelledby="photo-heading" className={cardStyle}>
@@ -92,7 +92,7 @@ export default function VolunteerRequestDetail({ requestId }: { requestId: strin
             <div className="max-w-xs"><RequestPhoto src={request.photoUrl} alt="Photo of the items" refetch={() => void refetch()} /></div>
         </section>}
 
-        {(request.address || request.notes) && <section aria-labelledby="address-heading" className={`${cardStyle} bg-accent-200!`}>
+        {(request.address || request.notes) && <section aria-labelledby="address-heading" className={`${panel} min-w-0 space-y-3 border-border bg-accent-200`}>
             <h2 id="address-heading" className={cardTitle}>Pickup address and notes</h2>
             {request.address && <div className="break-words">
                 <p>{request.address.street}</p>

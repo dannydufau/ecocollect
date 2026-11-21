@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes } from "react";
 
 const variants = {
-    primary: "bg-accent text-bg hover:bg-accent-700 active:bg-accent-800",
+    primary: "bg-accent text-on-accent hover:bg-accent-700 active:bg-accent-800",
     secondary: "border border-neutral-600 text-text hover:bg-text/10 active:bg-text/15",
     danger: "bg-danger text-white hover:brightness-90 active:brightness-75",
     // The prototype's red action buttons on a request page: an outline with red text. The filled one is for the confirm button.

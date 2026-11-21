@@ -19,7 +19,7 @@ const cardStyle = `${card} min-w-0 space-y-3`;
 type Card = "name" | "address" | "codes";
 
 function Row({ name, children }: { name: string; children: React.ReactNode }) {
-    return <div className="min-w-0"><dt className="text-[13px] text-neutral-700">{name}</dt><dd className="break-words">{children}</dd></div>;
+    return <div className="min-w-0"><dt className="text-[13px] text-text-muted">{name}</dt><dd className="break-words">{children}</dd></div>;
 }
 
 export default function ProfilePage() {

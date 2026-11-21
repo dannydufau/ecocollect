@@ -18,7 +18,7 @@ const symbols: Record<Status, string> = {
 
 export function StatusBadge({ status }: { status: Status }) {
     return (
-        <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-3.5 py-[5px] text-[13px] font-semibold ${styles[status]}`}>
+        <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-3.5 py-1 text-[13px] font-semibold ${styles[status]}`}>
             <span aria-hidden="true">{symbols[status]}</span>
             {status}
         </span>

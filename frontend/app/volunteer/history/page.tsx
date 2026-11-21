@@ -54,15 +54,15 @@ export default function VolunteerHistoryPage() {
                                 {row.category
                                     ? <Link href={`/volunteer/requests/${encodeURIComponent(row.requestId)}`} className={stretchedLink}>{row.quantity} × {row.category.name}</Link>
                                     : <p className="font-[family-name:var(--font-heading)] text-[21px]">Request no longer available to you</p>}
-                                <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-3.5 py-[5px] text-[13px] font-semibold ${status.style}`}>
+                                <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-3.5 py-1 text-[13px] font-semibold ${status.style}`}>
                                     <span aria-hidden="true">{status.symbol}</span>{status.label}
                                 </span>
                             </div>
                             {row.assignment.status === "Collected" && <p className="text-[13px] font-semibold text-accent-800">Record delivery</p>}
                             {row.estimatedWeightKg !== null && row.postalCode !== null && <p className="text-neutral-800">{row.estimatedWeightKg.toFixed(2)} kg · {formatPostalCode(row.postalCode)}</p>}
                             <p>{formatWindow(row.assignment.window)}</p>
-                            <p className="text-[13px] text-neutral-700">Accepted {formatTimestamp(row.assignment.acceptedAt)}</p>
-                            {row.assignment.endedAt && <p className="text-[13px] text-neutral-700">Ended {formatTimestamp(row.assignment.endedAt)}</p>}
+                            <p className="text-[13px] text-text-muted">Accepted {formatTimestamp(row.assignment.acceptedAt)}</p>
+                            {row.assignment.endedAt && <p className="text-[13px] text-text-muted">Ended {formatTimestamp(row.assignment.endedAt)}</p>}
                         </li>;
                     })}
                 </ul>}

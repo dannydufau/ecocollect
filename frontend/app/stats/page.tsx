@@ -63,7 +63,7 @@ export default function StatsPage() {
                             </table></div>
                         )}
                     </section>
-                    <p className="text-[13px] text-neutral-700">Updated <time dateTime={data.updatedAt}>{formatTimestamp(data.updatedAt)}</time></p>
+                    <p className="text-[13px] text-text-muted">Updated <time dateTime={data.updatedAt}>{formatTimestamp(data.updatedAt)}</time></p>
                 </>}
             </div>
         </main>
