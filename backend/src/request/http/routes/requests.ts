@@ -2,10 +2,11 @@
 // Q5-Q7 GET /api/requests: one handler, the view decides the role and the read.
 // Q8 GET /api/requests/:id: any signed-in caller; the database decides what they see.
 // Q11 POST /api/requests/:id/assignment (volunteers): accept, then the detail.
+// Q13 POST /api/requests/:id/assignment/collected (the owner): confirm, then the detail.
 import { Router } from 'express';
 import * as v from 'valibot';
 import type { RouteDeps } from '../../app.ts';
-import { accept, createRequests, getDetail, getRequests, listAvailable, listMine } from '../../db/functions.ts';
+import { accept, confirmCollected, createRequests, getDetail, getRequests, listAvailable, listMine } from '../../db/functions.ts';
 import { availableRequest, createdRequest, myRequest, requestDetail } from '../../json/responses.ts';
 import { parseAcceptBody } from '../accept-body.ts';
 import { Uuid } from '../body-validation.ts';
@@ -142,6 +143,32 @@ export default function requestsRouter({ pool, nudgePublisher, demo }: RouteDeps
     const row = await getDetail(pool, id, caller.id);
     if (row.result_code !== 'ok') throw requestUnavailable();
     res.status(201).json(requestDetail(row));
+  });
+
+  // Order: role (403), id (404), one write call; then the detail, as in Q11.
+  // No body. Owner and state checks come from req_confirm_collected.
+  router.post('/api/requests/:id/assignment/collected', requireRole('resident'), async (req, res) => {
+    const caller = callerOf(res);
+    const id = req.params.id;
+    if (!v.is(Uuid, id)) throw requestUnavailable();
+
+    const result = await confirmCollected(pool, { requestId: id, residentId: caller.id, traceId: caller.traceId });
+    switch (result.result_code) {
+      case 'request_unavailable':
+        throw requestUnavailable();
+      case 'forbidden':
+        throw forbidden('Only the owner of this request can confirm the collection.');
+      case 'not_assigned':
+        throw new HttpError(409, 'not_assigned', 'This request is not waiting for a collection.');
+      case 'ok':
+        nudgePublisher();              // RequestAssignmentCollected is in the outbox
+        break;
+    }
+
+    // Committed; a missing detail means another action changed it in between.
+    const row = await getDetail(pool, id, caller.id);
+    if (row.result_code !== 'ok') throw requestUnavailable();
+    res.json(requestDetail(row));
   });
 
   return router;
