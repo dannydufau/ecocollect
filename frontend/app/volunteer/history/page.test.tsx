@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { api } from "@/lib/api";
 import { formatTimestamp } from "@/lib/time";
 import type { VolunteerAssignment } from "@/lib/types";
@@ -96,4 +96,49 @@ it("shows an error with a retry", async () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("We could not load your assignments.");
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(await screen.findByRole("link", { name: "2 × Computers/Laptops" })).toBeInTheDocument();
+});
+
+it("gives collected rows an accent bar and a clear Record delivery call-out", async () => {
+    renderWithClient(<VolunteerHistoryPage />);
+    const [first] = await screen.findAllByRole("listitem");
+    expect(first).toHaveClass("border-l-4", "border-l-accent");
+    expect(within(first).getByText("Record delivery")).toHaveClass("min-h-11", "bg-accent");
+});
+
+it("makes redacted rows quieter and dashed, with no link", async () => {
+    renderWithClient(<VolunteerHistoryPage />);
+    const row = (await screen.findByText("Request no longer available to you")).closest("li")!;
+    expect(row).toHaveClass("border-dashed");
+    expect(within(row).queryByRole("link")).not.toBeInTheDocument();
+});
+
+it("links to the available list when there are no assignments", async () => {
+    vi.mocked(api.get).mockResolvedValue([]);
+    renderWithClient(<VolunteerHistoryPage />);
+    expect(await screen.findByRole("link", { name: "Browse available requests" })).toHaveAttribute("href", "/volunteer");
+    expect(screen.queryByRole("button", { name: "Show all assignments" })).not.toBeInTheDocument();
+});
+
+it("resets an empty filter with Show all assignments", async () => {
+    vi.mocked(api.get).mockImplementation(async (path: string) => path.includes("assignmentStatus") ? [] : [delivered]);
+    renderWithClient(<VolunteerHistoryPage />);
+    await screen.findByRole("link", { name: "2 × Computers/Laptops" });
+    const group = screen.getByRole("group", { name: "Assignment status" });
+    fireEvent.click(within(group).getByRole("button", { name: "Missed" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Show all assignments" }));
+    expect(within(group).getByRole("button", { name: "All" })).toHaveAttribute("aria-pressed", "true");
+    expect(await screen.findByRole("link", { name: "2 × Computers/Laptops" })).toBeInTheDocument();
+});
+
+it("keeps the list, dimmed, while the filter changes", async () => {
+    let finish!: (rows: VolunteerAssignment[]) => void;
+    vi.mocked(api.get).mockImplementation((path: string) => path.includes("assignmentStatus")
+        ? new Promise(done => { finish = done as typeof finish; }) : Promise.resolve([delivered]));
+    renderWithClient(<VolunteerHistoryPage />);
+    const link = await screen.findByRole("link", { name: "2 × Computers/Laptops" });
+    fireEvent.click(within(screen.getByRole("group", { name: "Assignment status" })).getByRole("button", { name: "Delivered" }));
+    await waitFor(() => expect(link.closest("ul")).toHaveClass("opacity-60"));
+    expect(screen.queryByText("Loading your assignments...")).not.toBeInTheDocument();
+    await act(async () => finish([delivered]));
+    await waitFor(() => expect(screen.getByRole("link", { name: "2 × Computers/Laptops" }).closest("ul")).not.toHaveClass("opacity-60"));
 });
