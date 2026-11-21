@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import type { Role } from "@/lib/auth";
 import { roleOf, takeReturnTo } from "@/lib/return-to";
-import { card, pageTitle } from "@/components/ui";
+import { ChevronRightIcon, PackageIcon, TruckIcon, card, pageTitle } from "@/components/ui";
 
-const labels: Record<Role, { name: string; text: string }> = {
-    resident: { name: "Resident", text: "Request e-waste pickups" },
-    volunteer: { name: "Volunteer", text: "Pick up items and deliver them" },
+const labels: Record<Role, { name: string; text: string; icon: ReactNode }> = {
+    resident: { name: "Resident", text: "Request e-waste pickups", icon: <PackageIcon className="size-7 text-accent-700" /> },
+    volunteer: { name: "Volunteer", text: "Pick up items and deliver them", icon: <TruckIcon className="size-7 text-accent-2-800" /> },
 };
 
 export default function ChooseRolePage() {
@@ -42,15 +42,22 @@ export default function ChooseRolePage() {
     }
 
     return (
-        <main className="mx-auto flex w-full max-w-sm min-w-0 flex-col gap-4 p-4 sm:p-8">
-            <h1 className={pageTitle}>Continue as</h1>
-            {roles.map((role) => (
-                <button key={role} type="button" onClick={() => choose(role)}
-                    className={`${card} flex min-h-11 w-full flex-col px-6 py-4 text-left hover:bg-accent-200`}>
-                    <span className="font-[family-name:var(--font-heading)] text-2xl">{labels[role].name}</span>
-                    <span className="text-neutral-800">{labels[role].text}</span>
-                </button>
-            ))}
+        <main className="flex w-full min-w-0 flex-1 flex-col items-center justify-center p-4 sm:p-8">
+            <div className="flex w-full max-w-sm flex-col gap-4">
+                <h1 className={pageTitle}>Continue as</h1>
+                {user.email && <p className="break-words text-neutral-800">Signed in as {user.email}</p>}
+                {roles.map((role) => (
+                    <button key={role} type="button" onClick={() => choose(role)}
+                        className={`${card} flex min-h-11 w-full items-center gap-4 px-6 py-4 text-left hover:bg-accent-200`}>
+                        {labels[role].icon}
+                        <span className="flex min-w-0 flex-1 flex-col">
+                            <span className="font-[family-name:var(--font-heading)] text-2xl">{labels[role].name}</span>
+                            <span className="text-neutral-800">{labels[role].text}</span>
+                        </span>
+                        <ChevronRightIcon className="size-5 flex-none text-neutral-700" />
+                    </button>
+                ))}
+            </div>
         </main>
     );
 }

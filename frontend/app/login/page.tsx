@@ -1,13 +1,12 @@
 "use client";
 
 import { Suspense, useEffect, useState, type FormEvent } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { redirect, useRouter, useSearchParams } from "next/navigation";
 import { FirebaseError } from "firebase/app";
 import { useAuth } from "@/lib/auth-context";
 import { isDemo } from "@/lib/demo";
-import { Alert, Button, Field, card, input } from "@/components/ui";
+import { Alert, Button, EyeIcon, EyeOffIcon, Field, card, input, textLink } from "@/components/ui";
 
 function errorMessage(err: unknown): string {
   if (err instanceof FirebaseError) {
@@ -40,6 +39,7 @@ export default function LoginPage() {
   const { user, roles, loading, signIn, signOut } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -69,9 +69,8 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-sm min-w-0 p-4 sm:p-8">
-      <form onSubmit={handleSubmit} className={`${card} flex flex-col gap-4 p-6 shadow-[0_3px_10px_rgba(46,43,37,0.16)]`}>
-        <Image src="/ecocollect-mark.png" alt="" width={69} height={72} priority className="self-start" />
+    <main className="flex w-full min-w-0 flex-1 flex-col items-center justify-center gap-4 p-4 sm:p-8">
+      <form onSubmit={handleSubmit} className={`${card} flex w-full max-w-[440px] min-w-0 flex-col gap-4 p-6 shadow-[0_3px_10px_rgba(46,43,37,0.16)]`}>
         <h1 className="text-[32px]">Sign in to EcoCollect</h1>
         <p className="text-neutral-800">Calgary’s community e-waste courier.</p>
         <Suspense fallback={null}>
@@ -85,17 +84,21 @@ export default function LoginPage() {
         </Field>
         <Field label="Password">
           {(control) => (
-            <input {...control} type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-              required autoComplete="current-password" className={input} />
+            <div className="relative">
+              <input {...control} type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)}
+                required autoComplete="current-password" className={`${input} pr-12`} />
+              <button type="button" aria-pressed={showPassword} aria-label="Show password" onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-0 top-0 inline-flex size-11 items-center justify-center rounded-full text-neutral-800 hover:bg-text/10">
+                {showPassword ? <EyeOffIcon className="size-5" /> : <EyeIcon className="size-5" />}
+              </button>
+            </div>
           )}
         </Field>
         {error && <Alert variant="error">{error}</Alert>}
         <Button type="submit" busy={submitting} busyLabel="Signing in..." className="w-full">Sign in</Button>
-        <div className="flex flex-wrap gap-4">
-          <Link href="/register" className="inline-flex min-h-11 items-center text-accent-700 underline underline-offset-4">Create an account</Link>
-          <Link href="/stats" className="inline-flex min-h-11 items-center text-accent-700 underline underline-offset-4">Community stats</Link>
-        </div>
+        <Link href="/register" className={`${textLink} self-start`}>Create an account</Link>
       </form>
+      <Link href="/stats" className={`${textLink} text-sm`}>Community stats</Link>
     </main>
   );
 }
