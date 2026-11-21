@@ -29,7 +29,7 @@ describe("WindowsPicker", () => {
         expect(screen.getByLabelText("Start hour 1")).toHaveValue("");
         expect(screen.getByRole("option", { name: "00:00" })).toHaveValue("0");
         expect(screen.getByRole("option", { name: "23:00" })).toHaveValue("23");
-        expect(screen.getByRole("button", { name: "Remove window 1" })).toBeDisabled();
+        expect(screen.queryByRole("button", { name: "Remove window 1" })).not.toBeInTheDocument();
         expect(screen.getByLabelText("Date 1")).toHaveAttribute("min", "2026-11-14");
     });
 
@@ -44,7 +44,7 @@ describe("WindowsPicker", () => {
         fireEvent.click(screen.getByRole("button", { name: "Remove window 2" }));
         fireEvent.click(screen.getByRole("button", { name: "Remove window 2" }));
         expect(screen.getAllByRole("combobox")).toHaveLength(1);
-        expect(screen.getByRole("button", { name: "Remove window 1" })).toBeDisabled();
+        expect(screen.queryByRole("button", { name: "Remove window 1" })).not.toBeInTheDocument();
     });
 
     it("shows a row error for duplicate date and hour slots", () => {
@@ -146,5 +146,21 @@ describe("WindowsPicker", () => {
         const embedded = render(<WindowsPicker embedded value={[]} onChange={vi.fn()} />);
         const fieldset = embedded.container.querySelector("fieldset")!;
         for (const name of ["rounded-2xl", "border", "p-5", "bg-surface-elevated", "shadow-rest"]) expect(fieldset).not.toHaveClass(name);
+    });
+
+    it("disables the hours already past today, and none on a later day", () => {
+        render(<Picker />);
+        fireEvent.change(screen.getByLabelText("Date 1"), { target: { value: "2026-11-14" } });
+        expect(screen.getByRole("option", { name: "22:00" })).toBeDisabled();
+        expect(screen.getByRole("option", { name: "23:00" })).toBeEnabled();
+        fireEvent.change(screen.getByLabelText("Date 1"), { target: { value: "2026-11-15" } });
+        expect(screen.getByRole("option", { name: "00:00" })).toBeEnabled();
+    });
+
+    it("shows Remove only when there is more than one row", () => {
+        render(<Picker />);
+        expect(screen.queryByRole("button", { name: /Remove window/ })).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole("button", { name: "Add window" }));
+        expect(screen.getAllByRole("button", { name: /Remove window/ })).toHaveLength(2);
     });
 });

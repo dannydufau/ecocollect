@@ -50,3 +50,16 @@ it("omits the section when there is no history or reschedule link", () => {
     rerender(<StatusHistory statusHistory={[]} rescheduledFrom={null} rescheduledAs={null} />);
     expect(container).toBeEmptyDOMElement();
 });
+
+it("shows a timeline with each status and its time", () => {
+    const history = [
+        { status: "Open" as const, changedAt: "2026-11-14T18:00:00Z", reason: null },
+        { status: "Assigned" as const, changedAt: "2026-11-15T19:00:00Z", reason: null },
+    ];
+    render(<StatusHistory statusHistory={history} />);
+    expect(screen.getByRole("list")).toHaveClass("border-l-2");
+    screen.getAllByRole("listitem").forEach((row, index) => {
+        expect(within(row).getByText(history[index].status)).toBeInTheDocument();
+        expect(row.querySelector("time")).toHaveAttribute("datetime", history[index].changedAt);
+    });
+});

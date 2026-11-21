@@ -46,6 +46,7 @@ it("asks for permission, subscribes and posts the subscription", async () => {
     expect(subscribe).toHaveBeenCalledWith({ userVisibleOnly: true, applicationServerKey: new Uint8Array([1, 2, 3]) });
     expect(api.post).toHaveBeenCalledWith("/api/push/subscriptions", json);
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(screen.getByText("You will get notifications on this device.")).toBeInTheDocument();
 });
 
 it("shows the hint and posts nothing when permission is denied on click", async () => {

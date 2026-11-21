@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Alert, Button, RequestPhoto, Spinner, StatusBadge, WindowList, card, pageTitle, panel, textLink } from "@/components/ui";
+import { Alert, Button, RequestPhoto, Spinner, StatusBadge, WindowList, card, pageTitle, textLink } from "@/components/ui";
 import { isAuthError } from "@/lib/api";
 import { formatPostalCode } from "@/lib/postal-code";
 import { nextStepText } from "@/lib/status-text";
@@ -18,6 +18,7 @@ import StatusHistory from "./status-history";
 
 const cardStyle = `${card} min-w-0 space-y-3`;
 const cardTitle = "text-[22px]";
+const part = "py-4 first:pt-0 last:pb-0";
 
 function UnavailableRequest() {
     return <section className="space-y-3">
@@ -81,53 +82,60 @@ export function ResidentRequestView({ request, onPhotoError, actionRenderers, no
         </Alert>}
         <RequestActions request={request} renderers={actionRenderers} />
 
-        <section aria-labelledby="details-heading" className={cardStyle}>
-            <h2 id="details-heading" className={cardTitle}>Details</h2>
-            <dl className="grid gap-x-4 gap-y-3 sm:grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
-                <div><dt className="text-[13px] text-text-muted">Estimated weight</dt><dd>{request.estimatedWeightKg.toFixed(2)} kg</dd></div>
-                <div><dt className="text-[13px] text-text-muted">Created</dt><dd>{formatTimestamp(request.createdAt)}</dd></div>
-                {request.status === "Open" && <div><dt className="text-[13px] text-text-muted">Expires</dt><dd>{formatTimestamp(request.expiresAt)}</dd></div>}
-            </dl>
-        </section>
+        {/* The page order is the phone order. On wide screens the grid puts the summary first on the left. */}
+        <div className="grid min-w-0 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:grid-rows-[auto_1fr]">
+            {(request.assignment || request.delivery) && <div className="min-w-0 space-y-6 lg:col-start-1 lg:row-start-2">
+                {request.assignment && <section aria-labelledby="volunteer-heading" className={cardStyle}>
+                    <h2 id="volunteer-heading" className={cardTitle}>Volunteer</h2>
+                    <Link href={`/profiles/${encodeURIComponent(request.assignment.volunteer.accountId)}`} className={`${textLink} max-w-full font-semibold`}>
+                        <span className="min-w-0 break-words">{request.assignment.volunteer.publicName}</span>
+                    </Link>
+                    <h3>Selected pickup window</h3>
+                    <WindowList windows={[request.assignment.window]} />
+                    {request.assignment.collectedAt && <p>Collected {formatTimestamp(request.assignment.collectedAt)}</p>}
+                </section>}
 
-        <section aria-labelledby="windows-heading" className={cardStyle}>
-            <h2 id="windows-heading" className={cardTitle}>Pickup windows</h2>
-            <WindowList windows={request.windows} />
-            <p className="text-[13px] text-text-muted">Windows and times are Calgary time.</p>
-        </section>
-
-        {request.photoUrl && <section aria-labelledby="item-photo-heading" className={cardStyle}>
-            <h2 id="item-photo-heading" className={cardTitle}>Photo</h2>
-            <div className="max-w-xs"><RequestPhoto src={request.photoUrl} alt="Photo of the items" refetch={onPhotoError} /></div>
-        </section>}
-
-        {(request.address || request.notes) && <section aria-labelledby="address-heading" className={`${panel} min-w-0 space-y-3 border-border bg-accent-200`}>
-            <h2 id="address-heading" className={cardTitle}>Pickup address and notes</h2>
-            {request.address && <div className="break-words">
-                <p>{request.address.street}</p>
-                <p>Calgary, {formatPostalCode(request.address.postalCode)}</p>
+                {request.delivery && <section aria-labelledby="delivery-heading" className={cardStyle}>
+                    <h2 id="delivery-heading" className={cardTitle}>Delivery</h2>
+                    <p className="break-words">{request.delivery.facility.name}</p>
+                    <p>Delivered {formatTimestamp(request.delivery.deliveredAt)}</p>
+                    {request.delivery.evidencePhotoUrl && <div className="max-w-xs">
+                        <RequestPhoto src={request.delivery.evidencePhotoUrl} alt="Delivery photo" refetch={onPhotoError} />
+                    </div>}
+                </section>}
             </div>}
-            {request.notes && <p className="whitespace-pre-wrap break-words"><span className="text-neutral-800">Notes:</span> {request.notes}</p>}
-        </section>}
 
-        {request.assignment && <section aria-labelledby="volunteer-heading" className={cardStyle}>
-            <h2 id="volunteer-heading" className={cardTitle}>Volunteer</h2>
-            <Link href={`/profiles/${encodeURIComponent(request.assignment.volunteer.accountId)}`} className={`${textLink} max-w-full font-semibold`}>
-                <span className="min-w-0 break-words">{request.assignment.volunteer.publicName}</span>
-            </Link>
-            <h3 className="text-lg">Selected pickup window</h3>
-            <WindowList windows={[request.assignment.window]} />
-            {request.assignment.collectedAt && <p>Collected {formatTimestamp(request.assignment.collectedAt)}</p>}
-        </section>}
+            <section aria-labelledby="summary-heading" className={`${cardStyle} lg:col-start-1 lg:row-start-1`}>
+                <h2 id="summary-heading" className={cardTitle}>Summary</h2>
+                <div className="divide-y divide-border">
+                    <dl className={`${part} grid gap-x-4 gap-y-3 sm:grid-cols-[repeat(auto-fit,minmax(180px,1fr))]`}>
+                        <div><dt className="text-[13px] text-text-muted">Estimated weight</dt><dd className="tabular-nums">{request.estimatedWeightKg.toFixed(2)} kg</dd></div>
+                        <div><dt className="text-[13px] text-text-muted">Created</dt><dd>{formatTimestamp(request.createdAt)}</dd></div>
+                        {request.status === "Open" && <div><dt className="text-[13px] text-text-muted">Expires</dt><dd>{formatTimestamp(request.expiresAt)}</dd></div>}
+                    </dl>
+                    <div className={`${part} space-y-2`}>
+                        <h3>Pickup windows</h3>
+                        <WindowList windows={request.windows} />
+                        <p className="text-[13px] text-text-muted">Windows and times are Calgary time.</p>
+                    </div>
+                    {(request.address || request.notes) && <div className={`${part} space-y-2`}>
+                        <h3>Pickup address and notes</h3>
+                        {request.address && <div className="break-words">
+                            <p>{request.address.street}</p>
+                            <p>Calgary, {formatPostalCode(request.address.postalCode)}</p>
+                        </div>}
+                        {request.notes && <p className="whitespace-pre-wrap break-words rounded-xl bg-surface p-3 text-sm"><span className="font-semibold">Notes:</span> {request.notes}</p>}
+                    </div>}
+                    {request.photoUrl && <div className={`${part} space-y-2`}>
+                        <h3>Photo</h3>
+                        <div className="max-w-xs"><RequestPhoto src={request.photoUrl} alt="Photo of the items" refetch={onPhotoError} /></div>
+                    </div>}
+                </div>
+            </section>
 
-        {request.delivery && <section aria-labelledby="delivery-heading" className={cardStyle}>
-            <h2 id="delivery-heading" className={cardTitle}>Delivery</h2>
-            <p className="break-words">{request.delivery.facility.name}</p>
-            <p>Delivered {formatTimestamp(request.delivery.deliveredAt)}</p>
-            {request.delivery.evidencePhotoUrl && <div className="max-w-xs">
-                <RequestPhoto src={request.delivery.evidencePhotoUrl} alt="Delivery photo" refetch={onPhotoError} />
-            </div>}
-        </section>}
-        <StatusHistory statusHistory={request.statusHistory} rescheduledFrom={request.rescheduledFrom} rescheduledAs={request.rescheduledAs} />
+            <div className="min-w-0 space-y-6 lg:col-start-2 lg:row-span-2 lg:row-start-1">
+                <StatusHistory statusHistory={request.statusHistory} rescheduledFrom={request.rescheduledFrom} rescheduledAs={request.rescheduledAs} />
+            </div>
+        </div>
     </>;
 }

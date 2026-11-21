@@ -2,15 +2,16 @@
 
 import Link from "next/link";
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { Button, Field, card, input, textLink } from "@/components/ui";
+import { AddressFields, PostalCodeList } from "@/components/address-fields";
+import { Button, CheckIcon, EyeIcon, EyeOffIcon, Field, card, input, textLink } from "@/components/ui";
 import { calgaryToday } from "@/lib/time";
 import {
-    eighteenYearsAgo, normalizePostalCode, normalizeUsername, validateAccount, type AccountValues,
+    eighteenYearsAgo, normalizeUsername, validateAccount, type AccountValues,
 } from "@/lib/validate-account";
 
 // A card with its title inside, like the prototype. The legend floats so it sits in the card and not on its border.
-function Group({ title, describedBy, children }: { title: string; describedBy?: string; children: ReactNode }) {
-    return <fieldset aria-describedby={describedBy} className={`${card} min-w-0`}>
+function Group({ title, children }: { title: string; children: ReactNode }) {
+    return <fieldset className={`${card} min-w-0`}>
         <legend className="float-left mb-3 text-xl font-bold">{title}</legend>
         <div className="clear-both flex flex-col gap-4">{children}</div>
     </fieldset>;
@@ -30,6 +31,7 @@ export default function RegisterForm({ onValid, fieldErrors = {}, busy = false, 
         username: "", email: "", password: "", firstName: "", lastName: "", publicName: "",
         dateOfBirth: "", role: "", street: "", postalCode: "", preferredPostalCodes: [],
     });
+    const [showPassword, setShowPassword] = useState(false);
     const [tried, setTried] = useState(false);
     const [failedSubmits, setFailedSubmits] = useState(0);
     const formRef = useRef<HTMLFormElement>(null);
@@ -48,15 +50,6 @@ export default function RegisterForm({ onValid, fieldErrors = {}, busy = false, 
         onEdit?.();
     }
 
-    // Tidies a value when the user leaves the field. It only counts as an edit when something changed.
-    function tidy(name: "username" | "postalCode", clean: (value: string) => string) {
-        if (clean(values[name]) !== values[name]) change({ [name]: clean(values[name]) });
-    }
-
-    function changeCode(index: number, code: string) {
-        change({ preferredPostalCodes: values.preferredPostalCodes.map((old, i) => i === index ? code : old) });
-    }
-
     function submit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
         if (busy || submitDisabled) return;
@@ -66,11 +59,11 @@ export default function RegisterForm({ onValid, fieldErrors = {}, busy = false, 
     }
 
     // A small helper for the plain text inputs, they only differ in label, type and autocomplete
-    function text(name: "firstName" | "lastName" | "publicName" | "username" | "email" | "password", label: string, autoComplete: string, extra: { hint?: string; type?: string } = {}) {
+    function text(name: "firstName" | "lastName" | "publicName" | "username" | "email", label: string, autoComplete: string, extra: { hint?: string; type?: string } = {}) {
         return <Field label={label} hint={extra.hint} error={errors[name]}>
             {control => <input {...control} type={extra.type ?? "text"} autoComplete={autoComplete} value={values[name]} className={input}
                 onChange={event => change({ [name]: event.target.value })}
-                onBlur={name === "username" ? () => tidy("username", normalizeUsername) : undefined} />}
+                onBlur={name === "username" && normalizeUsername(values.username) !== values.username ? () => change({ username: normalizeUsername(values.username) }) : undefined} />}
         </Field>;
     }
 
@@ -92,52 +85,47 @@ export default function RegisterForm({ onValid, fieldErrors = {}, busy = false, 
                 <Group title="Account">
                     {text("username", "Username", "username", { hint: "3 to 50 characters: a to z, 0 to 9, _ and -. You can't change it later." })}
                     {text("email", "Email", "email", { type: "email" })}
-                    {text("password", "Password", "new-password", { type: "password" })}
+                    <Field label="Password" hint="Use at least 6 characters." error={errors.password}>
+                        {control => <div className="relative">
+                            <input {...control} type={showPassword ? "text" : "password"} autoComplete="new-password" value={values.password}
+                                className={`${input} pr-12`} onChange={event => change({ password: event.target.value })} />
+                            <button type="button" aria-pressed={showPassword} aria-label="Show password" onClick={() => setShowPassword(!showPassword)}
+                                className="absolute right-0 top-0 inline-flex size-11 items-center justify-center rounded-xl text-neutral-800 hover:bg-text/10">
+                                {showPassword ? <EyeOffIcon className="size-5" /> : <EyeIcon className="size-5" />}
+                            </button>
+                        </div>}
+                    </Field>
                 </Group>
 
-                <Group title="I want to" describedBy={errors.role ? `${id}-role-error` : undefined}>
-                    {([["resident", "Request pickups (Resident)"], ["volunteer", "Collect and deliver items (Volunteer)"]] as const).map(([role, label]) =>
-                        <label key={role} className="flex min-h-11 items-center gap-3">
-                            <input type="radio" name={`${id}-role`} value={role} checked={values.role === role} onChange={() => change({ role })} className="size-5 accent-accent" />
-                            {label}
-                        </label>)}
+                <Group title="Your role">
+                    <fieldset aria-describedby={errors.role ? `${id}-role-error` : undefined} className="min-w-0">
+                        <legend className="mb-2 font-semibold">I want to</legend>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            {([["resident", "Request pickups (Resident)"], ["volunteer", "Collect and deliver items (Volunteer)"]] as const).map(([role, label]) => {
+                                const selected = values.role === role;
+                                return <label key={role} className={`relative flex min-h-11 cursor-pointer items-center gap-3 rounded-xl p-4 has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent-700 ${selected ? "border-2 border-accent-700 bg-accent-100 font-semibold" : "border border-border-strong"}`}>
+                                    <input type="radio" name={`${id}-role`} value={role} checked={selected} onChange={() => change({ role })} className="sr-only" />
+                                    <span aria-hidden="true" className={`inline-flex size-6 flex-none items-center justify-center rounded-full border ${selected ? "border-accent-700 bg-accent-700 text-on-accent" : "border-border-strong"}`}>
+                                        {selected && <CheckIcon className="size-4" />}
+                                    </span>
+                                    {label}
+                                </label>;
+                            })}
+                        </div>
+                    </fieldset>
                     <p className="text-neutral-700">You can add the other role later in your profile.</p>
                     {errors.role && <p id={`${id}-role-error`} role="alert" tabIndex={-1} className="font-semibold text-danger">{errors.role}</p>}
                 </Group>
 
                 {values.role === "resident" && <Group title="Role details">
-                    <div className="grid gap-4 sm:grid-cols-2">
-                        <Field label="Street" error={errors["address.street"]}>
-                            {control => <input {...control} type="text" autoComplete="street-address" value={values.street} className={input}
-                                onChange={event => change({ street: event.target.value })} />}
-                        </Field>
-                        <Field label="Postal code" hint="Calgary postal codes only, for example T2P 1J9" error={errors["address.postalCode"]}>
-                            {control => <input {...control} type="text" autoComplete="postal-code" value={values.postalCode} className={input}
-                                onChange={event => change({ postalCode: event.target.value })}
-                                onBlur={() => tidy("postalCode", normalizePostalCode)} />}
-                        </Field>
-                    </div>
+                    <AddressFields street={values.street} postalCode={values.postalCode} errors={errors}
+                        onStreet={street => change({ street })} onPostalCode={postalCode => change({ postalCode })} />
                 </Group>}
 
                 {values.role === "volunteer" && <Group title="Role details">
                     <p className="font-semibold">Preferred postal codes (optional, up to 3)</p>
                     <p className="text-neutral-700">You get notifications for new requests in these areas. You can change them later.</p>
-                    {errors.preferredPostalCodes && <p role="alert" tabIndex={-1} className="font-semibold text-danger">{errors.preferredPostalCodes}</p>}
-                    {values.preferredPostalCodes.map((code, index) => <div key={index} className="flex items-end gap-3">
-                        <div className="min-w-0 flex-1">
-                            <Field label={`Postal code ${index + 1}`} error={errors[`preferredPostalCodes[${index}]`]}>
-                                {control => <input {...control} type="text" autoComplete="off" value={code} className={input}
-                                    onChange={event => changeCode(index, event.target.value)}
-                                    onBlur={() => normalizePostalCode(code) !== code && changeCode(index, normalizePostalCode(code))} />}
-                            </Field>
-                        </div>
-                        <Button variant="secondary" aria-label={`Remove postal code ${index + 1}`}
-                            onClick={() => change({ preferredPostalCodes: values.preferredPostalCodes.filter((_, i) => i !== index) })}>Remove</Button>
-                    </div>)}
-                    <div>
-                        <Button variant="secondary" disabled={values.preferredPostalCodes.length >= 3}
-                            onClick={() => change({ preferredPostalCodes: [...values.preferredPostalCodes, ""] })}>Add postal code</Button>
-                    </div>
+                    <PostalCodeList codes={values.preferredPostalCodes} errors={errors} onChange={preferredPostalCodes => change({ preferredPostalCodes })} />
                 </Group>}
 
                 {children}
