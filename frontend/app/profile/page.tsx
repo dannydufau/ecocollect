@@ -68,7 +68,7 @@ export default function ProfilePage() {
                     <Row name="Roles">
                         <span className="flex flex-wrap gap-1.5">
                             {profile.roles.map((role) => (
-                                <span key={role} className="rounded-full bg-accent-2-200 px-3 py-0.5 text-xs font-semibold text-accent-2-900">{roleNames[role]}</span>
+                                <span key={role} className={`rounded-full px-3 py-0.5 text-xs font-semibold text-white ${role === "resident" ? "bg-accent-700" : "bg-accent-2-800"}`}>{roleNames[role]}</span>
                             ))}
                         </span>
                     </Row>

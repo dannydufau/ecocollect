@@ -32,8 +32,9 @@ export default function ConfirmCollected({ request, onNotice }: { request: Reque
     }
 
     if (request.viewer !== "owner" || !request.allowedActions.includes("confirm_collected")) return null;
-    return <div className="space-y-2">
-        <p>Confirm only after the volunteer has taken your items.</p>
+    // The sentence takes its own line above the action row, so all the buttons stay in line
+    return <>
+        <p className="order-first w-full">Confirm only after the volunteer has taken your items.</p>
         <Button onClick={confirm} busy={action.isPending} busyLabel="Confirming...">Confirm collected</Button>
-    </div>;
+    </>;
 }

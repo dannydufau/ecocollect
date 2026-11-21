@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, type ReactNode } from "react";
 import { Alert, Button, WindowList, card, pageTitle, textLink } from "@/components/ui";
+import { formatPostalCode } from "@/lib/postal-code";
 import { useProfile } from "@/lib/use-profile";
 import { useCategories } from "./category-picker";
 import type { RequestValues } from "./request-form";
@@ -45,7 +46,7 @@ export default function ReviewRequest({ values, busy, accepted, onBack, onConfir
             <h3 className="text-xl">Pickup address</h3>
             {profile.isPending ? <p role="status">Loading your address...</p> : profile.isError ?
                 <Alert variant="error">Could not load your address. <button type="button" onClick={() => void profile.refetch()} className="underline">Try again</button></Alert> :
-                address ? <p className="break-words">{address.street}, {address.postalCode}</p> : <Alert variant="error">Add an address to your profile before sending.</Alert>}
+                address ? <p className="break-words">{address.street}, {formatPostalCode(address.postalCode)}</p> : <Alert variant="error">Add an address to your profile before sending.</Alert>}
             <Link href="/profile" className={textLink}>Change address</Link>
         </section>
         <fieldset disabled={busy} className="min-w-0 space-y-4">

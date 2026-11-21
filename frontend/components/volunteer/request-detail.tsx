@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { Alert, Button, RequestPhoto, Spinner, StatusBadge, card, pageTitle, panel, textLink } from "@/components/ui";
 import { isAuthError } from "@/lib/api";
+import { formatPostalCode } from "@/lib/postal-code";
 import { nextStepText } from "@/lib/status-text";
 import { formatTimestamp, formatWindow, friendlyWindow } from "@/lib/time";
 import type { PickupWindow } from "@/lib/types";
@@ -76,7 +77,7 @@ export default function VolunteerRequestDetail({ requestId }: { requestId: strin
                 <div><dt className="text-[13px] text-text-muted">Category</dt><dd className="break-words">{request.category.name}</dd></div>
                 <div><dt className="text-[13px] text-text-muted">Quantity</dt><dd>{request.quantity}</dd></div>
                 <div><dt className="text-[13px] text-text-muted">Estimated weight</dt><dd>{request.estimatedWeightKg.toFixed(2)} kg</dd></div>
-                <div><dt className="text-[13px] text-text-muted">Postal code</dt><dd>{request.postalCode}</dd></div>
+                <div><dt className="text-[13px] text-text-muted">Postal code</dt><dd>{formatPostalCode(request.postalCode)}</dd></div>
                 {request.status === "Open" && <div><dt className="text-[13px] text-text-muted">Open until</dt><dd>{formatTimestamp(request.expiresAt)}</dd></div>}
             </dl>
         </section>
@@ -96,7 +97,7 @@ export default function VolunteerRequestDetail({ requestId }: { requestId: strin
             <h2 id="address-heading" className={cardTitle}>Pickup address and notes</h2>
             {request.address && <div className="break-words">
                 <p>{request.address.street}</p>
-                <p>Calgary, {request.address.postalCode}</p>
+                <p>Calgary, {formatPostalCode(request.address.postalCode)}</p>
             </div>}
             {request.notes && <p className="whitespace-pre-wrap break-words"><span className="text-neutral-800">Notes:</span> {request.notes}</p>}
         </section>}
