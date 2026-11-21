@@ -55,18 +55,18 @@ export default function MyRequests({ created }: { created?: string }) {
                 {data.map(request => {
                     const closed = request.status === "Cancelled" || request.status === "Expired";
                     return <li key={request.requestId} className={`${clickableCard} ${closed ? "border-dashed" : ""}`}>
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                                                <Link href={`/resident/requests/${encodeURIComponent(request.requestId)}`} className={stretchedLink}>
-                            {request.quantity} × {request.category.name}
-                        </Link>
-                        <StatusBadge status={request.status} />
-                    </div>
-                    <div className={`mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm ${closed ? "text-text-muted" : "text-neutral-800"}`}>
-                        <span className={detail}><ScaleIcon className="size-4 flex-none" /><span className="tabular-nums">{request.estimatedWeightKg.toFixed(2)} kg</span></span>
-                        <span className={detail}><ClockIcon className="size-4 flex-none" /><span>Created <time dateTime={request.createdAt}>{formatTimestamp(request.createdAt)}</time></span></span>
-                        {request.hasPhoto && <span className={detail}><CameraIcon className="size-4 flex-none" />Has photo</span>}
-                        {request.status === "Open" && <span className={`${detail} font-semibold`}><CalendarIcon className="size-4 flex-none" /><span>Expires <time dateTime={request.expiresAt}>{formatTimestamp(request.expiresAt)}</time></span></span>}
-                    </div>
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                            <Link href={`/resident/requests/${encodeURIComponent(request.requestId)}`} className={stretchedLink}>
+                                {request.quantity} × {request.category.name}
+                            </Link>
+                            <StatusBadge status={request.status} />
+                        </div>
+                        <div className={`mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm ${closed ? "text-text-muted" : "text-neutral-800"}`}>
+                            <span className={detail}><ScaleIcon className="size-4 flex-none" /><span className="tabular-nums">{request.estimatedWeightKg.toFixed(2)} kg</span></span>
+                            <span className={detail}><ClockIcon className="size-4 flex-none" /><span>Created <time dateTime={request.createdAt}>{formatTimestamp(request.createdAt)}</time></span></span>
+                            {request.hasPhoto && <span className={detail}><CameraIcon className="size-4 flex-none" />Has photo</span>}
+                            {request.status === "Open" && <span className={`${detail} font-semibold`}><CalendarIcon className="size-4 flex-none" /><span>Expires <time dateTime={request.expiresAt}>{formatTimestamp(request.expiresAt)}</time></span></span>}
+                        </div>
                     </li>;
                 })}
             </ul>
