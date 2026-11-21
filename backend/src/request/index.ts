@@ -9,6 +9,7 @@
 // In Compose:                   same image as the backend, started with this file (PORT=80).
 import { createApp } from './app.ts';
 import { createPool } from './db/pool.ts';
+import { imagekitPhotos } from './imagekit/client.ts';
 import { startRequestPublisher } from './messaging/publisher.ts';
 
 function required(name: string): string {
@@ -17,6 +18,14 @@ function required(name: string): string {
   return value;
 }
 
+// Photos need ImageKit (contract 6): refuse to start without all four values.
+const imagekit = imagekitPhotos({
+  privateKey: required('IMAGEKIT_PRIVATE_KEY'),
+  publicKey: required('IMAGEKIT_PUBLIC_KEY'),
+  urlEndpoint: required('IMAGEKIT_URL_ENDPOINT'),
+  rootFolder: required('IMAGEKIT_ROOT_FOLDER'),
+});
+
 const pool = createPool(required('DATABASE_URL'));
 const publisher = startRequestPublisher({ pool, url: required('RABBITMQ_URL') });
 
@@ -24,7 +33,8 @@ const publisher = startRequestPublisher({ pool, url: required('RABBITMQ_URL') })
 // 3003 so it doesn't clash with the API server (3001) or notification (3002).
 const port = Number(process.env.PORT || 3003);
 const demo = process.env.DEMO_MODE === 'true';
-const server = createApp({ pool, nudgePublisher: publisher.nudge, demo }).listen(port, () => {
+const app = createApp({ pool, nudgePublisher: publisher.nudge, demo, imagekit });
+const server = app.listen(port, () => {
   console.log(`Request service listening on port ${port}`);
 });
 

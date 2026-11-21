@@ -15,6 +15,7 @@
     "test:request": "node --test --test-concurrency=1 \"test/request/**/*.test.ts\""
   },
   "dependencies": {
+    "@imagekit/nodejs": "^7.15.0",
     "amqplib": "^2.2.0",
     "express": "^5.3.0",
     "firebase-admin": "^14.5.0",
