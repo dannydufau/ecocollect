@@ -66,20 +66,33 @@ it("shows the hint without a button when permission was already denied", async (
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
 });
 
-it("hides the button when already subscribed", async () => {
+it("says On, with no button, when already subscribed", async () => {
     const { requestPermission } = fakeBrowser({ permission: "granted", existing: { endpoint: json.endpoint } });
-    const { container } = render(<EnableNotifications />);
+    render(<EnableNotifications />);
 
-    await vi.waitFor(() => expect(navigator.serviceWorker.getRegistration).toHaveBeenCalled());
-    await new Promise((done) => setTimeout(done));
-    expect(container).toBeEmptyDOMElement();
+    expect(await screen.findByText("On")).toBeInTheDocument();
+    expect(screen.getByText("Device notifications are on.")).toHaveAttribute("role", "status");
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
     expect(requestPermission).not.toHaveBeenCalled();
 });
 
-it("renders nothing in a browser without push", async () => {
-    const { container } = render(<EnableNotifications />);
-    await new Promise((done) => setTimeout(done));
-    expect(container).toBeEmptyDOMElement();
+it("says so in a browser without push", async () => {
+    render(<EnableNotifications />);
+    expect(await screen.findByText("This browser does not support device notifications.")).toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+});
+
+it("says Blocked when permission was denied", async () => {
+    fakeBrowser({ permission: "denied" });
+    render(<EnableNotifications />);
+    expect(await screen.findByText("Blocked")).toBeInTheDocument();
+});
+
+it("offers Turn on with a hidden bell icon", async () => {
+    fakeBrowser();
+    render(<EnableNotifications />);
+    const button = await screen.findByRole("button", { name: "Turn on device notifications" });
+    expect(button.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
 });
 
 it("says notifications are not set up when the VAPID key is empty", async () => {

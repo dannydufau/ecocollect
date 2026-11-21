@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
-import { Alert, Button } from "@/components/ui";
+import { Alert, Button, CameraIcon } from "@/components/ui";
 import { uploadPhoto } from "@/lib/upload/upload-photo";
 
 type Props = {
@@ -69,15 +69,20 @@ export default function PhotoPicker({ purpose, requestId, optional = false, onUp
 
     return (
         <div className="flex max-w-full flex-col gap-2">
-            <label className="flex flex-col gap-1">
-                <span>Photo{optional && <span className="font-normal text-neutral-700"> (optional)</span>}</span>
-                <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" onChange={choose}
-                    className="min-h-11 w-full max-w-full text-sm" />
-            </label>
+            <div className="relative">
+                <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-border-strong bg-white px-4 pb-8 pt-3 text-center font-semibold hover:bg-surface has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent-700">
+                    <CameraIcon className="size-6" />
+                    <span>Photo{optional && <span className="font-normal text-neutral-700"> (optional)</span>}</span>
+                    <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" onChange={choose} className="sr-only" />
+                </label>
+                {/* Outside the label so the input's name stays just "Photo" */}
+                <span aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-2.5 text-center text-sm text-text-muted">{file ? "Choose another file" : "Choose a file"}</span>
+            </div>
             <p className="text-sm text-text-muted">No house numbers, faces, mail or documents in the photo. JPEG, PNG or WEBP, up to 10 MB.</p>
+            <p className="text-sm text-text-muted">Location and EXIF data are removed automatically.</p>
             {preview && (
                 // eslint-disable-next-line @next/next/no-img-element -- a local object URL, so next/image does not fit
-                <img src={preview} alt={purpose === "delivery_evidence" ? "Delivery photo" : "Photo of the items"} className="h-28 w-40 max-w-full rounded-md object-cover" />
+                <img src={preview} alt={purpose === "delivery_evidence" ? "Delivery photo" : "Photo of the items"} className="h-28 w-40 max-w-full rounded-xl border border-border object-cover" />
             )}
             {status === "uploading" && <p role="status">Uploading...</p>}
             {status === "done" && (

@@ -2,7 +2,7 @@
 
 import { useId } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Alert, Button, CheckIcon, Spinner, mono } from "@/components/ui";
+import { Alert, Button, CheckIcon, MapPinIcon, Spinner, mono } from "@/components/ui";
 import { api } from "@/lib/api";
 import { formatPostalCode } from "@/lib/postal-code";
 import { queryKeys } from "@/lib/query-keys";
@@ -37,8 +37,8 @@ export function FacilityPicker({ categoryId, value, onChange }: {
                         onChange={() => onChange(facility.facilityId)} className="mt-1 h-5 w-5 flex-none accent-accent" />
                     <span className="min-w-0 flex-1 break-words">
                         <span className="block font-semibold">{facility.name}</span>
-                        <span className="block">{facility.street}, Calgary <span className={mono}>{formatPostalCode(facility.postalCode)}</span></span>
-                        {facility.specialInstructions && <span className="block text-[13px] text-neutral-800">{facility.specialInstructions}</span>}
+                        <span className="flex items-start gap-1"><MapPinIcon className="mt-0.5 size-4 flex-none" /><span>{facility.street}, Calgary <span className={mono}>{formatPostalCode(facility.postalCode)}</span></span></span>
+                        {facility.specialInstructions && <span className="mt-1 block rounded-lg bg-surface px-2.5 py-1.5 text-[13px] text-neutral-800">{facility.specialInstructions}</span>}
                     </span>
                     {value === facility.facilityId && <CheckIcon className="size-5 flex-none text-accent-2-800" />}
                 </label>
