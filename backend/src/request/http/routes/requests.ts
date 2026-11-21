@@ -3,14 +3,18 @@
 // Q8 GET /api/requests/:id: any signed-in caller; the database decides what they see.
 // Q11 POST /api/requests/:id/assignment (volunteers): accept, then the detail.
 // Q13 POST /api/requests/:id/assignment/collected (the owner): confirm, then the detail.
+// Q15 POST /api/requests/:id/assignment/delivery (the assigned volunteer): deliver, then the detail.
 import { Router } from 'express';
 import * as v from 'valibot';
 import type { RouteDeps } from '../../app.ts';
-import { accept, confirmCollected, createRequests, getDetail, getRequests, listAvailable, listMine } from '../../db/functions.ts';
+import {
+  accept, confirmCollected, createRequests, getDetail, getRequests, listAvailable, listMine, recordDelivery,
+} from '../../db/functions.ts';
 import { availableRequest, createdRequest, myRequest, requestDetail } from '../../json/responses.ts';
 import { parseAcceptBody } from '../accept-body.ts';
 import { Uuid } from '../body-validation.ts';
 import { parseCreateRequestsBody } from '../create-requests-body.ts';
+import { parseRecordDeliveryBody } from '../record-delivery-body.ts';
 import {
   forbidden, HttpError, requestUnavailable, termsOutdated, validationFailed, validationFailedFromDb,
 } from '../errors.ts';
@@ -19,7 +23,7 @@ import { parseAvailableQuery, parseMineQuery, parseView } from '../list-requests
 
 const IDEMPOTENCY_KEY_MAX = 200;       // idempotency_keys.idempotency_key is VARCHAR(200)
 
-export default function requestsRouter({ pool, nudgePublisher, demo }: RouteDeps): Router {
+export default function requestsRouter({ pool, nudgePublisher, demo, imagekit }: RouteDeps): Router {
   const router = Router();
 
   router.post('/api/requests', requireRole('resident'), async (req, res) => {
@@ -162,6 +166,43 @@ export default function requestsRouter({ pool, nudgePublisher, demo }: RouteDeps
         throw new HttpError(409, 'not_assigned', 'This request is not waiting for a collection.');
       case 'ok':
         nudgePublisher();              // RequestAssignmentCollected is in the outbox
+        break;
+    }
+
+    // Committed; a missing detail means another action changed it in between.
+    const row = await getDetail(pool, id, caller.id);
+    if (row.result_code !== 'ok') throw requestUnavailable();
+    res.json(requestDetail(row));
+  });
+
+  // Order: role (403), id (404), body shape (400), the ImageKit check, one write
+  // call; then the detail, as in Q11. A failed photo check goes in as a null
+  // path: req_record_delivery answers it with the facility, after its state checks.
+  router.post('/api/requests/:id/assignment/delivery', requireRole('volunteer'), async (req, res) => {
+    const caller = callerOf(res);
+    const id = req.params.id;
+    if (!v.is(Uuid, id)) throw requestUnavailable();
+    const body = parseRecordDeliveryBody(req.body);
+
+    const filePath = await imagekit.verify({
+      fileId: body.fileId, purpose: 'delivery_evidence', callerId: caller.id, requestId: id,
+    });
+    const result = await recordDelivery(pool, {
+      requestId: id, volunteerId: caller.id, ...body, filePath, traceId: caller.traceId,
+    });
+    switch (result.result_code) {
+      case 'request_unavailable':
+        throw requestUnavailable();
+      case 'forbidden':
+        throw forbidden('Only the assigned volunteer can record the delivery.');
+      case 'already_delivered':
+        throw new HttpError(409, 'already_delivered', 'This request has already been delivered.');
+      case 'not_collected':
+        throw new HttpError(409, 'not_collected', 'The owner has not confirmed the collection yet.');
+      case 'validation_failed':
+        throw validationFailedFromDb(result.error_fields, result.error_messages);
+      case 'ok':
+        nudgePublisher();              // RequestAssignmentDelivered is in the outbox
         break;
     }
 

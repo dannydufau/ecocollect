@@ -166,6 +166,22 @@ export type ConfirmCollectedRow = {
   result_code: 'ok' | 'request_unavailable' | 'forbidden' | 'not_assigned';
 };
 
+export type RecordDeliveryInput = {
+  requestId: string;                   // a well-formed UUID (checked before the call)
+  volunteerId: string;
+  facilityId: string | null;           // null: not a UUID
+  fileId: string;
+  filePath: string | null;             // null: the ImageKit check failed
+  traceId: string | null;
+};
+
+export type RecordDeliveryRow = {
+  result_code: 'ok' | 'request_unavailable' | 'forbidden' | 'already_delivered' | 'not_collected'
+  | 'validation_failed';
+  error_fields: string[];              // paired with error_messages, element by element
+  error_messages: string[];
+};
+
 // The one row of requests.req_get_detail (Q8). For 'request_unavailable' every
 // other column is null. For 'ok' the columns the viewer may not see are null
 // (030's header says which); the window and history arrays line up like

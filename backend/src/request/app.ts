@@ -6,13 +6,15 @@ import type { Router } from 'express';
 import type pg from 'pg';
 import { errorHandler, notFound } from './http/errors.ts';
 import { gatewayUser } from './http/gateway-user.ts';
+import { noPhotos, type Photos } from './imagekit/photos.ts';
 
 // What the routes need from outside. Tests pass only a pool: the publisher
-// nudge is then a no-op and demo mode is off.
+// nudge is then a no-op, demo mode is off and every photo is refused.
 export type AppDeps = {
   pool: pg.Pool;
   nudgePublisher?: () => void;  // after a write, so events go out without waiting for a tick
   demo?: boolean;               // DEMO_MODE (contract 17.5)
+  imagekit?: Photos;            // the photo check (contract 6.5); tests can pass imagekit/fake.ts
 };
 
 // Every file in http/routes/ is one group of endpoints. Its default export
@@ -41,7 +43,9 @@ async function loadRouteFactories(): Promise<RouteFactory[]> {
   return factories;
 }
 
-export function createApp({ pool, nudgePublisher = () => {}, demo = false }: AppDeps): express.Express {
+export function createApp({
+  pool, nudgePublisher = () => {}, demo = false, imagekit = noPhotos,
+}: AppDeps): express.Express {
   const app = express();
   app.disable('x-powered-by');
 
@@ -52,7 +56,7 @@ export function createApp({ pool, nudgePublisher = () => {}, demo = false }: App
   app.use(express.json());
   app.use(gatewayUser);
 
-  for (const factory of routeFactories) app.use(factory({ pool, nudgePublisher, demo }));
+  for (const factory of routeFactories) app.use(factory({ pool, nudgePublisher, demo, imagekit }));
 
   app.use(notFound);
   app.use(errorHandler);

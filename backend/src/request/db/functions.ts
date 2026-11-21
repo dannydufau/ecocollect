@@ -4,6 +4,7 @@ import type pg from 'pg';
 import type {
   AcceptInput, AcceptRow, CategoryRow, ConfirmCollectedInput, ConfirmCollectedRow, CreateRequestsInput,
   CreateRequestsRow, FacilityRow, GetDetailRow, GetRequestsRow, ListAvailableRow, ListMineRow,
+  RecordDeliveryInput, RecordDeliveryRow,
 } from '../domain/types.ts';
 
 export async function listCategories(pool: pg.Pool): Promise<CategoryRow[]> {
@@ -87,6 +88,14 @@ export async function confirmCollected(pool: pg.Pool, input: ConfirmCollectedInp
   const { rows } = await pool.query<ConfirmCollectedRow>(
     'SELECT * FROM requests.req_confirm_collected($1::uuid, $2, $3)',
     [input.requestId, input.residentId, input.traceId]);
+  // a function with OUT parameters always returns exactly one row, so the ! (not-null assertion) is safe.
+  return rows[0]!;
+}
+
+export async function recordDelivery(pool: pg.Pool, input: RecordDeliveryInput): Promise<RecordDeliveryRow> {
+  const { rows } = await pool.query<RecordDeliveryRow>(
+    'SELECT * FROM requests.req_record_delivery($1::uuid, $2, $3::uuid, $4, $5, $6)',
+    [input.requestId, input.volunteerId, input.facilityId, input.fileId, input.filePath, input.traceId]);
   // a function with OUT parameters always returns exactly one row, so the ! (not-null assertion) is safe.
   return rows[0]!;
 }
