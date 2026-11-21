@@ -8,7 +8,7 @@ export { Button } from "./button";
 export { Field } from "./field";
 export { FilterTabs } from "./filter-tabs";
 export { RequestPhoto } from "./request-photo";
-export { card, clickableCard, input, linkButton, pageTitle, stretchedLink, textarea, textLink } from "./styles";
+export { card, clickableCard, input, linkButton, mono, pageTitle, stretchedLink, textarea, textLink } from "./styles";
 export {
     AlertIcon, BellIcon, CalendarIcon, CameraIcon, CheckIcon, ChevronRightIcon, ClockIcon, EyeIcon, EyeOffIcon,
     InfoIcon, LeafIcon, MapPinIcon, PackageIcon, PlusIcon, ScaleIcon, TruckIcon, WarningIcon,

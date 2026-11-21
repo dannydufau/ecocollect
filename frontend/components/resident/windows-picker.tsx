@@ -48,7 +48,7 @@ export function WindowsPicker({ value, onChange, createdAt }: {
 
     return (
         <fieldset className={`${card} min-w-0`}>
-            <legend className="float-left mb-2 font-[family-name:var(--font-heading)] text-[22px]">Pickup windows</legend>
+            <legend className="float-left mb-2 text-xl font-bold">Pickup windows</legend>
             <div className="clear-both flex flex-col gap-3">
                 <p className="text-[13px] text-neutral-700">Each window is one hour (Calgary time). Offer up to 3. They must start in the future and within 30 days.</p>
                 {draft.rows.map((row, index) => {

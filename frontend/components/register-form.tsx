@@ -11,7 +11,7 @@ import {
 // A card with its title inside, like the prototype. The legend floats so it sits in the card and not on its border.
 function Group({ title, describedBy, children }: { title: string; describedBy?: string; children: ReactNode }) {
     return <fieldset aria-describedby={describedBy} className={`${card} min-w-0`}>
-        <legend className="float-left mb-3 font-[family-name:var(--font-heading)] text-xl">{title}</legend>
+        <legend className="float-left mb-3 text-xl font-bold">{title}</legend>
         <div className="clear-both flex flex-col gap-4">{children}</div>
     </fieldset>;
 }

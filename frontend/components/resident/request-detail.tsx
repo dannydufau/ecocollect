@@ -46,7 +46,7 @@ export default function ResidentRequestDetail({ requestId, rescheduled = false, 
     // The cancel button goes in with the other actions, so they all sit in one group
     const renderers: ResidentActionRenderers = {
         edit: request => <Link href={`/resident/requests/${encodeURIComponent(request.requestId)}/edit`}
-            className="inline-flex min-h-11 items-center rounded-full border border-neutral-600 px-5 py-2 font-[family-name:var(--font-heading)] text-text hover:bg-text/10">Edit request</Link>,
+            className="inline-flex min-h-11 items-center rounded-full border border-neutral-600 px-5 py-2 font-semibold text-text hover:bg-text/10">Edit request</Link>,
         cancel: request => <CancelRequest request={request} onNotice={setNotice} />,
         confirm_collected: request => <ConfirmCollected request={request} onNotice={setNotice} />,
         cancel_assignment: request => <CancelAssignment request={request} onNotice={setNotice} />,

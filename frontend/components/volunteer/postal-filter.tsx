@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { Button, Field, input } from "@/components/ui";
+import { Button, Field, input, mono } from "@/components/ui";
 import { formatPostalCode } from "@/lib/postal-code";
 import { normalizePostalCode, validateCodes } from "@/lib/validate-account";
 
@@ -28,7 +28,7 @@ export default function PostalFilter({ codes, onChange }: { codes: string[]; onC
                 {codes.map(code => <li key={code}>
                     <button type="button" onClick={() => onChange(codes.filter(other => other !== code))} aria-label={`Remove ${formatPostalCode(code)}`}
                         className="inline-flex min-h-11 items-center gap-2 rounded-full border border-neutral-600 bg-neutral-100 px-4 font-semibold hover:bg-text/10">
-                        {formatPostalCode(code)} <span aria-hidden="true">×</span>
+                        <span className={mono}>{formatPostalCode(code)}</span> <span aria-hidden="true">×</span>
                     </button>
                 </li>)}
             </ul></> : <p className="text-neutral-700">Showing all postal codes.</p>}
