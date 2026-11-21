@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { Alert, Button, EmptyState, Spinner, card, pageTitle, textLink } from "@/components/ui";
+import { Alert, Button, EmptyState, Spinner, card, pageTitle, panel, textLink } from "@/components/ui";
 import { api, isAuthError } from "@/lib/api";
 import type { operations } from "@/lib/api-types";
 import { queryKeys } from "@/lib/query-keys";
@@ -40,7 +40,7 @@ export default function EcoPointsPage() {
                             { label: "As resident", points: data.asResident },
                             { label: "As volunteer", points: data.asVolunteer },
                         ].map(({ label, points }) => (
-                            <div key={label} className={`${card} min-w-0 ${label === "Total" ? "bg-accent-2-800! text-accent-2-100" : ""}`}>
+                            <div key={label} className={`min-w-0 ${label === "Total" ? `${panel} border-transparent bg-accent-2-800 text-on-moss` : card}`}>
                                 <dt className={label === "Total" ? "" : "text-neutral-700"}>{label}</dt>
                                 <dd className="mt-1 break-all text-[40px] font-bold leading-none tabular-nums">{points.toFixed(2)}</dd>
                             </div>
@@ -59,7 +59,7 @@ export default function EcoPointsPage() {
                                             <p className="break-words">
                                                 {award.categoryName ? `${award.quantity} × ${award.categoryName}, ${award.estimatedWeightKg?.toFixed(2)} kg` : "—"}
                                             </p>
-                                            <p className="text-[13px] text-neutral-700">{formulaText(award)} · <time dateTime={award.awardedAt}>{formatTimestamp(award.awardedAt)}</time></p>
+                                            <p className="text-[13px] text-text-muted">{formulaText(award)} · <time dateTime={award.awardedAt}>{formatTimestamp(award.awardedAt)}</time></p>
                                         </div>
                                         {award.kind === "DELIVERY" && <Link
                                             href={`/${award.earnedAs}/requests/${award.requestId}`}

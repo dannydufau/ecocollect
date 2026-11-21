@@ -39,7 +39,7 @@ export default function ReviewRequest({ values, busy, accepted, onBack, onConfir
             })}</ul>
             {values.items.length > 1 && <p className="text-neutral-800">This creates {values.items.length} separate requests, one per item.</p>}
         </section>
-        <section aria-label="Pickup windows"><h3 className="mb-2 text-xl">Pickup windows</h3><WindowList windows={values.windows} /><p className="mt-2 text-[13px] text-neutral-700">Times are Calgary time.</p></section>
+        <section aria-label="Pickup windows"><h3 className="mb-2 text-xl">Pickup windows</h3><WindowList windows={values.windows} /><p className="mt-2 text-[13px] text-text-muted">Times are Calgary time.</p></section>
         <section aria-label="Notes"><h3 className="text-xl">Notes</h3><p className="whitespace-pre-wrap break-words">{values.notes || "No notes added."}</p></section>
         <section aria-label="Pickup address" className="space-y-2">
             <h3 className="text-xl">Pickup address</h3>
@@ -54,7 +54,7 @@ export default function ReviewRequest({ values, busy, accepted, onBack, onConfir
                 <Button variant="secondary" onClick={onBack}>Back to edit</Button>
                 <Button type="submit" busy={busy} busyLabel="Sending..." disabled={!accepted || !ready} aria-describedby={!accepted ? "review-terms-hint" : undefined}>Confirm and send</Button>
             </div>
-            {!accepted && <p id="review-terms-hint" className="text-[13px] text-neutral-700">Accept the terms above to send.</p>}
+            {!accepted && <p id="review-terms-hint" className="text-[13px] text-text-muted">Accept the terms above to send.</p>}
         </fieldset>
     </form>;
 }

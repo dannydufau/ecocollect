@@ -55,13 +55,13 @@ export default function AvailableRequests() {
                         <ul className="mt-1">
                             {request.windows.map(window => <li key={window.windowId} className="mb-1">
                                 <strong>{friendlyWindow(window)}</strong><br />
-                                <span className="text-[13px] text-neutral-700">{formatWindow(window)}</span>
+                                <span className="text-[13px] text-text-muted">{formatWindow(window)}</span>
                             </li>)}
                         </ul>
                         <p className="mt-1 text-[14px] text-neutral-700">Open until {formatTimestamp(request.expiresAt)}</p>
                     </li>)}
                 </ul>
-                <p className="text-[13px] text-neutral-700">Times are Calgary time.</p>
+                <p className="text-[13px] text-text-muted">Times are Calgary time.</p>
             </>}
         </section>
     );

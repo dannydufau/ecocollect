@@ -15,8 +15,8 @@ type AssignmentStatus = VolunteerAssignment["assignment"]["status"];
 // Words and a symbol, so the status is not told by color alone
 const statuses: Record<AssignmentStatus, { label: string; symbol: string; style: string }> = {
     Active: { label: "Active", symbol: "◐", style: "bg-accent-200 text-accent-900" },
-    Collected: { label: "Collected", symbol: "◕", style: "bg-accent-2-700 text-white" },
-    Delivered: { label: "Delivered", symbol: "✓", style: "bg-accent-2-900 text-accent-2-100" },
+    Collected: { label: "Collected", symbol: "◕", style: "bg-accent-2-700 text-on-moss" },
+    Delivered: { label: "Delivered", symbol: "✓", style: "bg-accent-2-900 text-on-moss" },
     Volunteer_Cancelled: { label: "Cancelled by me", symbol: "✕", style: "bg-neutral-300 text-neutral-900" },
     Resident_Cancelled: { label: "Cancelled by resident", symbol: "✕", style: "bg-neutral-300 text-neutral-900" },
     Missed_Pickup: { label: "Missed", symbol: "!", style: "bg-danger text-white" },
@@ -54,15 +54,15 @@ export default function VolunteerHistoryPage() {
                                 {row.category
                                     ? <Link href={`/volunteer/requests/${encodeURIComponent(row.requestId)}`} className={stretchedLink}>{row.quantity} × {row.category.name}</Link>
                                     : <p className="text-lg font-bold">Request no longer available to you</p>}
-                                <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-3.5 py-[5px] text-[13px] font-semibold ${status.style}`}>
+                                <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-3.5 py-1 text-[13px] font-semibold ${status.style}`}>
                                     <span aria-hidden="true">{status.symbol}</span>{status.label}
                                 </span>
                             </div>
                             {row.assignment.status === "Collected" && <p className="text-[13px] font-semibold text-accent-800">Record delivery</p>}
                             {row.estimatedWeightKg !== null && row.postalCode !== null && <p className="text-neutral-800"><span className="tabular-nums">{row.estimatedWeightKg.toFixed(2)} kg</span> · <span className={mono}>{formatPostalCode(row.postalCode)}</span></p>}
                             <p>{formatWindow(row.assignment.window)}</p>
-                            <p className="text-[13px] text-neutral-700">Accepted {formatTimestamp(row.assignment.acceptedAt)}</p>
-                            {row.assignment.endedAt && <p className="text-[13px] text-neutral-700">Ended {formatTimestamp(row.assignment.endedAt)}</p>}
+                            <p className="text-[13px] text-text-muted">Accepted {formatTimestamp(row.assignment.acceptedAt)}</p>
+                            {row.assignment.endedAt && <p className="text-[13px] text-text-muted">Ended {formatTimestamp(row.assignment.endedAt)}</p>}
                         </li>;
                     })}
                 </ul>}

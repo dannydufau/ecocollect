@@ -65,7 +65,7 @@ export default function CancelAssignment({ request, onNotice }: { request: Reque
                     {control => <textarea {...control} value={reason} onChange={event => setReason(event.target.value)} disabled={action.isPending}
                         rows={3} className={textarea} />}
                 </Field>
-                <p className="text-[13px] text-neutral-700">Optional: offer new pickup windows. Leave them empty to keep the current ones.</p>
+                <p className="text-[13px] text-text-muted">Optional: offer new pickup windows. Leave them empty to keep the current ones.</p>
                 <WindowsPicker value={windows} onChange={setWindows} createdAt={request.createdAt} />
             </div>
         </ConfirmDialog>

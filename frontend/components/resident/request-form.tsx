@@ -168,7 +168,7 @@ export default function RequestForm({ initialValues, createdAt, single = false, 
                 <div className="flex flex-wrap items-center gap-3">
                     <Button type="submit" busy={busy} busyLabel="Sending..." disabled={submitDisabled} aria-describedby={submitHint ? `${id}-hint` : undefined} className="px-7">{submitLabel}</Button>
                     {cancelHref && <Link href={cancelHref} className="inline-flex min-h-11 items-center rounded-full border border-neutral-600 px-5 py-2 font-semibold text-text hover:bg-text/10">Cancel</Link>}
-                    {submitHint && <p id={`${id}-hint`} className="text-[13px] text-neutral-700">{submitHint}</p>}
+                    {submitHint && <p id={`${id}-hint`} className="text-[13px] text-text-muted">{submitHint}</p>}
                 </div>
             </fieldset>
         </form>
