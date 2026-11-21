@@ -117,7 +117,7 @@ export default function requestsRouter({ pool, nudgePublisher, demo, imagekit }:
     if (!v.is(Uuid, id)) throw requestUnavailable();
     const row = await getDetail(pool, id, caller.id);
     if (row.result_code !== 'ok') throw requestUnavailable();
-    res.json(requestDetail(row));
+    res.json(requestDetail(row, imagekit.sign));
   });
 
   // Order: role (403), id (404), body shape (400), the ImageKit check of a new
@@ -168,7 +168,7 @@ export default function requestsRouter({ pool, nudgePublisher, demo, imagekit }:
     // Committed; a missing detail means another action changed it in between.
     const row = await getDetail(pool, id, caller.id);
     if (row.result_code !== 'ok') throw requestUnavailable();
-    res.json(requestDetail(row));
+    res.json(requestDetail(row, imagekit.sign));
   });
 
   // Order: role (403), id (404), body shape (400), one write call; then the
@@ -201,7 +201,7 @@ export default function requestsRouter({ pool, nudgePublisher, demo, imagekit }:
     // Committed; a missing detail means another action changed it in between.
     const row = await getDetail(pool, id, caller.id);
     if (row.result_code !== 'ok') throw requestUnavailable();
-    res.json(requestDetail(row));
+    res.json(requestDetail(row, imagekit.sign));
   });
 
   // Order: role (403), id (404, as in Q8), body shape (400), one write call;
@@ -239,7 +239,7 @@ export default function requestsRouter({ pool, nudgePublisher, demo, imagekit }:
     // owner cancelling) changed the request in between: answer as Q8 would now.
     const row = await getDetail(pool, id, caller.id);
     if (row.result_code !== 'ok') throw requestUnavailable();
-    res.status(201).json(requestDetail(row));
+    res.status(201).json(requestDetail(row, imagekit.sign));
   });
 
   // Order: id (404), body shape (400), one write call; then the detail, as in
@@ -278,7 +278,7 @@ export default function requestsRouter({ pool, nudgePublisher, demo, imagekit }:
     // see it (Q8), so the answer is 404 as Q8 would give now, not a 500.
     const row = await getDetail(pool, id, caller.id);
     if (row.result_code !== 'ok') throw requestUnavailable();
-    res.json(requestDetail(row));
+    res.json(requestDetail(row, imagekit.sign));
   });
 
   // Order: role (403), id (404), one write call; then the detail, as in Q11.
@@ -304,7 +304,7 @@ export default function requestsRouter({ pool, nudgePublisher, demo, imagekit }:
     // Committed; a missing detail means another action changed it in between.
     const row = await getDetail(pool, id, caller.id);
     if (row.result_code !== 'ok') throw requestUnavailable();
-    res.json(requestDetail(row));
+    res.json(requestDetail(row, imagekit.sign));
   });
 
   // Order: role (403), id (404), body shape (400), one write call; then the
@@ -350,7 +350,7 @@ export default function requestsRouter({ pool, nudgePublisher, demo, imagekit }:
       if (rows.length !== 1) throw new Error(`Q14: rescheduled request ${newId} not read back`);
       rescheduledRequest = createdRequest(rows[0]!);
     }
-    res.json({ request: requestDetail(row), rescheduledRequest });
+    res.json({ request: requestDetail(row, imagekit.sign), rescheduledRequest });
   });
 
   // Order: role (403), id (404), body shape (400), the ImageKit check, one write
@@ -387,7 +387,7 @@ export default function requestsRouter({ pool, nudgePublisher, demo, imagekit }:
     // Committed; a missing detail means another action changed it in between.
     const row = await getDetail(pool, id, caller.id);
     if (row.result_code !== 'ok') throw requestUnavailable();
-    res.json(requestDetail(row));
+    res.json(requestDetail(row, imagekit.sign));
   });
 
   return router;

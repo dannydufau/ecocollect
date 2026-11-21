@@ -2,7 +2,7 @@
 import type {
   CategoryRow, FacilityRow, GetDetailRow, GetRequestsRow, ListAvailableRow, ListMineRow,
 } from '../domain/types.ts';
-import type { UploadTicket } from '../imagekit/photos.ts';
+import type { Photos, UploadTicket } from '../imagekit/photos.ts';
 
 // Q1, CategoryWithWeight. NUMERIC arrives as a string; the contract wants a number.
 export function category(row: CategoryRow) {
@@ -76,10 +76,9 @@ export function availableRequest(row: ListAvailableRow) {
 
 // Q8 (and later Q9-Q15), RequestDetail. A field the viewer may not see is left
 // out (README 5.2 visibility table); a field they may see but that has no value
-// is null. Photo URLs are null (item) and absent (evidence) until ImageKit
-// signing is wired in; the SQL already returns the paths for the viewers who may
-// see them.
-export function requestDetail(row: GetDetailRow) {
+// is null. The SQL returns photo_path and evidence_path only to viewers who may
+// see them; sign turns each path into a short-lived URL (contract 6.6).
+export function requestDetail(row: GetDetailRow, sign: Photos['sign']) {
   const window = (windowId: string, date: string, startHour: number) => ({ windowId, date, startHour });
   const body: Record<string, unknown> = {
     requestId: row.request_id,
@@ -91,7 +90,7 @@ export function requestDetail(row: GetDetailRow) {
     windows: row.window_ids.map((id, i) => window(id, row.window_dates[i]!, row.window_hours[i]!)),
     createdAt: row.created_at.toISOString(),
     expiresAt: row.expires_at.toISOString(),
-    photoUrl: null,
+    photoUrl: row.photo_path === null ? null : sign(row.photo_path),
   };
 
   // street is NOT NULL in the model, so a null street means "hidden", while a
@@ -118,9 +117,12 @@ export function requestDetail(row: GetDetailRow) {
       endReason: row.assignment_end_reason,
       outsideCancellationWindow: row.assignment_outside_window,
     };
+    // evidencePhotoUrl may be left out (the contract doesn't allow null), but
+    // every delivery has evidence (Q15), so its viewers always get one.
     body.delivery = row.delivered_at === null ? null : {
       facility: { facilityId: row.delivery_facility_id, name: row.delivery_facility_name },
       deliveredAt: row.delivered_at.toISOString(),
+      ...(row.evidence_path === null ? {} : { evidencePhotoUrl: sign(row.evidence_path) }),
     };
   }
 

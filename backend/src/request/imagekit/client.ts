@@ -1,9 +1,10 @@
 // The real ImageKit behind the Photos interface: signs upload tickets (contract
-// 6.2), checks uploaded files (6.5) and deletes unused ones (6.7) with the SDK.
+// 6.2), checks uploaded files (6.5), signs photo URLs (6.6) and deletes unused
+// ones (6.7) with the SDK.
 import { createHmac } from 'node:crypto';
 import ImageKit, { BadRequestError, NotFoundError } from '@imagekit/nodejs';
 import {
-  MAX_PHOTO_BYTES, PHOTO_TYPES, TICKET_SECONDS, UPLOAD_URL,
+  MAX_PHOTO_BYTES, PHOTO_TYPES, PHOTO_URL_SECONDS, TICKET_SECONDS, UPLOAD_URL,
   photoFolder, ticketFields, type Photos, type TicketFields,
 } from './photos.ts';
 
@@ -18,7 +19,7 @@ const API_TIMEOUT_MS = 10_000;   // a route waits for ImageKit, so don't wait th
 const API_RETRIES = 1;
 
 export function imagekitPhotos(config: ImageKitConfig): Photos {
-  const { privateKey, publicKey, rootFolder } = config;
+  const { privateKey, publicKey, urlEndpoint, rootFolder } = config;
   if (!rootFolder.startsWith('/') || rootFolder.endsWith('/')) {
     throw new Error(`IMAGEKIT_ROOT_FOLDER must start with '/' and not end with '/': ${rootFolder}`);
   }
@@ -55,6 +56,11 @@ export function imagekitPhotos(config: ImageKitConfig): Photos {
 
       if (!inFolder || !isPrivate || !allowedType || !allowedSize) return null;
       return file.filePath as string;
+    },
+
+    // Builds the URL locally (no API call); the SDK signs it with the private key.
+    sign(path) {
+      return client.helper.buildSrc({ urlEndpoint, src: path, signed: true, expiresIn: PHOTO_URL_SECONDS });
     },
 
     async remove(fileId) {

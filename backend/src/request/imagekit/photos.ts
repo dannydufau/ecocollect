@@ -1,6 +1,7 @@
 // What the routes need from ImageKit: an upload ticket (contract 6.1-6.3), the
-// file check of 6.5 before a photo is attached, and deleting a photo no request
-// uses any more (6.7). client.ts asks ImageKit; fake.ts is for tests.
+// file check of 6.5 before a photo is attached, a signed URL to show a photo
+// (6.6), and deleting a photo no request uses any more (6.7). client.ts asks
+// ImageKit; fake.ts is for tests.
 import { randomUUID } from 'node:crypto';
 
 export type PhotoPurpose = 'item_photo' | 'delivery_evidence';
@@ -13,6 +14,9 @@ export const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
 // Where the browser uploads (6.3) and how long a ticket lasts (6.2: 10 min).
 export const UPLOAD_URL = 'https://upload.imagekit.io/api/v2/files/upload';
 export const TICKET_SECONDS = 600;
+
+// How long a signed photo URL works (6.6: about 600 s).
+export const PHOTO_URL_SECONDS = 600;
 
 export type PhotoCheck = {
   fileId: string;
@@ -53,6 +57,9 @@ export type Photos = {
   // The file's ImageKit path when it passes 6.5 (in the folder 6.2 pins for this
   // caller and purpose, private, an allowed type and size), otherwise null.
   verify(check: PhotoCheck): Promise<string | null>;
+  // A URL for the file at this ImageKit path that works for PHOTO_URL_SECONDS
+  // (6.6). The caller checked who may see the photo. Never stored.
+  sign(path: string): string;
   // Deletes the file from ImageKit. Throws when ImageKit refuses; the caller logs it.
   remove(fileId: string): Promise<void>;
 };
@@ -91,9 +98,10 @@ export function ticketFields(rootFolder: string, request: TicketRequest): Ticket
 }
 
 // The default for tests that don't pass an imagekit: no ticket can be signed,
-// every photo is refused, and there is no file to delete.
+// every photo is refused, no URL can be signed, and there is no file to delete.
 export const noPhotos: Photos = {
   ticket: () => { throw new Error('ImageKit is not configured'); },
   verify: async () => null,
+  sign: () => { throw new Error('ImageKit is not configured'); },
   remove: async () => {},
 };
