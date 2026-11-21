@@ -41,6 +41,28 @@ Creates and lists pickup requests, following [contracts/](../contracts/). It tru
 
 The outbox publisher runs in the same process. Every second it sends unsent outbox rows to the `ecocollect.events` topic exchange (routing key `request.created`, persistent) and waits for the broker's confirm before marking a row as sent. If RabbitMQ is down it logs the error and tries again, and the events just wait in the database. It creates the exchange itself if it's missing.
 
+## Reward Service (`src/reward/`)
+
+Awards EcoPoints when a request is delivered (`RequestAssignmentDelivered`) or the resident cancels late (`RequestAssignmentCancelledResident`), and publishes `reward.points.delivery` or `reward.points.cancellation` through `rewards.outbox`. Follows [contracts/](../contracts/) sections 5.3, 9 and 15.
+
+| Route | Login | What it does |
+|---|---|---|
+| `GET /api/ecopoints` | yes | The caller's total, split into resident and volunteer points, and every award newest first. Reads `X-User-Id`. |
+| `GET /api/public/stats` | no | Community totals: deliveries, items, estimated weight and points awarded, also grouped by waste type. |
+| `GET /api/public/profiles/:accountId/stats` | no | The account's total EcoPoints. An unknown account returns `0`. |
+
+Each award is one `ecopoints_award` row plus one `resident_award` or `volunteer_award` row. The account is not stored on the award; it is found through the assignment's terms acceptance (contract section 8). The `rewards` schema holds `outbox` and `processed_events`, so a repeated event is skipped.
+
+Until integration the service has its own database, `ecocollect_reward`, built from the 608 physical model (tables and seed, schema `ecocollect608`) and `db/reward/`. Build it once, and again after the model changes. The script recreates only that database:
+
+```bash
+docker compose up -d postgres
+REWARD_DB_PASSWORD=change_me backend/scripts/reward/load-db.sh
+docker compose up -d reward
+```
+
+Use the same password in `REWARD_DATABASE_URL` in `.env`. To run it outside Compose, set `DATABASE_URL` to the same login on `localhost` and `RABBITMQ_URL`, then run `node src/reward/index.js` from `backend/`. `PORT` defaults to `3005`.
+
 ## Run it
 
 ```bash
