@@ -29,14 +29,15 @@ function submit() {
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
 }
 
-it("shows the sign in form with the mark and links to register and the stats", () => {
+it("shows the sign in form without a second mark and links to register and the stats", () => {
     render(<LoginPage />);
     expect(screen.getByRole("heading", { level: 1, name: "Sign in to EcoCollect" })).toBeInTheDocument();
     expect(screen.getByLabelText("Email")).toHaveAttribute("type", "email");
     expect(screen.getByLabelText("Password")).toHaveAttribute("type", "password");
     expect(screen.getByRole("link", { name: "Create an account" })).toHaveAttribute("href", "/register");
     expect(screen.getByRole("link", { name: "Community stats" })).toHaveAttribute("href", "/stats");
-    expect(document.querySelector("img[src*='ecocollect-mark']")).not.toBeNull();
+    // The header already shows the mark, so the page does not show it a second time
+    expect(document.querySelector("img[src*='ecocollect-mark']")).toBeNull();
     expect(screen.getByLabelText("Email")).toBeRequired();
 });
 
@@ -118,4 +119,18 @@ it("asks to sign in again when the session expired", () => {
 it("shows no expired notice without ?expired", () => {
     render(<LoginPage />);
     expect(screen.queryByText("Please sign in again.")).not.toBeInTheDocument();
+});
+
+it("shows and hides the password with a toggle button", () => {
+    render(<LoginPage />);
+    const field = screen.getByLabelText("Password");
+    const toggle = screen.getByRole("button", { name: "Show password" });
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    expect(toggle.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+    fireEvent.click(toggle);
+    expect(field).toHaveAttribute("type", "text");
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(toggle);
+    expect(field).toHaveAttribute("type", "password");
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
 });

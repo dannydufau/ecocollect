@@ -119,3 +119,15 @@ it("still works when storage throws", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Volunteer/ }));
     expect(router.push).toHaveBeenCalledWith("/volunteer");
 });
+
+it("shows the signed-in email and role icons that add no text", () => {
+    vi.mocked(useAuth).mockReturnValue({
+        user: { uid: "u1", email: "maya@example.com" }, roles: ["resident", "volunteer"], activeRole: null, loading: false, setActiveRole, signOut,
+    } as never);
+    render(<ChooseRolePage />);
+    expect(screen.getByText("Signed in as maya@example.com")).toBeInTheDocument();
+    for (const button of screen.getAllByRole("button")) {
+        expect(button.querySelectorAll("svg[aria-hidden=true]")).toHaveLength(2);
+    }
+    expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["ResidentRequest e-waste pickups", "VolunteerPick up items and deliver them"]);
+});
