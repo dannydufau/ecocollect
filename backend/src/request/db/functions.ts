@@ -2,7 +2,7 @@
 // pool.query: one function call that PostgreSQL commits on its own.
 import type pg from 'pg';
 import type {
-  CategoryRow, CreateRequestsInput, CreateRequestsRow, FacilityRow, GetDetailRow,
+  AcceptInput, AcceptRow, CategoryRow, CreateRequestsInput, CreateRequestsRow, FacilityRow, GetDetailRow,
   GetRequestsRow, ListAvailableRow, ListMineRow,
 } from '../domain/types.ts';
 
@@ -66,6 +66,16 @@ export async function listAvailable(pool: pg.Pool, postalCodes: string[] | null)
 export async function getDetail(pool: pg.Pool, requestId: string, viewerId: string): Promise<GetDetailRow> {
   const { rows } = await pool.query<GetDetailRow>(
     'SELECT * FROM requests.req_get_detail($1::uuid, $2)', [requestId, viewerId]);
+  // a function with OUT parameters always returns exactly one row, so the ! (not-null assertion) is safe.
+  return rows[0]!;
+}
+
+// Q11. One call locks the request, checks it, and writes the assignment and its
+// RequestAssigned event, or expires an overdue request (also committed).
+export async function accept(pool: pg.Pool, input: AcceptInput): Promise<AcceptRow> {
+  const { rows } = await pool.query<AcceptRow>(
+    'SELECT * FROM requests.req_accept($1::uuid, $2, $3::uuid, $4::uuid, $5)',
+    [input.requestId, input.volunteerId, input.windowId, input.termsDocumentId, input.traceId]);
   // a function with OUT parameters always returns exactly one row, so the ! (not-null assertion) is safe.
   return rows[0]!;
 }

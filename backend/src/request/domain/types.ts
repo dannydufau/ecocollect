@@ -144,6 +144,22 @@ export type ListAvailableRow = {
 // other column is null. For 'ok' the columns the viewer may not see are null
 // (030's header says which); the window and history arrays line up like
 // ListAvailableRow's.
+export type AcceptInput = {
+  requestId: string;                   // a well-formed UUID (checked before the call)
+  volunteerId: string;
+  windowId: string | null;             // null: not a UUID
+  termsDocumentId: string | null;      // null: not a UUID
+  traceId: string | null;
+};
+
+export type AcceptRow = {
+  result_code: 'ok' | 'request_unavailable' | 'forbidden' | 'already_assigned' | 'not_open'
+    | 'expired' | 'terms_outdated' | 'validation_failed';
+  error_fields: string[];              // paired with error_messages, element by element
+  error_messages: string[];
+  assignment_id: string | null;        // set for 'ok'
+};
+
 export type GetDetailRow = {
   result_code: 'ok' | 'request_unavailable';
   viewer: 'owner' | 'assigned_volunteer' | 'volunteer' | null;

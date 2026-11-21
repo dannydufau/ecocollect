@@ -37,6 +37,10 @@ export const forbidden = (message: string) =>
 export const requestUnavailable = () =>
   new HttpError(404, 'request_unavailable', 'This request is no longer available.');
 
+// Contract: a malformed, unknown or outdated terms id (Q4, Q11, ...).
+export const termsOutdated = () =>
+  new HttpError(409, 'terms_outdated', 'The terms have changed. Please refresh the page to accept the new terms.');
+
 export function sendError(res: Response, err: HttpError): void {
   const body: { code: string; message: string; details?: ErrorDetails } =
     { code: err.code, message: err.message };

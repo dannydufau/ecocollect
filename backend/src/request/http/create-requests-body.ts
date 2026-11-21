@@ -4,10 +4,10 @@
 // Every failing field is reported, one entry per field with zero-based paths,
 // so the resident sees them all at once.
 import * as v from 'valibot';
-import { HttpError, validationFailed } from './errors.ts';
+import { parseBody, Uuid } from './body-validation.ts';
+import { termsOutdated } from './errors.ts';
 
 const INT_MAX = 2_147_483_647;         // quantity is an INT parameter
-export const Uuid = v.pipe(v.string(), v.uuid());
 
 // Runs after v.isoDate(), which checks the format (month 01-12, day 01-31) but
 // lets 2026-02-30 through; Postgres would refuse it with an error (a 500).
@@ -39,24 +39,6 @@ const CreateRequests = v.strictObject({
   termsDocumentId: v.message(v.pipe(v.string(), v.minLength(1)), 'must be the current terms document id'),
 });
 
-// The object schemas report three cases themselves (missing key, unknown key,
-// not an object), told apart by `expected`. Valibot's paths are dotted
-// (items.0.quantity); the contract's are items[0].quantity. The first issue
-// for a path wins, so each field has one entry.
-function toFields(issues: v.BaseIssue<unknown>[]): Record<string, string> {
-  const fields: Record<string, string> = {};
-  for (const issue of issues) {
-    const path = (v.getDotPath(issue) ?? 'body').replace(/\.(\d+)/g, '[$1]');
-    let message = issue.message;
-    if (issue.type === 'strict_object') {
-      message = issue.expected === 'never' ? 'unknown field'
-        : issue.expected === 'Object' ? 'must be an object' : 'is required';
-    }
-    fields[path] ??= message;
-  }
-  return fields;
-}
-
 export type CreateRequestsBody = {
   categoryIds: string[];
   quantities: number[];
@@ -67,12 +49,7 @@ export type CreateRequestsBody = {
 };
 
 export function parseCreateRequestsBody(body: unknown): CreateRequestsBody {
-  // strictObject accepts an array (typeof [] is 'object') and reports its
-  // indexes as unknown keys; a clearer answer for a body that is a JSON array.
-  if (Array.isArray(body)) throw validationFailed({ body: 'must be an object' });
-  const result = v.safeParse(CreateRequests, body);
-  if (!result.success) throw validationFailed(toFields(result.issues));
-  const { items, windows, notes, termsDocumentId } = result.output;
+  const { items, windows, notes, termsDocumentId } = parseBody(CreateRequests, body);
 
   // Contract: a malformed id is answered like an outdated one, before the
   // database would fail to cast it to UUID.
@@ -87,6 +64,3 @@ export function parseCreateRequestsBody(body: unknown): CreateRequestsBody {
     termsDocumentId,
   };
 }
-
-export const termsOutdated = () =>
-  new HttpError(409, 'terms_outdated', 'The terms have changed. Read them again and accept to continue.');

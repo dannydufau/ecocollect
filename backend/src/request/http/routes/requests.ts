@@ -1,13 +1,18 @@
 // Q4 POST /api/requests (residents): one request per item, in one database call.
 // Q5-Q7 GET /api/requests: one handler, the view decides the role and the read.
 // Q8 GET /api/requests/:id: any signed-in caller; the database decides what they see.
+// Q11 POST /api/requests/:id/assignment (volunteers): accept, then the detail.
 import { Router } from 'express';
 import * as v from 'valibot';
 import type { RouteDeps } from '../../app.ts';
-import { createRequests, getDetail, getRequests, listAvailable, listMine } from '../../db/functions.ts';
+import { accept, createRequests, getDetail, getRequests, listAvailable, listMine } from '../../db/functions.ts';
 import { availableRequest, createdRequest, myRequest, requestDetail } from '../../json/responses.ts';
-import { parseCreateRequestsBody, termsOutdated, Uuid } from '../create-requests-body.ts';
-import { forbidden, HttpError, requestUnavailable, validationFailed, validationFailedFromDb } from '../errors.ts';
+import { parseAcceptBody } from '../accept-body.ts';
+import { Uuid } from '../body-validation.ts';
+import { parseCreateRequestsBody } from '../create-requests-body.ts';
+import {
+  forbidden, HttpError, requestUnavailable, termsOutdated, validationFailed, validationFailedFromDb,
+} from '../errors.ts';
 import { assertRole, callerOf, requireRole } from '../gateway-user.ts';
 import { parseAvailableQuery, parseMineQuery, parseView } from '../list-requests-query.ts';
 
@@ -99,6 +104,44 @@ export default function requestsRouter({ pool, nudgePublisher, demo }: RouteDeps
     const row = await getDetail(pool, id, caller.id);
     if (row.result_code !== 'ok') throw requestUnavailable();
     res.json(requestDetail(row));
+  });
+
+  // Order: role (403), id (404, as in Q8), body shape (400), one write call;
+  // then the detail as a second, separate call. Every other answer, including
+  // the order of terms and window, comes from req_accept.
+  router.post('/api/requests/:id/assignment', requireRole('volunteer'), async (req, res) => {
+    const caller = callerOf(res);
+    const id = req.params.id;
+    if (!v.is(Uuid, id)) throw requestUnavailable();
+    const body = parseAcceptBody(req.body);
+
+    const result = await accept(pool, { requestId: id, volunteerId: caller.id, ...body, traceId: caller.traceId });
+    switch (result.result_code) {
+      case 'request_unavailable':
+        throw requestUnavailable();
+      case 'forbidden':
+        throw forbidden('Only an active volunteer can accept requests.');
+      case 'already_assigned':
+        throw new HttpError(409, 'already_assigned', 'Another volunteer accepted this request first.');
+      case 'not_open':
+        throw new HttpError(409, 'not_open', 'This request is no longer open.');
+      case 'expired':
+        nudgePublisher();              // the request was expired: RequestExpired is in the outbox
+        throw new HttpError(409, 'expired', 'This request has expired.');
+      case 'terms_outdated':
+        throw termsOutdated();
+      case 'validation_failed':
+        throw validationFailedFromDb(result.error_fields, result.error_messages);
+      case 'ok':
+        nudgePublisher();              // RequestAssigned is in the outbox
+        break;
+    }
+
+    // The accept is committed. A missing detail means another action (e.g. the
+    // owner cancelling) changed the request in between: answer as Q8 would now.
+    const row = await getDetail(pool, id, caller.id);
+    if (row.result_code !== 'ok') throw requestUnavailable();
+    res.status(201).json(requestDetail(row));
   });
 
   return router;
