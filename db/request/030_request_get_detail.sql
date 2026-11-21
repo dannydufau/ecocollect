@@ -88,6 +88,7 @@ DECLARE
     k_as_resident            CONSTANT TEXT := 'resident';    -- req_check_cancel_assignment's p_as
     k_as_volunteer           CONSTANT TEXT := 'volunteer';
     k_action_confirm_collected CONSTANT TEXT := 'confirm_collected';
+    k_action_report_missed   CONSTANT TEXT := 'report_missed';
     k_action_accept          CONSTANT TEXT := 'accept';
     k_action_record_delivery CONSTANT TEXT := 'record_delivery';
     k_status_open            CONSTANT VARCHAR(30) := 'Open';
@@ -161,6 +162,9 @@ BEGIN
     END IF;
     IF requests.req_check_confirm_collected(p_request_id, p_viewer_id) = k_code_ok THEN
         allowed_actions := array_append(allowed_actions, k_action_confirm_collected);
+    END IF;
+    IF requests.req_check_report_missed(p_request_id, p_viewer_id, v_now) = k_code_ok THEN
+        allowed_actions := array_append(allowed_actions, k_action_report_missed);
     END IF;
     IF requests.req_check_accept(p_request_id, p_viewer_id, v_now) = k_code_ok THEN
         allowed_actions := array_append(allowed_actions, k_action_accept);
