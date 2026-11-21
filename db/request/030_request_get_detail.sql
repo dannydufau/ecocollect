@@ -1,7 +1,9 @@
 -- req_get_detail: Q8, one request as the viewer may see it (RequestDetail in
 -- openapi.yaml, contract 5.2 visibility table). Called by TypeScript as
 --   SELECT * FROM requests.req_get_detail($1, $2)
--- Needs 022 (helpers). Created in "requests"; course tables are named without a
+-- Needs 022 (helpers) and the req_check_<action> functions (031 onwards; PL/pgSQL
+-- looks them up when called, so loading them after this file is fine).
+-- Created in "requests"; course tables are named without a
 -- schema (see 020). The OUT parameters share names with columns (status, notes,
 -- quantity, ...), so every column in the queries is qualified.
 --
@@ -22,9 +24,9 @@
 -- photo_path (item photo) and evidence_path (delivery photo) are ImageKit paths,
 -- set only when the viewer may see them; TypeScript signs them. The assignment_*
 -- columns are all NULL when no assignment is shown, the delivery ones when that
--- assignment has no delivery. allowed_actions stays empty until the
--- req_check_<action> functions exist; the overdue Open case (12.6) is empty
--- either way.
+-- assignment has no delivery. allowed_actions lists each action whose
+-- req_check_<action> answers 'ok' for the viewer at now(), in the order of the
+-- contract's enum; an overdue Open request gets none (12.6).
 CREATE OR REPLACE FUNCTION requests.req_get_detail(
     p_request_id UUID,
     p_viewer_id  VARCHAR(50),
@@ -125,7 +127,13 @@ BEGIN
         RETURN;
     END IF;
     result_code     := 'ok';
+
+    -- The actions the viewer may take now: the same checks the write functions
+    -- run. The owner gets 'accept' too when also an active volunteer (FR13).
     allowed_actions := '{}';
+    IF requests.req_check_accept(p_request_id, p_viewer_id, v_now) = 'ok' THEN
+        allowed_actions := array_append(allowed_actions, 'accept');
+    END IF;
 
     -- 2. Core fields (every viewer) and the photo path. Notes and address: the
     -- owner, and the volunteer while their assignment is Active (not collected,
