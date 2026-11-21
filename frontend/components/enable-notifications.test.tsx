@@ -46,6 +46,7 @@ it("asks for permission, subscribes and posts the subscription", async () => {
     expect(subscribe).toHaveBeenCalledWith({ userVisibleOnly: true, applicationServerKey: new Uint8Array([1, 2, 3]) });
     expect(api.post).toHaveBeenCalledWith("/api/push/subscriptions", json);
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(screen.getByText("Device notifications are on.")).toBeInTheDocument();
 });
 
 it("shows the hint and posts nothing when permission is denied on click", async () => {
@@ -66,20 +67,19 @@ it("shows the hint without a button when permission was already denied", async (
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
 });
 
-it("hides the button when already subscribed", async () => {
+it("says notifications are on, with no button, when already subscribed", async () => {
     const { requestPermission } = fakeBrowser({ permission: "granted", existing: { endpoint: json.endpoint } });
-    const { container } = render(<EnableNotifications />);
+    render(<EnableNotifications />);
 
-    await vi.waitFor(() => expect(navigator.serviceWorker.getRegistration).toHaveBeenCalled());
-    await new Promise((done) => setTimeout(done));
-    expect(container).toBeEmptyDOMElement();
+    expect(await screen.findByText("Device notifications are on.")).toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
     expect(requestPermission).not.toHaveBeenCalled();
 });
 
-it("renders nothing in a browser without push", async () => {
-    const { container } = render(<EnableNotifications />);
-    await new Promise((done) => setTimeout(done));
-    expect(container).toBeEmptyDOMElement();
+it("says so in a browser without push", async () => {
+    render(<EnableNotifications />);
+    expect(await screen.findByText("This browser does not support device notifications.")).toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
 });
 
 it("says notifications are not set up when the VAPID key is empty", async () => {

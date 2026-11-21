@@ -22,11 +22,12 @@ export default function ReviewRequest({ values, busy, accepted, onBack, onConfir
     useEffect(() => { heading.current?.focus(); }, []);
     const address = profile.data?.address;
     const category = (id: string) => categories.data?.find(item => item.categoryId === id);
+    const total = values.items.reduce((sum, item) => sum + (category(item.categoryId)?.standardWeightKg ?? 0) * Number(item.quantity), 0);
     const ready = !profile.isPending && !profile.isError && Boolean(address) && !categories.isPending && !categories.isError;
 
     return <form onSubmit={event => { event.preventDefault(); if (!busy && accepted && ready) onConfirm(); }}
         aria-busy={busy} className="min-w-0 max-w-xl space-y-6">
-        <h2 ref={heading} tabIndex={-1} className={pageTitle}>Review your request</h2>
+        <h1 ref={heading} tabIndex={-1} className={pageTitle}>Review your request</h1>
         <section aria-label="Items" className="space-y-3">
             {categories.isPending && <p role="status">Loading categories...</p>}
             {categories.isError && <Alert variant="error">Could not load categories. <button type="button" onClick={() => void categories.refetch()} className="underline">Try again</button></Alert>}
@@ -38,7 +39,10 @@ export default function ReviewRequest({ values, busy, accepted, onBack, onConfir
                     {item.photo && <span>Photo attached</span>}
                 </li>;
             })}</ul>
-            {values.items.length > 1 && <p className="text-neutral-800">This creates {values.items.length} separate requests, one per item.</p>}
+            {values.items.length > 1 && <>
+                {categories.data && <p>Total estimated weight: <strong className="tabular-nums">{total.toFixed(2)} kg</strong></p>}
+                <p className="text-neutral-800">This creates {values.items.length} separate requests, one per item.</p>
+            </>}
         </section>
         <section aria-label="Pickup windows"><h3 className="mb-2 text-xl">Pickup windows</h3><WindowList windows={values.windows} /><p className="mt-2 text-[13px] text-text-muted">Times are Calgary time.</p></section>
         <section aria-label="Notes"><h3 className="text-xl">Notes</h3><p className="whitespace-pre-wrap break-words">{values.notes || "No notes added."}</p></section>
@@ -47,7 +51,7 @@ export default function ReviewRequest({ values, busy, accepted, onBack, onConfir
             {profile.isPending ? <p role="status">Loading your address...</p> : profile.isError ?
                 <Alert variant="error">Could not load your address. <button type="button" onClick={() => void profile.refetch()} className="underline">Try again</button></Alert> :
                 address ? <p className="break-words">{address.street}, {formatPostalCode(address.postalCode)}</p> : <Alert variant="error">Add an address to your profile before sending.</Alert>}
-            <Link href="/profile" className={textLink}>Change address</Link>
+            <Link href="/profile" target="_blank" rel="noopener noreferrer" className={textLink}>Change address<span className="sr-only"> (opens in a new tab)</span></Link>
         </section>
         <fieldset disabled={busy} className="min-w-0 space-y-4">
             {children}

@@ -47,6 +47,14 @@ it("explains the shared demo data and links to the community stats", () => {
     expect(notFound).not.toHaveBeenCalled();
 });
 
+it("has a full-width Start button, the mark and a divider above the stats link", () => {
+    const { container } = render(<DemoPage />);
+    expect(screen.getByRole("button", { name: "Start demo" })).toHaveClass("w-full");
+    expect(container.querySelector("img[src*='ecocollect-mark']")).not.toBeNull();
+    expect(container.querySelector("hr")!.compareDocumentPosition(screen.getByRole("link", { name: "Community stats" })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Try EcoCollect" })).toHaveClass("max-w-[460px]");
+});
+
 it("is a 404 in a normal build", async () => {
     vi.stubEnv("NEXT_PUBLIC_DEMO", "");
     vi.resetModules();

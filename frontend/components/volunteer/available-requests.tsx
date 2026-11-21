@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { formatPostalCode } from "@/lib/postal-code";
 import { formatTimestamp, formatWindow, friendlyWindow } from "@/lib/time";
 import type { AvailableRequest } from "@/lib/types";
 import { useProfile } from "@/lib/use-profile";
-import { Alert, Button, EmptyState, Spinner, clickableCard, mono, pageTitle, stretchedLink, textLink } from "@/components/ui";
+import { Alert, Button, EmptyState, MapPinIcon, Spinner, clickableCard, mono, pageTitle, stretchedLink, textLink } from "@/components/ui";
 import PostalFilter from "./postal-filter";
 
 export default function AvailableRequests() {
@@ -17,20 +17,20 @@ export default function AvailableRequests() {
     // Null until the profile has loaded or failed, then the preferred codes are taken once (README 16.9)
     const [codes, setCodes] = useState<string[] | null>(null);
     if (codes === null && (profile.data || profile.isError)) setCodes(profile.data?.preferredPostalCodes ?? []);
-    const { data, isPending, isError, refetch, isFetching } = useQuery({
+    const { data, isPending, isError, isPlaceholderData, refetch, isFetching } = useQuery({
         queryKey: [...queryKeys.availableRequests, codes],
         queryFn: () => api.get<AvailableRequest[]>(`/api/requests?view=available${codes?.length ? `&postalCodes=${encodeURIComponent(codes.join(","))}` : ""}`),
         enabled: codes !== null,
+        // Keep the old rows on screen while a new filter loads
+        placeholderData: keepPreviousData,
     });
+    const empty = !isPlaceholderData && data?.length === 0;
 
     return (
         <section aria-labelledby="available-heading" className="min-w-0 space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-                <h1 id="available-heading" className={pageTitle}>Available requests</h1>
-                <Link href="/volunteer/history" className={textLink}>History</Link>
-            </div>
-            {codes && <PostalFilter codes={codes} onChange={setCodes} />}
-            {codes?.length === 0 && profile.data?.preferredPostalCodes.length === 0 && <p className="text-neutral-700">
+            <h1 id="available-heading" className={pageTitle}>Available requests</h1>
+            {codes && <PostalFilter codes={codes} onChange={setCodes} showAll={!empty} />}
+            {!empty && codes?.length === 0 && profile.data?.preferredPostalCodes.length === 0 && <p className="text-neutral-700">
                 Save preferred postal codes in your <Link href="/profile" className={textLink}>profile</Link> to see nearby requests first.
             </p>}
             {isPending && <Spinner label="Loading requests..." />}
@@ -38,23 +38,25 @@ export default function AvailableRequests() {
                 <Alert variant="error">We could not load the requests. Please try again.</Alert>
                 <div><Button variant="secondary" onClick={() => void refetch()} busy={isFetching} busyLabel="Trying...">Try again</Button></div>
             </>}
-            {data?.length === 0 && (codes?.length
-                ? <EmptyState title="No open requests in these areas.">Try Show all areas.</EmptyState>
-                : <EmptyState title="No open requests right now.">New ones show up here as residents post them.</EmptyState>)}
+            {empty && (codes?.length
+                ? <EmptyState title="No open requests in these areas."><Button variant="secondary" onClick={() => setCodes([])}>Show all areas</Button></EmptyState>
+                : <EmptyState title="No open requests right now.">
+                    New requests appear here on their own. You can set your <Link href="/profile" className={textLink}>preferred postal codes in Profile</Link>.
+                </EmptyState>)}
             {data && data.length > 0 && <>
                 <p role="status" className="font-semibold">{data.length === 1 ? "1 request" : `${data.length} requests`}</p>
-                <ul className="space-y-3">
+                <ul aria-busy={isPlaceholderData} className={`grid gap-3 transition-opacity md:grid-cols-2 ${isPlaceholderData ? "opacity-60" : ""}`}>
                     {data.map(request => <li key={request.requestId} className={clickableCard}>
                         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
                                                         <Link href={`/volunteer/requests/${encodeURIComponent(request.requestId)}`} className={stretchedLink}>
                                 {request.quantity} × {request.category.name}
                             </Link>
-                            <span className={`whitespace-nowrap rounded-full bg-neutral-100 px-3 py-1 text-neutral-800 ${mono}`}>{formatPostalCode(request.postalCode)}</span>
+                            <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-neutral-100 px-3 py-1 text-neutral-800 ${mono}`}><MapPinIcon className="size-4" />{formatPostalCode(request.postalCode)}</span>
                         </div>
                         <p className="mt-1 text-neutral-800">{request.estimatedWeightKg.toFixed(2)} kg{request.hasPhoto && " · Photo"}</p>
                         <ul className="mt-1">
-                            {request.windows.map(window => <li key={window.windowId} className="mb-1">
-                                <strong>{friendlyWindow(window)}</strong><br />
+                            {request.windows.map(window => <li key={window.windowId} className="mb-1 flex flex-wrap items-baseline gap-x-2">
+                                <strong>{friendlyWindow(window)}</strong>
                                 <span className="text-[13px] text-text-muted">{formatWindow(window)}</span>
                             </li>)}
                         </ul>
