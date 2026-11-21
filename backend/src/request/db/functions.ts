@@ -2,7 +2,7 @@
 // pool.query: one function call that PostgreSQL commits on its own.
 import type pg from 'pg';
 import type {
-  AcceptInput, AcceptRow, CategoryRow, ConfirmCollectedInput, ConfirmCollectedRow, CreateRequestsInput,
+  AcceptInput, AcceptRow, CancelInput, CancelRow, CategoryRow, ConfirmCollectedInput, ConfirmCollectedRow, CreateRequestsInput,
   CreateRequestsRow, FacilityRow, GetDetailRow, GetRequestsRow, ListAvailableRow, ListMineRow,
   RecordDeliveryInput, RecordDeliveryRow,
 } from '../domain/types.ts';
@@ -88,6 +88,14 @@ export async function confirmCollected(pool: pg.Pool, input: ConfirmCollectedInp
   const { rows } = await pool.query<ConfirmCollectedRow>(
     'SELECT * FROM requests.req_confirm_collected($1::uuid, $2, $3)',
     [input.requestId, input.residentId, input.traceId]);
+  // a function with OUT parameters always returns exactly one row, so the ! (not-null assertion) is safe.
+  return rows[0]!;
+}
+
+export async function cancel(pool: pg.Pool, input: CancelInput): Promise<CancelRow> {
+  const { rows } = await pool.query<CancelRow>(
+    'SELECT * FROM requests.req_cancel($1::uuid, $2, $3, $4)',
+    [input.requestId, input.residentId, input.reason, input.traceId]);
   // a function with OUT parameters always returns exactly one row, so the ! (not-null assertion) is safe.
   return rows[0]!;
 }

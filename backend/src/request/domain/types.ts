@@ -166,6 +166,17 @@ export type ConfirmCollectedRow = {
   result_code: 'ok' | 'request_unavailable' | 'forbidden' | 'not_assigned';
 };
 
+export type CancelInput = {
+  requestId: string;                   // a well-formed UUID (checked before the call)
+  residentId: string;
+  reason: string | null;               // normalised: at most 500 characters, blank -> null
+  traceId: string | null;
+};
+
+export type CancelRow = {
+  result_code: 'ok' | 'request_unavailable' | 'forbidden' | 'window_ended' | 'not_cancellable' | 'expired';
+};
+
 export type RecordDeliveryInput = {
   requestId: string;                   // a well-formed UUID (checked before the call)
   volunteerId: string;
