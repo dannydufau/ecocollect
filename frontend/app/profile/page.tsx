@@ -19,7 +19,7 @@ const cardStyle = `${card} min-w-0 space-y-3`;
 type Card = "name" | "address" | "codes";
 
 function Row({ name, children }: { name: string; children: React.ReactNode }) {
-    return <div className="min-w-0"><dt className="text-[13px] text-neutral-700">{name}</dt><dd className="break-words">{children}</dd></div>;
+    return <div className="min-w-0"><dt className="text-[13px] text-text-muted">{name}</dt><dd className="break-words">{children}</dd></div>;
 }
 
 export default function ProfilePage() {
@@ -68,7 +68,7 @@ export default function ProfilePage() {
                     <Row name="Roles">
                         <span className="flex flex-wrap gap-1.5">
                             {profile.roles.map((role) => (
-                                <span key={role} className="rounded-full bg-accent-2-200 px-3 py-0.5 text-xs font-semibold text-accent-2-900">{roleNames[role]}</span>
+                                <span key={role} className={`rounded-full px-3 py-0.5 text-xs font-semibold text-white ${role === "resident" ? "bg-accent-700" : "bg-accent-2-800"}`}>{roleNames[role]}</span>
                             ))}
                         </span>
                     </Row>

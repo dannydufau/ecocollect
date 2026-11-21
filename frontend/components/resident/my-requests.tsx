@@ -58,7 +58,7 @@ export default function MyRequests({ created }: { created?: string }) {
                     {request.status === "Open" && <p className="mt-1 text-neutral-700">Expires <time dateTime={request.expiresAt}>{formatTimestamp(request.expiresAt)}</time></p>}
                 </li>)}
             </ul>
-            <p className="text-[13px] text-neutral-700">Times are Calgary time.</p>
+            <p className="text-[13px] text-text-muted">Times are Calgary time.</p>
             </>}
         </section>
     );

@@ -4,6 +4,8 @@ import { useNotifications } from "@/lib/use-notifications";
 import NotificationBell from "./notification-bell";
 
 vi.mock("@/lib/use-notifications", () => ({ useNotifications: vi.fn() }));
+const path = vi.hoisted(() => ({ current: "/resident" }));
+vi.mock("next/navigation", () => ({ usePathname: () => path.current }));
 
 function show(data?: { unreadCount: number }) {
     vi.mocked(useNotifications).mockReturnValue({ data } as never);
@@ -12,6 +14,7 @@ function show(data?: { unreadCount: number }) {
 }
 
 afterEach(() => {
+    path.current = "/resident";
     cleanup();
     vi.resetAllMocks();
 });
@@ -36,4 +39,15 @@ it("shows no badge while loading or after an error", () => {
     const link = show(undefined);
     expect(link).toHaveAccessibleName("Notifications");
     expect(link).toHaveTextContent("");
+});
+
+it("is the current page on /notifications only", () => {
+    expect(show({ unreadCount: 0 })).not.toHaveAttribute("aria-current");
+    cleanup();
+    path.current = "/notifications";
+    expect(show({ unreadCount: 0 })).toHaveAttribute("aria-current", "page");
+});
+
+it("rings the badge in the page colour so it stands apart from the bell", () => {
+    expect(show({ unreadCount: 5 }).querySelector("span")).toHaveClass("ring-2", "ring-bg");
 });

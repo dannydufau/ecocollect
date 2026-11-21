@@ -72,14 +72,14 @@ export default function NotificationsPage() {
                 {rows.length > 0 && <ul className="space-y-3">
                     {rows.map(item => <li key={item.notificationId}>
                         <Link href={ownPage(item.url)} onClick={() => markRead(item)}
-                            className={`${card} block w-full min-w-0 text-left hover:shadow-[0_3px_10px_rgba(46,43,37,0.16)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${item.isRead ? "" : "ring-[1.5px] ring-inset ring-accent"}`}>
+                            className={`${card} block w-full min-w-0 text-left hover:shadow-hover ${item.isRead ? "" : "ring-[1.5px] ring-inset ring-accent"}`}>
                             <span className="flex items-start gap-2">
                                 {!item.isRead && <span aria-hidden="true" className="mt-2 size-2.5 flex-none rounded-full bg-accent" />}
                                 <span className="min-w-0 flex-1">
                                     {!item.isRead && <span className="sr-only">Unread: </span>}
                                     <span className={`block break-words ${item.isRead ? "" : "font-bold"}`}>{item.title}</span>
                                     <span className="block break-words text-neutral-800">{item.body}</span>
-                                    <time dateTime={item.createdAt} className="block text-[13px] text-neutral-700">{formatTimestamp(item.createdAt)}</time>
+                                    <time dateTime={item.createdAt} className="block text-[13px] text-text-muted">{formatTimestamp(item.createdAt)}</time>
                                 </span>
                             </span>
                         </Link>

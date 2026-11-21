@@ -77,6 +77,7 @@ export default function RegisterPage() {
         <Image src="/ecocollect-mark.png" alt="" width={61} height={64} priority />
         <h1 className={pageTitle}>Create your account</h1>
         <RegisterForm onValid={create} fieldErrors={fieldErrors} busy={busy} submitDisabled={!termsDocumentId || created}
+            submitHint={!termsDocumentId && !created ? "Accept the terms above to continue." : undefined}
             onEdit={() => setFieldErrors({})}>
             <TermsCheckbox value={termsDocumentId} onChange={setTermsDocumentId} />
             {error && <Alert variant="error">{error}</Alert>}

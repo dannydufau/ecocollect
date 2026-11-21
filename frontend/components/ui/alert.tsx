@@ -8,8 +8,8 @@ type Variant = "error" | "success" | "warning" | "info";
 const styles: Record<Variant, { box: string; lead: string }> = {
     error: { box: "bg-danger-50 text-danger-800 ring-danger", lead: "Error." },
     success: { box: "bg-accent-2-100 text-accent-2-800 ring-accent-2-500", lead: "Done." },
-    warning: { box: "bg-accent-100 text-accent-800 ring-accent-500", lead: "Heads up." },
-    info: { box: "bg-neutral-100 text-neutral-800 ring-neutral-400", lead: "Note." },
+    warning: { box: "bg-warning-tint text-accent-800 ring-accent-500", lead: "Heads up." },
+    info: { box: "bg-info-tint text-neutral-800 ring-neutral-400", lead: "Note." },
 };
 
 export function Alert({ variant, children, error, scrollIntoView = false }: {
@@ -27,7 +27,7 @@ export function Alert({ variant, children, error, scrollIntoView = false }: {
 
     return (
         <div ref={ref} role={variant === "error" ? "alert" : "status"}
-            className={`rounded-2xl px-[18px] py-3 text-[15px] leading-snug ring-[1.5px] ring-inset ${styles[variant].box}`}>
+            className={`rounded-2xl px-4 py-3 text-[15px] leading-snug ring-[1.5px] ring-inset ${styles[variant].box}`}>
             <strong>{styles[variant].lead}</strong> {children ?? message}
         </div>
     );

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import type { Role } from "@/lib/auth";
 import { roleOf, takeReturnTo } from "@/lib/return-to";
-import { ChevronRightIcon, PackageIcon, TruckIcon, card, pageTitle } from "@/components/ui";
+import { ChevronRightIcon, PackageIcon, PageLoading, TruckIcon, card, pageTitle } from "@/components/ui";
 
 const labels: Record<Role, { name: string; text: string; icon: ReactNode }> = {
     resident: { name: "Resident", text: "Request e-waste pickups", icon: <PackageIcon className="size-7 text-accent-700" /> },
@@ -38,7 +38,7 @@ export default function ChooseRolePage() {
     }
 
     if (!ready) {
-        return <p className="p-8">Loading...</p>;
+        return <PageLoading />;
     }
 
     return (
@@ -51,7 +51,7 @@ export default function ChooseRolePage() {
                         className={`${card} flex min-h-11 w-full items-center gap-4 px-6 py-4 text-left hover:bg-accent-200`}>
                         {labels[role].icon}
                         <span className="flex min-w-0 flex-1 flex-col">
-                            <span className="font-[family-name:var(--font-heading)] text-2xl">{labels[role].name}</span>
+                            <span className="text-lg font-bold">{labels[role].name}</span>
                             <span className="text-neutral-800">{labels[role].text}</span>
                         </span>
                         <ChevronRightIcon className="size-5 flex-none text-neutral-700" />
