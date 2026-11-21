@@ -6,6 +6,7 @@ import type {
   CreateRequestsRow, FacilityRow, GetDetailRow, GetRequestsRow, ListAvailableRow, ListMineRow,
   RecordDeliveryInput, RecordDeliveryRow, ReportMissedInput, ReportMissedRow, EditInput, EditRow,
 } from '../domain/types.ts';
+import type { PhotoPurpose } from '../imagekit/photos.ts';
 
 export async function listCategories(pool: pg.Pool): Promise<CategoryRow[]> {
   const { rows } = await pool.query<CategoryRow>(
@@ -18,6 +19,18 @@ export async function listFacilities(pool: pg.Pool, categoryId: string | null): 
   const { rows } = await pool.query<FacilityRow>(
     'SELECT * FROM requests.req_list_facilities($1)', [categoryId]);
   return rows;
+}
+
+// Q3: may the caller upload a photo for this purpose? One read-only call;
+// returns 'ok', 'forbidden' or 'request_unavailable'. requestId is null for an
+// item photo, a well-formed UUID for evidence (checked before the call).
+export async function checkUpload(
+  pool: pg.Pool, actorId: string, purpose: PhotoPurpose, requestId: string | null,
+): Promise<string> {
+  const { rows } = await pool.query<{ result_code: string }>(
+    'SELECT requests.req_check_upload($1, $2, $3::uuid) AS result_code', [actorId, purpose, requestId]);
+  // a SELECT without FROM always returns exactly one row, so the ! (not-null assertion) is safe.
+  return rows[0]!.result_code;
 }
 
 // Q4. One call creates every request, its events and the idempotency key, or

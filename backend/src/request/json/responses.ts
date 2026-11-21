@@ -2,6 +2,7 @@
 import type {
   CategoryRow, FacilityRow, GetDetailRow, GetRequestsRow, ListAvailableRow, ListMineRow,
 } from '../domain/types.ts';
+import type { UploadTicket } from '../imagekit/photos.ts';
 
 // Q1, CategoryWithWeight. NUMERIC arrives as a string; the contract wants a number.
 export function category(row: CategoryRow) {
@@ -22,6 +23,17 @@ export function facility(row: FacilityRow) {
     postalCode: row.postal_code,
     specialInstructions: row.special_instructions,
     acceptedCategoryIds: row.accepted_category_ids,
+  };
+}
+
+// Q3, UploadTicket. fields go out as they are: the browser sends each one
+// unchanged with the file (contract 6.3).
+export function uploadTicket(ticket: UploadTicket) {
+  return {
+    uploadUrl: ticket.uploadUrl,
+    token: ticket.token,
+    fields: ticket.fields,
+    expiresAt: ticket.expiresAt.toISOString(),
   };
 }
 
