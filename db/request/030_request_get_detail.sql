@@ -78,6 +78,18 @@ STABLE
 SET search_path TO requests, ecocollect608, pg_temp
 AS $$
 DECLARE
+    k_code_ok                CONSTANT TEXT := 'ok';
+    k_code_unavailable       CONSTANT TEXT := 'request_unavailable';
+    k_viewer_owner           CONSTANT TEXT := 'owner';
+    k_viewer_assigned        CONSTANT TEXT := 'assigned_volunteer';
+    k_viewer_volunteer       CONSTANT TEXT := 'volunteer';
+    k_action_accept          CONSTANT TEXT := 'accept';
+    k_status_open            CONSTANT VARCHAR(30) := 'Open';
+    k_status_assigned        CONSTANT VARCHAR(30) := 'Assigned';
+    k_end_delivered          CONSTANT VARCHAR(30) := 'Delivered';   -- assignment end_reason
+    k_assignment_active      CONSTANT TEXT := 'Active';      -- assignment status (no column)
+    k_assignment_collected   CONSTANT TEXT := 'Collected';
+    k_cancellation_window    CONSTANT INTERVAL := INTERVAL '24 hours';   -- before the window starts
     v_now          TIMESTAMPTZ := now();
     v_owner_id     VARCHAR(50);
     v_linked       BOOLEAN;     -- the viewer has an assignment that still links them
@@ -94,7 +106,7 @@ BEGIN
 
     status := requests.req_current_status(p_request_id);
     IF status IS NULL THEN
-        result_code := 'request_unavailable';
+        result_code := k_code_unavailable;
         RETURN;
     END IF;
     v_owner_id := requests.req_owner_id(p_request_id);
@@ -109,37 +121,37 @@ BEGIN
     JOIN terms_acceptance ta  ON ta.terms_acceptance_id = a.terms_acceptance_id
     WHERE pw.pickup_request_id = p_request_id
       AND ta.account_id = p_viewer_id
-      AND (a.ended_at IS NULL OR a.end_reason = 'Delivered');
+      AND (a.ended_at IS NULL OR a.end_reason = k_end_delivered);
     v_linked := FOUND;
 
     IF p_viewer_id = v_owner_id THEN
-        viewer := 'owner';
+        viewer := k_viewer_owner;
     ELSIF v_linked THEN
-        viewer := 'assigned_volunteer';
-    ELSIF status = 'Open' AND EXISTS (
+        viewer := k_viewer_assigned;
+    ELSIF status = k_status_open AND EXISTS (
             SELECT 1 FROM volunteer vo
             JOIN account ac ON ac.account_id = vo.account_id
             WHERE vo.account_id = p_viewer_id
               AND ac.deactivated_at IS NULL) THEN
-        viewer := 'volunteer';
+        viewer := k_viewer_volunteer;
     ELSE
-        result_code := 'request_unavailable';
+        result_code := k_code_unavailable;
         RETURN;
     END IF;
-    result_code     := 'ok';
+    result_code     := k_code_ok;
 
     -- The actions the viewer may take now: the same checks the write functions
     -- run. The owner gets 'accept' too when also an active volunteer (FR13).
     allowed_actions := '{}';
-    IF requests.req_check_accept(p_request_id, p_viewer_id, v_now) = 'ok' THEN
-        allowed_actions := array_append(allowed_actions, 'accept');
+    IF requests.req_check_accept(p_request_id, p_viewer_id, v_now) = k_code_ok THEN
+        allowed_actions := array_append(allowed_actions, k_action_accept);
     END IF;
 
     -- 2. Core fields (every viewer) and the photo path. Notes and address: the
     -- owner, and the volunteer while their assignment is Active (not collected,
     -- not ended).
-    v_full := viewer = 'owner'
-              OR (viewer = 'assigned_volunteer' AND v_collected_at IS NULL AND v_ended_at IS NULL);
+    v_full := viewer = k_viewer_owner
+              OR (viewer = k_viewer_assigned AND v_collected_at IS NULL AND v_ended_at IS NULL);
     SELECT p.pickup_request_id, c.category_id, c.name, c.waste_type, p.quantity,
            p.estimated_weight_kg, p.pickup_postal_code, p.created_at, ph.file_path,
            CASE WHEN v_full THEN p.notes END,
@@ -161,10 +173,10 @@ BEGIN
     FROM pickup_window pw
     WHERE pw.pickup_request_id = p_request_id
       AND pw.is_active
-      AND (viewer <> 'volunteer' OR requests.req_window_start(pw.pickup_date, pw.start_hour) > v_now);
+      AND (viewer <> k_viewer_volunteer OR requests.req_window_start(pw.pickup_date, pw.start_hour) > v_now);
 
     -- 3. The resident's public name: the owner and the linked volunteer.
-    IF viewer <> 'volunteer' THEN
+    IF viewer <> k_viewer_volunteer THEN
         resident_id := v_owner_id;
         SELECT ac.public_name INTO resident_public_name
         FROM account ac WHERE ac.account_id = v_owner_id;
@@ -177,12 +189,12 @@ BEGIN
     -- outside_window: less than 24 h before the selected window starts, measured
     -- at the end of an ended assignment (for a cancellation, the value E6 carried,
     -- 12.4) and at now() otherwise. A delivered assignment brings its delivery.
-    IF viewer <> 'volunteer' THEN
+    IF viewer <> k_viewer_volunteer THEN
         SELECT a.assignment_id, ta.account_id, ac.public_name,
                pw.pickup_window_id, pw.pickup_date, pw.start_hour,
                CASE WHEN a.end_reason IS NOT NULL   THEN a.end_reason
-                    WHEN a.collected_at IS NOT NULL THEN 'Collected'
-                    ELSE 'Active' END,
+                    WHEN a.collected_at IS NOT NULL THEN k_assignment_collected
+                    ELSE k_assignment_active END,
                a.accepted_at, a.collected_at, a.ended_at, a.end_reason,
                requests.req_window_start(pw.pickup_date, pw.start_hour),
                f.facility_id, f.name,
@@ -202,18 +214,18 @@ BEGIN
         LEFT JOIN recycling_facility f  ON f.facility_id = d.facility_id
         LEFT JOIN photo ph              ON ph.file_id = d.file_id
         WHERE pw.pickup_request_id = p_request_id
-          AND (viewer = 'owner' OR a.assignment_id = v_linked_id)
+          AND (viewer = k_viewer_owner OR a.assignment_id = v_linked_id)
         ORDER BY a.accepted_at DESC, a.assignment_id DESC
         LIMIT 1;
         IF FOUND THEN
             v_end := requests.req_window_end(assignment_window_date, assignment_window_hour);
             assignment_outside_window :=
-                coalesce(assignment_ended_at, v_now) > v_start - INTERVAL '24 hours';
+                coalesce(assignment_ended_at, v_now) > v_start - k_cancellation_window;
         END IF;
     END IF;
 
     -- 5. Status history (oldest first) and the reschedule links: the owner only.
-    IF viewer = 'owner' THEN
+    IF viewer = k_viewer_owner THEN
         SELECT array_agg(s.changed_at    ORDER BY s.changed_at),
                array_agg(s.status::TEXT  ORDER BY s.changed_at),
                array_agg(s.reason        ORDER BY s.changed_at)
@@ -234,7 +246,7 @@ BEGIN
     -- is the unfinished one): the earlier future one of start - 24 h
     -- (outsideCancellationWindow turns true) and the window end (the owner's
     -- cancel actions give way to report_missed). Other statuses: NULL.
-    IF status = 'Open' THEN
+    IF status = k_status_open THEN
         SELECT min(s.start_at) INTO refresh_at
         FROM pickup_window pw
         CROSS JOIN LATERAL (
@@ -243,9 +255,9 @@ BEGIN
         WHERE pw.pickup_request_id = p_request_id
           AND pw.is_active
           AND s.start_at > v_now;
-    ELSIF status = 'Assigned' THEN
+    ELSIF status = k_status_assigned THEN
         refresh_at := CASE
-            WHEN v_start - INTERVAL '24 hours' > v_now THEN v_start - INTERVAL '24 hours'
+            WHEN v_start - k_cancellation_window > v_now THEN v_start - k_cancellation_window
             WHEN v_end > v_now THEN v_end
         END;
     END IF;

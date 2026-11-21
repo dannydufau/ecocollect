@@ -17,8 +17,11 @@ LANGUAGE plpgsql
 STABLE
 SET search_path TO requests, ecocollect608, pg_temp
 AS $$
+DECLARE
+    k_time_zone     CONSTANT TEXT     := 'America/Edmonton';
+    k_window_length CONSTANT INTERVAL := INTERVAL '1 hour';   -- one start hour
 BEGIN
-    RETURN (p_date + p_start_hour * INTERVAL '1 hour') AT TIME ZONE 'America/Edmonton';
+    RETURN (p_date + p_start_hour * k_window_length) AT TIME ZONE k_time_zone;
 END;
 $$;
 
@@ -31,8 +34,10 @@ LANGUAGE plpgsql
 STABLE
 SET search_path TO requests, ecocollect608, pg_temp
 AS $$
+DECLARE
+    k_window_length CONSTANT INTERVAL := INTERVAL '1 hour';
 BEGIN
-    RETURN requests.req_window_start(p_date, p_start_hour) + INTERVAL '1 hour';
+    RETURN requests.req_window_start(p_date, p_start_hour) + k_window_length;
 END;
 $$;
 
@@ -160,6 +165,10 @@ STABLE
 SET search_path TO requests, ecocollect608, pg_temp
 AS $$
 DECLARE
+    k_max_period    CONSTANT INTERVAL := INTERVAL '30 days';   -- FR07
+    k_msg_count     CONSTANT TEXT := 'must have 1 to 3 windows';
+    k_msg_future    CONSTANT TEXT := 'must start in the future';
+    k_msg_period    CONSTANT TEXT := 'must end within 30 days of the request''s creation';
     v_count INT := coalesce(cardinality(p_dates), 0);   -- cardinality(NULL) is NULL
     v_start TIMESTAMPTZ;
     v_end   TIMESTAMPTZ;
@@ -178,7 +187,7 @@ BEGIN
 
     IF v_count NOT BETWEEN 1 AND 3 THEN
         error_fields   := array_append(error_fields, p_field);
-        error_messages := array_append(error_messages, 'must have 1 to 3 windows');
+        error_messages := array_append(error_messages, k_msg_count);
         RETURN;
     END IF;
 
@@ -192,10 +201,10 @@ BEGIN
 
         IF v_start <= p_now THEN
             error_fields   := array_append(error_fields, format('%s[%s]', p_field, i - 1));
-            error_messages := array_append(error_messages, 'must start in the future');
-        ELSIF v_end > p_created_at + INTERVAL '30 days' THEN
+            error_messages := array_append(error_messages, k_msg_future);
+        ELSIF v_end > p_created_at + k_max_period THEN
             error_fields   := array_append(error_fields, format('%s[%s]', p_field, i - 1));
-            error_messages := array_append(error_messages, 'must end within 30 days of the request''s creation');
+            error_messages := array_append(error_messages, k_msg_period);
         ELSIF v_first IS NOT NULL THEN
             error_fields   := array_append(error_fields, format('%s[%s]', p_field, i - 1));
             error_messages := array_append(error_messages, format('same slot as %s[%s]', p_field, v_first - 1));

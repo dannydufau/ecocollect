@@ -10,9 +10,10 @@
 --
 -- Parameters after p_at are only for some events; leave them out (DEFAULT NULL)
 -- when an event doesn't use them, and call with named arguments, e.g.
---   PERFORM requests.req_enqueue_event(p_request_id => v_id, p_event_type => 'RequestCancelled',
---                             p_transition_id => v_tid, p_at => v_now,
+--   PERFORM requests.req_enqueue_event(p_request_id => v_id, p_event_type => k_event_cancelled,
+--                             p_transition_id => v_tid, p_at => v_at,
 --                             p_trace_id => p_trace_id, p_reason => p_reason);
+-- (k_event_cancelled is the caller's own constant, 'RequestCancelled'.)
 -- What each event must and must not carry is checked by outbox_e1_ck ... outbox_e10_ck
 -- (020): a wrong combination raises and rolls back the whole action (a bug).
 --
@@ -35,6 +36,28 @@ LANGUAGE plpgsql
 SET search_path TO requests, ecocollect608, pg_temp
 AS $$
 DECLARE
+    -- Event types (contract 10.1)
+    k_event_created              CONSTANT TEXT := 'RequestCreated';
+    k_event_updated              CONSTANT TEXT := 'RequestUpdated';
+    k_event_assigned             CONSTANT TEXT := 'RequestAssigned';
+    k_event_collected            CONSTANT TEXT := 'RequestAssignmentCollected';
+    k_event_delivered            CONSTANT TEXT := 'RequestAssignmentDelivered';
+    k_event_cancelled_resident   CONSTANT TEXT := 'RequestAssignmentCancelledResident';
+    k_event_cancelled_volunteer  CONSTANT TEXT := 'RequestAssignmentCancelledVolunteer';
+    k_event_missed               CONSTANT TEXT := 'RequestAssignmentMissed';
+    k_event_cancelled            CONSTANT TEXT := 'RequestCancelled';
+    k_event_expired              CONSTANT TEXT := 'RequestExpired';
+    -- Their routing keys, in the same order
+    k_route_created              CONSTANT TEXT := 'request.created';
+    k_route_updated              CONSTANT TEXT := 'request.updated';
+    k_route_assigned             CONSTANT TEXT := 'request.assigned';
+    k_route_collected            CONSTANT TEXT := 'request.assignment.collected';
+    k_route_delivered            CONSTANT TEXT := 'request.assignment.delivered';
+    k_route_cancelled_resident   CONSTANT TEXT := 'request.assignment.cancelled.resident';
+    k_route_cancelled_volunteer  CONSTANT TEXT := 'request.assignment.cancelled.volunteer';
+    k_route_missed               CONSTANT TEXT := 'request.assignment.missed';
+    k_route_cancelled            CONSTANT TEXT := 'request.cancelled';
+    k_route_expired              CONSTANT TEXT := 'request.expired';
     v_event_id     UUID := gen_random_uuid();
     v_routing_key  TEXT;
     v_version      INTEGER;
@@ -45,16 +68,16 @@ DECLARE
 BEGIN
     -- 1. Routing key and version of the type (contract 10.1, 10.3).
     CASE p_event_type
-        WHEN 'RequestCreated'                      THEN v_routing_key := 'request.created';                        v_version := 2;
-        WHEN 'RequestUpdated'                      THEN v_routing_key := 'request.updated';                        v_version := 1;
-        WHEN 'RequestAssigned'                     THEN v_routing_key := 'request.assigned';                       v_version := 1;
-        WHEN 'RequestAssignmentCollected'          THEN v_routing_key := 'request.assignment.collected';           v_version := 1;
-        WHEN 'RequestAssignmentDelivered'          THEN v_routing_key := 'request.assignment.delivered';           v_version := 1;
-        WHEN 'RequestAssignmentCancelledResident'  THEN v_routing_key := 'request.assignment.cancelled.resident';  v_version := 1;
-        WHEN 'RequestAssignmentCancelledVolunteer' THEN v_routing_key := 'request.assignment.cancelled.volunteer'; v_version := 1;
-        WHEN 'RequestAssignmentMissed'             THEN v_routing_key := 'request.assignment.missed';              v_version := 1;
-        WHEN 'RequestCancelled'                    THEN v_routing_key := 'request.cancelled';                      v_version := 1;
-        WHEN 'RequestExpired'                      THEN v_routing_key := 'request.expired';                        v_version := 1;
+        WHEN k_event_created             THEN v_routing_key := k_route_created;             v_version := 2;
+        WHEN k_event_updated             THEN v_routing_key := k_route_updated;             v_version := 1;
+        WHEN k_event_assigned            THEN v_routing_key := k_route_assigned;            v_version := 1;
+        WHEN k_event_collected           THEN v_routing_key := k_route_collected;           v_version := 1;
+        WHEN k_event_delivered           THEN v_routing_key := k_route_delivered;           v_version := 1;
+        WHEN k_event_cancelled_resident  THEN v_routing_key := k_route_cancelled_resident;  v_version := 1;
+        WHEN k_event_cancelled_volunteer THEN v_routing_key := k_route_cancelled_volunteer; v_version := 1;
+        WHEN k_event_missed              THEN v_routing_key := k_route_missed;              v_version := 1;
+        WHEN k_event_cancelled           THEN v_routing_key := k_route_cancelled;           v_version := 1;
+        WHEN k_event_expired             THEN v_routing_key := k_route_expired;             v_version := 1;
         ELSE RAISE EXCEPTION 'req_enqueue_event: unknown event type %', p_event_type;
     END CASE;
 
@@ -62,7 +85,7 @@ BEGIN
     -- E1 is always a request's first event, and the creating function inserted the
     -- row with request_seq = 1 (the model forbids 0), so E1 uses that 1 as it is.
     -- Every other event adds 1.
-    IF p_event_type = 'RequestCreated' THEN
+    IF p_event_type = k_event_created THEN
         SELECT p.request_seq INTO v_seq
         FROM pickup_request p
         WHERE p.pickup_request_id = p_request_id;
@@ -126,15 +149,15 @@ BEGIN
         aw.start_hour, a.accepted_at, a.collected_at, a.ended_at, a.end_reason,
         f.facility_id, f.name,
         CASE WHEN d.delivery_id IS NOT NULL THEN a.ended_at END,              -- deliveredAt (E5)
-        CASE WHEN p_event_type IN ('RequestAssignmentCancelledResident',
-                                   'RequestAssignmentCancelledVolunteer') THEN p_at END,  -- cancelledAt
+        CASE WHEN p_event_type IN (k_event_cancelled_resident,
+                                   k_event_cancelled_volunteer) THEN p_at END,    -- cancelledAt
         p_outside_window,
-        CASE WHEN p_event_type = 'RequestAssignmentMissed' THEN p_at END,     -- reportedAt
-        CASE WHEN p_event_type = 'RequestAssignmentMissed' THEN               -- rescheduledAsRequestId
+        CASE WHEN p_event_type = k_event_missed THEN p_at END,                -- reportedAt
+        CASE WHEN p_event_type = k_event_missed THEN                          -- rescheduledAsRequestId
             (SELECT n.pickup_request_id FROM pickup_request n
              WHERE n.rescheduled_from_request_id = p.pickup_request_id) END,
-        CASE WHEN p_event_type = 'RequestCreated' THEN p.rescheduled_from_request_id END,
-        CASE WHEN p_event_type IN ('RequestCreated', 'RequestUpdated') THEN
+        CASE WHEN p_event_type = k_event_created THEN p.rescheduled_from_request_id END,
+        CASE WHEN p_event_type IN (k_event_created, k_event_updated) THEN
             requests.req_matched_volunteers(p.pickup_request_id, p_demo) END,
         p_changed, p_reason, p_trigger
     FROM pickup_request p
@@ -143,7 +166,7 @@ BEGIN
     LEFT JOIN pickup_window aw  ON aw.pickup_window_id = a.pickup_window_id
     LEFT JOIN terms_acceptance vta ON vta.terms_acceptance_id = a.terms_acceptance_id
     LEFT JOIN delivery d        ON d.assignment_id = a.assignment_id
-                                             AND p_event_type = 'RequestAssignmentDelivered'
+                                             AND p_event_type = k_event_delivered
     LEFT JOIN recycling_facility f ON f.facility_id = d.facility_id
     WHERE p.pickup_request_id = p_request_id;
 

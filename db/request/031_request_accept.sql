@@ -31,6 +31,12 @@ STABLE
 SET search_path TO requests, ecocollect608, pg_temp
 AS $$
 DECLARE
+    k_code_ok               CONSTANT TEXT := 'ok';
+    k_code_forbidden        CONSTANT TEXT := 'forbidden';
+    k_code_already_assigned CONSTANT TEXT := 'already_assigned';
+    k_code_not_open         CONSTANT TEXT := 'not_open';
+    k_code_overdue          CONSTANT TEXT := 'overdue';
+    k_status_open           CONSTANT VARCHAR(30) := 'Open';
     v_status VARCHAR(30);
 BEGIN
     IF p_request_id IS NULL OR p_volunteer_id IS NULL OR p_at IS NULL THEN
@@ -48,7 +54,7 @@ BEGIN
         JOIN account ac ON ac.account_id = vo.account_id
         WHERE vo.account_id = p_volunteer_id
           AND ac.deactivated_at IS NULL) THEN
-        RETURN 'forbidden';
+        RETURN k_code_forbidden;
     END IF;
 
     -- 2. One unfinished assignment per request (12.7): found through its window,
@@ -58,20 +64,20 @@ BEGIN
         JOIN pickup_window pw ON pw.pickup_window_id = a.pickup_window_id
         WHERE pw.pickup_request_id = p_request_id
           AND a.ended_at IS NULL) THEN
-        RETURN 'already_assigned';
+        RETURN k_code_already_assigned;
     END IF;
 
     -- 3. Only an Open request can be accepted.
-    IF v_status <> 'Open' THEN
-        RETURN 'not_open';
+    IF v_status <> k_status_open THEN
+        RETURN k_code_not_open;
     END IF;
 
     -- 4. Overdue: the latest active window has started (expiresAt, 12.2).
     IF requests.req_expires_at(p_request_id) <= p_at THEN
-        RETURN 'overdue';
+        RETURN k_code_overdue;
     END IF;
 
-    RETURN 'ok';
+    RETURN k_code_ok;
 END;
 $$;
 
@@ -105,6 +111,21 @@ LANGUAGE plpgsql
 SET search_path TO requests, ecocollect608, pg_temp
 AS $$
 DECLARE
+    k_code_ok                CONSTANT TEXT := 'ok';
+    k_code_unavailable       CONSTANT TEXT := 'request_unavailable';
+    k_code_overdue           CONSTANT TEXT := 'overdue';      -- from req_check_accept
+    k_code_expired           CONSTANT TEXT := 'expired';
+    k_code_terms_outdated    CONSTANT TEXT := 'terms_outdated';
+    k_code_validation_failed CONSTANT TEXT := 'validation_failed';
+    k_field_window_id        CONSTANT TEXT := 'windowId';
+    k_msg_window             CONSTANT TEXT := 'must be an active window of this request that has not started';
+    k_status_assigned        CONSTANT VARCHAR(30) := 'Assigned';
+    k_status_expired         CONSTANT VARCHAR(30) := 'Expired';
+    k_reason_no_window       CONSTANT TEXT := 'No window left in the future';
+    k_terms_volunteer        CONSTANT VARCHAR(40) := 'AT_VOLUNTEER_ACCEPTANCE';
+    k_event_assigned         CONSTANT TEXT := 'RequestAssigned';
+    k_event_expired          CONSTANT TEXT := 'RequestExpired';
+    k_trigger_overdue        CONSTANT VARCHAR(30) := 'overdue_on_action';
     v_at            TIMESTAMPTZ;            -- the action's one moment, taken after the lock
     v_check         TEXT;
     v_current_terms UUID;
@@ -122,7 +143,7 @@ BEGIN
     -- 1. Lock the request row: actions on one request run one after another.
     PERFORM 1 FROM pickup_request p WHERE p.pickup_request_id = p_request_id FOR UPDATE;
     IF NOT FOUND THEN
-        result_code := 'request_unavailable';
+        result_code := k_code_unavailable;
         RETURN;
     END IF;
     -- The time once, after the lock: now() is when the transaction started, and a
@@ -133,16 +154,16 @@ BEGIN
 
     -- 2. State checks. Overdue: expire instead of accepting, keep it, return 'expired'.
     v_check := requests.req_check_accept(p_request_id, p_volunteer_id, v_at);
-    IF v_check = 'overdue' THEN
+    IF v_check = k_code_overdue THEN
         INSERT INTO status_change (pickup_request_id, changed_at, status, reason)
-        VALUES (p_request_id, v_at, 'Expired', 'No window left in the future');
-        PERFORM requests.req_enqueue_event(p_request_id => p_request_id, p_event_type => 'RequestExpired',
+        VALUES (p_request_id, v_at, k_status_expired, k_reason_no_window);
+        PERFORM requests.req_enqueue_event(p_request_id => p_request_id, p_event_type => k_event_expired,
                                            p_transition_id => v_transition_id, p_at => v_at,
-                                           p_trace_id => p_trace_id, p_trigger => 'overdue_on_action');
+                                           p_trace_id => p_trace_id, p_trigger => k_trigger_overdue);
         PERFORM requests.check_request(p_request_id);
-        result_code := 'expired';
+        result_code := k_code_expired;
         RETURN;
-    ELSIF v_check <> 'ok' THEN
+    ELSIF v_check <> k_code_ok THEN
         result_code := v_check;
         RETURN;
     END IF;
@@ -155,7 +176,7 @@ BEGIN
     ORDER BY d.published_at DESC
     LIMIT 1;
     IF p_terms_document_id IS DISTINCT FROM v_current_terms THEN
-        result_code := 'terms_outdated';
+        result_code := k_code_terms_outdated;
         RETURN;
     END IF;
 
@@ -166,33 +187,33 @@ BEGIN
           AND pw.pickup_request_id = p_request_id
           AND pw.is_active
           AND requests.req_window_start(pw.pickup_date, pw.start_hour) > v_at) THEN
-        error_fields   := ARRAY['windowId'];
-        error_messages := ARRAY['must be an active window of this request that has not started'];
-        result_code    := 'validation_failed';
+        error_fields   := ARRAY[k_field_window_id];
+        error_messages := ARRAY[k_msg_window];
+        result_code    := k_code_validation_failed;
         RETURN;
     END IF;
 
     -- 5. Writes, all at v_at: the volunteer's terms acceptance (FR22), the
     -- assignment (its volunteer is the acceptance's account), the status change.
     INSERT INTO terms_acceptance (terms_acceptance_id, terms_document_id, account_id, accepted_at, type)
-    VALUES (v_ta_id, p_terms_document_id, p_volunteer_id, v_at, 'AT_VOLUNTEER_ACCEPTANCE');
+    VALUES (v_ta_id, p_terms_document_id, p_volunteer_id, v_at, k_terms_volunteer);
 
     INSERT INTO assignment (assignment_id, pickup_window_id, terms_acceptance_id, accepted_at,
                             collected_at, ended_at, end_reason)
     VALUES (v_assignment_id, p_window_id, v_ta_id, v_at, NULL, NULL, NULL);
 
     INSERT INTO status_change (pickup_request_id, changed_at, status, reason)
-    VALUES (p_request_id, v_at, 'Assigned', NULL);
+    VALUES (p_request_id, v_at, k_status_assigned, NULL);
 
     -- 6. RequestAssigned (E3), with the new assignment.
-    PERFORM requests.req_enqueue_event(p_request_id => p_request_id, p_event_type => 'RequestAssigned',
+    PERFORM requests.req_enqueue_event(p_request_id => p_request_id, p_event_type => k_event_assigned,
                                        p_transition_id => v_transition_id, p_at => v_at,
                                        p_trace_id => p_trace_id, p_assignment_id => v_assignment_id);
 
     -- 7. Post-condition: only a bug can trip it.
     PERFORM requests.check_request(p_request_id);
 
-    result_code   := 'ok';
+    result_code   := k_code_ok;
     assignment_id := v_assignment_id;
 END;
 $$;

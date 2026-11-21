@@ -16,6 +16,15 @@ LANGUAGE plpgsql
 SET search_path TO requests, ecocollect608, pg_temp
 AS $$
 DECLARE
+    k_terms_resident     CONSTANT VARCHAR(40) := 'AT_RESIDENT_REQUEST_CREATION';
+    k_terms_volunteer    CONSTANT VARCHAR(40) := 'AT_VOLUNTEER_ACCEPTANCE';
+    k_status_open        CONSTANT VARCHAR(30) := 'Open';
+    k_status_assigned    CONSTANT VARCHAR(30) := 'Assigned';
+    k_status_collected   CONSTANT VARCHAR(30) := 'Collected';
+    k_status_delivered   CONSTANT VARCHAR(30) := 'Delivered';
+    k_status_missed      CONSTANT VARCHAR(30) := 'Missed';
+    k_end_delivered      CONSTANT VARCHAR(30) := 'Delivered';      -- assignment end_reason
+    k_max_period         CONSTANT INTERVAL    := INTERVAL '30 days'; -- FR07
     v_request pickup_request;   -- the whole row
     v_status  VARCHAR(30);
     v_owner   VARCHAR(50);
@@ -32,7 +41,7 @@ BEGIN
         SELECT 1 FROM terms_acceptance t
         JOIN resident r ON r.account_id = t.account_id
         WHERE t.terms_acceptance_id = v_request.terms_acceptance_id
-          AND t.type = 'AT_RESIDENT_REQUEST_CREATION'
+          AND t.type = k_terms_resident
           AND t.accepted_at = v_request.created_at
     ) THEN
         RAISE EXCEPTION USING ERRCODE = 'check_violation', MESSAGE = format('check_request %s: creation acceptance', p_request_id);
@@ -40,7 +49,7 @@ BEGIN
 
     -- 2. The history starts with Open at created_at, nothing earlier.
     IF NOT EXISTS (SELECT 1 FROM status_change s
-                   WHERE s.pickup_request_id = p_request_id AND s.changed_at = v_request.created_at AND s.status = 'Open')
+                   WHERE s.pickup_request_id = p_request_id AND s.changed_at = v_request.created_at AND s.status = k_status_open)
        OR EXISTS (SELECT 1 FROM status_change s
                   WHERE s.pickup_request_id = p_request_id AND s.changed_at < v_request.created_at) THEN
         RAISE EXCEPTION USING ERRCODE = 'check_violation', MESSAGE = format('check_request %s: history must start Open at creation', p_request_id);
@@ -59,7 +68,7 @@ BEGIN
         SELECT 1 FROM pickup_window w
         WHERE w.pickup_request_id = p_request_id
           AND (requests.req_window_start(w.pickup_date, w.start_hour) <= v_request.created_at
-               OR requests.req_window_end(w.pickup_date, w.start_hour) > v_request.created_at + INTERVAL '30 days')
+               OR requests.req_window_end(w.pickup_date, w.start_hour) > v_request.created_at + k_max_period)
     ) THEN
         RAISE EXCEPTION USING ERRCODE = 'check_violation', MESSAGE = format('check_request %s: window outside the 30-day period', p_request_id);
     END IF;
@@ -73,12 +82,12 @@ BEGIN
         LEFT JOIN volunteer v ON v.account_id = t.account_id
         WHERE w.pickup_request_id = p_request_id
           AND (v.account_id IS NULL
-               OR t.type <> 'AT_VOLUNTEER_ACCEPTANCE'
+               OR t.type <> k_terms_volunteer
                OR t.accepted_at <> a.accepted_at
                OR a.accepted_at < v_request.created_at
                OR NOT EXISTS (SELECT 1 FROM status_change s
                               WHERE s.pickup_request_id = p_request_id
-                                AND s.changed_at = a.accepted_at AND s.status = 'Assigned'))
+                                AND s.changed_at = a.accepted_at AND s.status = k_status_assigned))
     ) THEN
         RAISE EXCEPTION USING ERRCODE = 'check_violation', MESSAGE = format('check_request %s: assignment acceptance', p_request_id);
     END IF;
@@ -108,18 +117,18 @@ BEGIN
         JOIN pickup_window w ON w.pickup_window_id = a.pickup_window_id
         WHERE w.pickup_request_id = p_request_id AND a.ended_at IS NULL)
        -- in parentheses: inside IF, PL/pgSQL would take the CASE's THEN as the IF's own
-       <> (CASE WHEN v_status IN ('Assigned', 'Collected') THEN 1 ELSE 0 END)
-       OR (v_status IN ('Assigned', 'Collected') AND NOT EXISTS (
+       <> (CASE WHEN v_status IN (k_status_assigned, k_status_collected) THEN 1 ELSE 0 END)
+       OR (v_status IN (k_status_assigned, k_status_collected) AND NOT EXISTS (
             SELECT 1 FROM assignment a
             JOIN pickup_window w ON w.pickup_window_id = a.pickup_window_id
             WHERE w.pickup_request_id = p_request_id AND a.ended_at IS NULL
-              AND (a.collected_at IS NOT NULL) = (v_status = 'Collected'))) THEN
+              AND (a.collected_at IS NOT NULL) = (v_status = k_status_collected))) THEN
         RAISE EXCEPTION USING ERRCODE = 'check_violation', MESSAGE = format('check_request %s: status %s does not match its assignments', p_request_id, v_status);
     END IF;
 
     -- 8. Delivered <=> a delivery. Each delivery: the assignment ended Delivered after
     -- collection, at a facility that accepts the request's category.
-    IF (v_status = 'Delivered') <> EXISTS (
+    IF (v_status = k_status_delivered) <> EXISTS (
             SELECT 1 FROM delivery d
             JOIN assignment a ON a.assignment_id = d.assignment_id
             JOIN pickup_window w ON w.pickup_window_id = a.pickup_window_id
@@ -129,7 +138,7 @@ BEGIN
             JOIN assignment a ON a.assignment_id = d.assignment_id
             JOIN pickup_window w ON w.pickup_window_id = a.pickup_window_id
             WHERE w.pickup_request_id = p_request_id
-              AND (a.end_reason IS DISTINCT FROM 'Delivered' OR a.collected_at IS NULL
+              AND (a.end_reason IS DISTINCT FROM k_end_delivered OR a.collected_at IS NULL
                    OR NOT EXISTS (SELECT 1 FROM facility_accepts f
                                   WHERE f.facility_id = d.facility_id AND f.category_id = v_request.category_id))) THEN
         RAISE EXCEPTION USING ERRCODE = 'check_violation', MESSAGE = format('check_request %s: delivery', p_request_id);
@@ -143,7 +152,7 @@ BEGIN
 
     -- 10. No deactivated account keeps active work: the owner while the request is
     -- Open/Assigned/Collected, the volunteer while the assignment is unfinished.
-    IF (v_status IN ('Open', 'Assigned', 'Collected') AND EXISTS (
+    IF (v_status IN (k_status_open, k_status_assigned, k_status_collected) AND EXISTS (
             SELECT 1 FROM account acc
             WHERE acc.account_id = v_owner AND acc.deactivated_at IS NOT NULL))
        OR EXISTS (
@@ -164,7 +173,7 @@ BEGIN
           AND requests.req_owner_id(old.pickup_request_id) = v_owner
           AND old.created_at < v_request.created_at
           AND old.terms_acceptance_id <> v_request.terms_acceptance_id
-          AND requests.req_current_status(old.pickup_request_id) = 'Missed'
+          AND requests.req_current_status(old.pickup_request_id) = k_status_missed
     ) THEN
         RAISE EXCEPTION USING ERRCODE = 'check_violation', MESSAGE = format('check_request %s: reschedule must follow the same resident''s Missed request', p_request_id);
     END IF;

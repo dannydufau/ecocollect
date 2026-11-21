@@ -40,9 +40,23 @@ LANGUAGE plpgsql
 SET search_path TO requests, ecocollect608, pg_temp
 AS $$
 DECLARE
+    k_key_ttl                CONSTANT INTERVAL := INTERVAL '24 hours';   -- how long a key replays (NFR06)
+    k_key_max                CONSTANT INT := 200;   -- key length limit (contract Q4); the column is VARCHAR(200)
+    k_code_ok                CONSTANT TEXT := 'ok';
+    k_code_replayed          CONSTANT TEXT := 'replayed';
+    k_code_forbidden         CONSTANT TEXT := 'forbidden';
+    k_code_terms_outdated    CONSTANT TEXT := 'terms_outdated';
+    k_code_validation_failed CONSTANT TEXT := 'validation_failed';
+    k_field_idempotency_key  CONSTANT TEXT := 'Idempotency-Key';
+    k_field_windows          CONSTANT TEXT := 'windows';
+    k_msg_unknown_category   CONSTANT TEXT := 'unknown category';
+    k_msg_already_selected   CONSTANT TEXT := 'already selected';
+    k_msg_at_least_one       CONSTANT TEXT := 'must be at least 1';
+    k_msg_already_used       CONSTANT TEXT := 'already used';
+    k_terms_resident         CONSTANT VARCHAR(40) := 'AT_RESIDENT_REQUEST_CREATION';
+    k_status_open            CONSTANT VARCHAR(30) := 'Open';
+    k_event_created          CONSTANT TEXT := 'RequestCreated';
     v_now           TIMESTAMPTZ := now();   -- one moment for the whole action
-    v_key_ttl       CONSTANT INTERVAL := INTERVAL '24 hours';   -- how long a key replays (NFR06)
-    v_key_max       CONSTANT INT := 200;    -- key length limit (contract Q4); the column is VARCHAR(200)
     v_count         INT := coalesce(cardinality(p_category_ids), 0);
     v_street        VARCHAR(255);
     v_postal_code   CHAR(6);
@@ -77,7 +91,7 @@ BEGIN
     WHERE r.account_id = p_resident_id
       AND a.deactivated_at IS NULL;
     IF NOT FOUND THEN
-        result_code := 'forbidden';
+        result_code := k_code_forbidden;
         RETURN;
     END IF;
 
@@ -85,10 +99,10 @@ BEGIN
     -- lookup, or a stored '' would replay. Postgres ignores the (200) on a
     -- parameter, so without this a longer key would fail at the INSERT (a raise).
     IF p_idempotency_key IS NOT NULL
-       AND char_length(p_idempotency_key) NOT BETWEEN 1 AND v_key_max THEN
-        error_fields   := ARRAY['Idempotency-Key'];
-        error_messages := ARRAY[format('must be 1 to %s characters', v_key_max)];
-        result_code    := 'validation_failed';
+       AND char_length(p_idempotency_key) NOT BETWEEN 1 AND k_key_max THEN
+        error_fields   := ARRAY[k_field_idempotency_key];
+        error_messages := ARRAY[format('must be 1 to %s characters', k_key_max)];
+        result_code    := k_code_validation_failed;
         RETURN;
     END IF;
 
@@ -98,9 +112,9 @@ BEGIN
     FROM requests.idempotency_keys k
     WHERE k.resident_id = p_resident_id
       AND k.idempotency_key = p_idempotency_key       -- no match when the key is NULL
-      AND k.created_at > v_now - v_key_ttl;
+      AND k.created_at > v_now - k_key_ttl;
     IF FOUND THEN
-        result_code := 'replayed';
+        result_code := k_code_replayed;
         RETURN;
     END IF;
 
@@ -111,7 +125,7 @@ BEGIN
     ORDER BY d.published_at DESC
     LIMIT 1;
     IF p_terms_document_id IS DISTINCT FROM v_current_terms THEN
-        result_code := 'terms_outdated';
+        result_code := k_code_terms_outdated;
         RETURN;
     END IF;
 
@@ -119,16 +133,16 @@ BEGIN
     FOR i IN 1 .. v_count LOOP
         IF NOT EXISTS (SELECT 1 FROM item_category c WHERE c.category_id = p_category_ids[i]) THEN
             error_fields   := array_append(error_fields, format('items[%s].categoryId', i - 1));
-            error_messages := array_append(error_messages, 'unknown category');
+            error_messages := array_append(error_messages, k_msg_unknown_category);
         ELSIF array_position(p_category_ids, p_category_ids[i]) < i THEN   -- first position is earlier
             error_fields   := array_append(error_fields, format('items[%s].categoryId', i - 1));
-            error_messages := array_append(error_messages, 'already selected');
+            error_messages := array_append(error_messages, k_msg_already_selected);
         END IF;
 
         -- Model rule (pickup_request_ck1): without this, 0 fails at the INSERT.
         IF p_quantities[i] < 1 THEN
             error_fields   := array_append(error_fields, format('items[%s].quantity', i - 1));
-            error_messages := array_append(error_messages, 'must be at least 1');
+            error_messages := array_append(error_messages, k_msg_at_least_one);
         END IF;
 
         -- A file is one photo row: never on two new items, never already stored
@@ -137,17 +151,17 @@ BEGIN
            AND (array_position(p_photo_file_ids, p_photo_file_ids[i]) < i
                 OR EXISTS (SELECT 1 FROM photo ph WHERE ph.file_id = p_photo_file_ids[i])) THEN
             error_fields   := array_append(error_fields, format('items[%s].photo.fileId', i - 1));
-            error_messages := array_append(error_messages, 'already used');
+            error_messages := array_append(error_messages, k_msg_already_used);
         END IF;
     END LOOP;
 
     -- Windows: in the future and within 30 days of this creation (createdAt = v_now).
-    v_win := requests.req_validate_windows('windows', p_dates, p_hours, v_now, v_now);
+    v_win := requests.req_validate_windows(k_field_windows, p_dates, p_hours, v_now, v_now);
     error_fields   := error_fields   || v_win.error_fields;
     error_messages := error_messages || v_win.error_messages;
 
     IF cardinality(error_fields) > 0 THEN
-        result_code := 'validation_failed';
+        result_code := k_code_validation_failed;
         RETURN;
     END IF;
 
@@ -161,19 +175,19 @@ BEGIN
         VALUES (p_resident_id, p_idempotency_key, v_ids, v_now)
         ON CONFLICT (resident_id, idempotency_key) DO UPDATE
             SET request_ids = EXCLUDED.request_ids, created_at = EXCLUDED.created_at
-            WHERE k.created_at <= v_now - v_key_ttl;
+            WHERE k.created_at <= v_now - k_key_ttl;
         IF NOT FOUND THEN
             SELECT k.request_ids INTO created_request_ids
             FROM requests.idempotency_keys k
             WHERE k.resident_id = p_resident_id AND k.idempotency_key = p_idempotency_key;
-            result_code := 'replayed';
+            result_code := k_code_replayed;
             RETURN;
         END IF;
     END IF;
 
     -- 6. Writes. One terms acceptance shared by every request (FR22), at createdAt.
     INSERT INTO terms_acceptance (terms_acceptance_id, terms_document_id, account_id, accepted_at, type)
-    VALUES (v_ta_id, p_terms_document_id, p_resident_id, v_now, 'AT_RESIDENT_REQUEST_CREATION');
+    VALUES (v_ta_id, p_terms_document_id, p_resident_id, v_now, k_terms_resident);
 
     FOR i IN 1 .. v_count LOOP
         IF p_photo_file_ids[i] IS NOT NULL THEN
@@ -197,13 +211,12 @@ BEGIN
         FROM unnest(p_dates, p_hours) AS w(d, h);
 
         INSERT INTO status_change (pickup_request_id, changed_at, status, reason)
-        VALUES (v_ids[i], v_now, 'Open', NULL);
+        VALUES (v_ids[i], v_now, k_status_open, NULL);
     END LOOP;
 
     -- 7. One RequestCreated per request, in item order, sharing the action's transitionId.
-    -- we have checks for constants like 'RequestCreated', this is also standard for SQL.
     FOR i IN 1 .. v_count LOOP
-        PERFORM requests.req_enqueue_event(p_request_id => v_ids[i], p_event_type => 'RequestCreated',
+        PERFORM requests.req_enqueue_event(p_request_id => v_ids[i], p_event_type => k_event_created,
                                            p_transition_id => v_transition_id, p_at => v_now,
                                            p_trace_id => p_trace_id, p_demo => p_demo);
     END LOOP;
@@ -213,7 +226,7 @@ BEGIN
         PERFORM requests.check_request(v_ids[i]);
     END LOOP;
 
-    result_code := 'ok';
+    result_code := k_code_ok;
     created_request_ids := v_ids;
 END;
 $$;

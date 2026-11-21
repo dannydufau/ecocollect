@@ -42,6 +42,8 @@ LANGUAGE plpgsql
 STABLE
 SET search_path TO requests, ecocollect608, pg_temp
 AS $$
+DECLARE
+    k_status_open CONSTANT VARCHAR(30) := 'Open';
 BEGIN
     -- e names expiresAt once, for the SELECT list and the WHERE filter (see 028
     -- for why LATERAL). w gathers the future windows into the three arrays; the
@@ -68,7 +70,7 @@ BEGIN
           AND pw.is_active
           AND requests.req_window_start(pw.pickup_date, pw.start_hour) > now()
     ) w
-    WHERE requests.req_current_status(p.pickup_request_id) = 'Open'
+    WHERE requests.req_current_status(p.pickup_request_id) = k_status_open
       AND e.expires_at > now()
       AND (p_postal_codes IS NULL OR p.pickup_postal_code = ANY (p_postal_codes))
     ORDER BY p.created_at DESC, p.pickup_request_id;
