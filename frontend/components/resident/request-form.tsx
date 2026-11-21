@@ -112,7 +112,7 @@ export default function RequestForm({ initialValues, createdAt, single = false, 
                             ? (category.standardWeightKg * Number(item.quantity)).toFixed(2) : null;
                         const update = (patch: Partial<typeof item>) => updateValues({ ...values, items: values.items.map((row, rowIndex) => rowIndex === index ? { ...row, ...patch } : row) });
                         return <fieldset key={keys[index]} className={`${card} min-w-0 space-y-3`}>
-                            <legend className="float-left mb-3 font-[family-name:var(--font-heading)] text-[22px]">Item {index + 1}</legend>
+                            <legend className="float-left mb-3 text-xl font-bold">Item {index + 1}</legend>
                             <div className="clear-both space-y-3">
                                 <div className="grid min-w-0 gap-3 sm:grid-cols-[2fr_1fr] sm:items-start">
                                     <div className="min-w-0">
@@ -167,7 +167,7 @@ export default function RequestForm({ initialValues, createdAt, single = false, 
                 {children}
                 <div className="flex flex-wrap items-center gap-3">
                     <Button type="submit" busy={busy} busyLabel="Sending..." disabled={submitDisabled} aria-describedby={submitHint ? `${id}-hint` : undefined} className="px-7">{submitLabel}</Button>
-                    {cancelHref && <Link href={cancelHref} className="inline-flex min-h-11 items-center rounded-full border border-neutral-600 px-5 py-2 font-[family-name:var(--font-heading)] text-text hover:bg-text/10">Cancel</Link>}
+                    {cancelHref && <Link href={cancelHref} className="inline-flex min-h-11 items-center rounded-full border border-neutral-600 px-5 py-2 font-semibold text-text hover:bg-text/10">Cancel</Link>}
                     {submitHint && <p id={`${id}-hint`} className="text-[13px] text-neutral-700">{submitHint}</p>}
                 </div>
             </fieldset>

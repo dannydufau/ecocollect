@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Field, input } from "@/components/ui";
+import { Button, Field, input, mono } from "@/components/ui";
 import { ApiError, friendlyError } from "@/lib/api";
 import { formatPostalCode } from "@/lib/postal-code";
 import type { Profile, ProfileEdit } from "@/lib/types";
@@ -74,7 +74,7 @@ export function AddressEditor(props: EditorProps) {
                 const changed = next.street !== address?.street || next.postalCode !== address?.postalCode;
                 send(validateAddress(street, postalCode), changed ? { address: next } : {});
             }}
-            read={address && <p className="break-words">{address.street}<br />{address.city}, {formatPostalCode(address.postalCode)}</p>}
+            read={address && <p className="break-words">{address.street}<br />{address.city}, <span className={mono}>{formatPostalCode(address.postalCode)}</span></p>}
             fields={<div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Street" error={errors["address.street"]}>
                     {(control) => <input {...control} type="text" autoComplete="street-address" value={street} className={input}
@@ -102,7 +102,7 @@ export function CodesEditor(props: EditorProps) {
             }}
             read={profile.preferredPostalCodes.length > 0
                 ? <ul className="flex flex-wrap gap-2">{profile.preferredPostalCodes.map((code) => (
-                    <li key={code} className="rounded-full bg-neutral-100 px-3.5 py-1.5 text-sm">{formatPostalCode(code)}</li>
+                    <li key={code} className={`rounded-full bg-neutral-100 px-3.5 py-1.5 ${mono}`}>{formatPostalCode(code)}</li>
                 ))}</ul>
                 : <p>You have no saved codes. You will not get new-request notifications and the list shows every area.</p>}
             fields={<div className="space-y-3">

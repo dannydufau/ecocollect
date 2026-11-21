@@ -42,7 +42,7 @@ export default function EcoPointsPage() {
                         ].map(({ label, points }) => (
                             <div key={label} className={`${card} min-w-0 ${label === "Total" ? "bg-accent-2-800! text-accent-2-100" : ""}`}>
                                 <dt className={label === "Total" ? "" : "text-neutral-700"}>{label}</dt>
-                                <dd className="mt-1 break-all font-[family-name:var(--font-heading)] text-[40px] leading-none tabular-nums">{points.toFixed(2)}</dd>
+                                <dd className="mt-1 break-all text-[40px] font-bold leading-none tabular-nums">{points.toFixed(2)}</dd>
                             </div>
                         ))}
                     </dl>
@@ -53,7 +53,7 @@ export default function EcoPointsPage() {
                             <ul className="space-y-3">
                                 {data.awards.map(award => (
                                     <li key={award.awardId} className={`${card} flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2`}>
-                                        <p className="min-w-24 font-[family-name:var(--font-heading)] text-[26px] tabular-nums text-accent-2-800">+{award.points.toFixed(2)}</p>
+                                        <p className="min-w-24 text-[26px] font-bold tabular-nums text-accent-2-800">+{award.points.toFixed(2)}</p>
                                         <div className="min-w-0 flex-1 basis-60">
                                             <p><strong>{award.kind === "DELIVERY" ? "Delivery" : "Cancellation"}</strong> as {award.earnedAs}</p>
                                             <p className="break-words">

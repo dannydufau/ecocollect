@@ -9,7 +9,7 @@ import { formatPostalCode } from "@/lib/postal-code";
 import { formatTimestamp, formatWindow, friendlyWindow } from "@/lib/time";
 import type { AvailableRequest } from "@/lib/types";
 import { useProfile } from "@/lib/use-profile";
-import { Alert, Button, EmptyState, Spinner, clickableCard, pageTitle, stretchedLink, textLink } from "@/components/ui";
+import { Alert, Button, EmptyState, Spinner, clickableCard, mono, pageTitle, stretchedLink, textLink } from "@/components/ui";
 import PostalFilter from "./postal-filter";
 
 export default function AvailableRequests() {
@@ -49,7 +49,7 @@ export default function AvailableRequests() {
                                                         <Link href={`/volunteer/requests/${encodeURIComponent(request.requestId)}`} className={stretchedLink}>
                                 {request.quantity} × {request.category.name}
                             </Link>
-                            <span className="whitespace-nowrap rounded-full bg-neutral-100 px-3 py-1 text-[13px] font-semibold text-neutral-800">{formatPostalCode(request.postalCode)}</span>
+                            <span className={`whitespace-nowrap rounded-full bg-neutral-100 px-3 py-1 text-neutral-800 ${mono}`}>{formatPostalCode(request.postalCode)}</span>
                         </div>
                         <p className="mt-1 text-neutral-800">{request.estimatedWeightKg.toFixed(2)} kg{request.hasPhoto && " · Photo"}</p>
                         <ul className="mt-1">
