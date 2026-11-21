@@ -5,7 +5,7 @@ import { Button, Field, input, mono } from "@/components/ui";
 import { formatPostalCode } from "@/lib/postal-code";
 import { normalizePostalCode, validateCodes } from "@/lib/validate-account";
 
-export default function PostalFilter({ codes, onChange }: { codes: string[]; onChange: (codes: string[]) => void }) {
+export default function PostalFilter({ codes, onChange, showAll = true }: { codes: string[]; onChange: (codes: string[]) => void; showAll?: boolean }) {
     const [text, setText] = useState("");
     const [error, setError] = useState("");
 
@@ -23,7 +23,7 @@ export default function PostalFilter({ codes, onChange }: { codes: string[]; onC
     }
 
     return (
-        <form role="search" aria-label="Filter by postal code" onSubmit={add} noValidate className="min-w-0 space-y-3">
+        <form role="search" aria-label="Filter by postal code" onSubmit={add} noValidate className="min-w-0 space-y-2 rounded-xl border border-border bg-surface-elevated p-3 shadow-rest">
             {codes.length > 0 ? <><p className="font-semibold">Showing requests in:</p><ul className="flex flex-wrap gap-2">
                 {codes.map(code => <li key={code}>
                     <button type="button" onClick={() => onChange(codes.filter(other => other !== code))} aria-label={`Remove ${formatPostalCode(code)}`}
@@ -40,7 +40,7 @@ export default function PostalFilter({ codes, onChange }: { codes: string[]; onC
                     </Field>
                 </div>
                 <Button type="submit" variant="secondary">Add</Button>
-                {codes.length > 0 && <Button variant="secondary" onClick={() => { setError(""); onChange([]); }}>Show all areas</Button>}
+                {showAll && codes.length > 0 && <Button variant="secondary" onClick={() => { setError(""); onChange([]); }}>Show all areas</Button>}
             </div>
         </form>
     );
