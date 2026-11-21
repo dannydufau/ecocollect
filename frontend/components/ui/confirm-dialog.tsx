@@ -31,7 +31,7 @@ export function ConfirmDialog({ open, title, children, confirmLabel, cancelLabel
 
     return (
         <dialog ref={ref} onCancel={(event) => { event.preventDefault(); if (!busy) onCancel(); }}
-            className="m-auto max-h-[90dvh] w-[calc(100%-2rem)] max-w-md overflow-y-auto rounded-[32px] bg-surface p-5 text-text shadow-[0_12px_32px_rgba(46,43,37,0.22)] backdrop:bg-neutral-900/50"
+            className="m-auto max-h-[90dvh] w-[calc(100%-2rem)] max-w-md overflow-y-auto rounded-2xl bg-surface-elevated p-5 text-text shadow-dialog backdrop:bg-scrim"
             aria-labelledby={titleId} aria-busy={busy}>
             <h2 id={titleId} className="text-xl">{title}</h2>
             <div className="mt-3">{open && children}</div>

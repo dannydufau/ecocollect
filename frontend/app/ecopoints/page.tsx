@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { Alert, Button, EmptyState, Spinner, card, pageTitle, textLink } from "@/components/ui";
+import { Alert, Button, EmptyState, Spinner, card, pageTitle, panel, textLink } from "@/components/ui";
 import { api, isAuthError } from "@/lib/api";
 import type { operations } from "@/lib/api-types";
 import { queryKeys } from "@/lib/query-keys";
@@ -40,9 +40,9 @@ export default function EcoPointsPage() {
                             { label: "As resident", points: data.asResident },
                             { label: "As volunteer", points: data.asVolunteer },
                         ].map(({ label, points }) => (
-                            <div key={label} className={`${card} min-w-0 ${label === "Total" ? "bg-accent-2-800! text-accent-2-100" : ""}`}>
+                            <div key={label} className={`min-w-0 ${label === "Total" ? `${panel} border-transparent bg-accent-2-800 text-on-moss` : card}`}>
                                 <dt className={label === "Total" ? "" : "text-neutral-700"}>{label}</dt>
-                                <dd className="mt-1 whitespace-nowrap font-[family-name:var(--font-heading)] text-[40px] leading-none tabular-nums">{points.toFixed(2)}</dd>
+                                <dd className="mt-1 whitespace-nowrap text-[40px] font-bold leading-none tabular-nums">{points.toFixed(2)}</dd>
                             </div>
                         ))}
                     </dl>
@@ -53,13 +53,13 @@ export default function EcoPointsPage() {
                             <ul className="space-y-3">
                                 {data.awards.map(award => (
                                     <li key={award.awardId} className={`${card} flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2`}>
-                                        <p className="min-w-24 font-[family-name:var(--font-heading)] text-[26px] tabular-nums text-accent-2-800">+{award.points.toFixed(2)}</p>
+                                        <p className="min-w-24 text-[26px] font-bold tabular-nums text-accent-2-800">+{award.points.toFixed(2)}</p>
                                         <div className="min-w-0 flex-1 basis-60">
                                             <p><strong>{award.kind === "DELIVERY" ? "Delivery" : "Cancellation"}</strong> as {award.earnedAs}</p>
                                             <p className="break-words">
                                                 {award.categoryName ? `${award.quantity} × ${award.categoryName}, ${award.estimatedWeightKg?.toFixed(2)} kg` : "—"}
                                             </p>
-                                            <p className="text-[13px] text-neutral-700">{formulaText(award)} · <time dateTime={award.awardedAt}>{formatTimestamp(award.awardedAt)}</time></p>
+                                            <p className="text-[13px] text-text-muted">{formulaText(award)} · <time dateTime={award.awardedAt}>{formatTimestamp(award.awardedAt)}</time></p>
                                         </div>
                                         {award.kind === "DELIVERY" && <Link
                                             href={`/${award.earnedAs}/requests/${award.requestId}`}

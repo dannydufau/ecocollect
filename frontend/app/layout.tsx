@@ -13,7 +13,7 @@ const heading = Caprasimo({
 
 const body = Figtree({
   variable: "--font-body",
-  weight: ["400", "600", "700"],
+  weight: ["400", "500", "600", "700"],
   subsets: ["latin"],
 });
 

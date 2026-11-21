@@ -66,4 +66,11 @@ describe("form components", () => {
         const css = readFileSync("app/globals.css", "utf8");
         expect(css).not.toContain("prefers-color-scheme");
     });
+
+    it("keeps the h2 and h3 defaults in the base layer so size classes still win", () => {
+        const css = readFileSync("app/globals.css", "utf8");
+        const base = css.match(/@layer base \{[\s\S]*?\n\}/)![0];
+        expect(base).toMatch(/h2 \{/);
+        expect(base).toMatch(/h3 \{/);
+    });
 });

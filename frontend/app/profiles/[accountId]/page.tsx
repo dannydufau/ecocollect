@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Alert, Button, Spinner, card, pageTitle, textLink } from "@/components/ui";
+import { Alert, Button, Spinner, card, mono, pageTitle, textLink } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { usePublicStream } from "@/lib/public-stream";
 import { queryKeys } from "@/lib/query-keys";
@@ -51,7 +51,7 @@ export default function PublicProfilePage() {
             <div className="mx-auto max-w-3xl space-y-6">
                 <div>
                     <h1 className={`break-words ${pageTitle}`}>{data ? data.publicName : "Public profile"}</h1>
-                    {data && <p className="break-all font-mono text-neutral-700">@{data.accountId}</p>}
+                    {data && <p className={`break-all text-neutral-700 ${mono}`}>@{data.accountId}</p>}
                 </div>
                 {profile.isPending && <Spinner label="Loading the profile..." />}
                 {profile.isError && <div className="space-y-2">
@@ -66,7 +66,7 @@ export default function PublicProfilePage() {
                         <div><dt className="text-neutral-700">Member since</dt><dd>{formatDate(calgaryToday(new Date(data.memberSince)))}</dd></div>
                         <div>
                             <dt className="text-neutral-700">EcoPoints</dt>
-                            <dd className="font-[family-name:var(--font-heading)] text-[26px] tabular-nums">
+                            <dd className="text-[26px] font-bold tabular-nums">
                                 {stats.data ? stats.data.ecopoints.toFixed(2) : stats.isError ? <span className="font-[family-name:var(--font-body)] text-base">Not available right now</span> : "…"}
                             </dd>
                         </div>

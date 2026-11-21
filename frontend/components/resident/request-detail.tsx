@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Alert, Button, RequestPhoto, Spinner, StatusBadge, WindowList, card, pageTitle, textLink } from "@/components/ui";
+import { Alert, Button, RequestPhoto, Spinner, StatusBadge, WindowList, card, pageTitle, panel, textLink } from "@/components/ui";
 import { isAuthError } from "@/lib/api";
 import { formatPostalCode } from "@/lib/postal-code";
 import { nextStepText } from "@/lib/status-text";
@@ -47,7 +47,7 @@ export default function ResidentRequestDetail({ requestId, rescheduled = false, 
     // The cancel button goes in with the other actions, so they all sit in one group
     const renderers: ResidentActionRenderers = {
         edit: request => <Link href={`/resident/requests/${encodeURIComponent(request.requestId)}/edit`}
-            className="inline-flex min-h-11 items-center rounded-full border border-neutral-600 px-5 py-2 font-[family-name:var(--font-heading)] text-text hover:bg-text/10">Edit request</Link>,
+            className="inline-flex min-h-11 items-center rounded-full border border-neutral-600 px-5 py-2 font-semibold text-text hover:bg-text/10">Edit request</Link>,
         cancel: request => <CancelRequest request={request} onNotice={setNotice} />,
         confirm_collected: request => <ConfirmCollected request={request} onNotice={setNotice} />,
         cancel_assignment: request => <CancelAssignment request={request} onNotice={setNotice} />,
@@ -84,16 +84,16 @@ export function ResidentRequestView({ request, onPhotoError, actionRenderers, no
         <section aria-labelledby="details-heading" className={cardStyle}>
             <h2 id="details-heading" className={cardTitle}>Details</h2>
             <dl className="grid gap-x-4 gap-y-3 sm:grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
-                <div><dt className="text-[13px] text-neutral-700">Estimated weight</dt><dd>{request.estimatedWeightKg.toFixed(2)} kg</dd></div>
-                <div><dt className="text-[13px] text-neutral-700">Created</dt><dd>{formatTimestamp(request.createdAt)}</dd></div>
-                {request.status === "Open" && <div><dt className="text-[13px] text-neutral-700">Expires</dt><dd>{formatTimestamp(request.expiresAt)}</dd></div>}
+                <div><dt className="text-[13px] text-text-muted">Estimated weight</dt><dd>{request.estimatedWeightKg.toFixed(2)} kg</dd></div>
+                <div><dt className="text-[13px] text-text-muted">Created</dt><dd>{formatTimestamp(request.createdAt)}</dd></div>
+                {request.status === "Open" && <div><dt className="text-[13px] text-text-muted">Expires</dt><dd>{formatTimestamp(request.expiresAt)}</dd></div>}
             </dl>
         </section>
 
         <section aria-labelledby="windows-heading" className={cardStyle}>
             <h2 id="windows-heading" className={cardTitle}>Pickup windows</h2>
             <WindowList windows={request.windows} />
-            <p className="text-[13px] text-neutral-700">Windows and times are Calgary time.</p>
+            <p className="text-[13px] text-text-muted">Windows and times are Calgary time.</p>
         </section>
 
         {request.photoUrl && <section aria-labelledby="item-photo-heading" className={cardStyle}>
@@ -101,7 +101,7 @@ export function ResidentRequestView({ request, onPhotoError, actionRenderers, no
             <div className="max-w-xs"><RequestPhoto src={request.photoUrl} alt="Photo of the items" refetch={onPhotoError} /></div>
         </section>}
 
-        {(request.address || request.notes) && <section aria-labelledby="address-heading" className={`${cardStyle} bg-accent-200!`}>
+        {(request.address || request.notes) && <section aria-labelledby="address-heading" className={`${panel} min-w-0 space-y-3 border-border bg-accent-200`}>
             <h2 id="address-heading" className={cardTitle}>Pickup address and notes</h2>
             {request.address && <div className="break-words">
                 <p>{request.address.street}</p>

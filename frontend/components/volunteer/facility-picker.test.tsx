@@ -60,7 +60,8 @@ it("shows an error", async () => {
 
 it("shows the address with a spaced postal code", async () => {
     renderWithClient(<FacilityPicker categoryId="laptops" value={null} onChange={() => {}} />);
-    expect(await screen.findByText("2808 Ogden Rd SE, Calgary T2G 4R7")).toBeInTheDocument();
+    const code = await screen.findByText("T2G 4R7");
+    expect(code.parentElement).toHaveTextContent("2808 Ogden Rd SE, Calgary T2G 4R7");
 });
 
 it("fills the chosen row", async () => {

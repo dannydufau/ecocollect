@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import TermsCheckbox from "@/components/terms-checkbox";
-import { Alert, Button, Field, card, input } from "@/components/ui";
+import { Alert, Button, Field, panel, input } from "@/components/ui";
 import { api, ApiError, friendlyError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { queryKeys } from "@/lib/query-keys";
@@ -81,7 +81,7 @@ export function SecondRole({ profile, onDone }: { profile: Profile; onDone: (not
     const name = role === "volunteer" ? "Become a volunteer" : "Become a resident";
     if (!open) {
         return (
-            <section className={`${card} min-w-0 space-y-3 bg-accent-2-200!`} aria-labelledby="second-role">
+            <section className={`${panel} min-w-0 space-y-3 border-border bg-accent-2-200`} aria-labelledby="second-role">
                 <h2 id="second-role" className="text-[22px]">Add a role</h2>
                 <p>{role === "volunteer" ? "You can also pick up items near you and deliver them to a facility." : "You can also request pickups for your own e-waste."}</p>
                 <div><Button onClick={start}>{name}</Button></div>
@@ -90,7 +90,7 @@ export function SecondRole({ profile, onDone }: { profile: Profile; onDone: (not
     }
 
     return (
-        <form onSubmit={submit} noValidate aria-labelledby="second-role" className={`${card} min-w-0 space-y-4 bg-accent-2-200!`}>
+        <form onSubmit={submit} noValidate aria-labelledby="second-role" className={`${panel} min-w-0 space-y-4 border-border bg-accent-2-200`}>
             <h2 id="second-role" className="text-[22px]">{name}</h2>
             {role === "resident" && <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Street" error={errors["address.street"] ?? errors.address}>

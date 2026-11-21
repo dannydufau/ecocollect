@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
-import { Button, ConfirmDialog, card } from "@/components/ui";
+import { Button, ConfirmDialog, panel } from "@/components/ui";
 import { api, friendlyError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 
@@ -21,7 +21,7 @@ export function DeactivateAccount() {
     });
 
     return (
-        <section className={`${card} min-w-0 space-y-3 bg-transparent! ring-[1.5px] ring-inset ring-[#c24b3b]`} aria-labelledby="deactivate-account">
+        <section className={`${panel} min-w-0 space-y-3 border-danger-border bg-transparent`} aria-labelledby="deactivate-account">
             <h2 id="deactivate-account" className="text-[22px]">Deactivate account</h2>
             <p>You will be signed out and you can&apos;t sign in again. Your history is kept.</p>
             <div><Button variant="danger-outline" onClick={() => { deactivate.reset(); setOpen(true); }}>Deactivate account</Button></div>
