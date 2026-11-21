@@ -52,7 +52,7 @@ function PickupAddress() {
     const address = useProfile().data?.address;
     return <p>
         We collect from {address ? `${address.street}, ${formatPostalCode(address.postalCode)}` : "the address in your profile"}.{" "}
-        <Link href="/profile" target="_blank" rel="noopener noreferrer" title="Opens in a new tab" className="text-accent-700 underline underline-offset-4">Change address</Link>
+        <Link href="/profile" target="_blank" rel="noopener noreferrer" className="text-accent-700 underline underline-offset-4">Change address<span className="sr-only"> (opens in a new tab)</span></Link>
     </p>;
 }
 

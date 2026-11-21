@@ -51,7 +51,7 @@ export default function ReviewRequest({ values, busy, accepted, onBack, onConfir
             {profile.isPending ? <p role="status">Loading your address...</p> : profile.isError ?
                 <Alert variant="error">Could not load your address. <button type="button" onClick={() => void profile.refetch()} className="underline">Try again</button></Alert> :
                 address ? <p className="break-words">{address.street}, {formatPostalCode(address.postalCode)}</p> : <Alert variant="error">Add an address to your profile before sending.</Alert>}
-            <Link href="/profile" target="_blank" rel="noopener noreferrer" title="Opens in a new tab" className={textLink}>Change address</Link>
+            <Link href="/profile" target="_blank" rel="noopener noreferrer" className={textLink}>Change address<span className="sr-only"> (opens in a new tab)</span></Link>
         </section>
         <fieldset disabled={busy} className="min-w-0 space-y-4">
             {children}

@@ -265,7 +265,7 @@ it("has one heading and the step indicator on each step", async () => {
 it("shows the profile address on step 1 and opens Change address in a new tab", async () => {
     mount();
     expect(await screen.findByText(/We collect from 123 Main Street, T2P 1J9\./)).toBeInTheDocument();
-    const link = screen.getByRole("link", { name: "Change address" });
+    const link = screen.getByRole("link", { name: /Change address/ });
     expect(link).toHaveAttribute("target", "_blank");
     expect(link).toHaveAttribute("rel", "noopener noreferrer");
 });
