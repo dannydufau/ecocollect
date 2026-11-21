@@ -2122,6 +2122,7 @@ components:
           type:
             - string
             - 'null'
+          maxLength: 500
           description: The resident's reason, if they gave one.
     RequestCancelledPayload:
       allOf:

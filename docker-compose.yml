@@ -101,6 +101,37 @@ services:
       timeout: 3s
       retries: 10
 
+  request:                          # Request Service (#102), TypeScript run directly by Node (no build step)
+    build:
+      context: ./backend            # same image as the backend, started with a different entry point
+    command: ["node", "src/request/index.ts"]
+    restart: unless-stopped
+    environment:
+      PORT: "80"                    # Caddy proxies to request without a port, which means 80
+      # Its own database for now, built by backend/scripts/request/load-db.sh (the 608
+      # physical model + db/request/), until db/init loads the course model for everyone.
+      DATABASE_URL: postgres://${POSTGRES_USER:-ecocollect}:${POSTGRES_PASSWORD:?copy .env.example to .env first}@postgres:5432/${REQUEST_POSTGRES_DB:-ecocollect_request}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-ecocollect}:${RABBITMQ_PASSWORD:?copy .env.example to .env first}@rabbitmq:5672
+      # ImageKit (contract 2.4): this is the only service that gets the private key.
+      # Optional until uploads (#246) read them; that ticket makes the keys required.
+      IMAGEKIT_PRIVATE_KEY: ${IMAGEKIT_PRIVATE_KEY:-}
+      IMAGEKIT_PUBLIC_KEY: ${IMAGEKIT_PUBLIC_KEY:-}
+      IMAGEKIT_URL_ENDPOINT: ${IMAGEKIT_URL_ENDPOINT:-}
+      IMAGEKIT_ROOT_FOLDER: ${IMAGEKIT_ROOT_FOLDER:-/ecocollect}   # upload folders start with this (6.2)
+      DEMO_MODE: ${DEMO_MODE:-false}                              # true only in the demo stack (17.5)
+    sysctls:
+      net.ipv4.ip_unprivileged_port_start: 0   # the container runs as a normal user, which may then use port 80
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:                    # /health needs no gateway headers
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:80/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   frontend:
     build:
       context: ./frontend
