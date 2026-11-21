@@ -11,11 +11,12 @@ const crypto = require('node:crypto');
 const NAMESPACE = Buffer.from('6f2b8c1e4d3a4b7e9c5d1a2f3e4b5c6d', 'hex');
 
 /*
- * The same event and recipient always give the same UUID (version 5, from a SHA-1 hash),
+ * The same event, recipient and type always give the same UUID (version 5, from a SHA-1 hash),
  * so a redelivered event hits the notification's primary key instead of making a copy.
+ * The type is part of it because one account can get two notifications from one event (self-accept).
  */
-function notificationUuid(eventId, uid) {
-  const hash = crypto.createHash('sha1').update(NAMESPACE).update(`${eventId}:${uid}`).digest();
+function notificationUuid(eventId, uid, type) {
+  const hash = crypto.createHash('sha1').update(NAMESPACE).update(`${eventId}:${uid}:${type}`).digest();
   hash[6] = (hash[6] & 0x0f) | 0x50; // version 5
   hash[8] = (hash[8] & 0x3f) | 0x80; // standard variant
   const hex = hash.subarray(0, 16).toString('hex');

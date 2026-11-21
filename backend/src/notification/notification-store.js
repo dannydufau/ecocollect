@@ -6,33 +6,69 @@
 
 function createNotificationStore(pool) {
   /*
-   * Saves one request event's notifications in one transaction and returns the ids that were new.
-   * An id that already exists means the event was redelivered: nothing is saved for it again.
+   * Saves one request event's notifications and applies the expiry rules, in one transaction.
+   *   rows:  [{ notificationId, type, createdAt, accountId }]
+   *   event: { pickupRequestId, requestSeq, leavesOpen }
+   * Returns { saved, expired, stale }:
+   *   saved:   ids that were new (a redelivered event saves nothing again)
+   *   expired: [{ notificationId, accountId }] that this event made stale
+   *   stale:   true if a later step of this request was already seen, saved already expired
    */
-  async function saveRequestNotifications(rows) {
+  async function saveRequestNotifications(rows, { pickupRequestId, requestSeq, leavesOpen }) {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
+
+      // An event older than one already seen for this request is late.
+      const latest = await client.query(
+        'SELECT max(request_seq) AS seq FROM notifications.request_notification WHERE pickup_request_id = $1',
+        [pickupRequestId],
+      );
+      const stale = latest.rows[0].seq !== null && requestSeq < Number(latest.rows[0].seq);
+
       const saved = new Set();
       for (const row of rows) {
         const { rowCount } = await client.query(
           `INSERT INTO notifications.notification
              (notification_id, type, created_at, pushed_at, is_read, is_expired)
-           VALUES ($1, $2, $3, NULL, false, false)
+           VALUES ($1, $2, $3, NULL, false, $4)
            ON CONFLICT (notification_id) DO NOTHING`,
-          [row.notificationId, row.type, row.createdAt],
+          [row.notificationId, row.type, row.createdAt, stale],
         );
         if (rowCount === 0) continue;
         await client.query(
           `INSERT INTO notifications.request_notification
              (notification_id, account_id, pickup_request_id, request_seq)
            VALUES ($1, $2, $3, $4)`,
-          [row.notificationId, row.accountId, row.pickupRequestId, row.requestSeq],
+          [row.notificationId, row.accountId, pickupRequestId, requestSeq],
         );
         saved.add(row.notificationId);
       }
+
+      let expired = [];
+      if (!stale && saved.size > 0) {
+        /*
+         * Each recipient's older notifications about this request.
+         * When the request leaves Open, every volunteer's NEW_MATCHING_REQUEST about it.
+         * Only lower request_seq, so a late event can never expire a newer one.
+         */
+        const recipients = [...new Set(rows.map((r) => r.accountId))];
+        const result = await client.query(
+          `UPDATE notifications.notification n SET is_expired = true
+           FROM notifications.request_notification rn
+           WHERE n.notification_id = rn.notification_id
+             AND rn.pickup_request_id = $1
+             AND rn.request_seq < $2
+             AND NOT n.is_expired
+             AND (rn.account_id = ANY($3) OR ($4 AND n.type = 'NEW_MATCHING_REQUEST'))
+           RETURNING n.notification_id, rn.account_id`,
+          [pickupRequestId, requestSeq, recipients, leavesOpen],
+        );
+        expired = result.rows.map((r) => ({ notificationId: r.notification_id, accountId: r.account_id }));
+      }
+
       await client.query('COMMIT');
-      return saved;
+      return { saved, expired, stale };
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;
@@ -95,3 +131,4 @@ function createNotificationStore(pool) {
 }
 
 module.exports = { createNotificationStore };
+

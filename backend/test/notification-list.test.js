@@ -1,7 +1,7 @@
 'use strict';
 
 /*
- * The notification list routes (N3, N4) over HTTP, with a fake store and hub.
+ * The notification list routes (N3–N5) over HTTP, with a fake store and hub.
  */
 
 const { test } = require('node:test');
@@ -30,6 +30,7 @@ function fakeStore() {
       row.is_read = true;
       return true;
     },
+    async markAllRead(uid) { if (row.account === uid) row.is_read = true; },
   };
 }
 
@@ -52,6 +53,8 @@ async function start(t) {
 
 test('N3 lists the caller\'s notifications in the contract shape, with the unread count', async (t) => {
   const { call } = await start(t);
+  assert.equal((await call('', null)).status, 401);
+
   const res = await call('', 'uid_v1');
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), {
@@ -68,15 +71,27 @@ test('N3 lists the caller\'s notifications in the contract shape, with the unrea
       createdAt: '2026-11-20T16:15:00Z',
     }],
   });
+
+  assert.deepEqual(await (await call('', 'uid_other')).json(), { unreadCount: 0, notifications: [] });
+  assert.equal((await call('?limit=0', 'uid_v1')).status, 400);
+  assert.equal((await call('?before=yesterday', 'uid_v1')).status, 400);
 });
 
 test('N4 marks the caller\'s own notification read and tells their tabs; anyone else gets 404', async (t) => {
   const { store, hub, call } = await start(t);
 
   assert.equal((await call(`/${ID}/read`, 'uid_other', 'PATCH')).status, 404);
+  assert.equal((await call('/not-a-uuid/read', 'uid_v1', 'PATCH')).status, 404);
   assert.equal(store.row.is_read, false);
 
   assert.equal((await call(`/${ID}/read`, 'uid_v1', 'PATCH')).status, 204);
   assert.equal(store.row.is_read, true);
   assert.deepEqual(hub.sent, [{ uid: 'uid_v1', event: 'notification-read', data: { notificationIds: [ID] } }]);
+});
+
+test('N5 marks everything read and sends one notification-read with all: true', async (t) => {
+  const { store, hub, call } = await start(t);
+  assert.equal((await call('/read-all', 'uid_v1', 'POST')).status, 204);
+  assert.equal(store.row.is_read, true);
+  assert.deepEqual(hub.sent, [{ uid: 'uid_v1', event: 'notification-read', data: { all: true } }]);
 });

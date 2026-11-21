@@ -12,7 +12,7 @@ const { Pool } = require('pg');
 
 const { createHub } = require('./hub');
 const { createEventsRouter } = require('./events');
-const { requestCreated } = require('./handlers');
+const { requestCreated, requestAssigned, requestCancelled, requestExpired } = require('./handlers');
 const { pushPayload, createWebPushSender } = require('./push');
 const { startSubscriber } = require('../messaging/subscriber');
 const { queues } = require('../messaging/topology');
@@ -68,41 +68,66 @@ const port = Number(process.env.PORT || 3002);
 const server = app.listen(port, () => console.log(`Notification service listening on port ${port}`));
 
 /*
- * requestCreated decides who gets what; this saves it, then delivers it: signal and
- * notification to open tabs, then a push if the type pushes. The subscriber acks after
- * this returns, so a failed save is retried; a redelivered event saves and sends nothing.
+ * One request event: the handler decides who gets what; this saves it (with the expiry
+ * rules), then delivers it: notification (and the Oct 28 signal) to open tabs, a push if
+ * the type pushes, and notification-expired for what this event made stale. The subscriber
+ * acks after this returns, so a failed save is retried; a redelivered event sends nothing.
  */
-async function deliverRequestCreated(envelope) {
-  const deliveries = requestCreated(envelope);
-  // A new request is at step 1; v2 events also say so in requestSeq.
-  const requestSeq = (envelope.data.request ?? envelope.data).requestSeq ?? 1;
-  const saved = await notifications.saveRequestNotifications(deliveries.map(({ uid, notification }) => ({
-    notificationId: notification.notificationId,
-    type: notification.type,
-    createdAt: notification.createdAt,
-    accountId: uid,
-    pickupRequestId: notification.requestId,
-    requestSeq,
-  })));
+function deliverRequestEvent(handler, { leavesOpen }) {
+  return async (envelope) => {
+    const deliveries = handler(envelope);
+    const request = envelope.data.request ?? envelope.data;
+    const requestId = request.requestId;
+    // A new request is at step 1; v2 and later events carry requestSeq.
+    const requestSeq = request.requestSeq ?? 1;
 
-  for (const { uid, signal, notification, push } of deliveries) {
-    if (!saved.has(notification.notificationId)) continue;
-    const tabs = hub.send(uid, 'signal', signal);
-    hub.send(uid, 'notification', notification, notification.notificationId);
-    console.log(`[notification] ${notification.type} ${signal.requestId} -> ${uid} (${tabs} open tab${tabs === 1 ? '' : 's'})`);
-
-    // Best-effort and not awaited: a failed push must not redeliver the event (and its SSE frames).
-    if (push) {
-      pushSender.send(uid, pushPayload(notification))
-        .catch((err) => console.warn(`[push] failed for ${uid}: ${err.message}`));
+    const { saved, expired, stale } = await notifications.saveRequestNotifications(
+      deliveries.map(({ uid, notification }) => ({
+        notificationId: notification.notificationId,
+        type: notification.type,
+        createdAt: notification.createdAt,
+        accountId: uid,
+      })),
+      { pickupRequestId: requestId, requestSeq, leavesOpen },
+    );
+    if (stale) {
+      console.log(`[notification] ${envelope.type} ${requestId} seq ${requestSeq} is late: saved expired, not sent`);
+      return;
     }
-  }
+
+    for (const { uid, signal, notification, push } of deliveries) {
+      if (!saved.has(notification.notificationId)) continue;
+      if (signal) hub.send(uid, 'signal', signal);
+      const tabs = hub.send(uid, 'notification', notification, notification.notificationId);
+      console.log(`[notification] ${notification.type} ${requestId} -> ${uid} (${tabs} open tab${tabs === 1 ? '' : 's'})`);
+
+      // Best-effort and not awaited: a failed push must not redeliver the event (and its SSE frames).
+      if (push) {
+        pushSender.send(uid, pushPayload(notification))
+          .catch((err) => console.warn(`[push] failed for ${uid}: ${err.message}`));
+      }
+    }
+
+    // One notification-expired per account, listing its notifications this event made stale.
+    const byAccount = new Map();
+    for (const { notificationId, accountId } of expired) {
+      byAccount.set(accountId, [...(byAccount.get(accountId) ?? []), notificationId]);
+    }
+    for (const [uid, notificationIds] of byAccount) {
+      hub.send(uid, 'notification-expired', { notificationIds, requestId, tag: `request-${requestId}` });
+    }
+  };
 }
 
 const subscriber = startSubscriber({
   queue: queues.notification,
   url: process.env.RABBITMQ_URL,
-  handlers: { RequestCreated: deliverRequestCreated },
+  handlers: {
+    RequestCreated: deliverRequestEvent(requestCreated, { leavesOpen: false }),
+    RequestAssigned: deliverRequestEvent(requestAssigned, { leavesOpen: true }),
+    RequestCancelled: deliverRequestEvent(requestCancelled, { leavesOpen: true }),
+    RequestExpired: deliverRequestEvent(requestExpired, { leavesOpen: true }),
+  },
 });
 
 // Shutdown: `docker compose stop` sends SIGTERM, then kills after 10 s

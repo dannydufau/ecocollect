@@ -1,8 +1,8 @@
 'use strict';
 
 /*
- * The notification list: N3 GET /api/notifications, N4 PATCH /api/notifications/:id/read,
- * N5 POST /api/notifications/read-all. Every route is the caller's own notifications only.
+ * The notification list: GET /api/notifications, N4 PATCH /api/notifications/:id/read,
+ * POST /api/notifications/read-all. Every route is the caller's own notifications only.
  */
 
 const express = require('express');
@@ -38,7 +38,7 @@ function createNotificationsRouter({ notifications, hub }) {
   const router = express.Router();
   router.use('/api/notifications', gatewayUser);
 
-  // N3: newest first, never expired; page with `before` (the createdAt of the last one shown).
+  // Newest first, never expired; page with `before` (the createdAt of the last one shown).
   router.get('/api/notifications', async (req, res) => {
     const { before, limit } = req.query;
     if (before !== undefined && !(typeof before === 'string' && TIMESTAMP.test(before))) {
@@ -57,7 +57,7 @@ function createNotificationsRouter({ notifications, hub }) {
     }
   });
 
-  // N4: 404 when it isn't the caller's (or isn't there), so other users' ids can't be probed.
+  // 404 when it isn't the caller's (or isn't there), so other users' ids can't be probed.
   router.patch('/api/notifications/:id/read', async (req, res) => {
     const { id } = req.params;
     try {
@@ -72,7 +72,7 @@ function createNotificationsRouter({ notifications, hub }) {
     res.status(204).end();
   });
 
-  // N5: then one notification-read with all: true.
+  // Then one notification-read with all: true.
   router.post('/api/notifications/read-all', async (req, res) => {
     try {
       await notifications.markAllRead(req.user.uid);

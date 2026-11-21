@@ -27,11 +27,29 @@ const NOTIFICATION_TYPES = Object.freeze({
     title: 'New pickup near you', path: '/volunteer/requests/', push: true,
     listBody: 'A pickup request matches your area',
   },
+  REQUEST_ASSIGNED_RESIDENT: {
+    title: 'Pickup accepted', path: '/resident/requests/', push: true,
+    listBody: 'A volunteer accepted your pickup request',
+  },
+  REQUEST_ASSIGNED_VOLUNTEER: {
+    title: 'You accepted a pickup', path: '/volunteer/requests/', push: false,
+    listBody: 'You accepted a pickup request',
+  },
+  REQUEST_CANCELLED_RESIDENT: {
+    title: 'Request cancelled', path: '/resident/requests/', push: false,
+    listBody: 'Your pickup request was cancelled',
+  },
+  REQUEST_EXPIRED_RESIDENT: {
+    title: 'Request expired', path: '/resident/requests/', push: true,
+    listBody: 'Your pickup request expired',
+  },
 });
 
-// The only shape a signal may have: type + requestId. Built from scratch,
-// never by copying event data, so nothing else (e.g. a street address) can
-// leak to the browser even if the event carries it.
+/* 
+ * The only shape a signal may have: type + requestId. Built from scratch,
+ * never by copying event data, so nothing else (e.g. a street address) can
+ * leak to the browser even if the event carries it.
+ */
 function signal(type, requestId) {
   return { type, requestId };
 }
@@ -51,7 +69,7 @@ function notification(envelope, uid, type, request) {
   const { title, path, push } = NOTIFICATION_TYPES[type];
   return {
     notification: {
-      notificationId: notificationUuid(envelope.eventId, uid),
+      notificationId: notificationUuid(envelope.eventId, uid, type),
       type,
       requestId: request.requestId,
       awardId: null,
@@ -111,4 +129,45 @@ function requestCreated(envelope) {
   return out;
 }
 
-module.exports = { requestCreated, SIGNAL, NOTIFICATION_TYPES };
+/*
+ * The request snapshot that every later request event carries in data.request (contract 10.2).
+ * Throws without the ids the notifications are built from, so the subscriber retries it.
+ */
+function snapshotOf(envelope, eventName) {
+  const request = envelope?.data?.request;
+  if (typeof request?.requestId !== 'string' || request.requestId === '') {
+    throw new Error(`${eventName} without a requestId`);
+  }
+  if (typeof envelope.eventId !== 'string' || envelope.eventId === '') {
+    throw new Error(`${eventName} without an eventId`);
+  }
+  return request;
+}
+
+// One delivery with no Oct 28 signal (the frontend's signal only knows the two creation types).
+function delivery(envelope, uid, type, request) {
+  return { uid, signal: null, ...notification(envelope, uid, type, request) };
+}
+
+// RequestAssigned (E3): the resident hears a volunteer accepted (push); the volunteer gets a record.
+function requestAssigned(envelope) {
+  const request = snapshotOf(envelope, 'RequestAssigned');
+  const out = [delivery(envelope, request.residentUid, 'REQUEST_ASSIGNED_RESIDENT', request)];
+  const volunteerUid = envelope.data.assignment?.volunteerUid;
+  if (volunteerUid) out.push(delivery(envelope, volunteerUid, 'REQUEST_ASSIGNED_VOLUNTEER', request));
+  return out;
+}
+
+// RequestCancelled (E9): the resident cancelled, so they get a record and no push.
+function requestCancelled(envelope) {
+  const request = snapshotOf(envelope, 'RequestCancelled');
+  return [delivery(envelope, request.residentUid, 'REQUEST_CANCELLED_RESIDENT', request)];
+}
+
+// RequestExpired (E10): nobody acted, so the resident is pushed.
+function requestExpired(envelope) {
+  const request = snapshotOf(envelope, 'RequestExpired');
+  return [delivery(envelope, request.residentUid, 'REQUEST_EXPIRED_RESIDENT', request)];
+}
+
+module.exports = { requestCreated, requestAssigned, requestCancelled, requestExpired, SIGNAL, NOTIFICATION_TYPES };

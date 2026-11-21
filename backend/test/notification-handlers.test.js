@@ -49,7 +49,7 @@ test('RequestCreated: a volunteer notification has the contract fields and text'
   const volunteer = requestCreated(envelope())[1];
 
   assert.deepEqual(volunteer.notification, {
-    notificationId: notificationUuid(EVENT_ID, 'firebaseUid_v1'),
+    notificationId: notificationUuid(EVENT_ID, 'firebaseUid_v1', 'NEW_MATCHING_REQUEST'),
     type: 'NEW_MATCHING_REQUEST',
     requestId: REQUEST_ID,
     awardId: null,
@@ -136,9 +136,9 @@ test('RequestCreated: an event without a requestId or eventId throws, so the sub
   assert.throws(() => requestCreated({ ...envelope(), eventId: undefined }), /without an eventId/);
 });
 
-test('a notification id is a UUID that the same event and recipient always repeat', () => {
-  const id = notificationUuid(EVENT_ID, 'firebaseUid_v1');
+test('a notification id is a UUID that the same event, recipient and type always repeat', () => {
+  const id = notificationUuid(EVENT_ID, 'firebaseUid_v1', 'NEW_MATCHING_REQUEST');
   assert.match(id, /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
-  assert.equal(notificationUuid(EVENT_ID, 'firebaseUid_v1'), id);
-  assert.notEqual(notificationUuid(EVENT_ID, 'firebaseUid_v2'), id);
+  assert.equal(notificationUuid(EVENT_ID, 'firebaseUid_v1', 'NEW_MATCHING_REQUEST'), id);
+  assert.notEqual(notificationUuid(EVENT_ID, 'firebaseUid_v2', 'NEW_MATCHING_REQUEST'), id);
 });

@@ -192,7 +192,7 @@ async function publishRequestCreated(data) {
 
 // Publishes an envelope as is; publishing the same one twice is a redelivery.
 async function publish(envelope) {
-  pubCh.publish(exchange.name, events.RequestCreated.routingKey, Buffer.from(JSON.stringify(envelope)), {
+  pubCh.publish(exchange.name, events[envelope.type].routingKey, Buffer.from(JSON.stringify(envelope)), {
     contentType: 'application/json',
     messageId: envelope.eventId,
     persistent: true,
@@ -316,6 +316,33 @@ test('a RequestCreated reaches the resident and matched volunteers as signals, n
       [requestId],
     );
     assert.equal(again.rows[0].n, 3);
+
+    // The volunteer accepts the first request (step 2). The resident is told (with a push), and
+    // every volunteer's "New pickup near you" for it expires (X2), on their tabs and in their list.
+    const matchingIds = notificationsIn(volunteerTab).filter((f) => f.data.requestId === requestId).map((f) => f.id);
+    await publish({
+      eventId: randomUUID(),
+      type: 'RequestAssigned',
+      version: 1,
+      occurredAt: new Date().toISOString(),
+      data: {
+        request: {
+          requestId, requestSeq: 2, transitionId: randomUUID(), status: 'Assigned', residentUid: resident,
+          categoryName: 'Computers/Laptops', quantity: 2, postalCode: 'T2P1J9',
+        },
+        assignment: { volunteerUid: volunteer },
+      },
+    });
+    await waitFor(
+      () => notificationsIn(residentTab).some((f) => f.data.type === 'REQUEST_ASSIGNED_RESIDENT'),
+      'the accepted notification at the resident',
+    );
+    await waitFor(() => pushService.paths.filter((p) => p === `/push/${resident}`).length === 1, 'the push to the resident');
+    await waitFor(() => framesIn(volunteerTab, 'notification-expired').length === 1, 'notification-expired at the volunteer');
+    assert.deepEqual(framesIn(volunteerTab, 'notification-expired')[0].data.notificationIds, matchingIds);
+    const after = await (await fetch(service.notificationsUrl, asVolunteer)).json();
+    assert.ok(!after.notifications.some((n) => n.type === 'NEW_MATCHING_REQUEST' && n.requestId === requestId));
+    assert.ok(after.notifications.some((n) => n.type === 'REQUEST_ASSIGNED_VOLUNTEER' && n.requestId === requestId));
   } finally {
     tabs.forEach((t) => t.close());
     pushService.close();
