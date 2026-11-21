@@ -5,22 +5,27 @@ import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { skipDb } from './db.ts';
 import {
-  SEED_ASSIGNED_REQUEST_ID, SEED_CANCELLED_VOLUNTEER_ID, SEED_DELIVERED_REQUEST_ID, SEED_OPEN_REQUEST_ID,
+  SEED_ASSIGNED_REQUEST_ID, SEED_CANCELLED_VOLUNTEER_ID, SEED_DELIVERED_EVIDENCE_PATH,
+  SEED_DELIVERED_PHOTO_PATH, SEED_DELIVERED_REQUEST_ID, SEED_OPEN_REQUEST_ID,
 } from './seed.ts';
+import { fakePhotos } from '../../src/request/imagekit/fake.ts';
 import {
   contractChecks, otherResident, owner, startApp, volunteer, type App, type ContractChecks,
 } from './helpers.ts';
 
 const cancelledVolunteer = { 'X-User-Id': SEED_CANCELLED_VOLUNTEER_ID, 'X-User-Roles': 'volunteer' };
 
-type Detail = { requestId: string; viewer: string; address?: unknown; statusHistory?: unknown[] };
+type Detail = {
+  requestId: string; viewer: string; address?: unknown; statusHistory?: unknown[];
+  photoUrl: string | null; delivery?: { evidencePhotoUrl?: string } | null;
+};
 
 describe('Q8 request detail', { skip: skipDb }, () => {
   let app: App;
   let check: ContractChecks;
   before(async () => {
     check = await contractChecks('get', '/api/requests/{id}');
-    app = startApp();
+    app = startApp({ imagekit: fakePhotos });
   });
   after(() => app.close());
 
@@ -32,6 +37,8 @@ describe('Q8 request detail', { skip: skipDb }, () => {
     assert.equal(detail.requestId, SEED_DELIVERED_REQUEST_ID);
     assert.equal(detail.viewer, 'owner');
     assert.ok(detail.address && detail.statusHistory);
+    assert.equal(detail.photoUrl, fakePhotos.sign(SEED_DELIVERED_PHOTO_PATH));
+    assert.equal(detail.delivery?.evidencePhotoUrl, fakePhotos.sign(SEED_DELIVERED_EVIDENCE_PATH));
 
     const open = await app.call('GET', `/api/requests/${SEED_OPEN_REQUEST_ID}`, volunteer);
     assert.equal(open.status, 200);
@@ -40,6 +47,7 @@ describe('Q8 request detail', { skip: skipDb }, () => {
     assert.equal(seen.viewer, 'volunteer');
     assert.equal(seen.address, undefined);
     assert.equal(seen.statusHistory, undefined);
+    assert.equal(seen.photoUrl, fakePhotos.sign(SEED_DELIVERED_PHOTO_PATH));
   });
 
   test('another resident, a cancelled volunteer and a malformed id all get the same 404', async () => {

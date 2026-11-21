@@ -34,6 +34,12 @@ export const SEED_OPEN_REQUEST_ID = '00000003-0000-4000-8000-000000000001';
 /** A `pickup_request_id` of `SEED_RESIDENT_ONLY_ID` whose last `status_change` is `Delivered`. */
 export const SEED_DELIVERED_REQUEST_ID = '00000003-0000-4000-8000-000000000004';
 
+/** The `file_path` in `INSERT INTO photo` of `SEED_DELIVERED_REQUEST_ID`'s `photo_file_id` (also `SEED_OPEN_REQUEST_ID`'s). */
+export const SEED_DELIVERED_PHOTO_PATH = '/sample/items/laptops.jpg';
+
+/** The `file_path` in `INSERT INTO photo` of the `evidence_photo_file_id` in `INSERT INTO delivery` for `SEED_DELIVERED_REQUEST_ID`. */
+export const SEED_DELIVERED_EVIDENCE_PATH = '/sample/deliveries/4.jpg';
+
 /** A `pickup_request_id` whose last `status_change` is `Open`, with a `pickup_postal_code` other than `SEED_OPEN_REQUEST_ID`'s. */
 export const SEED_OPEN_REQUEST_2_ID = '00000003-0000-4000-8000-000000000008';
 
