@@ -21,7 +21,7 @@ export function DeactivateAccount() {
     });
 
     return (
-        <section className={`${card} min-w-0 space-y-3 bg-transparent! ring-[1.5px] ring-inset ring-neutral-400`} aria-labelledby="deactivate-account">
+        <section className={`${card} min-w-0 space-y-3 bg-transparent! ring-[1.5px] ring-inset ring-[#c24b3b]`} aria-labelledby="deactivate-account">
             <h2 id="deactivate-account" className="text-[22px]">Deactivate account</h2>
             <p>You will be signed out and you can&apos;t sign in again. Your history is kept.</p>
             <div><Button variant="danger-outline" onClick={() => { deactivate.reset(); setOpen(true); }}>Deactivate account</Button></div>

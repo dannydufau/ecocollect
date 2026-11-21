@@ -168,7 +168,7 @@ it("reviews the entered details and profile address without sending, then keeps 
     fireEvent.change(screen.getByLabelText("Notes (optional)"), { target: { value: "Side door" } });
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Review" }));
-    expect(await screen.findByText("123 Main Street, T2P1J9")).toBeInTheDocument();
+    expect(await screen.findByText("123 Main Street, T2P 1J9")).toBeInTheDocument();
     expect(screen.getByText("2 × Computers/Laptops")).toBeInTheDocument();
     expect(within(screen.getByRole("region", { name: "Items" })).getByText(/^Estimated weight:/)).toHaveTextContent("Estimated weight: 5.00 kg");
     expect(screen.getByRole("region", { name: "Pickup windows" })).toHaveTextContent(/Nov 21/);
@@ -198,12 +198,12 @@ it("blocks confirmation when the profile address cannot be loaded and allows ret
     expect(apiModule.apiFetch).not.toHaveBeenCalled();
     get.mockImplementation(fallback);
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-    await screen.findByText("123 Main Street, T2P1J9");
+    await screen.findByText("123 Main Street, T2P 1J9");
     expect(button()).toBeEnabled();
 });
 it("rechecks windows before confirmation if time has passed during review", async () => {
     mount(); await fill(); await accept();
-    await screen.findByText("123 Main Street, T2P1J9");
+    await screen.findByText("123 Main Street, T2P 1J9");
     vi.setSystemTime(new Date("2026-11-22T18:00:00Z"));
     fireEvent.click(button());
     expect(await screen.findByText("Choose pickup windows in the future.")).toBeInTheDocument();

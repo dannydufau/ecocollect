@@ -42,7 +42,7 @@ export default function EcoPointsPage() {
                         ].map(({ label, points }) => (
                             <div key={label} className={`${card} min-w-0 ${label === "Total" ? "bg-accent-2-800! text-accent-2-100" : ""}`}>
                                 <dt className={label === "Total" ? "" : "text-neutral-700"}>{label}</dt>
-                                <dd className="mt-1 break-all font-[family-name:var(--font-heading)] text-[40px] leading-none tabular-nums">{points.toFixed(2)}</dd>
+                                <dd className="mt-1 whitespace-nowrap font-[family-name:var(--font-heading)] text-[40px] leading-none tabular-nums">{points.toFixed(2)}</dd>
                             </div>
                         ))}
                     </dl>

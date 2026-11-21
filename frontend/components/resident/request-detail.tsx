@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { Alert, Button, RequestPhoto, Spinner, StatusBadge, WindowList, card, pageTitle, textLink } from "@/components/ui";
 import { isAuthError } from "@/lib/api";
+import { formatPostalCode } from "@/lib/postal-code";
 import { nextStepText } from "@/lib/status-text";
 import { formatTimestamp } from "@/lib/time";
 import type { RequestDetail } from "@/lib/types";
@@ -104,7 +105,7 @@ export function ResidentRequestView({ request, onPhotoError, actionRenderers, no
             <h2 id="address-heading" className={cardTitle}>Pickup address and notes</h2>
             {request.address && <div className="break-words">
                 <p>{request.address.street}</p>
-                <p>Calgary, {request.address.postalCode}</p>
+                <p>Calgary, {formatPostalCode(request.address.postalCode)}</p>
             </div>}
             {request.notes && <p className="whitespace-pre-wrap break-words"><span className="text-neutral-800">Notes:</span> {request.notes}</p>}
         </section>}

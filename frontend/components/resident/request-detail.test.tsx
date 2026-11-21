@@ -78,7 +78,7 @@ it("loads the requested ID through the shared detail hook and shows the owner fi
     expect(api.getWithMeta).toHaveBeenCalledWith("/api/requests/r%2F1");
     expect(screen.getByText("5.00 kg")).toBeInTheDocument();
         expect(screen.getByText("101 Example Street SW")).toBeInTheDocument();
-    expect(screen.getByText("Calgary, T2P1J9")).toBeInTheDocument();
+    expect(screen.getByText("Calgary, T2P 1J9")).toBeInTheDocument();
     expect(screen.getByText(/Use the side entrance/)).toHaveTextContent("Please ring the bell.");
     expect(screen.getByText(formatWindow(detail().windows[0]))).toBeInTheDocument();
     expect(screen.getByText(formatTimestamp(detail().createdAt))).toBeInTheDocument();

@@ -65,6 +65,15 @@ it("shows the form, a link to sign in and the logo", async () => {
     await screen.findByRole("checkbox", { name: termsBox });
 });
 
+it("says why submit is disabled until the terms are accepted", async () => {
+    renderWithClient(<RegisterPage />);
+    const button = screen.getByRole("button", { name: "Create account" });
+    expect(button).toHaveAccessibleDescription("Accept the terms above to continue.");
+    await acceptTerms();
+    expect(button).not.toHaveAccessibleDescription();
+    expect(screen.queryByText("Accept the terms above to continue.")).not.toBeInTheDocument();
+});
+
 it("keeps submit disabled until the terms are accepted", async () => {
     renderWithClient(<RegisterPage />);
     expect(screen.getByRole("button", { name: "Create account" })).toBeDisabled();

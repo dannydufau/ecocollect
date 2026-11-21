@@ -46,7 +46,7 @@ it("shows an Open request without address, notes or resident, and an Accept butt
     expect(await show(open)).toHaveTextContent("2 × Computers/Laptops");
     expect(api.getWithMeta).toHaveBeenCalledWith("/api/requests/r1");
     expect(screen.getByText("5.00 kg")).toBeInTheDocument();
-    expect(screen.getByText("T2P1J9")).toBeInTheDocument();
+    expect(screen.getByText("T2P 1J9")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Photo of the items" })).toHaveAttribute("src", open.photoUrl);
     expect(screen.queryByRole("heading", { name: "Pickup address and notes" })).not.toBeInTheDocument();
     expect(screen.queryByText("Resident")).not.toBeInTheDocument();

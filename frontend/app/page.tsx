@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { homeFor } from "@/lib/auth";
+import { PageLoading } from "@/components/ui";
 
 export default function Home() {
   const { user, roles, loading } = useAuth();
@@ -15,5 +16,5 @@ export default function Home() {
     }
   }, [loading, user, roles, router]);
 
-  return <p className="p-8">Loading...</p>;
+  return <PageLoading />;
 }
