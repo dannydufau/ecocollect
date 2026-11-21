@@ -83,6 +83,7 @@ DECLARE
     k_viewer_owner           CONSTANT TEXT := 'owner';
     k_viewer_assigned        CONSTANT TEXT := 'assigned_volunteer';
     k_viewer_volunteer       CONSTANT TEXT := 'volunteer';
+    k_action_confirm_collected CONSTANT TEXT := 'confirm_collected';
     k_action_accept          CONSTANT TEXT := 'accept';
     k_status_open            CONSTANT VARCHAR(30) := 'Open';
     k_status_assigned        CONSTANT VARCHAR(30) := 'Assigned';
@@ -143,6 +144,9 @@ BEGIN
     -- The actions the viewer may take now: the same checks the write functions
     -- run. The owner gets 'accept' too when also an active volunteer (FR13).
     allowed_actions := '{}';
+    IF requests.req_check_confirm_collected(p_request_id, p_viewer_id) = k_code_ok THEN
+        allowed_actions := array_append(allowed_actions, k_action_confirm_collected);
+    END IF;
     IF requests.req_check_accept(p_request_id, p_viewer_id, v_now) = k_code_ok THEN
         allowed_actions := array_append(allowed_actions, k_action_accept);
     END IF;
