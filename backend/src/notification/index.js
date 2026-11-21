@@ -18,6 +18,7 @@ const { startSubscriber } = require('../messaging/subscriber');
 const { queues } = require('../messaging/topology');
 const { createPushRouter } = require('./push-router');
 const { createSubscriptionStore } = require('./subscriptions');
+const { createNotificationStore } = require('./notification-store');
 
 const vapid = {
   subject: process.env.VAPID_SUBJECT,
@@ -48,6 +49,9 @@ const hub = createHub();
 const subscriptions = createSubscriptionStore(pool);
 const pushSender = createWebPushSender({ vapid, subscriptions });
 
+// Stored notifications (notifications.notification + request_notification).
+const notifications = createNotificationStore(pool);
+
 // HTTP: the SSE endpoint
 
 const app = express();
@@ -62,11 +66,25 @@ const port = Number(process.env.PORT || 3002);
 const server = app.listen(port, () => console.log(`Notification service listening on port ${port}`));
 
 /*
- * requestCreated decides who gets what; this delivers it: signal and notification
- * to open tabs, then a push if the type pushes.
+ * requestCreated decides who gets what; this saves it, then delivers it: signal and
+ * notification to open tabs, then a push if the type pushes. The subscriber acks after
+ * this returns, so a failed save is retried; a redelivered event saves and sends nothing.
  */
-function deliverRequestCreated(envelope) {
-  for (const { uid, signal, notification, push } of requestCreated(envelope)) {
+async function deliverRequestCreated(envelope) {
+  const deliveries = requestCreated(envelope);
+  // A new request is at step 1; v2 events also say so in requestSeq.
+  const requestSeq = (envelope.data.request ?? envelope.data).requestSeq ?? 1;
+  const saved = await notifications.saveRequestNotifications(deliveries.map(({ uid, notification }) => ({
+    notificationId: notification.notificationId,
+    type: notification.type,
+    createdAt: notification.createdAt,
+    accountId: uid,
+    pickupRequestId: notification.requestId,
+    requestSeq,
+  })));
+
+  for (const { uid, signal, notification, push } of deliveries) {
+    if (!saved.has(notification.notificationId)) continue;
     const tabs = hub.send(uid, 'signal', signal);
     hub.send(uid, 'notification', notification, notification.notificationId);
     console.log(`[notification] ${notification.type} ${signal.requestId} -> ${uid} (${tabs} open tab${tabs === 1 ? '' : 's'})`);

@@ -1,5 +1,7 @@
 'use strict';
 
+const { notificationUuid } = require('./ids');
+
 /*
  * Event handlers for the notification service: turn a domain event into deliveries,
  * one per recipient: the SSE signal, the notification, and whether to also push it.
@@ -42,7 +44,7 @@ function notification(envelope, uid, type, request) {
   const { title, path, push } = NOTIFICATION_TYPES[type];
   return {
     notification: {
-      notificationId: `n_${envelope.eventId}_${uid}`,
+      notificationId: notificationUuid(envelope.eventId, uid),
       type,
       requestId: request.requestId,
       awardId: null,

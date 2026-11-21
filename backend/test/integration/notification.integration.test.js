@@ -124,8 +124,13 @@ async function addAccounts(db, uids) {
   }
 }
 
-// Removes what the test wrote: subscriptions first, then the accounts they point at.
+// Removes what the test wrote: notifications and subscriptions first, then the accounts they point at.
 async function removeAccounts(db, uids) {
+  const { rows } = await db.query(
+    'DELETE FROM notifications.request_notification WHERE account_id = ANY($1) RETURNING notification_id',
+    [uids],
+  );
+  await db.query('DELETE FROM notifications.notification WHERE notification_id = ANY($1)', [rows.map((r) => r.notification_id)]);
   await db.query('DELETE FROM notifications.push_subscription WHERE account_id = ANY($1)', [uids]);
   await db.query('DELETE FROM users.account WHERE account_id = ANY($1)', [uids]);
 }
@@ -176,6 +181,12 @@ async function publishRequestCreated(data) {
     occurredAt: new Date().toISOString(),
     data,
   };
+  await publish(envelope);
+  return envelope;
+}
+
+// Publishes an envelope as is; publishing the same one twice is a redelivery.
+async function publish(envelope) {
   pubCh.publish(exchange.name, events.RequestCreated.routingKey, Buffer.from(JSON.stringify(envelope)), {
     contentType: 'application/json',
     messageId: envelope.eventId,
@@ -222,7 +233,7 @@ test('a RequestCreated reaches the resident and matched volunteers as signals, n
     for (const uid of subscribers) await subscribe(service, pushService, uid);
 
     const requestId = randomUUID();
-    await publishRequestCreated({
+    const first = await publishRequestCreated({
       requestId,
       residentUid: resident,
       categoryName: 'Computers/Laptops',
@@ -262,6 +273,33 @@ test('a RequestCreated reaches the resident and matched volunteers as signals, n
     // A connected user who isn't a recipient gets nothing.
     assert.deepEqual(framesIn(bystanderTab, 'signal'), []);
     assert.deepEqual(notificationsIn(bystanderTab), []);
+
+    // Each recipient's notification is stored once, with its account and request.
+    const stored = await db.query(
+      'SELECT account_id FROM notifications.request_notification WHERE pickup_request_id = $1 ORDER BY account_id',
+      [requestId],
+    );
+    assert.deepEqual(stored.rows.map((r) => r.account_id), [offline, resident, volunteer].sort());
+
+    // The same event again saves and sends nothing. A second, new request after it shows
+    // the redelivery was handled (the queue delivers one at a time, in order).
+    await publish(first);
+    const secondId = randomUUID();
+    await publishRequestCreated({
+      requestId: secondId,
+      residentUid: resident,
+      categoryName: 'Computers/Laptops',
+      quantity: 1,
+      postalCode: 'T2P1J9',
+      matchedVolunteerUids: [volunteer],
+    });
+    await waitFor(() => notificationsIn(volunteerTab).length === 2, 'the second request at the volunteer');
+    assert.deepEqual(notificationsIn(volunteerTab).map((f) => f.data.requestId), [requestId, secondId]);
+    const again = await db.query(
+      'SELECT count(*)::int AS n FROM notifications.request_notification WHERE pickup_request_id = $1',
+      [requestId],
+    );
+    assert.equal(again.rows[0].n, 3);
   } finally {
     tabs.forEach((t) => t.close());
     pushService.close();
