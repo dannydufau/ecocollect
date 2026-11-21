@@ -40,7 +40,7 @@ export default function StatsPage() {
                         ].map(({ label, value }) => (
                             <div key={label} className={`${card} min-w-0`}>
                                 <dt className="text-neutral-700">{label}</dt>
-                                <dd className="mt-1 break-all font-[family-name:var(--font-heading)] text-[40px] leading-none tabular-nums">{value}</dd>
+                                <dd className="mt-1 whitespace-nowrap text-[40px] font-bold leading-none tabular-nums">{value}</dd>
                             </div>
                         ))}
                     </dl>
@@ -63,7 +63,7 @@ export default function StatsPage() {
                             </table></div>
                         )}
                     </section>
-                    <p className="text-[13px] text-neutral-700">Updated <time dateTime={data.updatedAt}>{formatTimestamp(data.updatedAt)}</time></p>
+                    <p className="text-[13px] text-text-muted">Updated <time dateTime={data.updatedAt}>{formatTimestamp(data.updatedAt)}</time></p>
                 </>}
             </div>
         </main>

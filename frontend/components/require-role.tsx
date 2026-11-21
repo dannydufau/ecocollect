@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { PageLoading } from "@/components/ui";
 import { useAuth } from "@/lib/auth-context";
 import type { Role } from "@/lib/auth";
 import { saveReturnTo } from "@/lib/return-to";
@@ -33,7 +34,7 @@ export default function RequireRole({ role, children }: { role: Role; children: 
     }, [loading, user, allowed, roles, role, activeRole, setActiveRole, router]);
 
     if (!allowed) {
-        return <p className="p-8">Loading...</p>;
+        return <PageLoading />;
     }
     return <>{children}</>;
 }

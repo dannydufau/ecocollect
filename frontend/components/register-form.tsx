@@ -11,16 +11,17 @@ import {
 // A card with its title inside, like the prototype. The legend floats so it sits in the card and not on its border.
 function Group({ title, describedBy, children }: { title: string; describedBy?: string; children: ReactNode }) {
     return <fieldset aria-describedby={describedBy} className={`${card} min-w-0`}>
-        <legend className="float-left mb-3 font-[family-name:var(--font-heading)] text-xl">{title}</legend>
+        <legend className="float-left mb-3 text-xl font-bold">{title}</legend>
         <div className="clear-both flex flex-col gap-4">{children}</div>
     </fieldset>;
 }
 
-export default function RegisterForm({ onValid, fieldErrors = {}, busy = false, submitDisabled = false, onEdit, children }: {
+export default function RegisterForm({ onValid, fieldErrors = {}, busy = false, submitDisabled = false, submitHint, onEdit, children }: {
     onValid?: (values: AccountValues) => void;
     fieldErrors?: Record<string, string>;
     busy?: boolean;
     submitDisabled?: boolean;
+    submitHint?: string;
     onEdit?: () => void;
     children?: ReactNode;
 }) {
@@ -101,7 +102,7 @@ export default function RegisterForm({ onValid, fieldErrors = {}, busy = false, 
                             {label}
                         </label>)}
                     <p className="text-neutral-700">You can add the other role later in your profile.</p>
-                    {errors.role && <p id={`${id}-role-error`} role="alert" tabIndex={-1} className="font-semibold text-red-700">{errors.role}</p>}
+                    {errors.role && <p id={`${id}-role-error`} role="alert" tabIndex={-1} className="font-semibold text-danger">{errors.role}</p>}
                 </Group>
 
                 {values.role === "resident" && <Group title="Role details">
@@ -121,7 +122,7 @@ export default function RegisterForm({ onValid, fieldErrors = {}, busy = false, 
                 {values.role === "volunteer" && <Group title="Role details">
                     <p className="font-semibold">Preferred postal codes (optional, up to 3)</p>
                     <p className="text-neutral-700">You get notifications for new requests in these areas. You can change them later.</p>
-                    {errors.preferredPostalCodes && <p role="alert" tabIndex={-1} className="font-semibold text-red-700">{errors.preferredPostalCodes}</p>}
+                    {errors.preferredPostalCodes && <p role="alert" tabIndex={-1} className="font-semibold text-danger">{errors.preferredPostalCodes}</p>}
                     {values.preferredPostalCodes.map((code, index) => <div key={index} className="flex items-end gap-3">
                         <div className="min-w-0 flex-1">
                             <Field label={`Postal code ${index + 1}`} error={errors[`preferredPostalCodes[${index}]`]}>
@@ -141,7 +142,8 @@ export default function RegisterForm({ onValid, fieldErrors = {}, busy = false, 
 
                 {children}
                 <div className="flex flex-wrap items-center gap-4">
-                    <Button type="submit" busy={busy} busyLabel="Creating account..." disabled={submitDisabled} className="px-7">Create account</Button>
+                    <Button type="submit" busy={busy} busyLabel="Creating account..." disabled={submitDisabled} aria-describedby={submitHint ? `${id}-submit-hint` : undefined} className="px-7">Create account</Button>
+                    {submitHint && <p id={`${id}-submit-hint`} className="text-[13px] text-text-muted">{submitHint}</p>}
                     <Link href="/login" className={textLink}>Already have an account? Sign in</Link>
                 </div>
             </fieldset>

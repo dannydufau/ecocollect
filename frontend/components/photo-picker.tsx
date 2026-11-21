@@ -72,9 +72,9 @@ export default function PhotoPicker({ purpose, requestId, optional = false, onUp
             <label className="flex flex-col gap-1">
                 <span>Photo{optional && <span className="font-normal text-neutral-700"> (optional)</span>}</span>
                 <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" onChange={choose}
-                    className="min-h-11 w-full max-w-full text-sm focus-visible:outline-2 focus-visible:outline-offset-2" />
+                    className="min-h-11 w-full max-w-full text-sm" />
             </label>
-            <p className="text-sm text-neutral-700">No house numbers, faces, mail or documents in the photo. JPEG, PNG or WEBP, up to 10 MB.</p>
+            <p className="text-sm text-text-muted">No house numbers, faces, mail or documents in the photo. JPEG, PNG or WEBP, up to 10 MB.</p>
             {preview && (
                 // eslint-disable-next-line @next/next/no-img-element -- a local object URL, so next/image does not fit
                 <img src={preview} alt={purpose === "delivery_evidence" ? "Delivery photo" : "Photo of the items"} className="h-28 w-40 max-w-full rounded-md object-cover" />

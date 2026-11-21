@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes } from "react";
 
 const variants = {
-    primary: "bg-accent text-bg hover:bg-accent-700 active:bg-accent-800",
+    primary: "bg-accent text-on-accent hover:bg-accent-700 active:bg-accent-800",
     secondary: "border border-neutral-600 text-text hover:bg-text/10 active:bg-text/15",
     danger: "bg-danger text-white hover:brightness-90 active:brightness-75",
     // The prototype's red action buttons on a request page: an outline with red text. The filled one is for the confirm button.
@@ -17,7 +17,7 @@ type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
 export function Button({ variant = "primary", busy = false, busyLabel, disabled, children, className = "", ...rest }: Props) {
     return (
         <button type="button" {...rest} disabled={disabled || busy} aria-busy={busy}
-            className={`min-h-11 rounded-full px-5 py-2 font-[family-name:var(--font-heading)] disabled:cursor-not-allowed disabled:opacity-60 ${variants[variant]} ${className}`}>
+            className={`min-h-11 rounded-full px-5 py-2 font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${variants[variant]} ${className}`}>
             {busy && busyLabel ? busyLabel : children}
         </button>
     );

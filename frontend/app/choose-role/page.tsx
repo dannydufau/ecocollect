@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import type { Role } from "@/lib/auth";
 import { roleOf, takeReturnTo } from "@/lib/return-to";
-import { card, pageTitle } from "@/components/ui";
+import { PageLoading, card, pageTitle } from "@/components/ui";
 
 const labels: Record<Role, { name: string; text: string }> = {
     resident: { name: "Resident", text: "Request e-waste pickups" },
@@ -38,7 +38,7 @@ export default function ChooseRolePage() {
     }
 
     if (!ready) {
-        return <p className="p-8">Loading...</p>;
+        return <PageLoading />;
     }
 
     return (
@@ -47,7 +47,7 @@ export default function ChooseRolePage() {
             {roles.map((role) => (
                 <button key={role} type="button" onClick={() => choose(role)}
                     className={`${card} flex min-h-11 w-full flex-col px-6 py-4 text-left hover:bg-accent-200`}>
-                    <span className="font-[family-name:var(--font-heading)] text-2xl">{labels[role].name}</span>
+                    <span className="text-lg font-bold">{labels[role].name}</span>
                     <span className="text-neutral-800">{labels[role].text}</span>
                 </button>
             ))}

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useEffect } from "react";
-import { Alert, ConfirmDialog, StatusBadge } from "./index";
+import { Alert, ConfirmDialog, PageLoading, Spinner, StatusBadge } from "./index";
 afterEach(() => {
     cleanup();
 });
@@ -111,4 +111,15 @@ describe("UI components", () => {
         expect(onMount).toHaveBeenCalledTimes(2);
         expect(screen.getByText("Facility picker")).toBeInTheDocument();
     });
+});
+
+it("PageLoading centres one status spinner in the space it gets", () => {
+    const { container } = render(<PageLoading />);
+    expect(screen.getByRole("status")).toHaveTextContent("Loading...");
+    expect(container.firstChild).toHaveClass("flex-1", "items-center", "justify-center");
+});
+
+it("Spinner stops spinning for people who ask for less motion", () => {
+    render(<Spinner />);
+    expect(screen.getByRole("status").querySelector("[aria-hidden=true]")).toHaveClass("motion-reduce:animate-none");
 });
