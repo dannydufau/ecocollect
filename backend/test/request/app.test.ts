@@ -1,32 +1,31 @@
 // The app's shared behaviour: health, gateway headers, unknown paths, bad JSON.
-// No database needed.
-import { test, after } from 'node:test';
+// No database needed: none of these reach a query, and pg connects only on the
+// first one, so the pool startApp makes stays unused.
+import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import type { AddressInfo } from 'node:net';
-import type pg from 'pg';
-import { createApp } from '../../src/request/app.ts';
+import { owner, startApp, type App, type ErrorBody } from './helpers.ts';
 
-const server = createApp({ pool: {} as pg.Pool }).listen(0);
-const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-after(() => { server.close(); });
+let app: App;
+before(() => { app = startApp(); });
+after(() => app.close());
 
-const user = { 'X-User-Id': 'resident1', 'X-User-Roles': 'resident' };
-const codeOf = async (res: Response) => ((await res.json()) as { error: { code: string } }).error.code;
+const codeOf = (body: unknown) => (body as ErrorBody).error.code;
 
 test('the app answers in the contract shape', async () => {
-  assert.equal((await fetch(`${base}/health`)).status, 200);
+  assert.equal((await app.call('GET', '/health', {})).status, 200);
 
-  const noUser = await fetch(`${base}/api/categories`);
+  const noUser = await app.call('GET', '/api/categories', {});
   assert.equal(noUser.status, 401);
-  assert.equal(await codeOf(noUser), 'unauthorized');
+  assert.equal(codeOf(noUser.body), 'unauthorized');
 
-  const unknown = await fetch(`${base}/api/nothing`, { headers: user });
+  const unknown = await app.call('GET', '/api/nothing', owner);
   assert.equal(unknown.status, 404);
-  assert.equal(await codeOf(unknown), 'not_found');
+  assert.equal(codeOf(unknown.body), 'not_found');
 
-  const badJson = await fetch(`${base}/api/requests`, {
-    method: 'POST', headers: { ...user, 'Content-Type': 'application/json' }, body: '{',
+  // Sent with fetch, not app.call: call always sends valid JSON.
+  const badJson = await fetch(`${app.base}/api/requests`, {
+    method: 'POST', headers: { ...owner, 'Content-Type': 'application/json' }, body: '{',
   });
   assert.equal(badJson.status, 400);
-  assert.equal(await codeOf(badJson), 'invalid_json');
+  assert.equal(codeOf(await badJson.json()), 'invalid_json');
 });

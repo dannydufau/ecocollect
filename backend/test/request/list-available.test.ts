@@ -5,48 +5,33 @@
 // adds Open requests on each run, so this test checks seeded ids, not counts.
 import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import type { Server } from 'node:http';
-import type { AddressInfo } from 'node:net';
-import type pg from 'pg';
-import { createApp } from '../../src/request/app.ts';
-import { createPool } from '../../src/request/db/pool.ts';
-import { skipDb, testDatabaseUrl } from './db.ts';
-import { responseSchema } from './contract.ts';
+import { skipDb } from './db.ts';
 import {
-  SEED_DELIVERED_REQUEST_ID, SEED_OPEN_REQUEST_2_ID, SEED_OPEN_REQUEST_2_POSTAL_CODE,
-  SEED_OPEN_REQUEST_ID, SEED_RESIDENT_ONLY_ID, SEED_VOLUNTEER_ID,
+  SEED_DELIVERED_REQUEST_ID, SEED_OPEN_REQUEST_2_ID, SEED_OPEN_REQUEST_2_POSTAL_CODE, SEED_OPEN_REQUEST_ID,
 } from './seed.ts';
+import {
+  contractChecks, owner, startApp, volunteer, type App, type Caller, type ContractChecks, type ErrorBody,
+} from './helpers.ts';
 
-const residentOnly = { 'X-User-Id': SEED_RESIDENT_ONLY_ID, 'X-User-Roles': 'resident' };
-const volunteer = { 'X-User-Id': SEED_VOLUNTEER_ID, 'X-User-Roles': 'volunteer' };
+const residentOnly = owner;   // resident1 has no volunteer role
 
 type AvailableRequest = { requestId: string; postalCode: string };
-type ErrorBody = { error: { code: string; details?: { fields?: Record<string, string> } } };
 
 describe('Q6 available requests', { skip: skipDb }, () => {
-  let pool: pg.Pool;
-  let server: Server;
-  let base: string;
+  let app: App;
+  let check: ContractChecks;
   let isAvailableList: (body: unknown) => boolean;
-  let isBadRequest: (body: unknown) => boolean;
-  let isForbidden: (body: unknown) => boolean;
   before(async () => {
-    const { default: contracts } = await import('../../../contracts/test/helpers.js');
+    check = await contractChecks('get', '/api/requests');
     // The view=available branch itself: listRequests' 200 is an anyOf of the three views.
+    const { default: contracts } = await import('../../../contracts/test/helpers.js');
     isAvailableList = contracts.inline(contracts.openapi,
       { type: 'array', items: { $ref: '#/components/schemas/AvailableRequest' } });
-    isBadRequest = contracts.inline(contracts.openapi, responseSchema(contracts.openapi, 'get', '/api/requests', '400'));
-    isForbidden = contracts.inline(contracts.openapi, responseSchema(contracts.openapi, 'get', '/api/requests', '403'));
-    pool = createPool(testDatabaseUrl);
-    server = createApp({ pool }).listen(0);
-    base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    app = startApp();
   });
-  after(async () => { server.close(); await pool.end(); });
+  after(() => app.close());
 
-  const list = async (query: string, headers: Record<string, string>) => {
-    const res = await fetch(`${base}/api/requests?${query}`, { headers });
-    return { status: res.status, body: await res.json() as unknown };
-  };
+  const list = (query: string, caller: Caller) => app.call('GET', `/api/requests?${query}`, caller);
 
   test('200 in the contract shape, Open requests only; postalCodes filters on the pickup code', async () => {
     const all = await list('view=available', volunteer);
@@ -64,13 +49,9 @@ describe('Q6 available requests', { skip: skipDb }, () => {
 
   test('a malformed postal code is 400 under postalCodes; a caller without the volunteer role is 403', async () => {
     const bad = await list('view=available&postalCodes=t2p1j9', volunteer);
-    assert.equal(bad.status, 400);
-    assert.ok(isBadRequest(bad.body));
+    check.expectError(bad, 400, 'validation_failed');
     assert.ok((bad.body as ErrorBody).error.details?.fields?.postalCodes);
 
-    const notVolunteer = await list('view=available', residentOnly);
-    assert.equal(notVolunteer.status, 403);
-    assert.ok(isForbidden(notVolunteer.body));
-    assert.equal((notVolunteer.body as ErrorBody).error.code, 'forbidden');
+    check.expectError(await list('view=available', residentOnly), 403, 'forbidden');
   });
 });
