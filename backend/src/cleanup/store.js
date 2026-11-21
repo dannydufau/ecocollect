@@ -1,10 +1,10 @@
 'use strict';
 
-// Saves expiry jobs and turns due jobs into outgoing events (contract 14).
+// Cleanup Service data access: expiry jobs, daily run and outbox (contract 14).
 
 const { randomUUID } = require('node:crypto');
 
-// Runs work(db) in one transaction: all of it is saved, or none of it.
+// Runs work(db) in a transaction.
 async function inTransaction(pool, work) {
   const db = await pool.connect();
   try {
@@ -20,17 +20,17 @@ async function inTransaction(pool, work) {
   }
 }
 
-// Adds an outgoing event to the outbox. The outbox publisher sends it.
-function addToOutbox(db, type, routingKey, data) {
-  const event = { eventId: randomUUID(), type, version: 1, occurredAt: new Date().toISOString(), producer: 'cleanup-service', traceId: null, data };
+// Writes an event to the outbox.
+function addToOutbox(db, type, routingKey, occurredAt, data) {
+  const event = { eventId: randomUUID(), type, version: 1, occurredAt, producer: 'cleanup-service', traceId: null, data };
   return db.query(
     'INSERT INTO cleanup.outbox (event_id, event_type, routing_key, payload) VALUES ($1, $2, $3, $4)',
     [event.eventId, type, routingKey, event],
   );
 }
 
-// 14.1, 14.2: sets, moves or ends a request's job, but only if the event is newer than the job.
-// Returns false if the event was already handled.
+// 14.1, 14.2: applies a job change if requestSeq is newer than the stored one.
+// Returns false for an event that was already processed.
 function saveJobChange(pool, eventId, { requestId, requestSeq, expiresAt }) {
   return inTransaction(pool, async (db) => {
     const processed = await db.query(
@@ -49,17 +49,19 @@ function saveJobChange(pool, eventId, { requestId, requestSeq, expiresAt }) {
   });
 }
 
-// 14.3, 14.5: each due job sends a CleanupRequest and is due again in 5 minutes.
-// Returns the jobs that fired.
-function fireDueJobs(pool) {
+// 14.3, 14.5: writes a CleanupRequest for each due job and reschedules it 5 minutes later.
+// Returns the fired jobs.
+function fireDueJobs(pool, at = null) {
   return inTransaction(pool, async (db) => {
     const { rows } = await db.query(
-      `UPDATE cleanup.expiry_job SET run_at = now() + interval '5 minutes', fire_count = fire_count + 1
-       WHERE run_at <= now()
-       RETURNING request_id, request_seq, expires_at, fire_count`,
+      `WITH clock AS (SELECT COALESCE($1::timestamptz, now()) AS moment)
+       UPDATE cleanup.expiry_job SET run_at = clock.moment + interval '5 minutes', fire_count = fire_count + 1
+       FROM clock WHERE run_at <= clock.moment
+       RETURNING request_id, request_seq, expires_at, fire_count, clock.moment AS fired_at`,
+      [at],
     );
     for (const job of rows) {
-      await addToOutbox(db, 'CleanupRequest', 'cleanup.request.due', {
+      await addToOutbox(db, 'CleanupRequest', 'cleanup.request.due', job.fired_at, {
         requestId: job.request_id, requestSeq: job.request_seq, expiresAt: job.expires_at,
       });
     }
@@ -67,20 +69,24 @@ function fireDueJobs(pool) {
   });
 }
 
-// 14.4: from 03:00 Calgary time (America/Edmonton), sends NotificationCleanupRequested once a day.
-// Returns true if it was sent now.
-function requestDailyCleanup(pool) {
+// 14.4: writes NotificationCleanupRequested once per Calgary day, from 03:00.
+// Returns true when written.
+function requestDailyCleanup(pool, at = null) {
   return inTransaction(pool, async (db) => {
-    const { rowCount } = await db.query(
-      `INSERT INTO cleanup.daily_run (run_date)
-       SELECT (now() AT TIME ZONE 'America/Edmonton')::date
-       WHERE (now() AT TIME ZONE 'America/Edmonton')::time >= '03:00'
-       ON CONFLICT DO NOTHING`,
+    const { rows } = await db.query(
+      `WITH clock AS (SELECT COALESCE($1::timestamptz, now()) AS moment)
+       INSERT INTO cleanup.daily_run (run_date)
+       SELECT (moment AT TIME ZONE 'America/Edmonton')::date FROM clock
+       WHERE (moment AT TIME ZONE 'America/Edmonton')::time >= '03:00'
+       ON CONFLICT DO NOTHING
+       RETURNING (SELECT moment FROM clock) AS requested_at`,
+      [at],
     );
-    if (rowCount === 1) {
-      await addToOutbox(db, 'NotificationCleanupRequested', 'cleanup.notifications.due', { requestedAt: new Date() });
-    }
-    return rowCount === 1;
+    if (rows.length === 0) return false;
+
+    const requestedAt = rows[0].requested_at;
+    await addToOutbox(db, 'NotificationCleanupRequested', 'cleanup.notifications.due', requestedAt, { requestedAt });
+    return true;
   });
 }
 
