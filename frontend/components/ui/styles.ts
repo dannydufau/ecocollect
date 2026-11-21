@@ -12,6 +12,6 @@ export const linkButton = "inline-flex min-h-11 items-center justify-center roun
 export const mono = "font-mono text-sm font-semibold";
 export const textLink = "inline-flex min-h-11 items-center text-accent-700 underline underline-offset-4";
 // A list card that can be opened. Put stretchedLink on its title link so the whole card is tappable.
-export const clickableCard = `${card} relative min-w-0 hover:shadow-hover`;
+export const clickableCard = `${card} relative min-w-0 hover:shadow-hover has-[a:focus-visible]:outline-3 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-accent-700`;
 // The empty ::after stretches the link over the whole card
 export const stretchedLink = "min-w-0 break-words text-lg font-bold text-text no-underline after:absolute after:inset-0 after:rounded-[inherit] after:content-[''] focus-visible:outline-none";
