@@ -3,7 +3,7 @@
 /*
  * The whole notification service: the real index.js as its own process against
  * a real RabbitMQ. Open tabs, publish RequestCreated, see signals, notifications and pushes.
- * Run with `npm run test:integration` (from backend/); skipped without RABBITMQ_URL.
+ * Run with `npm run test:integration` (from backend/); skipped without RABBITMQ_URL or DATABASE_URL.
  */
 
 const { test, before, after } = require('node:test');
@@ -14,13 +14,15 @@ const net = require('node:net');
 const path = require('node:path');
 const { randomUUID, createECDH, randomBytes } = require('node:crypto');
 const amqp = require('amqplib');
+const { Pool } = require('pg');
 const webpush = require('web-push');
 
 const { exchange, events, queues } = require('../../src/messaging/topology');
 const { declareConsumerQueue } = require('../../src/messaging/declare');
 
 const URL_AMQP = process.env.RABBITMQ_URL;
-const skip = URL_AMQP ? false : 'RABBITMQ_URL not set';
+const URL_DB = process.env.DATABASE_URL;
+const skip = URL_AMQP && URL_DB ? false : 'RABBITMQ_URL or DATABASE_URL not set';
 const ENTRY = path.join(__dirname, '../../src/notification/index.js');
 
 // VAPID keys for this run; index.js refuses to start without them.
@@ -53,6 +55,7 @@ async function startService() {
     env: {
       ...process.env,
       RABBITMQ_URL: URL_AMQP,
+      DATABASE_URL: URL_DB,
       PORT: String(port),
       VAPID_PUBLIC_KEY: VAPID.publicKey,
       VAPID_PRIVATE_KEY: VAPID.privateKey,
@@ -108,6 +111,23 @@ async function startPushService() {
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
   return { paths, endpointFor: (uid) => `${base}/push/${uid}`, close: () => server.close() };
+}
+
+// Test accounts: push_subscription points at users.account, so subscribers need a row there.
+async function addAccounts(db, uids) {
+  for (const uid of uids) {
+    await db.query(
+      `INSERT INTO users.account (account_id, first_name, last_name, public_name, date_of_birth, created_at)
+       VALUES ($1, 'Test', 'User', 'Test User', '1990-01-01', now())`,
+      [uid],
+    );
+  }
+}
+
+// Removes what the test wrote: subscriptions first, then the accounts they point at.
+async function removeAccounts(db, uids) {
+  await db.query('DELETE FROM notifications.push_subscription WHERE account_id = ANY($1)', [uids]);
+  await db.query('DELETE FROM users.account WHERE account_id = ANY($1)', [uids]);
 }
 
 // A browser subscribing to push (N6), as Caddy would forward it, with its own keys.
@@ -189,14 +209,17 @@ test('a RequestCreated reaches the resident and matched volunteers as signals, n
   const volunteer = `it-volunteer-${randomUUID()}`;
   const offline = `it-offline-${randomUUID()}`;
   const bystander = `it-bystander-${randomUUID()}`;
+  const subscribers = [resident, volunteer, offline];
+  const db = new Pool({ connectionString: URL_DB });
   const tabs = [];
   try {
+    await addAccounts(db, subscribers);
     const residentTab = await openTab(service.url, resident);
     const volunteerTab = await openTab(service.url, volunteer);
     const bystanderTab = await openTab(service.url, bystander); // connected, but not a recipient
     tabs.push(residentTab, volunteerTab, bystanderTab);
     // Everyone has push on, so the test shows who it goes to.
-    for (const uid of [resident, volunteer, offline]) await subscribe(service, pushService, uid);
+    for (const uid of subscribers) await subscribe(service, pushService, uid);
 
     const requestId = randomUUID();
     await publishRequestCreated({
@@ -243,5 +266,7 @@ test('a RequestCreated reaches the resident and matched volunteers as signals, n
     tabs.forEach((t) => t.close());
     pushService.close();
     await stopService(service);
+    await removeAccounts(db, subscribers);
+    await db.end();
   }
 });
