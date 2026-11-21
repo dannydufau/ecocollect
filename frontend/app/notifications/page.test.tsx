@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BellIcon, LeafIcon, MapPinIcon, TruckIcon } from "@/components/ui";
 import { api } from "@/lib/api";
 import { formatTimestamp } from "@/lib/time";
 import type { Notification } from "@/lib/types";
@@ -143,4 +144,42 @@ it("shows an error with a retry", async () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("We could not load your notifications.");
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(await screen.findByText("Title 1")).toBeInTheDocument();
+});
+
+it("tells unread and read rows apart in text and structure", async () => {
+    renderWithClient(<NotificationsPage />);
+    await screen.findByText("Title 1");
+    expect(row("Title 1")).toHaveClass("border-l-accent", "bg-accent-100");
+    expect(screen.getByText("Title 1")).toHaveClass("font-bold");
+    expect(row("Title 2")).toHaveClass("border-l-transparent", "text-text-muted");
+    expect(screen.getByText("Title 2")).not.toHaveClass("font-bold");
+    expect(screen.getByRole("list")).toHaveClass("divide-y", "border");
+});
+
+it.each([
+    ["ECOPOINTS_AWARDED_ON_DELIVERY_VOLUNTEER", LeafIcon],
+    ["NEW_MATCHING_REQUEST", MapPinIcon],
+    ["REQUEST_COLLECTED_VOLUNTEER", TruckIcon],
+    ["REQUEST_DELIVERED_RESIDENT", TruckIcon],
+    ["REQUEST_CANCELLED_RESIDENT", BellIcon],
+    ["SOMETHING_NEW", BellIcon],
+] as const)("shows the right hidden icon for %s", async (type, Icon) => {
+    vi.mocked(api.get).mockResolvedValue(page([item(1, { type: type as Notification["type"] })]));
+    renderWithClient(<NotificationsPage />);
+    const icon = (await screen.findByText("Title 1")).closest("a")!.querySelector("svg")!;
+    expect(icon).toHaveAttribute("aria-hidden", "true");
+    const expected = render(<Icon />).container.querySelector("svg")!;
+    expect(icon.innerHTML).toBe(expected.innerHTML);
+});
+
+it("centres Load more and shows it busy", async () => {
+    let finish!: (value: ReturnType<typeof page>) => void;
+    vi.mocked(api.get).mockImplementation((path: string) => path === "/api/notifications"
+        ? Promise.resolve(page(full)) : new Promise(done => { finish = done as typeof finish; }));
+    renderWithClient(<NotificationsPage />);
+    const button = await screen.findByRole("button", { name: "Load more" });
+    expect(button.parentElement).toHaveClass("justify-center");
+    fireEvent.click(button);
+    expect(await screen.findByRole("button", { name: "Loading..." })).toBeDisabled();
+    await act(async () => finish(page([item(31, { isRead: true })])));
 });

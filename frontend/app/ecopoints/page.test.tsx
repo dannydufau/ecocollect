@@ -45,7 +45,7 @@ describe("EcoPoints page", () => {
         expect(rows.map(row => row.querySelector("time")?.dateTime)).toEqual(response.awards.map(award => award.awardedAt));
         expect(rows[0]).toHaveTextContent("+26.00");
         expect(rows[0]).toHaveTextContent("Cancellation as volunteer");
-        expect(rows[0]).toHaveTextContent("—");
+        expect(rows[0]).toHaveTextContent("Item details are not shown for this award.");
         expect(rows[0]).toHaveTextContent("Late cancellation by the resident");
         expect(within(rows[0]).queryByRole("link")).not.toBeInTheDocument();
     });
@@ -97,5 +97,45 @@ describe("EcoPoints page", () => {
         fireEvent.click(screen.getByRole("button", { name: "Try again" }));
         expect(await screen.findByText("Total")).toBeInTheDocument();
         expect(api.get).toHaveBeenCalledTimes(2);
+    });
+
+    it("keeps the digits of a very large total together", async () => {
+        vi.mocked(api.get).mockResolvedValue({ total: 99999.5, asResident: 0, asVolunteer: 99999.5, awards: [] });
+        renderWithClient(<EcoPointsPage />);
+        const total = (await screen.findByText("Total")).nextElementSibling!;
+        expect(total).toHaveTextContent("99999.50");
+        expect(total).toHaveClass("whitespace-nowrap", "tabular-nums", "overflow-x-auto");
+        expect(total).not.toHaveClass("break-all");
+    });
+
+    it("shows a zero total as 0.00", async () => {
+        vi.mocked(api.get).mockResolvedValue({ total: 0, asResident: 0, asVolunteer: 0, awards: [] });
+        renderWithClient(<EcoPointsPage />);
+        expect((await screen.findByText("Total")).nextElementSibling).toHaveTextContent("0.00");
+    });
+
+    it("highlights Total and marks the role totals with a dot", async () => {
+        vi.mocked(api.get).mockResolvedValue(response);
+        renderWithClient(<EcoPointsPage />);
+        expect((await screen.findByText("Total")).parentElement).toHaveClass("bg-accent-2-800");
+        expect(screen.getByText("As resident").querySelector("[aria-hidden=true]")).toHaveClass("bg-accent-700");
+        expect(screen.getByText("As volunteer").querySelector("[aria-hidden=true]")).toHaveClass("bg-accent-2-800");
+    });
+
+    it("puts the awards in one bordered list", async () => {
+        vi.mocked(api.get).mockResolvedValue(response);
+        renderWithClient(<EcoPointsPage />);
+        const list = await screen.findByRole("list");
+        expect(list).toHaveClass("divide-y", "border");
+        expect(within(list).getAllByRole("listitem")).toHaveLength(3);
+    });
+
+    it("never shows item details or a link on a cancellation, even if the server sends them", async () => {
+        vi.mocked(api.get).mockResolvedValue({ ...response, awards: [{ ...cancellation, categoryName: "Private item", quantity: 9, estimatedWeightKg: 7 }] });
+        renderWithClient(<EcoPointsPage />);
+        const [row] = await screen.findAllByRole("listitem");
+        expect(row).toHaveTextContent("Item details are not shown for this award.");
+        expect(row).not.toHaveTextContent("Private item");
+        expect(within(row).queryByRole("link")).not.toBeInTheDocument();
     });
 });

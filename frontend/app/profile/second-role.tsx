@@ -3,7 +3,8 @@
 import { useState, type FormEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import TermsCheckbox from "@/components/terms-checkbox";
-import { Alert, Button, Field, panel, input } from "@/components/ui";
+import { AddressFields, PostalCodeList } from "@/components/address-fields";
+import { Alert, Button, panel } from "@/components/ui";
 import { api, ApiError, friendlyError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { queryKeys } from "@/lib/query-keys";
@@ -92,30 +93,10 @@ export function SecondRole({ profile, onDone }: { profile: Profile; onDone: (not
     return (
         <form onSubmit={submit} noValidate aria-labelledby="second-role" className={`${panel} min-w-0 space-y-4 border-border bg-accent-2-200`}>
             <h2 id="second-role" className="text-[22px]">{name}</h2>
-            {role === "resident" && <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Street" error={errors["address.street"] ?? errors.address}>
-                    {(control) => <input {...control} type="text" autoComplete="street-address" value={street} className={input}
-                        onChange={(event) => setStreet(event.target.value)} />}
-                </Field>
-                <Field label="Postal code" hint="Calgary postal codes only, for example T2P 1J9" error={errors["address.postalCode"]}>
-                    {(control) => <input {...control} type="text" autoComplete="postal-code" value={postalCode} className={input}
-                        onChange={(event) => setPostalCode(event.target.value)} />}
-                </Field>
-            </div>}
+            {role === "resident" && <AddressFields street={street} postalCode={postalCode} errors={errors} onStreet={setStreet} onPostalCode={setPostalCode} />}
             {role === "volunteer" && <div className="space-y-3">
                 <p className="font-semibold">Preferred postal codes (optional, up to 3)</p>
-                {errors.preferredPostalCodes && <p role="alert" className="text-[13px] font-semibold text-danger">{errors.preferredPostalCodes}</p>}
-                {codes.map((code, index) => <div key={index} className="flex items-end gap-3">
-                    <div className="min-w-0 flex-1">
-                        <Field label={`Postal code ${index + 1}`} error={errors[`preferredPostalCodes[${index}]`]}>
-                            {(control) => <input {...control} type="text" autoComplete="off" value={code} className={input}
-                                onChange={(event) => setCodes(codes.map((old, i) => (i === index ? event.target.value : old)))} />}
-                        </Field>
-                    </div>
-                    <Button variant="secondary" aria-label={`Remove postal code ${index + 1}`}
-                        onClick={() => setCodes(codes.filter((_, i) => i !== index))}>Remove</Button>
-                </div>)}
-                <Button variant="secondary" disabled={codes.length >= 3} onClick={() => setCodes([...codes, ""])}>Add postal code</Button>
+                <PostalCodeList codes={codes} errors={errors} onChange={setCodes} />
             </div>}
             <TermsCheckbox value={termsId} onChange={setTermsId} />
             {message && <Alert variant="error">{message}</Alert>}

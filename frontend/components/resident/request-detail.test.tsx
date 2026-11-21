@@ -238,3 +238,31 @@ it("shows the missed pickup message after a reschedule", async () => {
     renderWithClient(<ResidentRequestDetail requestId="r1" rescheduled />);
     expect(await screen.findByText("Missed pickup reported. Your new request is open.")).toBeInTheDocument();
 });
+
+it("groups the details, windows, address, notes and photo in one Summary card", () => {
+    render(<ResidentRequestView request={detail({ photoUrl: "https://images.example.test/item.jpg" })} onPhotoError={vi.fn()} />);
+    const summary = within(screen.getByRole("region", { name: "Summary" }));
+    expect(summary.getByText("5.00 kg")).toBeInTheDocument();
+    expect(summary.getByText(formatWindow(detail().windows[0]))).toBeInTheDocument();
+    expect(summary.getByText("101 Example Street SW")).toBeInTheDocument();
+    expect(summary.getByText(/Use the side entrance/)).toBeInTheDocument();
+    expect(summary.getByRole("img", { name: "Photo of the items" })).toBeInTheDocument();
+});
+
+it("keeps Volunteer and Delivery as their own cards, before the summary for phones", () => {
+    render(<ResidentRequestView request={detail({ status: "Delivered", allowedActions: [], assignment, delivery })} onPhotoError={vi.fn()} />);
+    const summary = screen.getByRole("region", { name: "Summary" });
+    for (const name of ["Volunteer", "Delivery"]) {
+        const card = screen.getByRole("region", { name });
+        expect(summary).not.toContainElement(card);
+        expect(card.compareDocumentPosition(summary) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    }
+    expect(summary).toHaveClass("lg:row-start-1");
+});
+
+it("shows the unavailable page and no details to anyone who is not the owner", () => {
+    render(<ResidentRequestView request={detail({ viewer: "assigned_volunteer" })} onPhotoError={vi.fn()} />);
+    expect(screen.getByRole("heading", { name: "This request is no longer available." })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Summary" })).not.toBeInTheDocument();
+    expect(screen.queryByText("101 Example Street SW")).not.toBeInTheDocument();
+});
