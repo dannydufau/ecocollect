@@ -24,7 +24,7 @@ export default function EcoPointsPage() {
 
     return (
         <main className="p-4 sm:p-8">
-            <div className="mx-auto max-w-3xl space-y-6">
+            <div className="mx-auto max-w-5xl space-y-6">
                 <h1 className={pageTitle}>EcoPoints</h1>
                 {isPending && <Spinner label="Loading EcoPoints..." />}
                 {isError && <div className="space-y-2">
@@ -34,15 +34,18 @@ export default function EcoPointsPage() {
                     <Button variant="secondary" onClick={() => refetch()} disabled={isFetching}>Try again</Button>
                 </div>}
                 {data && <>
-                    <dl className="grid gap-3 sm:grid-cols-[repeat(auto-fit,minmax(180px,1fr))]">
+                    <dl className="grid gap-3 sm:grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
                         {[
                             { label: "Total", points: data.total },
-                            { label: "As resident", points: data.asResident },
-                            { label: "As volunteer", points: data.asVolunteer },
-                        ].map(({ label, points }) => (
+                            { label: "As resident", points: data.asResident, dot: "bg-accent-700" },
+                            { label: "As volunteer", points: data.asVolunteer, dot: "bg-accent-2-800" },
+                        ].map(({ label, points, dot }) => (
                             <div key={label} className={`min-w-0 ${label === "Total" ? `${panel} border-transparent bg-accent-2-800 text-on-moss` : card}`}>
-                                <dt className={label === "Total" ? "" : "text-neutral-700"}>{label}</dt>
-                                <dd className="mt-1 whitespace-nowrap text-[40px] font-bold leading-none tabular-nums">{points.toFixed(2)}</dd>
+                                <dt className={`flex items-center gap-2 ${label === "Total" ? "" : "text-neutral-700"}`}>
+                                    {dot && <span aria-hidden="true" className={`size-2.5 rounded-full ${dot}`} />}{label}
+                                </dt>
+                                {/* A very long number scrolls inside its card, the digits never split */}
+                                <dd className="mt-1 overflow-x-auto whitespace-nowrap text-4xl font-bold leading-tight tabular-nums">{points.toFixed(2)}</dd>
                             </div>
                         ))}
                     </dl>
@@ -50,15 +53,18 @@ export default function EcoPointsPage() {
                     <section className="space-y-3" aria-labelledby="award-history">
                         <h2 id="award-history" className="text-2xl">Your awards</h2>
                         {!data.awards.length ? <EmptyState title="No EcoPoints yet.">Points are awarded when a pickup is delivered.</EmptyState> : (
-                            <ul className="space-y-3">
+                            <ul className="divide-y divide-border rounded-2xl border border-border bg-surface-elevated shadow-rest">
                                 {data.awards.map(award => (
-                                    <li key={award.awardId} className={`${card} flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2`}>
-                                        <p className="min-w-24 text-[26px] font-bold tabular-nums text-accent-2-800">+{award.points.toFixed(2)}</p>
+                                    <li key={award.awardId} className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 p-4">
+                                        <p className="min-w-24 whitespace-nowrap text-2xl font-bold tabular-nums text-accent-2-800">+{award.points.toFixed(2)}</p>
                                         <div className="min-w-0 flex-1 basis-60">
-                                            <p><strong>{award.kind === "DELIVERY" ? "Delivery" : "Cancellation"}</strong> as {award.earnedAs}</p>
-                                            <p className="break-words">
-                                                {award.categoryName ? `${award.quantity} × ${award.categoryName}, ${award.estimatedWeightKg?.toFixed(2)} kg` : "—"}
+                                            <p className="flex flex-wrap items-center gap-x-2">
+                                                <strong>{award.kind === "DELIVERY" ? "Delivery" : "Cancellation"}</strong>{" "}
+                                                <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${award.earnedAs === "resident" ? "bg-accent-700 text-on-accent" : "bg-accent-2-800 text-on-moss"}`}>as {award.earnedAs}</span>
                                             </p>
+                                            {award.kind === "DELIVERY" && award.categoryName
+                                                ? <p className="break-words">{award.quantity} × {award.categoryName}, <span className="tabular-nums">{award.estimatedWeightKg?.toFixed(2)} kg</span></p>
+                                                : <p className="text-text-muted">Item details are not shown for this award.</p>}
                                             <p className="text-[13px] text-text-muted">{formulaText(award)} · <time dateTime={award.awardedAt}>{formatTimestamp(award.awardedAt)}</time></p>
                                         </div>
                                         {award.kind === "DELIVERY" && <Link
