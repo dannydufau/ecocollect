@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { Alert, Button, EmptyState, Spinner, card, pageTitle, panel, textLink } from "@/components/ui";
+import { EmptyState, QueryError, Spinner, card, pageTitle, panel, textLink } from "@/components/ui";
 import { api, isAuthError } from "@/lib/api";
 import type { operations } from "@/lib/api-types";
 import { queryKeys } from "@/lib/query-keys";
@@ -27,12 +27,7 @@ export default function EcoPointsPage() {
             <div className="mx-auto max-w-3xl space-y-6">
                 <h1 className={pageTitle}>EcoPoints</h1>
                 {isPending && <Spinner label="Loading EcoPoints..." />}
-                {isError && <div className="space-y-2">
-                    <Alert variant="error">
-                        {isAuthError(error) ? "Please log in to view your EcoPoints." : "We could not load this page. Check your connection and try again."}
-                    </Alert>
-                    <Button variant="secondary" onClick={() => refetch()} disabled={isFetching}>Try again</Button>
-                </div>}
+                {isError && <QueryError message={isAuthError(error) ? "Please log in to view your EcoPoints." : "We could not load this page. Check your connection and try again."} onRetry={() => refetch()} busy={isFetching} />}
                 {data && <>
                     <dl className="grid gap-3 sm:grid-cols-[repeat(auto-fit,minmax(180px,1fr))]">
                         {[

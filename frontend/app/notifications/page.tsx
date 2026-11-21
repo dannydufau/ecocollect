@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Alert, Button, EmptyState, Spinner, card, pageTitle } from "@/components/ui";
+import { Alert, Button, EmptyState, QueryError, Spinner, card, pageTitle } from "@/components/ui";
 import { api, isAuthError } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { formatTimestamp } from "@/lib/time";
@@ -62,12 +62,7 @@ export default function NotificationsPage() {
                 </div>
                 {readAll.isError && <Alert variant="error">We could not mark them as read. Please try again.</Alert>}
                 {isPending && <Spinner label="Loading notifications..." />}
-                {isError && <div className="space-y-2">
-                    <Alert variant="error">
-                        {isAuthError(error) ? "Please log in to see your notifications." : "We could not load your notifications. Please try again."}
-                    </Alert>
-                    <Button variant="secondary" onClick={() => refetch()} disabled={isFetching}>Try again</Button>
-                </div>}
+                {isError && <QueryError message={isAuthError(error) ? "Please log in to see your notifications." : "We could not load your notifications. Please try again."} onRetry={() => refetch()} busy={isFetching} />}
                 {data && rows.length === 0 && <EmptyState title="No notifications yet.">You will see updates about your requests and pickups here.</EmptyState>}
                 {rows.length > 0 && <ul className="space-y-3">
                     {rows.map(item => <li key={item.notificationId}>

@@ -3,14 +3,13 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Alert, Button, Spinner, card, mono, pageTitle, textLink } from "@/components/ui";
+import { QueryError, RoleBadge, Spinner, card, mono, pageTitle, textLink } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { usePublicStream } from "@/lib/public-stream";
 import { queryKeys } from "@/lib/query-keys";
 import { calgaryToday, formatDate } from "@/lib/time";
 import type { PublicProfile } from "@/lib/types";
 
-const roleNames = { resident: "Resident", volunteer: "Volunteer" };
 
 // Public routes need no login, so a plain fetch without the Authorization header that api.get adds
 async function getPublic<T>(path: string): Promise<T> {
@@ -54,14 +53,11 @@ export default function PublicProfilePage() {
                     {data && <p className={`break-all text-neutral-700 ${mono}`}>@{data.accountId}</p>}
                 </div>
                 {profile.isPending && <Spinner label="Loading the profile..." />}
-                {profile.isError && <div className="space-y-2">
-                    <Alert variant="error">We could not load this profile. Check your connection and try again.</Alert>
-                    <Button variant="secondary" onClick={() => { void profile.refetch(); void stats.refetch(); }} disabled={profile.isFetching}>Try again</Button>
-                </div>}
+                {profile.isError && <QueryError message="We could not load this profile. Check your connection and try again." onRetry={() => { void profile.refetch(); void stats.refetch(); }} busy={profile.isFetching} />}
                 {data && <section className={card} aria-label="Profile details">
                     <dl className="grid gap-3 sm:grid-cols-3">
                         <div><dt className="text-neutral-700">Roles</dt><dd className="flex flex-wrap gap-2">{data.roles.map(role => (
-                            <span key={role} className="rounded-full bg-accent-2-200 px-3 py-0.5 text-xs font-semibold text-accent-2-900">{roleNames[role]}</span>
+                            <RoleBadge key={role} role={role} />
                         ))}</dd></div>
                         <div><dt className="text-neutral-700">Member since</dt><dd>{formatDate(calgaryToday(new Date(data.memberSince)))}</dd></div>
                         <div>

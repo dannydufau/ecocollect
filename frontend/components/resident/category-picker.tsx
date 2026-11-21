@@ -2,7 +2,7 @@
 
 import { useId } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Alert, Button, input } from "@/components/ui";
+import { QueryError, input } from "@/components/ui";
 import { api } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -28,14 +28,11 @@ export function CategoryPicker({ value, onChange, disabledIds = [], invalid = fa
     invalid?: boolean;
 }) {
     const id = useId();
-    const { data, isPending, isError, refetch } = useCategories();
+    const { data, isPending, isError, refetch, isFetching } = useCategories();
 
     if (isPending) return <p role="status">Loading categories...</p>;
     if (isError) return (
-        <div className="space-y-2">
-            <Alert variant="error">Could not load categories. Please try again.</Alert>
-            <Button variant="secondary" onClick={() => refetch()}>Try again</Button>
-        </div>
+        <QueryError message="Could not load categories. Please try again." onRetry={() => refetch()} busy={isFetching} />
     );
 
     return (
