@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Field, input, mono } from "@/components/ui";
+import { AddressFields, PostalCodeList } from "@/components/address-fields";
+import { Field, input, mono } from "@/components/ui";
 import { ApiError, friendlyError } from "@/lib/api";
 import { formatPostalCode } from "@/lib/postal-code";
 import type { Profile, ProfileEdit } from "@/lib/types";
@@ -75,16 +76,7 @@ export function AddressEditor(props: EditorProps) {
                 send(validateAddress(street, postalCode), changed ? { address: next } : {});
             }}
             read={address && <p className="break-words">{address.street}<br />{address.city}, <span className={mono}>{formatPostalCode(address.postalCode)}</span></p>}
-            fields={<div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Street" error={errors["address.street"]}>
-                    {(control) => <input {...control} type="text" autoComplete="street-address" value={street} className={input}
-                        onChange={(event) => setStreet(event.target.value)} />}
-                </Field>
-                <Field label="Postal code" hint="Calgary postal codes only, for example T2P 1J9" error={errors["address.postalCode"]}>
-                    {(control) => <input {...control} type="text" autoComplete="postal-code" value={postalCode} className={input}
-                        onChange={(event) => setPostalCode(event.target.value)} />}
-                </Field>
-            </div>} />
+            fields={<AddressFields street={street} postalCode={postalCode} errors={errors} onStreet={setStreet} onPostalCode={setPostalCode} />} />
     );
 }
 
@@ -107,18 +99,7 @@ export function CodesEditor(props: EditorProps) {
                 : <p>You have no saved codes. You will not get new-request notifications and the list shows every area.</p>}
             fields={<div className="space-y-3">
                 <p className="text-neutral-700">Up to 3 codes. You get notifications for new requests in these areas.</p>
-                {errors.preferredPostalCodes && <p role="alert" className="text-[13px] font-semibold text-danger">{errors.preferredPostalCodes}</p>}
-                {codes.map((code, index) => <div key={index} className="flex items-end gap-3">
-                    <div className="min-w-0 flex-1">
-                        <Field label={`Postal code ${index + 1}`} error={errors[`preferredPostalCodes[${index}]`]}>
-                            {(control) => <input {...control} type="text" autoComplete="off" value={code} className={input}
-                                onChange={(event) => setCodes(codes.map((old, i) => (i === index ? event.target.value : old)))} />}
-                        </Field>
-                    </div>
-                    <Button variant="secondary" aria-label={`Remove postal code ${index + 1}`}
-                        onClick={() => setCodes(codes.filter((_, i) => i !== index))}>Remove</Button>
-                </div>)}
-                <Button variant="secondary" disabled={codes.length >= 3} onClick={() => setCodes([...codes, ""])}>Add postal code</Button>
+                <PostalCodeList codes={codes} errors={errors} onChange={setCodes} />
             </div>} />
     );
 }
