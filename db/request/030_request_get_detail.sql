@@ -85,6 +85,7 @@ DECLARE
     k_viewer_volunteer       CONSTANT TEXT := 'volunteer';
     k_action_confirm_collected CONSTANT TEXT := 'confirm_collected';
     k_action_accept          CONSTANT TEXT := 'accept';
+    k_action_record_delivery CONSTANT TEXT := 'record_delivery';
     k_status_open            CONSTANT VARCHAR(30) := 'Open';
     k_status_assigned        CONSTANT VARCHAR(30) := 'Assigned';
     k_end_delivered          CONSTANT VARCHAR(30) := 'Delivered';   -- assignment end_reason
@@ -149,6 +150,9 @@ BEGIN
     END IF;
     IF requests.req_check_accept(p_request_id, p_viewer_id, v_now) = k_code_ok THEN
         allowed_actions := array_append(allowed_actions, k_action_accept);
+    END IF;
+    IF requests.req_check_record_delivery(p_request_id, p_viewer_id) = k_code_ok THEN
+        allowed_actions := array_append(allowed_actions, k_action_record_delivery);
     END IF;
 
     -- 2. Core fields (every viewer) and the photo path. Notes and address: the
