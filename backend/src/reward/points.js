@@ -3,6 +3,10 @@
 // EcoPoints formulas (FR18).
 // Volunteer: (3 x quantity) + (4 x estimatedWeightKg). Resident: volunteer / 2.
 // Calculated in hundredths (whole numbers) to avoid floating-point errors.
+// Formula text saved with each award and sent in events (contract 15.1).
+const VOLUNTEER_FORMULA = '3 * quantity + 4 * estimatedWeightKg';
+const RESIDENT_FORMULA = '(3 * quantity + 4 * estimatedWeightKg) / 2';
+
 
 function toHundredths(value) {
     if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
@@ -31,4 +35,4 @@ function deliveryPoints(quantity, estimatedWeightKg) {
   };
 }
 
-module.exports = { toHundredths, deliveryPoints };
+module.exports = { VOLUNTEER_FORMULA, RESIDENT_FORMULA, toHundredths, deliveryPoints };
