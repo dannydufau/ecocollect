@@ -13,12 +13,12 @@ const { NOTIFICATION_TYPES } = require('./handlers');
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
 
-// The contract's error body: { error: { code, message } }.
+// Error body: { error: { code, message } }.
 function fail(res, status, code, message) {
   return res.status(status).json({ error: { code, message } });
 }
 
-// A stored row in the contract's Notification shape; title, body and url are built here.
+// A stored row in the Notification shape; title, body and url are built here.
 function present(row) {
   const t = NOTIFICATION_TYPES[row.type];
   return {

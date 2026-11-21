@@ -62,7 +62,7 @@ function describe(request) {
 }
 
 /*
- * One notification, in the shape of the contract's SSE notification message.
+ * One notification, in the shape of the SSE notification messagee.
  * The id comes from the event and recipient, so a redelivered event gives the same id.
  */
 function notification(envelope, uid, type, request) {
@@ -130,7 +130,7 @@ function requestCreated(envelope) {
 }
 
 /*
- * The request snapshot that every later request event carries in data.request (contract 10.2).
+ * The request snapshot that every later request event carries in data.request.
  * Throws without the ids the notifications are built from, so the subscriber retries it.
  */
 function snapshotOf(envelope, eventName) {
