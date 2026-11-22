@@ -91,7 +91,7 @@ test('the shared schema enforces role and latest request state, and the event om
     try {
       await creator.query('BEGIN');
       await creator.query("SELECT pg_advisory_xact_lock(hashtext('account:' || $1))", [dual]);
-      const edited = await patch({ publicName: 'New Name', preferredPostalCodes: ['T3A0B1'] }, dual);
+      const edited = await patch({ preferredPostalCodes: ['T3A0B1'], publicName: 'New Name' }, dual);
       assert.equal(edited[0], 200);
       assert.equal(edited[1].publicName, 'New Name');
       assert.deepEqual(edited[1].preferredPostalCodes, ['T3A0B1']);
@@ -138,6 +138,9 @@ test('the shared schema enforces role and latest request state, and the event om
     const afterCreate = await addressEdit;
     assert.equal(afterCreate[0], 409);
     assert.equal(afterCreate[1].error.code, 'address_locked');
+    const noChange = await patch({ publicName: 'New Name', address: { street: '123 Old St', postalCode: 'T2P1J9' },
+      preferredPostalCodes: ['T3A0B1'] }, dual);
+    assert.equal(noChange[0], 200);
     await state('Cancelled');
     const unlocked = await patch({ address, preferredPostalCodes: [] }, dual);
     assert.equal(unlocked[0], 200);
