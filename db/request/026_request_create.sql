@@ -20,6 +20,14 @@
 --                       (zero-based paths, contract), nothing written
 -- Business failures are returned; a RAISE means a bug in the caller (TypeScript
 -- checks the body's shape first) and rolls back everything.
+--
+-- Account lock (FR04): before reading the resident, it takes the advisory lock
+-- pg_advisory_xact_lock(hashtext('account:' || account_id)), shared with the User
+-- Service's address edit (U7) and deactivation (U9), and with req_accept (Q11).
+-- Without it, an address edit or a deactivation running at the same time misses
+-- the new Open requests, and this call reads the address or deactivated_at from
+-- before that change. The address is read in a later statement than the lock, so
+-- it sees anything committed while this call waited.
 CREATE OR REPLACE FUNCTION requests.req_create_requests(
     p_resident_id       VARCHAR(50),
     p_idempotency_key   VARCHAR(200),       -- NULL when the header is absent
@@ -58,6 +66,7 @@ DECLARE
     k_terms_resident         CONSTANT VARCHAR(40) := 'AT_RESIDENT_REQUEST_CREATION';
     k_status_open            CONSTANT VARCHAR(30) := 'Open';
     k_event_created          CONSTANT TEXT := 'RequestCreated';
+    k_lock_account           CONSTANT TEXT := 'account:';   -- account lock key prefix, shared with the User Service
     v_now           TIMESTAMPTZ := now();   -- one moment for the whole action
     v_count         INT := coalesce(cardinality(p_category_ids), 0);
     v_street        VARCHAR(255);
@@ -86,6 +95,9 @@ BEGIN
             RAISE EXCEPTION 'req_create_requests: item % has a photo path without a file id', i;
         END IF;
     END LOOP;
+
+    -- 0b. Take the resident's account lock, waiting for any address edit or deactivation.
+    PERFORM pg_advisory_xact_lock(hashtext(k_lock_account || p_resident_id));
 
     -- 1. An active resident; the address is copied from the profile (FR07).
     SELECT r.street, r.postal_code INTO v_street, v_postal_code
