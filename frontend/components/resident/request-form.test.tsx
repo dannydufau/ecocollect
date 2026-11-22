@@ -214,3 +214,9 @@ describe("editing", () => {
         expect(onValid.mock.lastCall![0].items[0].photo).toBeUndefined();
     });
 });
+
+it("has no Keep current photo without a saved photo", async () => {
+    renderWithClient(<RequestForm single initialValues={valid()} />);
+    await screen.findByLabelText("Category");
+    expect(screen.queryByRole("button", { name: "Keep current photo" })).not.toBeInTheDocument();
+});

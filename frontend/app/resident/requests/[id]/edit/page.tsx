@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import RequestForm, { type RequestValues } from "@/components/resident/request-form";
-import { Alert, QueryError, Spinner, pageTitle, textLink } from "@/components/ui";
+import { Alert, EmptyState, QueryError, Spinner, pageTitle, secondaryLinkButton, textLink } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import type { EditRequest, PickupWindow } from "@/lib/types";
@@ -39,15 +39,17 @@ export default function EditRequestPage() {
     }
 
     const editable = data && data.viewer === "owner" && data.allowedActions.includes("edit");
+    const blocked = unavailable || (data && !editable);
     return (
         <main className="p-4 sm:p-8">
             <div className="mx-auto max-w-3xl space-y-6">
-                <Link href={back} className={textLink}>Back to request</Link>
+                {!blocked && <Link href={back} className={textLink}>Back to request</Link>}
                 <h1 className={pageTitle}>Edit request</h1>
                 {action.message && <Alert variant="error">{action.message}</Alert>}
                 {isPending && <Spinner label="Loading your request..." />}
                 {isError && !unavailable && <QueryError message="We could not load your request. Please try again." onRetry={() => void refetch()} busy={isFetching} />}
-                {(unavailable || (data && !editable)) && <Alert variant="info">This request can&apos;t be edited now.</Alert>}
+                {blocked && <EmptyState title="This request can't be edited now."
+                    action={<Link href={back} className={secondaryLinkButton}>Back to request</Link>} />}
                 {data && editable && <RequestForm single createdAt={data.createdAt} submitLabel="Save changes" cancelHref={back} busy={action.isPending}
                     currentPhoto={data.photoUrl ? { url: data.photoUrl, refetch: () => void refetch() } : undefined}
                     fieldErrors={action.error instanceof ApiError ? action.error.fields : {}}

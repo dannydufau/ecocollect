@@ -115,3 +115,47 @@ it("says the address can't be changed and cancels back to the request", async ()
     expect(screen.getByText("The pickup address comes from your profile and can't be changed here.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Cancel" })).toHaveAttribute("href", "/resident/requests/r1");
 });
+
+it("Keep current photo undoes a replace, shows the saved photo and sends no photo", async () => {
+    fireEvent.change(await mount(), { target: { value: "3" } });
+    fireEvent.click(screen.getByRole("button", { name: "Replace photo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Upload photo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Keep current photo" }));
+    expect(screen.getByRole("img", { name: "Photo of the items" })).toHaveAttribute("src", current.photoUrl);
+    expect(screen.queryByRole("button", { name: "Keep current photo" })).not.toBeInTheDocument();
+    save();
+    await waitFor(() => expect(api.patch).toHaveBeenCalledExactlyOnceWith("/api/requests/r1", { quantity: 3 }));
+});
+
+it("Keep current photo with nothing else changed sends nothing", async () => {
+    await mount();
+    fireEvent.click(screen.getByRole("button", { name: "Replace photo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Upload photo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Keep current photo" }));
+    save();
+    expect(await screen.findByText("Nothing changed, so there is nothing to save.")).toBeInTheDocument();
+    expect(api.patch).not.toHaveBeenCalled();
+});
+
+it("Keep current photo also undoes a removal", async () => {
+    await mount();
+    fireEvent.click(screen.getByRole("button", { name: "Remove photo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Keep current photo" }));
+    expect(screen.getByRole("img", { name: "Photo of the items" })).toBeInTheDocument();
+});
+
+it("shows one EmptyState with a back button when the request can't be edited", async () => {
+    current = detail({ allowedActions: ["cancel"] });
+    render(<QueryClientProvider client={client = new QueryClient()}><EditRequestPage /></QueryClientProvider>);
+    const title = await screen.findByText("This request can't be edited now.");
+    expect(title.parentElement).toContainElement(screen.getByRole("link", { name: "Back to request" }));
+    expect(screen.getAllByRole("link", { name: "Back to request" })).toHaveLength(1);
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+});
+
+it("shows the same EmptyState when the request is gone", async () => {
+    vi.mocked(api.getWithMeta).mockRejectedValue(new ApiError(404, { error: { code: "request_unavailable", message: "gone" } }));
+    render(<QueryClientProvider client={client = new QueryClient({ defaultOptions: { queries: { retry: false } } })}><EditRequestPage /></QueryClientProvider>);
+    expect(await screen.findByText("This request can't be edited now.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Back to request" })).toHaveAttribute("href", "/resident/requests/r1");
+});
