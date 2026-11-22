@@ -48,9 +48,8 @@ export default function EditRequestPage() {
                 {action.message && <Alert variant="error">{action.message}</Alert>}
                 {isPending && <Spinner label="Loading your request..." />}
                 {isError && !unavailable && <QueryError message="We could not load your request. Please try again." onRetry={() => void refetch()} busy={isFetching} />}
-                {blocked && <EmptyState title="This request can't be edited now.">
-                    <Link href={back} className={secondaryLinkButton}>Back to request</Link>
-                </EmptyState>}
+                {blocked && <EmptyState title="This request can't be edited now."
+                    action={<Link href={back} className={secondaryLinkButton}>Back to request</Link>} />}
                 {data && editable && <RequestForm single createdAt={data.createdAt} submitLabel="Save changes" cancelHref={back} busy={action.isPending}
                     currentPhoto={data.photoUrl ? { url: data.photoUrl, refetch: () => void refetch() } : undefined}
                     fieldErrors={action.error instanceof ApiError ? action.error.fields : {}}
