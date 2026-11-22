@@ -8,7 +8,7 @@ import { loadProfile } from '../db/profile.ts';
 import { HttpError } from '../http/errors.ts';
 import { validateProfileEdit } from '../validation/profile-edit.ts';
 
-const addressLockPrefix = 'address:';
+const accountLockPrefix = 'account:';
 
 export function register(app: Express, {
   database = getPool, auth = firebase.getFirebaseAuth,
@@ -38,7 +38,7 @@ export function register(app: Express, {
       }
       if (address) {
         // Request creation takes the same lock before copying the resident address.
-        await client.query('SELECT pg_advisory_xact_lock(hashtext($1 || $2))', [addressLockPrefix, accountId]);
+        await client.query('SELECT pg_advisory_xact_lock(hashtext($1 || $2))', [accountLockPrefix, accountId]);
         if (await hasOpenOrAssignedRequest(client, accountId)) {
           throw new HttpError(409, 'address_locked', 'Your address is locked while you have an Open or Assigned request.');
         }

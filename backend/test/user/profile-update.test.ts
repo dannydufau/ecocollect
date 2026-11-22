@@ -90,7 +90,7 @@ test('the shared schema enforces role and latest request state, and the event om
     let addressEdit: ReturnType<typeof patch> | undefined;
     try {
       await creator.query('BEGIN');
-      await creator.query("SELECT pg_advisory_xact_lock(hashtext('address:' || $1))", [dual]);
+      await creator.query("SELECT pg_advisory_xact_lock(hashtext('account:' || $1))", [dual]);
       const edited = await patch({ publicName: 'New Name', preferredPostalCodes: ['T3A0B1'] }, dual);
       assert.equal(edited[0], 200);
       assert.equal(edited[1].publicName, 'New Name');
@@ -110,8 +110,8 @@ test('the shared schema enforces role and latest request state, and the event om
              WHERE locktype = 'advisory' AND NOT granted AND pg_backend_pid() <> pid
                AND database = (SELECT oid FROM pg_database WHERE datname = current_database())
                AND objsubid = 1
-               AND classid::bigint = ((hashtext('address:' || $1)::bigint >> 32) & 4294967295)
-               AND objid::bigint = (hashtext('address:' || $1)::bigint & 4294967295)
+               AND classid::bigint = ((hashtext('account:' || $1)::bigint >> 32) & 4294967295)
+               AND objid::bigint = (hashtext('account:' || $1)::bigint & 4294967295)
            ) AS waiting`, [dual],
         );
         if (waiting) break;
