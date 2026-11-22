@@ -128,7 +128,7 @@ it("RequestPhoto keeps a fixed box, and the failure box has the same shape, an i
     const refetch = vi.fn();
     const { container } = render(<RequestPhoto src="/a.jpg" alt="Old laptop" refetch={refetch} />);
     const image = screen.getByRole("img", { name: "Old laptop" });
-    expect(image).toHaveClass("aspect-[4/3]", "object-cover", "rounded-xl", "border");
+    expect(image).toHaveClass("aspect-[4/3]", "object-contain", "bg-surface", "rounded-xl", "border");
     fireEvent.error(image);
     expect(refetch).toHaveBeenCalledOnce();
     fireEvent.error(screen.getByRole("img", { name: "Old laptop" }));
@@ -178,4 +178,9 @@ describe("FilterTabs fade", () => {
         expect(screen.getByRole("button", { name: "Open" })).toHaveClass("relative", "z-10");
         expect(screen.getByRole("button", { name: "All" })).toHaveClass("focus-visible:z-10");
     });
+});
+
+it("EmptyState can drop its box when it sits inside a card", () => {
+    const { container } = render(<EmptyState bare title="Nothing" />);
+    expect(container.firstChild).not.toHaveClass("border-dashed");
 });

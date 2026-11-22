@@ -38,9 +38,8 @@ export default function MyRequests({ created }: { created?: string }) {
             {isPending && <Spinner label="Loading your requests..." />}
             {isError && <QueryError message={isAuthError(error) ? "You are not allowed to see this list. Please log in again as a resident." : "We could not load your requests. Please try again."} onRetry={() => refetch()} busy={isFetching} />}
             {!isPlaceholderData && data?.length === 0 && (status
-                ? <EmptyState title={`You have no ${status.toLowerCase()} requests.`}>
-                    <Button variant="secondary" onClick={() => setStatus(undefined)}>Show all requests</Button>
-                </EmptyState>
+                ? <EmptyState title={`You have no ${status.toLowerCase()} requests.`}
+                    action={<Button variant="secondary" onClick={() => setStatus(undefined)}>Show all requests</Button>} />
                 : <div className="flex flex-col items-start gap-3 py-6">
                     <h2 className="text-2xl">You have no requests yet.</h2>
                     <Link href="/resident/requests/new" className={linkButton}>Create your first request</Link>

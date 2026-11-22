@@ -36,7 +36,7 @@ export default function AvailableRequests() {
             {isPending && <Spinner label="Loading requests..." />}
             {isError && <QueryError message="We could not load the requests. Please try again." onRetry={() => void refetch()} busy={isFetching} />}
             {empty && (codes?.length
-                ? <EmptyState title="No open requests in these areas."><Button variant="secondary" onClick={() => setCodes([])}>Show all areas</Button></EmptyState>
+                ? <EmptyState title="No open requests in these areas." action={<Button variant="secondary" onClick={() => setCodes([])}>Show all areas</Button>} />
                 : <EmptyState title="No open requests right now.">
                     New requests appear here on their own. You can set your <Link href="/profile" className={textLink}>preferred postal codes in Profile</Link>.
                 </EmptyState>)}

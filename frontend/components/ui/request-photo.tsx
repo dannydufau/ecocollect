@@ -20,7 +20,7 @@ function Photo({ src, alt, refetch }: Props) {
 
     return (
         // eslint-disable-next-line @next/next/no-img-element -- signed photo URLs change, so next/image does not fit
-        <img src={src} alt={alt} className="aspect-[4/3] w-full max-w-full rounded-xl border border-border object-cover"
+        <img src={src} alt={alt} className="aspect-[4/3] w-full max-w-full rounded-xl border border-border bg-surface object-contain"
             onError={() => {
                 if (errors === 0) refetch();
                 setErrors(errors + 1);
