@@ -118,6 +118,14 @@ test('the shared schema enforces role and latest request state, and the event om
         assert.ok(Date.now() < deadline, 'the address edit should wait for the Request transaction');
         await delay(25);
       }
+      // Q4 inserts a terms acceptance while holding the advisory lock. Its foreign key
+      // must still be able to take a key-share lock on the account.
+      await creator.query("SET LOCAL lock_timeout = '2s'");
+      await creator.query(
+        `INSERT INTO users.terms_acceptance
+         VALUES ($1, '00000001-0000-4000-8000-000000000002', $2, now(), 'AT_RESIDENT_REQUEST_CREATION')`,
+        [randomUUID(), dual],
+      );
       await creator.query('COMMIT');
     } catch (error) {
       await creator.query('ROLLBACK');

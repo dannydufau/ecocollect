@@ -22,7 +22,7 @@ export function register(app: Express, {
     try {
       await client.query('BEGIN');
       const account = await client.query(
-        'SELECT 1 FROM users.account WHERE account_id = $1 AND deactivated_at IS NULL FOR UPDATE', [accountId],
+        'SELECT 1 FROM users.account WHERE account_id = $1 AND deactivated_at IS NULL FOR NO KEY UPDATE', [accountId],
       );
       if (!account.rowCount) throw new HttpError(404, 'profile_not_found', 'Profile not found.');
       const { rows: [membership] } = await client.query(
