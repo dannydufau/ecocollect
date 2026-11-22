@@ -89,10 +89,10 @@ services:
       DATABASE_URL: ${REQUEST_DATABASE_URL:-}
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-ecocollect}:${RABBITMQ_PASSWORD:?copy .env.example to .env first}@rabbitmq:5672
       # ImageKit (contract 2.4): this is the only service that gets the private key.
-      # Optional until uploads (#246) read them; that ticket makes the keys required.
-      IMAGEKIT_PRIVATE_KEY: ${IMAGEKIT_PRIVATE_KEY:-}
-      IMAGEKIT_PUBLIC_KEY: ${IMAGEKIT_PUBLIC_KEY:-}
-      IMAGEKIT_URL_ENDPOINT: ${IMAGEKIT_URL_ENDPOINT:-}
+      # Required, like the Firebase config: the service refuses to start without them.
+      IMAGEKIT_PRIVATE_KEY: ${IMAGEKIT_PRIVATE_KEY:?add the ImageKit keys to .env, see .env.example}
+      IMAGEKIT_PUBLIC_KEY: ${IMAGEKIT_PUBLIC_KEY:?add the ImageKit keys to .env, see .env.example}
+      IMAGEKIT_URL_ENDPOINT: ${IMAGEKIT_URL_ENDPOINT:?add the ImageKit keys to .env, see .env.example}
       IMAGEKIT_ROOT_FOLDER: ${IMAGEKIT_ROOT_FOLDER:-/ecocollect}   # upload folders start with this (6.2)
       DEMO_MODE: ${DEMO_MODE:-false}                              # true only in the demo stack (17.5)
     sysctls:
