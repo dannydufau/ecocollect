@@ -280,3 +280,10 @@ it("shows the total weight on review only with two or more items", async () => {
     fireEvent.click(screen.getByRole("button", { name: "Review" }));
     expect((await screen.findByText(/Total estimated weight/)).querySelector("strong")).toHaveTextContent("5.20 kg");
 });
+it("fades step 2 in and still moves focus to its heading", async () => {
+    mount(); await fill();
+    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+    const heading = await screen.findByRole("heading", { name: "Review your request" });
+    expect(heading.closest(".fade-in")).not.toBeNull();
+    expect(heading).toHaveFocus();
+});

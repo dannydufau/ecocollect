@@ -25,7 +25,7 @@ type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
 export function Button({ variant = "primary", size = "md", busy = false, busyLabel, disabled, children, className = "", ...rest }: Props) {
     return (
         <button type="button" {...rest} disabled={disabled || busy} aria-busy={busy}
-            className={`rounded-full font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${sizes[size]} ${variants[variant]} ${className}`}>
+            className={`soft-transition rounded-full font-semibold motion-safe:active:scale-[0.985] motion-safe:active:duration-(--duration-press) disabled:cursor-not-allowed disabled:opacity-60 ${sizes[size]} ${variants[variant]} ${className}`}>
             {busy && <span aria-hidden="true" className="mr-2 inline-block size-4 animate-spin rounded-full border-2 border-current border-t-transparent align-[-2px] motion-reduce:animate-none" />}
             {busy && busyLabel ? busyLabel : children}
         </button>

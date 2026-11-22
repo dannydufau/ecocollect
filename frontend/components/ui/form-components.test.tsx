@@ -75,6 +75,24 @@ describe("form components", () => {
         expect(css).not.toContain("prefers-color-scheme");
     });
 
+    it("cuts all motion for people who ask for less, and never animates layout", () => {
+        const css = readFileSync("app/globals.css", "utf8");
+        const reduced = css.match(/@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?\n\}/)![0];
+        expect(reduced).toContain("animation-duration: 0.01ms !important");
+        expect(reduced).toContain("animation-iteration-count: 1 !important");
+        expect(reduced).toContain("transition-duration: 0.01ms !important");
+        expect(css.match(/!important/g)).toHaveLength(3);
+        expect(css).toContain("--ease-standard: cubic-bezier(0.2, 0, 0, 1)");
+        expect(css).toContain("@starting-style");
+        const transitions = css.match(/transition(-property)?:[^;]*;/g)!.join(" ");
+        expect(transitions).not.toMatch(/\b(all|height|width|margin)\b/);
+    });
+
+    it("gives buttons a soft transition and a small press only with motion allowed", () => {
+        render(<Button>Press</Button>);
+        expect(screen.getByRole("button", { name: "Press" })).toHaveClass("soft-transition", "motion-safe:active:scale-[0.985]");
+    });
+
     it("keeps the h2 and h3 defaults in the base layer so size classes still win", () => {
         const css = readFileSync("app/globals.css", "utf8");
         const base = css.match(/@layer base \{[\s\S]*?\n\}/)![0];

@@ -30,7 +30,7 @@ export function Alert({ variant, children, error, scrollIntoView = false, onDism
     }, [scrollIntoView, children, message]);
 
     return (
-        <div ref={ref} className={`flex items-start gap-2.5 rounded-2xl border px-4 py-3 text-[15px] leading-snug ${box}`}>
+        <div ref={ref} className={`fade-in flex items-start gap-2.5 rounded-2xl border px-4 py-3 text-[15px] leading-snug ${box}`}>
             <Icon className="mt-px size-5 flex-none" />
             {/* The live region leaves out the Dismiss button, so it is not read with the message */}
             <div role={variant === "error" ? "alert" : "status"} className="min-w-0 flex-1 self-center">
