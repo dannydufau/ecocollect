@@ -9,6 +9,7 @@ import { setRoles } from '../firebase/accounts.ts';
 import { HttpError } from '../http/errors.ts';
 
 const roles = ['resident', 'volunteer'] as const;
+// Seed Open demo requests in these postal codes so the volunteer list has matches (contract §17.4).
 const postalCodes = ['T2P1J9', 'T3A0B1', 'T2Y3K5', 'T2N1N4', 'T3K2L7'];
 const windowMs = 60_000;
 const sessionsPerWindow = 5;

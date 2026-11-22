@@ -20,6 +20,8 @@ The [User database setup](scripts/user/README.md) creates the account and terms 
 
 Set `DEMO_MODE=true` only on a dedicated demo User Service with a separate database, RabbitMQ vhost, and Firebase project or Auth emulator. The production Caddy site does not expose `POST /api/demo/session`. The endpoint allows five attempts per client IP per minute, per User Service process. For the demo gateway, set `DEMO_PROXY_IP` to the address of its single directly connected proxy, which must replace or append the actual peer in `X-Forwarded-For`. Without this setting the service uses the socket address.
 
+In the demo Compose profile, put Caddy and the demo User Service on the same dedicated network. Set that network's `ipam.config` subnet to an unused range, then set the Caddy service's `networks.<demo-network>.ipv4_address` to an unused address in that subnet. Pass the same address as `DEMO_PROXY_IP` to the demo User Service. This keeps the trusted peer stable across container recreation and gives each visitor their own rate-limit bucket.
+
 ## Auth module (`src/user/auth/`)
 
 This checks Firebase users for the gateway. The CommonJS implementation stays in `.cjs` files to preserve its existing behavior inside the TypeScript User Service. It is mounted before the shared JSON parser so malformed session bodies keep their original response. A one-line compatibility export at `src/api/auth/firebase.js` keeps the initializer import used by the open profile PR working; it contains no separate Firebase setup.
