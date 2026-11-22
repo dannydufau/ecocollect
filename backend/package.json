@@ -2,13 +2,11 @@
   "name": "ecocollect-backend",
   "version": "1.0.0",
   "private": true,
-  "description": "EcoCollect backend: API server (auth, requests) and notification service",
-  "main": "src/api/server.js",
+  "description": "EcoCollect backend services: one image, each service started with its own entry point",
   "engines": {
     "node": ">=22.18"
   },
   "scripts": {
-    "start": "node src/api/server.js",
     "test": "node --test --test-concurrency=1 test/*.test.js \"test/request/**/*.test.ts\"",
     "test:integration": "bash scripts/test-integration.sh",
     "typecheck": "tsc -p src/request",
