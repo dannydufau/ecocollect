@@ -51,7 +51,7 @@ Pickup requests from creation to delivery, following [contracts/](../contracts/)
 
 `GET /health` returns `{ "status": "ok" }` without gateway headers. Errors use the contract's `{ "error": { "code", "message" } }` shape.
 
-- **Database.** Its own database for now, `ecocollect_request`. `scripts/request/load-db.sh` builds it from scratch: the 608 physical model (schema `ecocollect608`), then every file in `db/request/` in name order (schema `requests`). It drops the database first. Rerun it after pulling new SQL files. Pass a name to build another database, for example `ecocollect_request_test`.
+- **Database.** Its own database for now, `ecocollect_request`. `scripts/request/load-db.sh` builds it from scratch: the 608 physical model (schema `ecocollect608`), then every file in `db/request/` in name order (schema `requests`). It drops the database first. Rerun it after pulling new SQL files. Pass a name to build another database, for example `ecocollect_request_test`. Its last file, `099_request_login.sql`, creates the service's own login, `ecocollect_request` (contract 2.1 and 8): full rights on the tables this service owns, `INSERT` only on `terms_acceptance`, read-only on everything else. `load-db.sh` turns the login on with `REQUEST_DB_PASSWORD` from `.env`, and stops before dropping anything if it isn't set.
 - **Events out.** The SQL functions write events to `requests.outbox`. The publisher in the same process sends them to the `ecocollect.events` exchange, oldest first, and marks each one only after the broker confirms. A route nudges it after a write; otherwise it looks every second. If RabbitMQ is down, the events wait in the database.
 - **Events in.** The `CleanupRequest` consumer reads `request.cleanup-events` and expires the request if it is still due (`RequestExpired`). A message that keeps failing ends up in `request.cleanup-events.dlq`.
 - **Photos.** ImageKit signs uploads and photo URLs. The private key goes to this service only.
@@ -59,19 +59,20 @@ Pickup requests from creation to delivery, following [contracts/](../contracts/)
 Run it from `backend/`, after `load-db.sh` (port 3003, or `PORT`):
 
 ```bash
-DATABASE_URL=postgres://ecocollect:change_me@localhost:5432/ecocollect_request \
+DATABASE_URL=postgres://ecocollect_request:<REQUEST_DB_PASSWORD>@localhost:5432/ecocollect_request \
   node --env-file=../.env src/request/index.ts
 ```
 
 | Variable | Notes |
 |---|---|
-| `DATABASE_URL` | The database `load-db.sh` built. Compose points it at `ecocollect_request` (`REQUEST_POSTGRES_DB`). |
+| `DATABASE_URL` | The `ecocollect_request` login on the database `load-db.sh` built. Compose takes it from `REQUEST_DATABASE_URL` in `.env`. |
+| `REQUEST_DB_PASSWORD` | Read by `load-db.sh` (from `.env`) to set the login's password. Use the same password in `REQUEST_DATABASE_URL`. |
 | `RABBITMQ_URL` | The broker. |
 | `IMAGEKIT_PRIVATE_KEY`, `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_URL_ENDPOINT` | From the ImageKit dashboard. It won't start without them. |
 | `IMAGEKIT_ROOT_FOLDER` | Upload folders start with this: `/ecocollect`, or `/ecocollect-demo` in the demo stack. |
 | `DEMO_MODE` | `true` only in the demo stack: the resident also gets the new-request notification for their own request (contract 17.5). |
 
-Tests: `npm run typecheck` and `npm run test:request`. The database tests need `REQUEST_TEST_DATABASE_URL` pointing at a database built by `load-db.sh ecocollect_request_test`; without it they are skipped.
+Tests: `npm run typecheck` and `npm run test:request`. The database tests need `REQUEST_TEST_DATABASE_URL` pointing at a database built by `load-db.sh ecocollect_request_test`; without it they are skipped. Use the admin login in that URL: the tests move requests into the past by changing rows the service itself may not change.
 
 ## Run it
 

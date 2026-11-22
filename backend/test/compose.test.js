@@ -49,9 +49,11 @@ test('the frontend is reachable as "frontend" on the port Caddy uses', () => {
   assert.strictEqual(port, '3000');
 });
 
-test('the Request Service finds Postgres and RabbitMQ by service name, and waits for them', () => {
+test('the Request Service finds Postgres (as its own login) and RabbitMQ by service name, and waits for them', () => {
   const { environment, depends_on: dependsOn } = compose.services.request;
-  assert.match(environment.DATABASE_URL, /@postgres:5432\//);
+  assert.strictEqual(environment.DATABASE_URL, '${REQUEST_DATABASE_URL:-}');
+  const example = read('.env.example').match(/^REQUEST_DATABASE_URL=(.*)$/m)[1];
+  assert.match(example, /^postgres:\/\/ecocollect_request:[^@]+@postgres:5432\/ecocollect_request$/);
   assert.match(environment.RABBITMQ_URL, /@rabbitmq:5672$/);
   for (const dependency of ['postgres', 'rabbitmq']) {
     assert.strictEqual(dependsOn[dependency].condition, 'service_healthy');
