@@ -57,6 +57,14 @@ describe("form components", () => {
         expect(screen.getByRole("img", { name: "Old laptop" })).toBeInTheDocument();
     });
 
+    it("styles the label, hint and error and keeps them linked", () => {
+        render(<Field label="Name" hint="Your full name" error="Enter a name">{(control) => <input {...control} />}</Field>);
+        expect(screen.getByText("Name")).toHaveClass("text-sm", "font-semibold");
+        expect(screen.getByText("Your full name")).toHaveClass("text-[13px]", "text-text-muted");
+        expect(screen.getByText("Enter a name")).toHaveClass("text-[13px]", "font-semibold", "text-danger");
+        expect(screen.getByLabelText("Name")).toHaveAccessibleDescription("Your full name Enter a name");
+    });
+
     it("announces a field error", () => {
         render(<Field label="Name" error="Enter a name">{(control) => <input {...control} />}</Field>);
         expect(screen.getByRole("alert")).toHaveTextContent("Enter a name");

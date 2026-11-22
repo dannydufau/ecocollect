@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { AddressFields, PostalCodeList } from "@/components/address-fields";
-import { Button, CheckIcon, EyeIcon, EyeOffIcon, Field, card, input, textLink } from "@/components/ui";
+import { Button, CheckIcon, Field, PasswordInput, card, input, textLink } from "@/components/ui";
 import { calgaryToday } from "@/lib/time";
 import {
     eighteenYearsAgo, normalizeUsername, validateAccount, type AccountValues,
@@ -31,7 +31,6 @@ export default function RegisterForm({ onValid, fieldErrors = {}, busy = false, 
         username: "", email: "", password: "", firstName: "", lastName: "", publicName: "",
         dateOfBirth: "", role: "", street: "", postalCode: "", preferredPostalCodes: [],
     });
-    const [showPassword, setShowPassword] = useState(false);
     const [tried, setTried] = useState(false);
     const [failedSubmits, setFailedSubmits] = useState(0);
     const formRef = useRef<HTMLFormElement>(null);
@@ -86,14 +85,8 @@ export default function RegisterForm({ onValid, fieldErrors = {}, busy = false, 
                     {text("username", "Username", "username", { hint: "3 to 50 characters: a to z, 0 to 9, _ and -. You can't change it later." })}
                     {text("email", "Email", "email", { type: "email" })}
                     <Field label="Password" hint="Use at least 6 characters." error={errors.password}>
-                        {control => <div className="relative">
-                            <input {...control} type={showPassword ? "text" : "password"} autoComplete="new-password" value={values.password}
-                                className={`${input} pr-12`} onChange={event => change({ password: event.target.value })} />
-                            <button type="button" aria-pressed={showPassword} aria-label="Show password" onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-0 top-0 inline-flex size-11 items-center justify-center rounded-xl text-neutral-800 hover:bg-text/10">
-                                {showPassword ? <EyeOffIcon className="size-5" /> : <EyeIcon className="size-5" />}
-                            </button>
-                        </div>}
+                        {control => <PasswordInput {...control} autoComplete="new-password" value={values.password}
+                            onChange={event => change({ password: event.target.value })} />}
                     </Field>
                 </Group>
 
