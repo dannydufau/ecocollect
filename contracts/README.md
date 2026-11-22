@@ -545,6 +545,8 @@ Use the lecture SQL features and transactions. Rules involving several rows are 
 
 If a state check fails, roll back and return the endpoint's documented `409`. Every write path must use the same parent-row lock and checks; a single-row constraint cannot replace the transaction checks above.
 
+Known race, accepted: in the Request Service every photo attachment (Q4, Q9, Q15) inserts a new PHOTO row, so there is no row to lock beforehand, and the primary key on `File_ID` is the guard. If two calls send the same `fileId` at the same moment, the second waits on the key and then fails: everything it wrote is rolled back, but it answers `500` instead of `400 validation_failed` (`already used`).
+
 ## 13. Notification Service internals and outputs
 
 ### 13.0 One instance
