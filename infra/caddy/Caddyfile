@@ -9,7 +9,7 @@
 }
 
 (verify-auth) {
-	forward_auth auth {
+	forward_auth user {
 		uri /verify
 		copy_headers {
 			X-User-Id
@@ -53,13 +53,13 @@ localhost {
 			reverse_proxy user
 		}
 
-		# Session and verification stay on the backend until USER-04 moves them.
+		# Sessions and verification are owned by the User Service.
 		@session-paths {
 			method POST DELETE
 			path /api/session
 		}
 		handle @session-paths {
-			reverse_proxy auth
+			reverse_proxy user
 		}
 
 		# user paths, auth

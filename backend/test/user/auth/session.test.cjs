@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { startServer } = require('./helpers');
+const { startServer } = require('./helpers.cjs');
 
 const FIVE_DAYS_SECONDS = 5 * 24 * 60 * 60;
 

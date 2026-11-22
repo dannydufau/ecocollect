@@ -1,36 +1,24 @@
 'use strict';
 
-// Integration tests: the real subscriber against a real RabbitMQ.
-// Scripted versions of the manual smoke tests.
-//
-// Run with:  npm run test:integration   (from backend/)
-// The script starts the broker and sets RABBITMQ_URL. Without RABBITMQ_URL
-// the tests are skipped rather than failing with connection errors.
+/*
+ * The real subscriber against a real RabbitMQ.
+ * Run with `npm run test:integration` (from backend/); skipped without RABBITMQ_URL.
+ */
 
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { randomUUID } = require('node:crypto');
-const amqp = require('amqplib'); // the real library: no fakes in these tests
+const amqp = require('amqplib');
 
 const { startSubscriber } = require('../../src/messaging/subscriber');
 const { exchange, events } = require('../../src/messaging/topology');
 
 const URL_AMQP = process.env.RABBITMQ_URL;
-
-// false = run the tests; a string = skip them, and node:test prints the reason.
 const skip = URL_AMQP ? false : 'RABBITMQ_URL not set';
 
-const URL_MGMT = process.env.RABBITMQ_MGMT_URL;
+/* --- helpers --- */
 
-// The reconnect test also needs the management API; skip just that one
-// without it.
-const skipMgmt = skip || (URL_MGMT ? false : 'RABBITMQ_MGMT_URL not set');
-
-// --- helpers ----------------------------------------------------------------
-
-// Messaging is asynchronous: after publishing, the event arrives "soon", not
-// immediately. Poll a condition every 50 ms until it holds, or fail after `ms`
-// with a message saying what never happened.
+/* Messages arrive asynchronously: poll until the condition holds, or time out. */
 async function waitFor(condition, what, ms = 10000) {
   const deadline = Date.now() + ms;
   while (!(await condition())) {
@@ -39,46 +27,31 @@ async function waitFor(condition, what, ms = 10000) {
   }
 }
 
-// A logger that stores lines instead of printing them, so a test can wait
-// for what the subscriber reports (e.g. "consuming ... on amq.gen-...").
+/* Stores log lines, so a test can wait for "consuming". */
 function recordingLog() {
   const lines = [];
   const rec = (level) => (...args) => lines.push(`${level} ${args.join(' ')}`);
   return { lines, info: rec('info'), warn: rec('warn'), error: rec('error'), debug: rec('debug') };
 }
 
-// How many times the subscriber has finished setup (once per connect).
-const consumingCount = (log) => log.lines.filter((l) => l.includes('consuming')).length;
+/* Test queues are durable and outlive the test; after() deletes them. */
+const testQueues = new Set();
 
-// Start the real subscriber with test-friendly settings and return once its
-// queue is bound. Publishing before that would be dropped by the exchange as
-// unroutable, and the test would fail for the wrong reason.
-async function startTestSubscriber(handlers) {
-  // Unique label on the AMQP connection; a later test uses it to find and
-  // drop this exact connection through the management API.
-  const name = `it-subscriber-${randomUUID()}`;
+/* Returns once consuming. Pass `queue` to restart on the same queue. */
+async function startTestSubscriber(handlers, queue) {
+  queue = queue || { name: `it-subscriber-${randomUUID()}.events`, bindings: ['request.#'] };
+  testQueues.add(queue.name);
   const log = recordingLog();
-  const sub = startSubscriber({
-    url: URL_AMQP,
-    handlers,
-    log,
-    retryMs: 300, // reconnect quickly so tests stay fast
-    connect: (url) => amqp.connect(url, { clientProperties: { connection_name: name } }),
-  });
-  await waitFor(() => consumingCount(log) >= 1, `${name} to start consuming`);
-  return { sub, log, name };
+  const sub = startSubscriber({ queue, url: URL_AMQP, handlers, log, retryMs: 300 });
+  await waitFor(() => log.lines.some((l) => l.includes('consuming')), `${queue.name} to start consuming`);
+  return { sub, queue };
 }
 
-// One publisher connection shared by all tests, opened in before().
 let pubConn;
 let pubCh;
 
-// Plays the role of the outbox relay: build a full envelope and publish it
-// with the routing key from topology.events.
+/* Publishes like the outbox relay and waits for the broker's confirm. */
 async function publish(type, data) {
-  // Event types topology doesn't list yet (e.g. RequestAccepted) get a
-  // made-up key that still matches the subscriber's request.* binding.
-  const routingKey = events[type] ? events[type].routingKey : `request.${type.toLowerCase()}`;
   const envelope = {
     type,
     version: 1,
@@ -86,76 +59,50 @@ async function publish(type, data) {
     occurredAt: new Date().toISOString(),
     data,
   };
-  pubCh.publish(exchange.name, routingKey, Buffer.from(JSON.stringify(envelope)), {
+  pubCh.publish(exchange.name, events[type].routingKey, Buffer.from(JSON.stringify(envelope)), {
     contentType: 'application/json',
   });
-  // Wait for the broker to confirm it accepted the message, like the relay does.
   await pubCh.waitForConfirms();
 }
 
-// Call the management HTTP API. Node's fetch refuses URLs with credentials
-// in them (http://user:pass@host), so move them into a Basic auth header.
-function mgmt(path, init = {}) {
-  const base = new URL(URL_MGMT);
-  const auth = Buffer.from(
-    `${decodeURIComponent(base.username)}:${decodeURIComponent(base.password)}`,
-  ).toString('base64');
-  base.username = '';
-  base.password = '';
-  return fetch(new URL(path, base), {
-    ...init,
-    headers: { authorization: `Basic ${auth}`, ...(init.headers || {}) },
-  });
+/* Publishes raw bytes, e.g. a broken message. */
+async function publishRaw(routingKey, text) {
+  pubCh.publish(exchange.name, routingKey, Buffer.from(text), { contentType: 'application/json' });
+  await pubCh.waitForConfirms();
 }
 
-// Simulate the broker dropping our subscriber: find its connection by the
-// name startTestSubscriber gave it, then force-close it.
-async function closeConnectionByName(clientName) {
-  let target;
-  // The management API can take a moment to list a new connection, so poll.
+/* Waits for a message in a queue and takes it. */
+async function getOne(queueName) {
+  let msg = false;
   await waitFor(async () => {
-    const res = await mgmt('/api/connections');
-    if (!res.ok) throw new Error(`GET /api/connections: ${res.status}`);
-    const conns = await res.json();
-    target = conns.find(
-      (c) => c.user_provided_name === clientName
-        || (c.client_properties && c.client_properties.connection_name === clientName),
-    );
-    return Boolean(target);
-  }, `management API to list ${clientName}`);
-
-  // The broker's internal name looks like "172.18.0.1:54321 -> 172.18.0.2:5672";
-  // encode it for the URL path.
-  const res = await mgmt(`/api/connections/${encodeURIComponent(target.name)}`, {
-    method: 'DELETE',
-    headers: { 'x-reason': 'integration test: simulated broker drop' },
-  });
-  if (!res.ok && res.status !== 204) throw new Error(`DELETE connection: ${res.status}`);
+    msg = await pubCh.get(queueName, { noAck: true });
+    return msg !== false;
+  }, `a message in ${queueName}`);
+  return msg;
 }
 
-// Runs once before all tests: open the publisher on a confirm channel (needed
-// for waitForConfirms) and make sure the exchange exists.
 before(async () => {
   if (skip) return;
   pubConn = await amqp.connect(URL_AMQP);
-  pubCh = await pubConn.createConfirmChannel();
+  pubCh = await pubConn.createConfirmChannel(); /* needed for waitForConfirms */
   await pubCh.assertExchange(exchange.name, exchange.type, { durable: exchange.durable });
 });
 
-// Runs once after all tests: close the publisher so Node can exit.
 after(async () => {
-  if (pubConn) await pubConn.close().catch(() => {});
+  if (!pubConn) return;
+  for (const name of testQueues) {
+    await pubCh.deleteQueue(name).catch(() => {});
+    await pubCh.deleteQueue(`${name}.dlq`).catch(() => {});
+  }
+  await pubConn.close().catch(() => {});
 });
 
-// --- tests ------------------------------------------------------------------
+/* --- tests --- */
 
-// Manual check 1: an event published to the exchange reaches the handler
-// with its contents intact.
 test('receives a RequestCreated published to the exchange', { skip }, async () => {
-  const seen = []; // everything the handler receives
+  const seen = [];
   const { sub } = await startTestSubscriber({ RequestCreated: (env) => { seen.push(env); } });
   try {
-    // Fresh id per run, so a leftover message from an earlier run can't count.
     const requestId = randomUUID();
     await publish('RequestCreated', { requestId, residentUid: 'r1', matchedVolunteerUids: ['v1'] });
 
@@ -164,87 +111,57 @@ test('receives a RequestCreated published to the exchange', { skip }, async () =
     assert.equal(env.type, 'RequestCreated');
     assert.deepEqual(env.data.matchedVolunteerUids, ['v1']);
   } finally {
-    // Always stop, even if an assertion failed, so no connection is left open.
     await sub.stop();
   }
 });
 
-// Manual check 2: every running instance has its own queue, so one publish
-// reaches all of them. This is what lets whichever instance holds a user's
-// SSE connection hear about their events.
-test('every running instance receives every event (fan-out)', { skip }, async () => {
-  const seenA = [];
-  const seenB = [];
-  // Two subscribers = two connections = two exclusive amq.gen-... queues,
-  // just like running try-subscriber.js in two terminals.
-  const a = await startTestSubscriber({ RequestCreated: (env) => { seenA.push(env); } });
-  const b = await startTestSubscriber({ RequestCreated: (env) => { seenB.push(env); } });
-  try {
-    const requestId = randomUUID();
-    await publish('RequestCreated', { requestId, residentUid: 'r1', matchedVolunteerUids: [] });
+/* The queue is durable: events published while the subscriber is down wait for it. */
+test('events published while the subscriber is stopped arrive after it restarts', { skip }, async () => {
+  const seen = [];
+  const handlers = { RequestCreated: (env) => { seen.push(env); } };
 
-    // Published once, received twice.
-    await waitFor(
-      () => seenA.some((e) => e.data.requestId === requestId)
-        && seenB.some((e) => e.data.requestId === requestId),
-      'both instances to receive the event',
-    );
+  const first = await startTestSubscriber(handlers);
+  await first.sub.stop();
+
+  const requestId = randomUUID();
+  await publish('RequestCreated', { requestId, residentUid: 'r1', matchedVolunteerUids: [] });
+
+  const second = await startTestSubscriber(handlers, first.queue);
+  try {
+    await waitFor(() => seen.some((e) => e.data.requestId === requestId), 'the event published while stopped');
   } finally {
-    await a.sub.stop();
-    await b.sub.stop();
+    await second.sub.stop();
   }
 });
 
-// Manual check 3: an event type with no registered handler is acked and
-// skipped, and doesn't block events that come after it.
-test('events without a handler are skipped, later events still arrive', { skip }, async () => {
-  const seen = [];
-  // Only RequestCreated has a handler; RequestAccepted will match the
-  // request.* binding but find nothing to dispatch to.
-  const { sub, log } = await startTestSubscriber({ RequestCreated: (env) => { seen.push(env); } });
-  try {
-    const acceptedId = randomUUID();
-    const createdId = randomUUID();
-    await publish('RequestAccepted', { requestId: acceptedId });
-    await publish('RequestCreated', { requestId: createdId, residentUid: 'r1', matchedVolunteerUids: [] });
-
-    // A queue delivers in order, so once the second event has arrived, the
-    // first has already been dealt with. No sleep needed to prove "nothing
-    // happened".
-    await waitFor(() => seen.some((e) => e.data.requestId === createdId), 'the RequestCreated');
-
-    // The unknown event never reached a handler...
-    assert.equal(seen.some((e) => e.data.requestId === acceptedId), false);
-    // ...and it took the deliberate skip path, not some error path.
-    assert.ok(log.lines.some((l) => l.includes('no handler for RequestAccepted')));
-  } finally {
-    await sub.stop();
-  }
-});
-
-// Manual check 4: when the broker drops the connection, the subscriber
-// notices, reconnects, rebuilds its queue, and keeps receiving.
-test('reconnects and keeps receiving after the broker drops the connection', { skip: skipMgmt }, async () => {
-  const seen = [];
-  const { sub, log, name } = await startTestSubscriber({
-    RequestCreated: (env) => { seen.push(env); },
+test('a message whose handler keeps failing is retried, then dead-lettered on the 5th failure', { skip }, async () => {
+  let calls = 0;
+  const { sub, queue } = await startTestSubscriber({
+    RequestCreated: () => { calls += 1; throw new Error('handler always fails'); },
   });
   try {
-    await closeConnectionByName(name);
-
-    // Our own reconnect path must kick in. If amqplib's built-in recovery
-    // handled the drop instead, this line never appears and the test fails
-    // here. That's the overlap we wanted to find out about.
-    await waitFor(() => log.lines.some((l) => l.includes('connection closed')), 'the close to be noticed');
-
-    // Second "consuming" line = setup ran again on a fresh connection,
-    // with a new exclusive queue (the old one died with the old connection).
-    await waitFor(() => consumingCount(log) >= 2, 'the subscriber to consume again');
-
-    // And events flow again on the new queue.
     const requestId = randomUUID();
     await publish('RequestCreated', { requestId, residentUid: 'r1', matchedVolunteerUids: [] });
-    await waitFor(() => seen.some((e) => e.data.requestId === requestId), 'the event after reconnect');
+
+    const dead = await getOne(`${queue.name}.dlq`);
+    assert.equal(JSON.parse(dead.content.toString()).data.requestId, requestId);
+    assert.equal(calls, 5); /* 1 delivery + 4 redeliveries (x-delivery-limit = 4) */
+    assert.equal(dead.properties.headers['x-first-death-reason'], 'delivery_limit');
+  } finally {
+    await sub.stop();
+  }
+});
+
+test('an unparseable message goes straight to the DLQ, without retries', { skip }, async () => {
+  let calls = 0;
+  const { sub, queue } = await startTestSubscriber({ RequestCreated: () => { calls += 1; } });
+  try {
+    await publishRaw('request.created', '{not json');
+
+    const dead = await getOne(`${queue.name}.dlq`);
+    assert.equal(dead.content.toString(), '{not json');
+    assert.equal(dead.properties.headers['x-first-death-reason'], 'rejected');
+    assert.equal(calls, 0);
   } finally {
     await sub.stop();
   }

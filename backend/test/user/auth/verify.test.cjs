@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { startServer } = require('./helpers');
+const { startServer } = require('./helpers.cjs');
 
 const invalid = () => Object.assign(new Error('rejected'), { code: 'auth/invalid-id-token' });
 

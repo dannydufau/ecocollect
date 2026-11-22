@@ -1,9 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import type { AddressInfo } from 'node:net';
+import { fileURLToPath } from 'node:url';
 import { createApp } from '../../src/user/app.ts';
 
 async function start(t, options = {}) {
@@ -29,9 +31,22 @@ test('health works without gateway headers and exposes no implementation header'
   assert.equal(response.headers.get('x-powered-by'), null);
 });
 
+test('the User Service exits before listening when the Firebase key is missing', async t => {
+  const dir = await routes(t);
+  const result = spawnSync(process.execPath, [fileURLToPath(new URL('../../src/user/index.ts', import.meta.url))], {
+    encoding: 'utf8',
+    env: { ...process.env, FIREBASE_AUTH_EMULATOR_HOST: '', GOOGLE_APPLICATION_CREDENTIALS: path.join(dir, 'missing.json'), PORT: '3004' },
+    timeout: 10000,
+  });
+  assert.ifError(result.error);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /Can't read the Firebase admin key/);
+  assert.doesNotMatch(result.stdout, /User service listening/);
+});
+
 test('unknown routes and methods use the JSON error shape', async t => {
   const base = await start(t);
-  for (const [method, url] of [['GET', '/api/terms'], ['GET', '/api/nothing-here'], ['DELETE', '/health']]) {
+  for (const [method, url] of [['GET', '/api/no-such-route'], ['GET', '/api/nothing-here'], ['DELETE', '/health']]) {
     const response = await fetch(base + url, { method });
     assert.equal(response.status, 404);
     assert.deepEqual(await response.json(), { error: { code: 'not_found', message: 'Not found.' } });
