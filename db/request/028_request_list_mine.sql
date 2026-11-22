@@ -27,7 +27,7 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql
 STABLE
-SET search_path TO requests, ecocollect608, pg_temp
+SET search_path TO requests, users, pg_temp
 AS $$
 BEGIN
     -- A NULL resident would match nobody and hide a bug in the caller.

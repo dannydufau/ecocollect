@@ -21,7 +21,7 @@ CREATE OR REPLACE FUNCTION requests.req_check_confirm_collected(
 RETURNS TEXT
 LANGUAGE plpgsql
 STABLE
-SET search_path TO requests, ecocollect608, pg_temp
+SET search_path TO requests, users, pg_temp
 AS $$
 DECLARE
     k_code_ok           CONSTANT TEXT := 'ok';
@@ -73,7 +73,7 @@ CREATE OR REPLACE FUNCTION requests.req_confirm_collected(
     p_trace_id    TEXT,
     OUT result_code TEXT)
 LANGUAGE plpgsql
-SET search_path TO requests, ecocollect608, pg_temp
+SET search_path TO requests, users, pg_temp
 AS $$
 DECLARE
     k_code_ok          CONSTANT TEXT := 'ok';

@@ -83,8 +83,8 @@ services:
     restart: unless-stopped
     environment:
       PORT: "80"                    # Caddy proxies to request without a port, which means 80
-      # Its own database for now, built by backend/scripts/request/load-db.sh (the 608
-      # physical model + db/request/), until db/init loads the course model for everyone.
+      # The one database every service uses, "ecocollect" (contract 2.1): its tables come
+      # from db/init, its functions and login from backend/scripts/request/load-db.sh.
       # Connects as its own login, ecocollect_request (contract 2.1), not the admin.
       DATABASE_URL: ${REQUEST_DATABASE_URL:-}
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-ecocollect}:${RABBITMQ_PASSWORD:?copy .env.example to .env first}@rabbitmq:5672

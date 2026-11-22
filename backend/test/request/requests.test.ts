@@ -1,5 +1,5 @@
 // Q4 against the test database, checked against openapi.yaml.
-// Needs: backend/scripts/request/load-db.sh ecocollect_request_test, REQUEST_TEST_DATABASE_URL
+// Needs: backend/scripts/request/load-db.sh --test, REQUEST_TEST_DATABASE_URL
 // (see db.ts), and `npm ci` in contracts/. Each run adds requests to the test database.
 // The photo check is imagekit/fake.ts, except that FAILING_FILE_ID fails it.
 import { describe, test, before, after } from 'node:test';

@@ -33,7 +33,7 @@ CREATE OR REPLACE FUNCTION requests.req_enqueue_event(
 )
 RETURNS UUID
 LANGUAGE plpgsql
-SET search_path TO requests, ecocollect608, pg_temp
+SET search_path TO requests, users, pg_temp
 AS $$
 DECLARE
     -- Event types (contract 10.1)

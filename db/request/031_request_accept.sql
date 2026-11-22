@@ -28,7 +28,7 @@ CREATE OR REPLACE FUNCTION requests.req_check_accept(
 RETURNS TEXT
 LANGUAGE plpgsql
 STABLE
-SET search_path TO requests, ecocollect608, pg_temp
+SET search_path TO requests, users, pg_temp
 AS $$
 DECLARE
     k_code_ok               CONSTANT TEXT := 'ok';
@@ -97,6 +97,13 @@ $$;
 --   'validation_failed'    windowId is not one of this request's active windows
 --                          that start in the future; nothing written
 -- Business failures are returned; a RAISE means a bug and rolls back everything.
+--
+-- Account lock (FR04): before the request row lock, it takes the advisory lock
+-- pg_advisory_xact_lock(hashtext('account:' || account_id)) on the volunteer,
+-- shared with the User Service's deactivation (U9) and address edit (U7), and with
+-- req_create_requests (Q4). Without it, a deactivation running at the same time
+-- misses the new assignment, and req_check_accept reads deactivated_at from before
+-- it. The account lock always comes before any row lock, in every caller.
 CREATE OR REPLACE FUNCTION requests.req_accept(
     p_request_id        UUID,
     p_volunteer_id      VARCHAR(50),
@@ -108,7 +115,7 @@ CREATE OR REPLACE FUNCTION requests.req_accept(
     OUT error_messages TEXT[],
     OUT assignment_id  UUID)
 LANGUAGE plpgsql
-SET search_path TO requests, ecocollect608, pg_temp
+SET search_path TO requests, users, pg_temp
 AS $$
 DECLARE
     k_code_ok                CONSTANT TEXT := 'ok';
@@ -126,6 +133,7 @@ DECLARE
     k_event_assigned         CONSTANT TEXT := 'RequestAssigned';
     k_event_expired          CONSTANT TEXT := 'RequestExpired';
     k_trigger_overdue        CONSTANT VARCHAR(30) := 'overdue_on_action';
+    k_lock_account           CONSTANT TEXT := 'account:';   -- account lock key prefix, shared with the User Service
     v_at            TIMESTAMPTZ;            -- the action's one moment, taken after the lock
     v_check         TEXT;
     v_current_terms UUID;
@@ -139,6 +147,9 @@ BEGIN
     IF p_request_id IS NULL OR p_volunteer_id IS NULL THEN
         RAISE EXCEPTION 'req_accept: missing argument';
     END IF;
+
+    -- 0. Take the volunteer's account lock, waiting for any deactivation.
+    PERFORM pg_advisory_xact_lock(hashtext(k_lock_account || p_volunteer_id));
 
     -- 1. Lock the request row: actions on one request run one after another.
     PERFORM 1 FROM pickup_request p WHERE p.pickup_request_id = p_request_id FOR UPDATE;

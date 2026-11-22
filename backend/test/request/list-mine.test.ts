@@ -1,5 +1,5 @@
 // Q5 against the test database, checked against openapi.yaml.
-// Needs: backend/scripts/request/load-db.sh ecocollect_request_test, REQUEST_TEST_DATABASE_URL
+// Needs: backend/scripts/request/load-db.sh --test, REQUEST_TEST_DATABASE_URL
 // (see db.ts), and `npm ci` in contracts/. The Q4 test adds requests for the
 // same resident on each run, so this test checks seeded ids, not counts.
 import { describe, test, before, after } from 'node:test';

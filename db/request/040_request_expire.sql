@@ -27,7 +27,7 @@ CREATE OR REPLACE FUNCTION requests.req_expire(
     p_event_id   UUID,
     OUT result_code TEXT)
 LANGUAGE plpgsql
-SET search_path TO requests, ecocollect608, pg_temp
+SET search_path TO requests, users, pg_temp
 AS $$
 DECLARE
     k_code_duplicate   CONSTANT TEXT := 'duplicate';

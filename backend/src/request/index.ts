@@ -4,8 +4,8 @@
 //   outbox (written by the SQL functions) -> publisher -> RabbitMQ
 //   RabbitMQ (CleanupRequest) -> subscriber -> consumers/cleanup -> req_expire
 //
-// Run locally (from backend/), on the database built by scripts/request/load-db.sh:
-//   DATABASE_URL=postgres://ecocollect:change_me@localhost:5432/ecocollect_request \
+// Run locally (from backend/), after scripts/request/load-db.sh:
+//   DATABASE_URL=postgres://ecocollect_request:<REQUEST_DB_PASSWORD>@localhost:5432/ecocollect \
 //     node --env-file=../.env src/request/index.ts
 // In Compose:                   same image as the backend, started with this file (PORT=80).
 import subscriberModule from '../messaging/subscriber.js';

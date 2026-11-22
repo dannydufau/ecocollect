@@ -1,7 +1,7 @@
 // Q9 against the test database, checked against openapi.yaml. Builds its own
 // Open requests through Q4, so it runs again without a rebuild. The photo check
 // is imagekit/fake.ts, with a remove that records each deleted file. Needs:
-// backend/scripts/request/load-db.sh ecocollect_request_test,
+// backend/scripts/request/load-db.sh --test,
 // REQUEST_TEST_DATABASE_URL (see db.ts), and `npm ci` in contracts/.
 import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert/strict';

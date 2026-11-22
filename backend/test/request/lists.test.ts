@@ -1,5 +1,5 @@
 // Q1 and Q2 against the test database, checked against openapi.yaml.
-// Needs: backend/scripts/request/load-db.sh ecocollect_request_test, REQUEST_TEST_DATABASE_URL
+// Needs: backend/scripts/request/load-db.sh --test, REQUEST_TEST_DATABASE_URL
 // (see db.ts), and `npm ci` in contracts/.
 import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
