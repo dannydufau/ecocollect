@@ -5,6 +5,7 @@ import type {
   AcceptInput, AcceptRow, CancelAssignmentInput, CancelAssignmentRow, CancelInput, CancelRow, CategoryRow, ConfirmCollectedInput, ConfirmCollectedRow, CreateRequestsInput,
   CreateRequestsRow, FacilityRow, GetDetailRow, GetRequestsRow, ListAvailableRow, ListMineRow,
   RecordDeliveryInput, RecordDeliveryRow, ReportMissedInput, ReportMissedRow, EditInput, EditRow,
+  VolunteerHistoryRow,
 } from '../domain/types.ts';
 import type { PhotoPurpose } from '../imagekit/photos.ts';
 
@@ -71,6 +72,16 @@ export async function listMine(pool: pg.Pool, residentId: string, statuses: stri
 export async function listAvailable(pool: pg.Pool, postalCodes: string[] | null): Promise<ListAvailableRow[]> {
   const { rows } = await pool.query<ListAvailableRow>(
     'SELECT * FROM requests.req_list_available($1::text[])', [postalCodes]);
+  return rows;
+}
+
+// Q7: every assignment of the volunteer, newest accepted first. statuses null =
+// every assignment status; the cast makes pg send the JS array as text[].
+export async function listVolunteerHistory(
+  pool: pg.Pool, volunteerId: string, statuses: string[] | null,
+): Promise<VolunteerHistoryRow[]> {
+  const { rows } = await pool.query<VolunteerHistoryRow>(
+    'SELECT * FROM requests.req_volunteer_history($1, $2::text[])', [volunteerId, statuses]);
   return rows;
 }
 

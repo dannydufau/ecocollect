@@ -62,6 +62,24 @@ export function parseMineQuery(req: Request): { statuses: string[] | null } {
   return { statuses };
 }
 
+// common.yaml AssignmentStatus.
+export const ASSIGNMENT_STATUSES: readonly string[] =
+  ['Active', 'Collected', 'Delivered', 'Volunteer_Cancelled', 'Resident_Cancelled', 'Missed_Pickup'];
+
+// view=volunteer: the assignmentStatus filter, null = all. Same rules as
+// parseMineQuery's status: spaces around a name are ignored, an empty name is
+// 400. Called after the role check, so a caller without the role gets 403.
+export function parseVolunteerQuery(req: Request): { statuses: string[] | null } {
+  refuseOtherFilters(req, 'volunteer');
+  const value = single(req, 'assignmentStatus');
+  if (value === undefined) return { statuses: null };
+  const statuses = value.split(',').map((s) => s.trim());
+  if (statuses.some((s) => !ASSIGNMENT_STATUSES.includes(s))) {
+    throw validationFailed({ assignmentStatus: `each must be one of ${ASSIGNMENT_STATUSES.join(', ')}` });
+  }
+  return { statuses };
+}
+
 // common.yaml PostalCode, and the most codes one call may give (listRequests).
 const POSTAL_CODE = /^T[0-9][A-Z][0-9][A-Z][0-9]$/;
 const POSTAL_CODES_MAX = 10;

@@ -1,6 +1,6 @@
 // Read-function rows -> response bodies in openapi.yaml's shape.
 import type {
-  CategoryRow, FacilityRow, GetDetailRow, GetRequestsRow, ListAvailableRow, ListMineRow,
+  CategoryRow, FacilityRow, GetDetailRow, GetRequestsRow, ListAvailableRow, ListMineRow, VolunteerHistoryRow,
 } from '../domain/types.ts';
 import type { Photos, UploadTicket } from '../imagekit/photos.ts';
 
@@ -71,6 +71,30 @@ export function availableRequest(row: ListAvailableRow) {
     })),
     expiresAt: row.expires_at.toISOString(),
     hasPhoto: row.has_photo,
+  };
+}
+
+// Q7, VolunteerAssignment. The request fields are null together (the SQL nulls
+// them when the assignment no longer links the volunteer); the assignment is
+// always filled.
+export function volunteerAssignment(row: VolunteerHistoryRow) {
+  return {
+    requestId: row.request_id,
+    category: row.category_id === null ? null
+      : { categoryId: row.category_id, name: row.category_name, wasteType: row.waste_type },
+    quantity: row.quantity,
+    estimatedWeightKg: row.estimated_weight_kg === null ? null : Number(row.estimated_weight_kg),
+    postalCode: row.postal_code,
+    status: row.status,
+    assignment: {
+      assignmentId: row.assignment_id,
+      window: { windowId: row.window_id, date: row.window_date, startHour: row.window_hour },
+      status: row.assignment_status,
+      acceptedAt: row.accepted_at.toISOString(),
+      collectedAt: row.collected_at?.toISOString() ?? null,
+      endedAt: row.ended_at?.toISOString() ?? null,
+      endReason: row.end_reason,
+    },
   };
 }
 

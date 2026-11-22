@@ -12,10 +12,12 @@ import { Router } from 'express';
 import * as v from 'valibot';
 import type { RouteDeps } from '../../app.ts';
 import {
-  accept, cancel, cancelAssignment, confirmCollected, createRequests, edit, getDetail, getRequests, listAvailable, listMine, recordDelivery,
-  reportMissed,
+  accept, cancel, cancelAssignment, confirmCollected, createRequests, edit, getDetail, getRequests, listAvailable, listMine,
+  listVolunteerHistory, recordDelivery, reportMissed,
 } from '../../db/functions.ts';
-import { availableRequest, createdRequest, myRequest, requestDetail } from '../../json/responses.ts';
+import {
+  availableRequest, createdRequest, myRequest, requestDetail, volunteerAssignment,
+} from '../../json/responses.ts';
 import { parseAcceptBody } from '../accept-body.ts';
 import { Uuid } from '../body-validation.ts';
 import { parseCancelAssignmentBody } from '../cancel-assignment-body.ts';
@@ -28,7 +30,7 @@ import {
   forbidden, HttpError, requestUnavailable, termsOutdated, validationFailed, validationFailedFromDb,
 } from '../errors.ts';
 import { assertRole, callerOf, requireRole } from '../gateway-user.ts';
-import { parseAvailableQuery, parseMineQuery, parseView } from '../list-requests-query.ts';
+import { parseAvailableQuery, parseMineQuery, parseView, parseVolunteerQuery } from '../list-requests-query.ts';
 
 const IDEMPOTENCY_KEY_MAX = 200;       // idempotency_keys.idempotency_key is VARCHAR(200)
 
@@ -104,9 +106,12 @@ export default function requestsRouter({ pool, nudgePublisher, demo, imagekit }:
         res.json(rows.map(availableRequest));
         return;
       }
-      case 'volunteer':
-        // Temporary, until Q7 is built.
-        throw new HttpError(501, 'not_implemented', `view=${view} is not available yet.`);
+      case 'volunteer': {
+        const { statuses } = parseVolunteerQuery(req);
+        const rows = await listVolunteerHistory(pool, caller.id, statuses);
+        res.json(rows.map(volunteerAssignment));
+        return;
+      }
     }
   });
 

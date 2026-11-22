@@ -140,6 +140,29 @@ export type ListAvailableRow = {
   has_photo: boolean;
 };
 
+// One row of requests.req_volunteer_history (Q7): one assignment of the caller.
+// The request columns (category_id to status) are null when the assignment
+// ended as Volunteer_Cancelled, Resident_Cancelled or Missed_Pickup.
+export type VolunteerHistoryRow = {
+  request_id: string;
+  category_id: string | null;
+  category_name: string | null;
+  waste_type: string | null;
+  quantity: number | null;
+  estimated_weight_kg: string | null;  // NUMERIC
+  postal_code: string | null;
+  status: string | null;
+  assignment_id: string;
+  window_id: string;
+  window_date: string;                 // 'YYYY-MM-DD'
+  window_hour: number;
+  assignment_status: string;
+  accepted_at: Date;
+  collected_at: Date | null;
+  ended_at: Date | null;
+  end_reason: string | null;
+};
+
 export type AcceptInput = {
   requestId: string;                   // a well-formed UUID (checked before the call)
   volunteerId: string;
