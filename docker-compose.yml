@@ -113,8 +113,8 @@ services:
       postgres:
         condition: service_healthy
       rabbitmq:
-        condition: service_healthy 
-        
+        condition: service_healthy
+
   frontend:
     build:
       context: ./frontend
