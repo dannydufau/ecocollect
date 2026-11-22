@@ -35,11 +35,17 @@ export const CategoryId = v.message(v.pipe(v.string(), v.minLength(1)), 'must be
 export const Quantity = v.message(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(INT_MAX)),
                                   `must be a whole number from 1 to ${INT_MAX}`);
 
+// An uploaded photo (PhotoRef). Not an object, or an unknown key: toFields
+// words these itself. Whether the file is usable is checked with ImageKit (6.5).
+export const PhotoRef = v.strictObject({
+  fileId: v.message(v.pipe(v.string(), v.minLength(1)), 'must be an uploaded file id'),
+});
+
 const CreateRequests = v.strictObject({
   items: v.message(v.pipe(v.array(v.strictObject({
     categoryId: CategoryId,
     quantity: Quantity,
-    photo: v.optional(v.never('photos are not supported yet')),
+    photo: v.optional(PhotoRef),
   })), v.minLength(1)), 'must have at least 1 item'),
   windows: PickupWindows,
   notes: v.message(v.optional(v.string()), 'must be text'),
@@ -49,6 +55,7 @@ const CreateRequests = v.strictObject({
 export type CreateRequestsBody = {
   categoryIds: string[];
   quantities: number[];
+  photoFileIds: (string | null)[];     // null: the item has no photo
   dates: string[];                     // 'YYYY-MM-DD', a real calendar date
   hours: number[];
   notes: string | null;
@@ -65,6 +72,7 @@ export function parseCreateRequestsBody(body: unknown): CreateRequestsBody {
   return {
     categoryIds: items.map((item) => item.categoryId),
     quantities: items.map((item) => item.quantity),
+    photoFileIds: items.map((item) => item.photo?.fileId ?? null),
     dates: windows.map((w) => w.date),
     hours: windows.map((w) => w.startHour),
     notes: notes ?? null,

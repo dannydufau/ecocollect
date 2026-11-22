@@ -46,15 +46,17 @@ export default function requestsRouter({ pool, nudgePublisher, demo, imagekit }:
     }
     const body = parseCreateRequestsBody(req.body);
 
-    // No photos until ImageKit is wired in (the body check refuses them), so
-    // every item has null in both photo arrays.
-    const noPhotos = body.categoryIds.map(() => null);
+    // Check each item's photo with ImageKit (6.5), all at once. A failed check
+    // goes in as a null path: req_create_requests answers it with the other fields.
+    const photoPaths = await Promise.all(body.photoFileIds.map((fileId) => {
+      if (fileId === null) return null;
+      return imagekit.verify({ fileId, purpose: 'item_photo', callerId: caller.id, requestId: null });
+    }));
     const result = await createRequests(pool, {
       ...body,
       residentId: caller.id,
       idempotencyKey: idempotencyKey ?? null,
-      photoFileIds: noPhotos,
-      photoPaths: noPhotos,
+      photoPaths,
       demo,
       traceId: caller.traceId,
     });
