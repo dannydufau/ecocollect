@@ -7,7 +7,8 @@
 -- Items come as parallel arrays: element i of p_category_ids, p_quantities,
 -- p_photo_file_ids and p_photo_paths is one item. An item without a photo has
 -- NULL in both photo arrays. The photo's path comes from ImageKit's file details,
--- checked by TypeScript before the call (contract 6.5).
+-- checked by TypeScript before the call (contract 6.5); a file that failed that
+-- check has its file id with a NULL path (answered as a field error here).
 --
 -- result_code:
 --   'ok'                created; created_request_ids in item order
@@ -53,6 +54,7 @@ DECLARE
     k_msg_already_selected   CONSTANT TEXT := 'already selected';
     k_msg_at_least_one       CONSTANT TEXT := 'must be at least 1';
     k_msg_already_used       CONSTANT TEXT := 'already used';
+    k_msg_photo_failed       CONSTANT TEXT := 'photo check failed';
     k_terms_resident         CONSTANT VARCHAR(40) := 'AT_RESIDENT_REQUEST_CREATION';
     k_status_open            CONSTANT VARCHAR(30) := 'Open';
     k_event_created          CONSTANT TEXT := 'RequestCreated';
@@ -65,6 +67,7 @@ DECLARE
     v_ids           UUID[];
     v_ta_id         UUID := gen_random_uuid();
     v_transition_id UUID := gen_random_uuid();
+    v_has_photo     BOOLEAN;                -- item i was sent with a photo
 BEGIN
     error_fields   := '{}';
     error_messages := '{}';
@@ -79,8 +82,8 @@ BEGIN
         RAISE EXCEPTION 'req_create_requests: missing argument or unpaired item arrays';
     END IF;
     FOR i IN 1 .. v_count LOOP
-        IF (p_photo_file_ids[i] IS NULL) <> (p_photo_paths[i] IS NULL) THEN
-            RAISE EXCEPTION 'req_create_requests: item % has a photo id without a path or the reverse', i;
+        IF p_photo_file_ids[i] IS NULL AND p_photo_paths[i] IS NOT NULL THEN
+            RAISE EXCEPTION 'req_create_requests: item % has a photo path without a file id', i;
         END IF;
     END LOOP;
 
@@ -145,11 +148,17 @@ BEGIN
             error_messages := array_append(error_messages, k_msg_at_least_one);
         END IF;
 
-        -- A file is one photo row: never on two new items, never already stored
-        -- (another request's photo or delivery evidence, contract 6.5).
-        IF p_photo_file_ids[i] IS NOT NULL
-           AND (array_position(p_photo_file_ids, p_photo_file_ids[i]) < i
-                OR EXISTS (SELECT 1 FROM photo ph WHERE ph.file_id = p_photo_file_ids[i])) THEN
+        -- A photo must have passed TypeScript's check (6.5). A file is one photo
+        -- row: never on two new items, never already stored (another request's
+        -- photo or delivery evidence).
+        v_has_photo := p_photo_file_ids[i] IS NOT NULL;
+        IF v_has_photo AND p_photo_paths[i] IS NULL THEN
+            error_fields   := array_append(error_fields, format('items[%s].photo.fileId', i - 1));
+            error_messages := array_append(error_messages, k_msg_photo_failed);
+        ELSIF v_has_photo AND array_position(p_photo_file_ids, p_photo_file_ids[i]) < i THEN
+            error_fields   := array_append(error_fields, format('items[%s].photo.fileId', i - 1));
+            error_messages := array_append(error_messages, k_msg_already_used);
+        ELSIF v_has_photo AND EXISTS (SELECT 1 FROM photo ph WHERE ph.file_id = p_photo_file_ids[i]) THEN
             error_fields   := array_append(error_fields, format('items[%s].photo.fileId', i - 1));
             error_messages := array_append(error_messages, k_msg_already_used);
         END IF;
