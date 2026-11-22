@@ -146,8 +146,11 @@ export default function RequestForm({ initialValues, createdAt, single = false, 
                                         <Button variant="secondary" onClick={() => setReplacing(true)}>Replace photo</Button>
                                         <Button variant="secondary" onClick={() => update({ photo: null })}>Remove photo</Button>
                                     </div>
-                                </div> : <PhotoPicker purpose="item_photo" optional onUploaded={fileId => update({ photo: { fileId } })}
-                                    onClear={() => { update({ photo: replacing ? undefined : currentPhoto ? null : undefined }); setReplacing(false); }} />}
+                                </div> : <div className="space-y-2">
+                                    <PhotoPicker purpose="item_photo" optional onUploaded={fileId => update({ photo: { fileId } })}
+                                        onClear={() => { update({ photo: replacing ? undefined : currentPhoto ? null : undefined }); setReplacing(false); }} />
+                                    {currentPhoto && <Button variant="secondary" onClick={() => { update({ photo: undefined }); setReplacing(false); }}>Keep current photo</Button>}
+                                </div>}
                                 {photoError && <p role="alert" className="text-[13px] font-semibold text-danger">{photoError}</p>}
                                 {!single && values.items.length > 1 && <div><Button variant="secondary" aria-label={`Remove item ${index + 1}`}
                                     onClick={() => {
