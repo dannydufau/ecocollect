@@ -52,10 +52,9 @@ test('deactivation checks owned work and assignments, compensates failures, and 
       };
     },
   }), {
-    async updateUser(id: string, changes: { disabled: boolean }) { actions.push([id, changes.disabled]); },
-    async revokeRefreshTokens(id: string) {
-      actions.push([id, 'revoke']);
-      if (createDuringDisable && id === resident) {
+    async updateUser(id: string, changes: { disabled: boolean }) {
+      actions.push([id, changes.disabled]);
+      if (createDuringDisable && id === resident && changes.disabled) {
         const request = await pool.connect();
         try {
           await request.query('BEGIN');
@@ -69,6 +68,11 @@ test('deactivation checks owned work and assignments, compensates failures, and 
           await request.query('COMMIT');
         } finally { request.release(true); }
       }
+    },
+    async revokeRefreshTokens(id: string) {
+      const { rows: [account] } = await pool.query('SELECT deactivated_at FROM users.account WHERE account_id = $1', [id]);
+      assert.ok(account.deactivated_at, 'revoke tokens only after deactivation commits');
+      actions.push([id, 'revoke']);
     },
   });
   t.mock.method(console, 'error', () => {});
@@ -104,16 +108,17 @@ test('deactivation checks owned work and assignments, compensates failures, and 
     const raced = await remove(resident);
     assert.equal(raced.status, 409);
     assert.equal((await raced.json()).error.code, 'active_work');
-    assert.deepEqual(actions.splice(0), [[resident, true], [resident, 'revoke'], [resident, false]]);
+    assert.deepEqual(actions.splice(0), [[resident, true], [resident, false]]);
     assert.equal((await remove(failing)).status, 500);
-    assert.deepEqual(actions.splice(0), [[failing, true], [failing, 'revoke'], [failing, false]]);
+    assert.deepEqual(actions.splice(0), [[failing, true], [failing, false]]);
 
-    const ok = await remove(volunteer);
+    const results = await Promise.all([remove(volunteer), remove(volunteer)]);
+    assert.deepEqual(results.map(response => response.status).sort(), [204, 404]);
+    const ok = results.find(response => response.status === 204)!;
     assert.equal(ok.status, 204);
     const cookie = ok.headers.get('set-cookie') ?? '';
     assert.match(cookie, /^session=;/);
     assert.match(cookie, /Expires=Thu, 01 Jan 1970.*HttpOnly.*Secure.*SameSite=Lax/i);
-    assert.equal((await remove(volunteer)).status, 404);
     assert.deepEqual(actions, [[volunteer, true], [volunteer, 'revoke']]);
     const { rows: accounts } = await pool.query(
       'SELECT account_id, deactivated_at FROM users.account WHERE account_id = ANY($1::text[])', [ids],

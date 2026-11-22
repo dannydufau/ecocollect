@@ -16,7 +16,11 @@ The [User database setup](scripts/user/README.md) creates the account and terms 
 
 `db/terms.ts` exports `getCurrentTerms(client)` for registration and role activation. It selects the document with the latest `published_at` that is not in the future, using its ID to break ties, and returns only `termsDocumentId`, `content` and UTC `publishedAt`. The public route uses the same lookup and reads no identity headers. An empty terms table returns a JSON 500 error. Run `node --test test/user-terms.test.js` from `backend/`; set `TEST_DATABASE_URL` to a loaded scratch database to include the newest-document database test.
 
-## Auth module (`src/user/auth/`)
+### Shared-schema profile tests
+
+Load `db/init/*.sql` in filename order into a fresh scratch PostgreSQL database. Use its admin login in `PROFILE_EDIT_TEST_DATABASE_URL` so the tests can create and remove fixtures and switch to `ecocollect_user` for endpoint calls. From `backend/`, run `node --test test/user-profile-update.test.js` for profile edits or `node --test test/user-profile-delete.test.js` for deactivation. The database-backed cases are skipped without that URL.
+
++## Auth module (`src/user/auth/`)
 
 This checks Firebase users for the gateway. The CommonJS implementation stays in `.cjs` files to preserve its existing behavior inside the TypeScript User Service. It is mounted before the shared JSON parser so malformed session bodies keep their original response. A one-line compatibility export at `src/api/auth/firebase.js` keeps the initializer import used by the open profile PR working; it contains no separate Firebase setup.
 

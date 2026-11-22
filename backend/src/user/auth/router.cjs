@@ -103,4 +103,4 @@ function createAuthRouter(auth) {
   return router;
 }
 
-module.exports = { createAuthRouter };
+module.exports = { createAuthRouter, COOKIE_NAME, COOKIE_OPTIONS };
