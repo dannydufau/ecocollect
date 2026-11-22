@@ -1,6 +1,6 @@
 // CleanupRequest consumer against the test database: the handler is called
 // directly, without RabbitMQ (the shared subscriber has its own tests).
-// Needs: backend/scripts/request/load-db.sh ecocollect_request_test and
+// Needs: backend/scripts/request/load-db.sh --test and
 // REQUEST_TEST_DATABASE_URL (see db.ts).
 import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert/strict';

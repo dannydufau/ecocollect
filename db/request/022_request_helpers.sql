@@ -15,7 +15,7 @@ CREATE OR REPLACE FUNCTION requests.req_window_start(p_date DATE, p_start_hour S
 RETURNS TIMESTAMPTZ
 LANGUAGE plpgsql
 STABLE
-SET search_path TO requests, ecocollect608, pg_temp
+SET search_path TO requests, users, pg_temp
 AS $$
 DECLARE
     k_time_zone     CONSTANT TEXT     := 'America/Edmonton';
@@ -32,7 +32,7 @@ CREATE OR REPLACE FUNCTION requests.req_window_end(p_date DATE, p_start_hour SMA
 RETURNS TIMESTAMPTZ
 LANGUAGE plpgsql
 STABLE
-SET search_path TO requests, ecocollect608, pg_temp
+SET search_path TO requests, users, pg_temp
 AS $$
 DECLARE
     k_window_length CONSTANT INTERVAL := INTERVAL '1 hour';
@@ -47,7 +47,7 @@ CREATE OR REPLACE FUNCTION requests.req_current_status(p_request_id UUID)
 RETURNS VARCHAR(30)
 LANGUAGE plpgsql
 STABLE
-SET search_path TO requests, ecocollect608, pg_temp
+SET search_path TO requests, users, pg_temp
 AS $$
 DECLARE
     v_status VARCHAR(30);
@@ -69,7 +69,7 @@ CREATE OR REPLACE FUNCTION requests.req_expires_at(p_request_id UUID)
 RETURNS TIMESTAMPTZ
 LANGUAGE plpgsql
 STABLE
-SET search_path TO requests, ecocollect608, pg_temp
+SET search_path TO requests, users, pg_temp
 AS $$
 DECLARE
     v_expires_at TIMESTAMPTZ;
@@ -89,7 +89,7 @@ CREATE OR REPLACE FUNCTION requests.req_owner_id(p_request_id UUID)
 RETURNS VARCHAR(50)
 LANGUAGE plpgsql
 STABLE
-SET search_path TO requests, ecocollect608, pg_temp
+SET search_path TO requests, users, pg_temp
 AS $$
 DECLARE
     v_owner_id VARCHAR(50);
@@ -112,7 +112,7 @@ CREATE OR REPLACE FUNCTION requests.req_matched_volunteers(p_request_id UUID, p_
 RETURNS VARCHAR(50)[]
 LANGUAGE plpgsql
 STABLE
-SET search_path TO requests, ecocollect608, pg_temp
+SET search_path TO requests, users, pg_temp
 AS $$
 DECLARE
     v_owner_id VARCHAR(50);
@@ -162,7 +162,7 @@ CREATE OR REPLACE FUNCTION requests.req_validate_windows(
     OUT error_messages TEXT[])
 LANGUAGE plpgsql
 STABLE
-SET search_path TO requests, ecocollect608, pg_temp
+SET search_path TO requests, users, pg_temp
 AS $$
 DECLARE
     k_max_period    CONSTANT INTERVAL := INTERVAL '30 days';   -- FR07

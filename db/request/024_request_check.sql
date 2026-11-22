@@ -13,7 +13,7 @@
 CREATE OR REPLACE FUNCTION requests.check_request(p_request_id UUID)
 RETURNS VOID
 LANGUAGE plpgsql
-SET search_path TO requests, ecocollect608, pg_temp
+SET search_path TO requests, users, pg_temp
 AS $$
 DECLARE
     k_terms_resident     CONSTANT VARCHAR(40) := 'AT_RESIDENT_REQUEST_CREATION';

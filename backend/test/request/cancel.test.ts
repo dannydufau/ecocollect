@@ -1,7 +1,7 @@
 // Q10 against the test database, checked against openapi.yaml. Builds its own
 // requests through Q4 (and Q11 for the Assigned one), so it runs again without a
 // rebuild (each run adds two requests). Needs: backend/scripts/request/load-db.sh
-// ecocollect_request_test, REQUEST_TEST_DATABASE_URL (see db.ts), and `npm ci` in contracts/.
+// --test, REQUEST_TEST_DATABASE_URL (see db.ts), and `npm ci` in contracts/.
 import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { REASON_MAX_CHARS } from '../../src/request/http/reason.ts';

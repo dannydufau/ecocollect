@@ -46,7 +46,7 @@ CREATE OR REPLACE FUNCTION requests.req_create_requests(
     OUT error_messages      TEXT[],
     OUT created_request_ids UUID[])
 LANGUAGE plpgsql
-SET search_path TO requests, ecocollect608, pg_temp
+SET search_path TO requests, users, pg_temp
 AS $$
 DECLARE
     k_key_ttl                CONSTANT INTERVAL := INTERVAL '24 hours';   -- how long a key replays (NFR06)

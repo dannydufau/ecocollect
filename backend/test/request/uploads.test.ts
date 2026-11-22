@@ -2,7 +2,7 @@
 // Assigned request through Q4 and Q11 (and collects it with Q13), so it runs
 // again without a rebuild. Tickets come from imagekit/fake.ts (real pinned
 // fields, fake token). Needs: backend/scripts/request/load-db.sh
-// ecocollect_request_test, REQUEST_TEST_DATABASE_URL (see db.ts), and `npm ci` in contracts/.
+// --test, REQUEST_TEST_DATABASE_URL (see db.ts), and `npm ci` in contracts/.
 import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { fakePhotos } from '../../src/request/imagekit/fake.ts';

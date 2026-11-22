@@ -118,7 +118,7 @@ export async function moveIntoPast(pool: pg.Pool, requestId: string, days: numbe
   try {
     await client.query('BEGIN');
     // Find the course tables without a schema prefix, until COMMIT.
-    await client.query(`SET LOCAL search_path TO ecocollect608`);
+    await client.query(`SET LOCAL search_path TO requests, users`);
     // Move back the terms acceptances: the resident's at creation and each volunteer's at accept.
     await client.query(
       `UPDATE terms_acceptance SET accepted_at = accepted_at - make_interval(days => $2)

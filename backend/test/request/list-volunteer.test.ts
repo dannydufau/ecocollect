@@ -1,5 +1,5 @@
 // Q7 against the test database, checked against openapi.yaml.
-// Needs: backend/scripts/request/load-db.sh ecocollect_request_test,
+// Needs: backend/scripts/request/load-db.sh --test,
 // REQUEST_TEST_DATABASE_URL (see db.ts), and `npm ci` in contracts/. Other tests
 // add assignments for the same volunteer, so this test checks its own request
 // by id, not counts.

@@ -1,5 +1,5 @@
 // Q6 against the test database, checked against openapi.yaml.
-// Needs: backend/scripts/request/load-db.sh ecocollect_request_test (the seeded
+// Needs: backend/scripts/request/load-db.sh --test (the seeded
 // windows are relative to the load time, so rebuild it if it is days old),
 // REQUEST_TEST_DATABASE_URL (see db.ts), and `npm ci` in contracts/. The Q4 test
 // adds Open requests on each run, so this test checks seeded ids, not counts.
