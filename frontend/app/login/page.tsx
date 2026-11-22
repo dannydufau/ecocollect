@@ -6,7 +6,7 @@ import { redirect, useRouter, useSearchParams } from "next/navigation";
 import { FirebaseError } from "firebase/app";
 import { useAuth } from "@/lib/auth-context";
 import { isDemo } from "@/lib/demo";
-import { Alert, Button, EyeIcon, EyeOffIcon, Field, card, input, textLink } from "@/components/ui";
+import { Alert, Button, Field, PasswordInput, card, input, textLink } from "@/components/ui";
 
 function errorMessage(err: unknown): string {
   if (err instanceof FirebaseError) {
@@ -39,7 +39,6 @@ export default function LoginPage() {
   const { user, roles, loading, signIn, signOut } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -84,14 +83,8 @@ export default function LoginPage() {
         </Field>
         <Field label="Password">
           {(control) => (
-            <div className="relative">
-              <input {...control} type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)}
-                required autoComplete="current-password" className={`${input} pr-12`} />
-              <button type="button" aria-pressed={showPassword} aria-label="Show password" onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-0 top-0 inline-flex size-11 items-center justify-center rounded-full text-neutral-800 hover:bg-text/10">
-                {showPassword ? <EyeOffIcon className="size-5" /> : <EyeIcon className="size-5" />}
-              </button>
-            </div>
+            <PasswordInput {...control} value={password} onChange={(e) => setPassword(e.target.value)}
+              required autoComplete="current-password" />
           )}
         </Field>
         {error && <Alert variant="error">{error}</Alert>}

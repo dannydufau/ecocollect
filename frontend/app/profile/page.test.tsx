@@ -144,3 +144,21 @@ it("puts a divider between the account list and the public name, and marks the d
     expect(danger).toHaveClass("border-danger-border");
     expect(danger.querySelector("h2 svg[aria-hidden=true]")).not.toBeNull();
 });
+
+it("lets the notice be dismissed", async () => {
+    let profile: Profile = resident;
+    vi.mocked(api.get).mockImplementation(async (path: string) => (
+        path === "/api/terms" ? { termsDocumentId: "terms_3", content: "Some terms", publishedAt: "2026-11-01T00:00:00Z" } : profile
+    ));
+    vi.mocked(api.post).mockImplementation(async () => {
+        profile = both;
+        return { roles: ["resident", "volunteer"] };
+    });
+    renderWithClient(<ProfilePage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Become a volunteer" }));
+    fireEvent.click(await screen.findByLabelText("I have read and accept the terms and safety guidelines"));
+    fireEvent.click(screen.getByRole("button", { name: "Activate role" }));
+    await screen.findByText("You can now use EcoCollect as a volunteer.");
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+    expect(screen.queryByText("You can now use EcoCollect as a volunteer.")).not.toBeInTheDocument();
+});
