@@ -42,7 +42,7 @@ const subscriber = subscriberModule.startSubscriber({
 });
 
 // Compose sets PORT=80 (Caddy proxies to "request" without a port). Locally,
-// 3003 so it doesn't clash with the API server (3001) or notification (3002).
+// 3003 so it doesn't clash with notification (3002) or the User Service (3004).
 const port = Number(process.env.PORT || 3003);
 const demo = process.env.DEMO_MODE === 'true';
 const app = createApp({ pool, nudgePublisher: publisher.nudge, demo, imagekit });
