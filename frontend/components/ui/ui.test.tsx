@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useEffect } from "react";
-import { Alert, ConfirmDialog, PageLoading, Spinner, StatusBadge } from "./index";
+import { Alert, Button, ConfirmDialog, PageLoading, Spinner, StatusBadge } from "./index";
+import { AlertIcon, CheckIcon, InfoIcon, WarningIcon } from "./icons";
 afterEach(() => {
     cleanup();
 });
@@ -133,4 +134,51 @@ it.each(["Active", "Cancelled by me", "Cancelled by resident"] as const)("Status
 it.each([[undefined, "max-w-md"], ["md", "max-w-md"], ["lg", "max-w-xl"]] as const)("ConfirmDialog with size %s uses %s", (size, width) => {
     const { container } = render(<ConfirmDialog open={false} size={size} title="T" confirmLabel="OK" onConfirm={vi.fn()} onCancel={vi.fn()}>Body</ConfirmDialog>);
     expect(container.querySelector("dialog")).toHaveClass(width);
+});
+
+it("Button has a ghost variant and a small size, and keeps 44px by default", () => {
+    render(<><Button variant="ghost" size="sm">Small</Button><Button>Normal</Button></>);
+    const small = screen.getByRole("button", { name: "Small" });
+    expect(small).toHaveClass("min-h-9", "text-text", "hover:bg-text/10");
+    expect(small).not.toHaveClass("min-h-11", "bg-accent");
+    expect(screen.getByRole("button", { name: "Normal" })).toHaveClass("min-h-11");
+});
+
+it("Button shows a hidden spinner while busy and keeps aria-busy", () => {
+    const { rerender } = render(<Button busy busyLabel="Saving...">Save</Button>);
+    const button = screen.getByRole("button", { name: "Saving..." });
+    expect(button).toHaveAttribute("aria-busy", "true");
+    const spinner = button.querySelector("[aria-hidden=true]");
+    expect(spinner).toHaveClass("animate-spin", "motion-reduce:animate-none");
+    rerender(<Button>Save</Button>);
+    expect(screen.getByRole("button", { name: "Save" }).querySelector("[aria-hidden=true]")).toBeNull();
+});
+
+it.each([
+    ["error", AlertIcon, "alert", "Error."], ["success", CheckIcon, "status", "Done."],
+    ["warning", WarningIcon, "status", "Heads up."], ["info", InfoIcon, "status", "Note."],
+] as const)("Alert %s has its icon, role and lead word", (variant, Icon, role, lead) => {
+    const { container } = render(<Alert variant={variant}>Message</Alert>);
+    const icon = container.querySelector("svg")!;
+    expect(icon).toHaveAttribute("aria-hidden", "true");
+    expect(icon.innerHTML).toBe(render(<Icon />).container.querySelector("svg")!.innerHTML);
+    expect(screen.getByRole(role)).toHaveTextContent(`${lead} Message`);
+    expect(container.firstChild).toHaveClass("border");
+});
+
+it("Alert only has a Dismiss button with onDismiss, outside the live region", () => {
+    const onDismiss = vi.fn();
+    const { rerender } = render(<Alert variant="success">Saved</Alert>);
+    expect(screen.queryByRole("button", { name: "Dismiss" })).toBeNull();
+    rerender(<Alert variant="success" onDismiss={onDismiss}>Saved</Alert>);
+    const dismiss = screen.getByRole("button", { name: "Dismiss" });
+    expect(screen.getByRole("status")).not.toContainElement(dismiss);
+    fireEvent.click(dismiss);
+    expect(onDismiss).toHaveBeenCalledOnce();
+});
+
+it("ConfirmDialog rises in and Alert fades in", () => {
+    const { container } = render(<><ConfirmDialog open title="T" confirmLabel="OK" onConfirm={vi.fn()} onCancel={vi.fn()}>Body</ConfirmDialog><Alert variant="info">Hi</Alert></>);
+    expect(container.querySelector("dialog")).toHaveClass("rise-in");
+    expect(screen.getByRole("status").parentElement).toHaveClass("fade-in");
 });

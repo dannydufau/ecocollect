@@ -38,13 +38,11 @@ export default function VolunteerHistoryPage() {
                 {isPending && <Spinner label="Loading your assignments..." />}
                 {isError && <QueryError message="We could not load your assignments. Please try again." onRetry={() => void refetch()} busy={isFetching} />}
                 {!isPlaceholderData && rows?.length === 0 && (filter === "All"
-                    ? <EmptyState title="No assignments yet.">
-                        <p className="mb-3">Accept a request to see it here.</p>
-                        <Link href="/volunteer" className={linkButton}>Browse available requests</Link>
+                    ? <EmptyState title="No assignments yet." action={<Link href="/volunteer" className={linkButton}>Browse available requests</Link>}>
+                        Accept a request to see it here.
                     </EmptyState>
-                    : <EmptyState title={`No ${filter.toLowerCase()} assignments.`}>
-                        <Button variant="secondary" onClick={() => setFilter("All")}>Show all assignments</Button>
-                    </EmptyState>)}
+                    : <EmptyState title={`No ${filter.toLowerCase()} assignments.`}
+                        action={<Button variant="secondary" onClick={() => setFilter("All")}>Show all assignments</Button>} />)}
                 {rows && rows.length > 0 && <ul aria-busy={isPlaceholderData} className={`space-y-3 transition-opacity ${isPlaceholderData ? "opacity-60" : ""}`}>
                     {rows.map(row => {
                         const waiting = row.assignment.status === "Collected";

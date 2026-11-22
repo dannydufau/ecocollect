@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { Button, Field, FilterTabs, RequestPhoto } from "./index";
+import { Button, CameraIcon, EmptyState, Field, FilterTabs, RequestPhoto, WindowList } from "./index";
 
 afterEach(() => {
     cleanup();
@@ -57,6 +57,14 @@ describe("form components", () => {
         expect(screen.getByRole("img", { name: "Old laptop" })).toBeInTheDocument();
     });
 
+    it("styles the label, hint and error and keeps them linked", () => {
+        render(<Field label="Name" hint="Your full name" error="Enter a name">{(control) => <input {...control} />}</Field>);
+        expect(screen.getByText("Name")).toHaveClass("text-sm", "font-semibold");
+        expect(screen.getByText("Your full name")).toHaveClass("text-[13px]", "text-text-muted");
+        expect(screen.getByText("Enter a name")).toHaveClass("text-[13px]", "font-semibold", "text-danger");
+        expect(screen.getByLabelText("Name")).toHaveAccessibleDescription("Your full name Enter a name");
+    });
+
     it("announces a field error", () => {
         render(<Field label="Name" error="Enter a name">{(control) => <input {...control} />}</Field>);
         expect(screen.getByRole("alert")).toHaveTextContent("Enter a name");
@@ -67,10 +75,112 @@ describe("form components", () => {
         expect(css).not.toContain("prefers-color-scheme");
     });
 
+    it("cuts all motion for people who ask for less, and never animates layout", () => {
+        const css = readFileSync("app/globals.css", "utf8");
+        const reduced = css.match(/@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?\n\}/)![0];
+        expect(reduced).toContain("animation-duration: 0.01ms !important");
+        expect(reduced).toContain("animation-iteration-count: 1 !important");
+        expect(reduced).toContain("transition-duration: 0.01ms !important");
+        expect(css.match(/!important/g)).toHaveLength(3);
+        expect(css).toContain("--ease-standard: cubic-bezier(0.2, 0, 0, 1)");
+        expect(css).toContain("@starting-style");
+        const transitions = css.match(/transition(-property)?:[^;]*;/g)!.join(" ");
+        expect(transitions).not.toMatch(/\b(all|height|width|margin)\b/);
+    });
+
+    it("gives buttons a soft transition and a small press only with motion allowed", () => {
+        render(<Button>Press</Button>);
+        expect(screen.getByRole("button", { name: "Press" })).toHaveClass("soft-transition", "motion-safe:active:scale-[0.985]");
+    });
+
     it("keeps the h2 and h3 defaults in the base layer so size classes still win", () => {
         const css = readFileSync("app/globals.css", "utf8");
         const base = css.match(/@layer base \{[\s\S]*?\n\}/)![0];
         expect(base).toMatch(/h2 \{/);
         expect(base).toMatch(/h3 \{/);
     });
+});
+
+it("EmptyState is a dashed card with just a title and children", () => {
+    const { container } = render(<EmptyState title="Nothing here"><button>Show all</button></EmptyState>);
+    expect(container.firstChild).toHaveClass("border-dashed", "rounded-2xl");
+    expect(screen.getByText("Nothing here")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Show all" })).toBeInTheDocument();
+    expect(container.querySelector("[aria-hidden=true]")).toBeNull();
+});
+
+it("EmptyState shows a hidden icon and an action", () => {
+    const { container } = render(<EmptyState title="Nothing" icon={<CameraIcon />} action={<a href="/stats">See stats</a>}>Some text</EmptyState>);
+    expect(container.querySelector("[aria-hidden=true] svg")).not.toBeNull();
+    expect(screen.getByText("Some text")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "See stats" })).toHaveAttribute("href", "/stats");
+});
+
+it("WindowList shows a hidden icon and the exact text on each row", () => {
+    render(<WindowList windows={[{ date: "2026-11-20", startHour: 11 }, { date: "2026-11-21", startHour: 14 }]} />);
+    const rows = screen.getAllByRole("listitem");
+    expect(rows.map(row => row.textContent)).toEqual(["Fri, Nov 20, 11:00 to 12:00", "Sat, Nov 21, 14:00 to 15:00"]);
+    for (const row of rows) expect(row.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByRole("list")).not.toHaveClass("list-disc");
+});
+
+it("RequestPhoto keeps a fixed box, and the failure box has the same shape, an icon and the text", () => {
+    const refetch = vi.fn();
+    const { container } = render(<RequestPhoto src="/a.jpg" alt="Old laptop" refetch={refetch} />);
+    const image = screen.getByRole("img", { name: "Old laptop" });
+    expect(image).toHaveClass("aspect-[4/3]", "object-contain", "bg-surface", "rounded-xl", "border");
+    fireEvent.error(image);
+    expect(refetch).toHaveBeenCalledOnce();
+    fireEvent.error(screen.getByRole("img", { name: "Old laptop" }));
+    expect(container.firstChild).toHaveClass("aspect-[4/3]");
+    expect(container.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByText("The photo is not available right now.")).toBeInTheDocument();
+});
+
+describe("FilterTabs fade", () => {
+    function sized(scrollWidth: number, clientWidth: number) {
+        vi.spyOn(HTMLElement.prototype, "scrollWidth", "get").mockReturnValue(scrollWidth);
+        vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(clientWidth);
+        // jsdom does not clamp scrollLeft like a browser, so the centring must land on 0
+        vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(clientWidth);
+    }
+    const options = ["All", "Open", "Assigned"] as const;
+    const fades = (side: string) => document.querySelector(`[data-fade=${side}]`);
+    afterEach(() => vi.restoreAllMocks());
+
+    it("shows no fade when nothing overflows", () => {
+        sized(300, 300);
+        render(<FilterTabs label="Status" options={options} value="All" onChange={vi.fn()} />);
+        expect(fades("left")).toBeNull();
+        expect(fades("right")).toBeNull();
+    });
+
+    it("fades only the side with more to scroll, and buttons still select", () => {
+        sized(600, 300);
+        const onChange = vi.fn();
+        render(<FilterTabs label="Status" options={options} value="All" onChange={onChange} />);
+        const row = screen.getByRole("group", { name: "Status" });
+        row.scrollLeft = 0;
+        fireEvent.scroll(row);
+        expect(fades("left")).toBeNull();
+        expect(fades("right")).toHaveAttribute("aria-hidden", "true");
+        row.scrollLeft = 300;
+        fireEvent.scroll(row);
+        expect(fades("left")).not.toBeNull();
+        expect(fades("right")).toBeNull();
+        fireEvent.click(screen.getByRole("button", { name: "Open" }));
+        expect(onChange).toHaveBeenCalledWith("Open");
+    });
+
+    it("keeps the chosen and focused chips above the fade", () => {
+        sized(600, 300);
+        render(<FilterTabs label="Status" options={options} value="Open" onChange={vi.fn()} />);
+        expect(screen.getByRole("button", { name: "Open" })).toHaveClass("relative", "z-10");
+        expect(screen.getByRole("button", { name: "All" })).toHaveClass("focus-visible:z-10");
+    });
+});
+
+it("EmptyState can drop its box when it sits inside a card", () => {
+    const { container } = render(<EmptyState bare title="Nothing" />);
+    expect(container.firstChild).not.toHaveClass("border-dashed");
 });

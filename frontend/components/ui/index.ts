@@ -9,10 +9,11 @@ export { PageLoading, Spinner } from "./spinner";
 export { ConfirmDialog } from "./confirm-dialog";
 export { Button } from "./button";
 export { Field } from "./field";
+export { PasswordInput } from "./password-input";
 export { FilterTabs } from "./filter-tabs";
 export { RequestPhoto } from "./request-photo";
 export { card, clickableCard, input, linkButton, mono, pageTitle, panel, secondaryLinkButton, stretchedLink, textarea, textLink } from "./styles";
 export {
-    AlertIcon, BellIcon, CalendarIcon, CameraIcon, CheckIcon, ChevronRightIcon, ClockIcon, EyeIcon, EyeOffIcon,
+    AlertIcon, BellIcon, CalendarIcon, CameraIcon, CameraOffIcon, CheckIcon, ChevronRightIcon, ClockIcon, EyeIcon, EyeOffIcon,
     InfoIcon, LeafIcon, MapPinIcon, PackageIcon, PlusIcon, ScaleIcon, TruckIcon, WarningIcon,
 } from "./icons";

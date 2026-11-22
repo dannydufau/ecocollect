@@ -49,7 +49,7 @@ export default function ProfilePage() {
                 <h1 className={pageTitle}>Profile</h1>
                 {profile && <Link href={`/profiles/${encodeURIComponent(profile.accountId)}`} className={textLink}>View my public profile</Link>}
             </div>
-            {notice && <Alert variant={notice.variant}>{notice.text}</Alert>}
+            {notice && <Alert variant={notice.variant} onDismiss={() => setNotice(null)}>{notice.text}</Alert>}
             {isPending && <Spinner label="Loading your profile..." />}
             {isError && <QueryError message={isAuthError(error)
                         ? "Please log in to view your profile."

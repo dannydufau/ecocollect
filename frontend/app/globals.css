@@ -57,6 +57,23 @@
   --shadow-rest: 0 1px 2px rgba(31, 28, 26, 0.06);
   --shadow-hover: 0 3px 10px rgba(31, 28, 26, 0.14);
   --shadow-dialog: 0 12px 32px rgba(31, 28, 26, 0.22);
+
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-decel: cubic-bezier(0, 0, 0.2, 1);
+}
+
+:root {
+  --duration-press: 100ms;
+  --duration-hover: 150ms;
+  --duration-dialog: 200ms;
+  --duration-sheet: 240ms;
+}
+
+/* Hover, focus and press on controls. Never height, width or margin. */
+@utility soft-transition {
+  transition-property: color, background-color, border-color, box-shadow, transform, scale, opacity;
+  transition-duration: var(--duration-hover);
+  transition-timing-function: var(--ease-standard);
 }
 
 /* old names still used by existing pages */
@@ -106,4 +123,39 @@ h1 {
 /* The header is sticky, so a focused target scrolls into view below it */
 a, button, input, select, textarea, [tabindex] {
   scroll-margin-top: 5rem;
+}
+
+/* A browser without @starting-style just shows these at once */
+.rise-in, .sheet-in {
+  transition: opacity var(--duration-dialog) var(--ease-decel), translate var(--duration-dialog) var(--ease-decel), scale var(--duration-dialog) var(--ease-decel);
+}
+
+.sheet-in {
+  transition-duration: var(--duration-sheet);
+}
+
+@starting-style {
+  .rise-in, .sheet-in {
+    opacity: 0;
+    translate: 0 6px;
+    scale: 0.97;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.fade-in {
+  animation: fade-in var(--duration-dialog) var(--ease-decel);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after, ::backdrop {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

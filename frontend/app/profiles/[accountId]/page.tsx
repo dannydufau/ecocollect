@@ -43,9 +43,8 @@ export default function PublicProfilePage() {
         <main className="p-4 sm:p-8">
             <div className="mx-auto max-w-3xl space-y-6">
                 <h1 className={pageTitle}>Profile not found</h1>
-                <EmptyState title="This profile does not exist or is no longer active.">
-                    <Link href="/stats" className={linkButton}>See the community stats</Link>
-                </EmptyState>
+                <EmptyState title="This profile does not exist or is no longer active."
+                    action={<Link href="/stats" className={linkButton}>See the community stats</Link>} />
             </div>
         </main>
     );

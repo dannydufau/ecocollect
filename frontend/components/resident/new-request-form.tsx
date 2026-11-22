@@ -94,9 +94,11 @@ export default function NewRequestForm() {
                 {message && !review && <Alert variant="error">{message}</Alert>}
             </RequestForm>
         </div>
-        {review && <ReviewRequest values={review} busy={busy} accepted={accepted} onBack={() => { clearErrors(); setReview(null); }} onConfirm={() => void submit(review)}>
-            <TermsCheckbox value={termsDocumentId} onChange={setTermsDocumentId} />
-            {message && <Alert variant="error">{message}</Alert>}
-        </ReviewRequest>}
+        {review && <div className="fade-in">
+            <ReviewRequest values={review} busy={busy} accepted={accepted} onBack={() => { clearErrors(); setReview(null); }} onConfirm={() => void submit(review)}>
+                <TermsCheckbox value={termsDocumentId} onChange={setTermsDocumentId} />
+                {message && <Alert variant="error">{message}</Alert>}
+            </ReviewRequest>
+        </div>}
     </>;
 }

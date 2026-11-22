@@ -13,6 +13,6 @@ it.each(Object.entries(icons))("%s is hidden from screen readers and takes a cla
     expect(svg).toHaveClass("size-8", "text-accent");
 });
 
-it("has the 17 icons", () => {
-    expect(Object.keys(icons)).toHaveLength(17);
+it("has the 18 icons", () => {
+    expect(Object.keys(icons)).toHaveLength(18);
 });
