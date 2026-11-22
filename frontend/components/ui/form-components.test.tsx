@@ -57,6 +57,14 @@ describe("form components", () => {
         expect(screen.getByRole("img", { name: "Old laptop" })).toBeInTheDocument();
     });
 
+    it("styles the label, hint and error and keeps them linked", () => {
+        render(<Field label="Name" hint="Your full name" error="Enter a name">{(control) => <input {...control} />}</Field>);
+        expect(screen.getByText("Name")).toHaveClass("text-sm", "font-semibold");
+        expect(screen.getByText("Your full name")).toHaveClass("text-[13px]", "text-text-muted");
+        expect(screen.getByText("Enter a name")).toHaveClass("text-[13px]", "font-semibold", "text-danger");
+        expect(screen.getByLabelText("Name")).toHaveAccessibleDescription("Your full name Enter a name");
+    });
+
     it("announces a field error", () => {
         render(<Field label="Name" error="Enter a name">{(control) => <input {...control} />}</Field>);
         expect(screen.getByRole("alert")).toHaveTextContent("Enter a name");
@@ -65,6 +73,24 @@ describe("form components", () => {
     it("has no dark mode rule in globals.css", () => {
         const css = readFileSync("app/globals.css", "utf8");
         expect(css).not.toContain("prefers-color-scheme");
+    });
+
+    it("cuts all motion for people who ask for less, and never animates layout", () => {
+        const css = readFileSync("app/globals.css", "utf8");
+        const reduced = css.match(/@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?\n\}/)![0];
+        expect(reduced).toContain("animation-duration: 0.01ms !important");
+        expect(reduced).toContain("animation-iteration-count: 1 !important");
+        expect(reduced).toContain("transition-duration: 0.01ms !important");
+        expect(css.match(/!important/g)).toHaveLength(3);
+        expect(css).toContain("--ease-standard: cubic-bezier(0.2, 0, 0, 1)");
+        expect(css).toContain("@starting-style");
+        const transitions = css.match(/transition(-property)?:[^;]*;/g)!.join(" ");
+        expect(transitions).not.toMatch(/\b(all|height|width|margin)\b/);
+    });
+
+    it("gives buttons a soft transition and a small press only with motion allowed", () => {
+        render(<Button>Press</Button>);
+        expect(screen.getByRole("button", { name: "Press" })).toHaveClass("soft-transition", "motion-safe:active:scale-[0.985]");
     });
 
     it("keeps the h2 and h3 defaults in the base layer so size classes still win", () => {

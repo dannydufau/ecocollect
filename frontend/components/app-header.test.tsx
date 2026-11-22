@@ -248,3 +248,14 @@ it("has the bell slot and the logout button for a signed-in user", () => {
     expect(document.querySelector('[data-slot="bell"]')).not.toBeNull();
     expect(screen.getByRole("button", { name: "Log out" })).toBeInTheDocument();
 });
+
+it("the More menu rises in, still opens and closes, and gives focus back", () => {
+    signedIn(["resident"]);
+    render(<AppHeader />);
+    const { more, menu } = openMore();
+    expect(menu).toHaveClass("sheet-in");
+    expect(menu).not.toHaveAttribute("hidden");
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(menu).toHaveAttribute("hidden");
+    expect(more).toHaveFocus();
+});

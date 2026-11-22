@@ -37,11 +37,11 @@ export function FilterTabs<T extends string>({ label, options, value, onChange }
         <div className="relative min-w-0">
             {more.left && <span aria-hidden="true" data-fade="left" className={`${fade} -left-1.5 bg-gradient-to-r`} />}
             {/* The padding keeps the focus ring from being cut off by the scrolling row */}
-            <div ref={row} role="group" aria-label={label} onScroll={measure} className="relative -m-1.5 flex gap-2 overflow-x-auto p-1.5 sm:flex-wrap sm:overflow-visible">
+            <div ref={row} role="group" aria-label={label} onScroll={measure} className="relative -m-1.5 flex gap-2 overflow-x-auto p-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:overflow-visible">
                 {options.map((option) => (
                     // The chosen and focused chips sit above the fade
                     <button key={option} ref={option === value ? chosen : undefined} type="button" aria-pressed={option === value} onClick={() => onChange(option)}
-                        className={`min-h-11 shrink-0 whitespace-nowrap rounded-full border px-4 py-2 font-semibold focus-visible:relative focus-visible:z-10 ${option === value
+                        className={`soft-transition min-h-11 shrink-0 whitespace-nowrap rounded-full border px-4 py-2 font-semibold focus-visible:relative focus-visible:z-10 ${option === value
                             ? "relative z-10 border-text bg-text text-bg"
                             : "border-neutral-600 text-text hover:bg-surface"}`}>
                         {option}

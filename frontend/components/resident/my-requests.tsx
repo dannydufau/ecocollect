@@ -30,11 +30,9 @@ export default function MyRequests({ created }: { created?: string }) {
                 <h1 id="my-requests-heading" className={pageTitle}>My requests</h1>
                 <Link href="/resident/requests/new" className={linkButton}>New request</Link>
             </div>
-            {Number.isSafeInteger(count) && count > 0 && !dismissed && <div className="flex items-start gap-2">
-                <div className="min-w-0 flex-1"><Alert variant="success">{count === 1 ? "Your request was created." : `${count} requests were created.`}</Alert></div>
-                <button type="button" aria-label="Dismiss" onClick={() => setDismissed(true)}
-                    className="inline-flex size-11 flex-none items-center justify-center rounded-full text-xl hover:bg-text/10"><span aria-hidden="true">×</span></button>
-            </div>}
+            {Number.isSafeInteger(count) && count > 0 && !dismissed && <Alert variant="success" onDismiss={() => setDismissed(true)}>
+                {count === 1 ? "Your request was created." : `${count} requests were created.`}
+            </Alert>}
             <FilterTabs label="Filter requests by status" options={["All", ...statuses]} value={status ?? "All"}
                 onChange={option => setStatus(option === "All" ? undefined : option)} />
             {isPending && <Spinner label="Loading your requests..." />}
