@@ -6,7 +6,7 @@ import { PasswordInput } from "./password-input";
 
 afterEach(cleanup);
 
-it("toggles the type, aria-pressed and label", async () => {
+it("toggles the type and aria-pressed and keeps one label", async () => {
     render(<PasswordInput aria-label="Password" />);
     const field = screen.getByLabelText("Password");
     expect(field).toHaveAttribute("type", "password");
@@ -16,7 +16,7 @@ it("toggles the type, aria-pressed and label", async () => {
     expect(show.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
     await userEvent.click(show);
     expect(field).toHaveAttribute("type", "text");
-    const hide = screen.getByRole("button", { name: "Hide password" });
+    const hide = screen.getByRole("button", { name: "Show password" });
     expect(hide).toHaveAttribute("aria-pressed", "true");
     await userEvent.click(hide);
     expect(field).toHaveAttribute("type", "password");

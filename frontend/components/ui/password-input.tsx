@@ -9,7 +9,7 @@ export function PasswordInput({ className = "", ...props }: Omit<InputHTMLAttrib
     return (
         <div className="relative">
             <input {...props} type={shown ? "text" : "password"} className={`${input} pr-12 ${className}`} />
-            <button type="button" aria-pressed={shown} aria-label={shown ? "Hide password" : "Show password"} onClick={() => setShown(!shown)}
+            <button type="button" aria-pressed={shown} aria-label="Show password" onClick={() => setShown(!shown)}
                 className="absolute right-0 top-0 inline-flex size-11 items-center justify-center rounded-xl text-neutral-800 hover:bg-text/10">
                 {shown ? <EyeOffIcon className="size-5" /> : <EyeIcon className="size-5" />}
             </button>
