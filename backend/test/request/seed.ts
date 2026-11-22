@@ -1,12 +1,13 @@
-// Known values from the seed the test database is built from:
-//   docs/Final Submission/ENSF608/4. Physical model/seed.sql (loaded by load-db.sh).
+// Known values from the seed the test database is built from: backend/test/request/seed.sql
+// (the 608 seed's User and Request rows, loaded by load-db.sh --test), plus the
+// categories and facilities in db/init/011_request_seed.sql.
 // The database tests compare the API's answers with these exact values, so a
 // wrong query can't pass just by returning something.
 //
 // If seed.sql changes:
 //   1. Update the constant here; the comment above each says where in seed.sql
 //      it comes from.
-//   2. Rebuild the test database: backend/scripts/request/load-db.sh ecocollect_request_test
+//   2. Rebuild the test database: backend/scripts/request/load-db.sh --test
 //   3. Run the tests (see db.ts).
 // To test with other seed data, change only this file, not the tests.
 

@@ -12,7 +12,7 @@
 
 2. Save the Firebase Admin key as `secrets/firebase-admin.json` (see [secrets/README.md](./secrets/README.md)). Compose mounts it only into the User Service. Never commit it.
 
-3. Build the service databases (Postgres must be up: `docker compose up -d postgres`). Set `REQUEST_DB_PASSWORD` in `.env` and use the same password in `REQUEST_DATABASE_URL`, then:
+3. Set up the services' database objects (Postgres must be up: `docker compose up -d postgres`; it creates the tables from `db/init` on a new volume). Set `REQUEST_DB_PASSWORD` in `.env` and use the same password in `REQUEST_DATABASE_URL`, then load the Request Service's functions and login (rerun it after pulling new `db/request` files):
 
    ```bash
    backend/scripts/request/load-db.sh

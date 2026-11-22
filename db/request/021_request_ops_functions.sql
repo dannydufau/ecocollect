@@ -3,7 +3,6 @@
 -- table directly. Each call is its own transaction (autocommit), so the claim is
 -- committed before the network send, and the lease (claimed_until) stands in
 -- for a lock held across it.
--- Like 020, nothing here references ecocollect608, so it loads without it.
 
 -- Returns the oldest unsent event and leases it for p_lease_seconds, or a row of
 -- all NULLs when there is nothing to send right now:

@@ -1,26 +1,15 @@
 -- Request Service operational tables (schema "requests").
 -- "requests" is the Request Service's own schema (contract 2.1): these tables and
--- all of the service's functions live here. The course tables are still in
--- "ecocollect608" (the 608 physical model) until integration; then the ones this
--- service writes move into "requests" too.
--- Convention for every function in db/request/: it is created in "requests";
--- its body names the course tables WITHOUT a schema (pickup_request, not
--- ecocollect608.pickup_request) and calls the service's own functions as
--- requests.req_...; its SET search_path TO requests, ecocollect608, pg_temp
--- finds the tables.
--- At integration: create this service's course tables (pickup_request, assignment,
--- ...) in "requests" first, then change ecocollect608 to users in every
--- SET search_path line. Function bodies stay as they are.
--- These tables are outside the course's logical model (contract section 8) and
--- reference none of its tables, so this file loads with or without the course
--- schema. The service reaches them only through functions, never directly.
+-- all of the service's functions live here, next to the course tables the service
+-- writes (pickup_request, assignment, ...), which db/init/010_request_tables.sql
+-- creates. 
 
 CREATE SCHEMA IF NOT EXISTS requests;
 
 -- One row per event waiting to be published. A write function inserts it (through
 -- req_enqueue_event) in the same transaction as the change it describes.
 -- Plain columns, no JSON: the publisher (TypeScript) builds the contract 10.1
--- envelope from them at send time. Column types copy the ecocollect608 columns
+-- envelope from them at send time. Column types copy the course table columns
 -- they come from. Columns an event doesn't use are NULL (contract 10.3 lists
 -- which fields each event carries).
 CREATE TABLE IF NOT EXISTS requests.outbox (

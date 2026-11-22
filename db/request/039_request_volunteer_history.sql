@@ -40,7 +40,7 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql
 STABLE
-SET search_path TO requests, ecocollect608, pg_temp
+SET search_path TO requests, users, pg_temp
 AS $$
 DECLARE
     k_assignment_active    CONSTANT TEXT := 'Active';      -- assignment status (no column)

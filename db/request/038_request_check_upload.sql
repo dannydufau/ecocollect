@@ -25,7 +25,7 @@ CREATE OR REPLACE FUNCTION requests.req_check_upload(
 RETURNS TEXT
 LANGUAGE plpgsql
 STABLE
-SET search_path TO requests, ecocollect608, pg_temp
+SET search_path TO requests, users, pg_temp
 AS $$
 DECLARE
     k_code_ok          CONSTANT TEXT := 'ok';
