@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { once } from 'node:events';
 import type { AddressInfo } from 'node:net';
+import { setTimeout as delay } from 'node:timers/promises';
 import { test } from 'node:test';
 import express from 'express';
 import { createPool } from '../../src/user/db/pool.ts';
@@ -19,6 +20,7 @@ async function start(t, database) {
   return async (body: object, id?: string) => {
     const response = await fetch(`http://127.0.0.1:${(server.address() as AddressInfo).port}/api/profile`, {
       method: 'PATCH',
+      signal: AbortSignal.timeout(8000),
       headers: { 'Content-Type': 'application/json', 'X-Request-Id': 'profile-edit-test',
         ...(id ? { 'X-User-Id': id, 'X-User-Roles': 'resident,volunteer' } : {}) },
       body: JSON.stringify(body),
@@ -83,11 +85,51 @@ test('the shared schema enforces role and latest request state, and the event om
       assert.equal(locked[0], 409);
       assert.equal(locked[1].error.code, 'address_locked');
     }
-    const edited = await patch({ publicName: 'New Name', preferredPostalCodes: ['T3A0B1'] }, dual);
-    assert.equal(edited[0], 200);
-    assert.equal(edited[1].publicName, 'New Name');
-    assert.deepEqual(edited[1].preferredPostalCodes, ['T3A0B1']);
-    assert.deepEqual(edited[1].address, { street: '123 Old St', postalCode: 'T2P1J9', city: 'Calgary' });
+    await state('Cancelled');
+    const creator = await pool.connect();
+    let addressEdit: ReturnType<typeof patch> | undefined;
+    try {
+      await creator.query('BEGIN');
+      await creator.query("SELECT pg_advisory_xact_lock(hashtext('address:' || $1))", [dual]);
+      const edited = await patch({ publicName: 'New Name', preferredPostalCodes: ['T3A0B1'] }, dual);
+      assert.equal(edited[0], 200);
+      assert.equal(edited[1].publicName, 'New Name');
+      assert.deepEqual(edited[1].preferredPostalCodes, ['T3A0B1']);
+      assert.deepEqual(edited[1].address, { street: '123 Old St', postalCode: 'T2P1J9', city: 'Calgary' });
+      await creator.query(
+        "INSERT INTO requests.status_change (pickup_request_id, changed_at, status) VALUES ($1, clock_timestamp(), 'Open')",
+        [pickup],
+      );
+      addressEdit = patch({ address }, dual);
+      // Observe the real PostgreSQL wait before committing the simulated Request transaction.
+      const deadline = Date.now() + 4000;
+      for (;;) {
+        const { rows: [{ waiting }] } = await pool.query(
+          `SELECT EXISTS (
+             SELECT 1 FROM pg_locks
+             WHERE locktype = 'advisory' AND NOT granted AND pg_backend_pid() <> pid
+               AND database = (SELECT oid FROM pg_database WHERE datname = current_database())
+               AND objsubid = 1
+               AND classid::bigint = ((hashtext('address:' || $1)::bigint >> 32) & 4294967295)
+               AND objid::bigint = (hashtext('address:' || $1)::bigint & 4294967295)
+           ) AS waiting`, [dual],
+        );
+        if (waiting) break;
+        assert.ok(Date.now() < deadline, 'the address edit should wait for the Request transaction');
+        await delay(25);
+      }
+      await creator.query('COMMIT');
+    } catch (error) {
+      await creator.query('ROLLBACK');
+      await addressEdit?.catch(() => {});
+      throw error;
+    } finally {
+      creator.release();
+    }
+    if (!addressEdit) assert.fail('expected an address edit');
+    const afterCreate = await addressEdit;
+    assert.equal(afterCreate[0], 409);
+    assert.equal(afterCreate[1].error.code, 'address_locked');
     await state('Cancelled');
     const unlocked = await patch({ address, preferredPostalCodes: [] }, dual);
     assert.equal(unlocked[0], 200);

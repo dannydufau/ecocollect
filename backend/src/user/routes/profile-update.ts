@@ -8,6 +8,8 @@ import { loadProfile } from '../db/profile.ts';
 import { HttpError } from '../http/errors.ts';
 import { validateProfileEdit } from '../validation/profile-edit.ts';
 
+const addressLockPrefix = 'address:';
+
 export function register(app: Express, {
   database = getPool, auth = firebase.getFirebaseAuth,
 }: { database?: () => Pick<Pool, 'connect'>; auth?: () => Parameters<typeof loadProfile>[1] } = {}): void {
@@ -34,8 +36,12 @@ export function register(app: Express, {
       if (preferredPostalCodes && !membership.volunteer) {
         throw new HttpError(403, 'role_required', 'The volunteer role is required to change preferred postal codes.');
       }
-      if (address && await hasOpenOrAssignedRequest(client, accountId)) {
-        throw new HttpError(409, 'address_locked', 'Your address is locked while you have an Open or Assigned request.');
+      if (address) {
+        // Request creation takes the same lock before copying the resident address.
+        await client.query('SELECT pg_advisory_xact_lock(hashtext($1 || $2))', [addressLockPrefix, accountId]);
+        if (await hasOpenOrAssignedRequest(client, accountId)) {
+          throw new HttpError(409, 'address_locked', 'Your address is locked while you have an Open or Assigned request.');
+        }
       }
       if (publicName !== undefined) {
         await client.query('UPDATE users.account SET public_name = $2 WHERE account_id = $1', [accountId, publicName]);
