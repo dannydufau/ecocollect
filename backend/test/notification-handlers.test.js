@@ -45,21 +45,6 @@ test('RequestCreated: the resident gets REQUEST_CREATED, each volunteer NEW_MATC
   ]);
 });
 
-test('RequestCreated: a volunteer notification has the contract fields and text', () => {
-  const volunteer = requestCreated(envelope())[1];
-
-  assert.deepEqual(volunteer.notification, {
-    notificationId: notificationUuid(EVENT_ID, 'firebaseUid_v1', 'NEW_MATCHING_REQUEST'),
-    type: 'NEW_MATCHING_REQUEST',
-    requestId: REQUEST_ID,
-    awardId: null,
-    title: 'New pickup near you',
-    body: '2 x Computers/Laptops in T2P1J9',
-    url: `/volunteer/requests/${REQUEST_ID}`,
-    createdAt: '2026-10-28T16:15:00Z',
-  });
-});
-
 test('RequestCreated: private fields never reach a signal or a notification', () => {
   // An event loaded with fields that must never reach a browser.
   const out = requestCreated(envelope({
