@@ -11,4 +11,4 @@ COPY src ./src
 
 # The node image ships a non-root user; no reason to run as root.
 USER node
-CMD ["node", "src/api/server.js"]
+# No CMD: every service built from this image sets its own command in docker-compose.yml.

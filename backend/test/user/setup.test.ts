@@ -10,7 +10,7 @@ const caddy = readFileSync(new URL('../../../infra/caddy/Caddyfile', import.meta
 
 test('Compose runs the User Service internally from the existing backend image', () => {
   const user = compose.services.user;
-  assert.deepEqual(user.build, compose.services.backend.build);
+  assert.deepEqual(user.build, { context: './backend' });
   assert.deepEqual(user.command, ['node', 'src/user/index.ts']);
   assert.equal(user.ports, undefined);
   assert.equal(user.environment.PORT, '80');
