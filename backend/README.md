@@ -51,17 +51,27 @@ Awards EcoPoints when a request is delivered (`RequestAssignmentDelivered`) or t
 | `GET /api/public/stats` | no | Community totals: deliveries, items, estimated weight and points awarded, also grouped by waste type. |
 | `GET /api/public/profiles/:accountId/stats` | no | The account's total EcoPoints. An unknown account returns `0`. |
 
-Each award is one `ecopoints_award` row plus one `resident_award` or `volunteer_award` row. The account is not stored on the award; it is found through the assignment's terms acceptance (contract section 8). The `rewards` schema holds `outbox` and `processed_events`, so a repeated event is skipped.
+Each award is one `ecopoints_award` row plus one `resident_award` or `volunteer_award` row, in schema `rewards` (`db/init/012_reward_tables.sql`). The account is not stored on the award; it is found through the assignment's terms acceptance in `requests` and `users` (contract section 8). `db/reward/` holds `outbox`, `processed_events` and the `ecocollect_reward` login, so a repeated event is skipped.
 
-Until integration the service has its own database, `ecocollect_reward`, built from the 608 physical model (tables and seed, schema `ecocollect608`) and `db/reward/`. Build it once, and again after the model changes. The script recreates only that database:
+Load the Reward objects into the shared `ecocollect` database. Nothing is dropped, so run it again after every pull:
 
 ```bash
 docker compose up -d postgres
-REWARD_DB_PASSWORD=change_me backend/scripts/reward/load-db.sh
+backend/scripts/reward/load-db.sh
 docker compose up -d reward
 ```
 
-Use the same password in `REWARD_DATABASE_URL` in `.env`. To run it outside Compose, set `DATABASE_URL` to the same login on `localhost` and `RABBITMQ_URL`, then run `node src/reward/index.js` from `backend/`. `PORT` defaults to `3005`.
+The script reads `REWARD_DB_PASSWORD` from `.env`; use the same password in `REWARD_DATABASE_URL`.
+
+Without Compose, run `node src/reward/index.js` from `backend/` with `DATABASE_URL` and `RABBITMQ_URL` set. `PORT` defaults to `3005`.
+
+To run the store tests, build the test database from the repo root, then run the tests from `backend/`:
+
+```bash
+backend/scripts/reward/load-db.sh --test
+cd backend
+TEST_DATABASE_URL=postgres://ecocollect:change_me@localhost:5432/ecocollect_reward_test node --test test/reward-store.test.js
+```
 
 ## Run it
 

@@ -31,9 +31,10 @@ function assignmentDelivered(event) {
   const { request, assignment } = event.data;
   const points = deliveryPoints(request.quantity, request.estimatedWeightKg);
 
-  const awards = [
+    const awards = [
     { awardId: randomUUID(), accountId: assignment.volunteerUid, earnedAs: 'volunteer', points: points.volunteer, formula: VOLUNTEER_FORMULA },
-    { awardId: randomUUID(), accountId: request.residentUid, earnedAs: 'resident', points: points.resident, formula: RESIDENT_FORMULA },  ];
+    { awardId: randomUUID(), accountId: request.residentUid, earnedAs: 'resident', points: points.resident, formula: RESIDENT_FORMULA },
+  ];
 
   return {
     assignmentId: assignment.assignmentId,

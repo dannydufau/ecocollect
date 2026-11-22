@@ -9,14 +9,14 @@ const RESIDENT_FORMULA = '(3 * quantity + 4 * estimatedWeightKg) / 2';
 
 
 function toHundredths(value) {
-    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
-        throw new Error(`expected a non-negative number, got ${value}`);
-    }
-    const hundreths = Math.round(value * 100);
-if (Math.abs(value * 100 - hundreths) > 1e-6) {
-    throw new Error (`expected at mostt 2 decimals, got ${value}`);
-}
-    return hundreths;
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    throw new Error(`expected a non-negative number, got ${value}`);
+  }
+  const hundredths = Math.round(value * 100);
+  if (Math.abs(value * 100 - hundredths) > 1e-6) {
+    throw new Error(`expected at most 2 decimals, got ${value}`);
+  }
+  return hundredths;
 }
 
 function volunteerHundredths(quantity, estimatedWeightKg) {

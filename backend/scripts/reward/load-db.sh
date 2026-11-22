@@ -1,22 +1,38 @@
-#!/usr/bin/env bash
-# Builds the Reward Service database inside the Compose "postgres" container:
-#   1. drops and recreates the database
-#   2. loads the 608 physical model with its seed (schema ecocollect608)
-#   3. loads every db/reward/*.sql file in name order
-#   4. sets the ecocollect_reward password from REWARD_DB_PASSWORD
+# Loads the Reward Service tables and login into the Compose Postgres (contract 2.1).
 #
-# Usage, from any folder, with Postgres running (docker compose up -d postgres):
-#   REWARD_DB_PASSWORD=... backend/scripts/reward/load-db.sh                    # ecocollect_reward
-#   REWARD_DB_PASSWORD=... backend/scripts/reward/load-db.sh ecocollect_reward_test
+#   backend/scripts/reward/load-db.sh          # shared database "ecocollect", nothing dropped
+#   backend/scripts/reward/load-db.sh --test   # rebuilds "ecocollect_reward_test" with test/reward-seed.sql
+#
+# Reads REWARD_DB_PASSWORD from the environment, else from .env.
 set -euo pipefail
 
-DB="${1:-ecocollect_reward}"
-: "${REWARD_DB_PASSWORD:?set REWARD_DB_PASSWORD, see .env.example}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-MODEL_DIR="$ROOT/docs/Final Submission/ENSF608/4. Physical model"
 
-if [[ ! "$DB" =~ ^[a-z_][a-z0-9_]*$ ]] || [[ "$DB" == "ecocollect" || "$DB" == "postgres" ]]; then
-  echo "load-db: refusing database name '$DB'" >&2
+TEST=false
+DB=ecocollect
+if [[ "${1:-}" == "--test" ]]; then
+  TEST=true
+  DB="${2:-ecocollect_reward_test}"
+elif [[ $# -gt 0 ]]; then
+  echo "load-db: unknown argument '$1' (use --test [name])" >&2
+  exit 1
+fi
+
+if [[ ! "$DB" =~ ^[a-z_][a-z0-9_]*$ ]]; then
+  echo "load-db: invalid database name '$DB'" >&2
+  exit 1
+fi
+if [[ "$TEST" == true && ( "$DB" == "ecocollect" || "$DB" == "postgres" ) ]]; then
+  echo "load-db: refusing to drop '$DB'" >&2
+  exit 1
+fi
+
+PW="${REWARD_DB_PASSWORD:-}"
+if [[ -z "$PW" && -f "$ROOT/.env" ]]; then
+  PW="$(grep '^REWARD_DB_PASSWORD=' "$ROOT/.env" | cut -d= -f2- || true)"
+fi
+if [[ -z "$PW" ]]; then
+  echo "load-db: REWARD_DB_PASSWORD is not set (see .env.example)" >&2
   exit 1
 fi
 
@@ -25,16 +41,25 @@ psql_in() {
     sh -c 'exec psql -X -q -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" "$@"' psql "$@"
 }
 
-echo "load-db: recreating database $DB"
-psql_in -d postgres -c "DROP DATABASE IF EXISTS $DB WITH (FORCE)" -c "CREATE DATABASE $DB"
+load() {
+  local f
+  for f in "$@"; do
+    echo "load-db: ${f#"$ROOT"/}"
+    psql_in -d "$DB" < "$f"
+  done
+}
 
-for f in "$MODEL_DIR/tables.sql" "$MODEL_DIR/transactions.sql" "$MODEL_DIR/seed.sql" "$ROOT"/db/reward/*.sql; do
-  echo "load-db: ${f##*/}"
-  psql_in -d "$DB" < "$f"
-done
+if [[ "$TEST" == true ]]; then
+  echo "load-db: recreating database $DB"
+  psql_in -d postgres -c "DROP DATABASE IF EXISTS $DB WITH (FORCE)" -c "CREATE DATABASE $DB"
+  load "$ROOT"/db/init/*.sql "$ROOT"/db/reward/*.sql "$ROOT/backend/test/reward-seed.sql"
+else
+  load "$ROOT/db/init/010_request_tables.sql" "$ROOT/db/init/011_request_seed.sql" \
+    "$ROOT/db/init/012_reward_tables.sql" "$ROOT"/db/reward/*.sql
+fi
 
 echo "load-db: setting the ecocollect_reward password"
 printf '%s\n' "SELECT format('ALTER ROLE ecocollect_reward LOGIN PASSWORD %L', :'pw') \\gexec" \
-  | psql_in -d "$DB" -v pw="$REWARD_DB_PASSWORD"
+  | psql_in -d "$DB" -v pw="$PW"
 
 echo "load-db: done"

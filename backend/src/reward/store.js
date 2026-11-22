@@ -1,10 +1,10 @@
 'use strict';
 
 // Reward Service data access: saving awards (contract 15.1 to 15.4) and the R1 to R3 reads (15.5).
-// Awards live in the 608 course tables until integration, then in "rewards".
+// Awards are written to "rewards"; assignments and requests are read from "requests",
+// terms acceptances from "users" (contract 8).
 
-const COURSE = 'ecocollect608';
-const ROLE_TABLE = { volunteer: 'volunteer_award', resident: 'resident_award' };
+const ROLE_TABLE = { volunteer: 'rewards.volunteer_award', resident: 'rewards.resident_award' };
 
 // Runs work(db) in a transaction.
 async function inTransaction(pool, work) {
@@ -36,16 +36,16 @@ function saveResult(pool, eventId, result) {
 
     let saved = 0;
     for (const award of result.awards) {
-      const roleTable = `${COURSE}.${ROLE_TABLE[award.earnedAs]}`;
+      const roleTable = ROLE_TABLE[award.earnedAs];
       const existing = await db.query(
-        `SELECT 1 FROM ${COURSE}.ecopoints_award a JOIN ${roleTable} r USING (ecopoints_award_id)
+        `SELECT 1 FROM rewards.ecopoints_award a JOIN ${roleTable} r USING (ecopoints_award_id)
          WHERE a.assignment_id = $1`,
         [result.assignmentId],
       );
       if (existing.rowCount > 0) continue;
 
       await db.query(
-        `INSERT INTO ${COURSE}.ecopoints_award (ecopoints_award_id, assignment_id, points, formula) VALUES ($1, $2, $3, $4)`,
+        `INSERT INTO rewards.ecopoints_award (ecopoints_award_id, assignment_id, points, formula) VALUES ($1, $2, $3, $4)`,
         [award.awardId, result.assignmentId, award.points, award.formula],
       );
       await db.query(`INSERT INTO ${roleTable} (ecopoints_award_id) VALUES ($1)`, [award.awardId]);
@@ -70,14 +70,14 @@ const AWARDS = `
          CASE WHEN asg.end_reason = 'Resident_Cancelled' THEN 'CANCELLATION' ELSE 'DELIVERY' END AS kind,
          asg.ended_at, pr.pickup_request_id, pr.quantity, pr.estimated_weight_kg,
          ic.name AS category_name, ic.waste_type
-  FROM ${COURSE}.ecopoints_award a
-  LEFT JOIN ${COURSE}.volunteer_award v ON v.ecopoints_award_id = a.ecopoints_award_id
-  JOIN ${COURSE}.assignment asg ON asg.assignment_id = a.assignment_id
-  JOIN ${COURSE}.terms_acceptance vta ON vta.terms_acceptance_id = asg.terms_acceptance_id
-  JOIN ${COURSE}.pickup_window pw ON pw.pickup_window_id = asg.pickup_window_id
-  JOIN ${COURSE}.pickup_request pr ON pr.pickup_request_id = pw.pickup_request_id
-  JOIN ${COURSE}.terms_acceptance rta ON rta.terms_acceptance_id = pr.terms_acceptance_id
-  JOIN ${COURSE}.item_category ic ON ic.category_id = pr.category_id`;
+  FROM rewards.ecopoints_award a
+  LEFT JOIN rewards.volunteer_award v ON v.ecopoints_award_id = a.ecopoints_award_id
+  JOIN requests.assignment asg ON asg.assignment_id = a.assignment_id
+  JOIN users.terms_acceptance vta ON vta.terms_acceptance_id = asg.terms_acceptance_id
+  JOIN requests.pickup_window pw ON pw.pickup_window_id = asg.pickup_window_id
+  JOIN requests.pickup_request pr ON pr.pickup_request_id = pw.pickup_request_id
+  JOIN users.terms_acceptance rta ON rta.terms_acceptance_id = pr.terms_acceptance_id
+  JOIN requests.item_category ic ON ic.category_id = pr.category_id`;
 
 // R1: the account's totals and awards, newest first.
 async function getEcopoints(pool, accountId) {
@@ -124,7 +124,7 @@ async function getPublicStats(pool) {
      GROUP BY waste_type ORDER BY waste_type`,
   );
   const totals = await pool.query(
-    `SELECT COALESCE(SUM(points), 0) AS points, now() AS updated_at FROM ${COURSE}.ecopoints_award`,
+    `SELECT COALESCE(SUM(points), 0) AS points, now() AS updated_at FROM rewards.ecopoints_award`,
   );
   // Weights are added in hundredths so the total stays exact.
   const sum = (toNumber) => rows.reduce((total, r) => total + toNumber(r), 0);

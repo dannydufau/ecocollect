@@ -1,6 +1,6 @@
 -- Reward Service operational tables and login (contract 2.1, 8 and 9).
--- Loaded by backend/scripts/reward/load-db.sh after the 608 physical model,
--- whose ecopoints_award, resident_award and volunteer_award tables hold the awards.
+-- Loaded by backend/scripts/reward/load-db.sh after db/init, where
+-- 012_reward_tables.sql creates the award tables. Safe to run again.
 
 CREATE SCHEMA IF NOT EXISTS rewards;
 
@@ -25,8 +25,7 @@ CREATE TABLE IF NOT EXISTS rewards.processed_events (
     processed_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Service login: writes its own schema and the award tables, reads all schemas.
--- The password is set by backend/scripts/reward/load-db.sh.
+-- Service login: writes its own schema, reads all schemas.
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ecocollect_reward') THEN
@@ -35,6 +34,5 @@ BEGIN
 END $$;
 
 GRANT pg_read_all_data TO ecocollect_reward;
-GRANT USAGE ON SCHEMA rewards, ecocollect608 TO ecocollect_reward;
+GRANT USAGE ON SCHEMA rewards, requests, users TO ecocollect_reward;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA rewards TO ecocollect_reward;
-GRANT INSERT ON ecocollect608.ecopoints_award, ecocollect608.resident_award, ecocollect608.volunteer_award TO ecocollect_reward;
