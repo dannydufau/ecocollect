@@ -176,3 +176,9 @@ it("Alert only has a Dismiss button with onDismiss, outside the live region", ()
     fireEvent.click(dismiss);
     expect(onDismiss).toHaveBeenCalledOnce();
 });
+
+it("ConfirmDialog rises in and Alert fades in", () => {
+    const { container } = render(<><ConfirmDialog open title="T" confirmLabel="OK" onConfirm={vi.fn()} onCancel={vi.fn()}>Body</ConfirmDialog><Alert variant="info">Hi</Alert></>);
+    expect(container.querySelector("dialog")).toHaveClass("rise-in");
+    expect(screen.getByRole("status").parentElement).toHaveClass("fade-in");
+});
