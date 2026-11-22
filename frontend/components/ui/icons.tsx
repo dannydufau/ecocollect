@@ -31,6 +31,11 @@ export const CameraIcon = (props: Props) => <Icon {...props}>
     <path d="M4 8h3l1.5-2.5h7L17 8h3a1 1 0 0 1 1 1v9.5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" /><circle cx="12" cy="13.5" r="3.5" />
 </Icon>;
 
+export const CameraOffIcon = (props: Props) => <Icon {...props}>
+    <path d="M3 3l18 18M9.5 5.5h6L17 8h3a1 1 0 0 1 1 1v8M18 19.5H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1h3" />
+    <path d="M9.6 11.2a3.5 3.5 0 0 0 4.9 4.9" />
+</Icon>;
+
 export const TruckIcon = (props: Props) => <Icon {...props}>
     <path d="M2.5 6.5h11v10h-11zM13.5 10h4l3 3.5v3h-7" /><circle cx="6.5" cy="18" r="1.75" /><circle cx="17" cy="18" r="1.75" />
 </Icon>;

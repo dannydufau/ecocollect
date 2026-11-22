@@ -46,7 +46,7 @@ export default function StatsPage() {
                     </dl>
                     <section className="overflow-hidden rounded-2xl border border-border bg-surface-elevated shadow-rest" aria-labelledby="waste-types">
                         <h2 id="waste-types" className="p-4">By waste type</h2>
-                        {!data.byWasteType.length ? <EmptyState title="No deliveries yet." /> : (
+                        {!data.byWasteType.length ? <EmptyState bare title="No deliveries yet." /> : (
                             <div className="overflow-x-auto"><table className="w-full text-left text-sm sm:text-[15px]">
                                 <caption className="sr-only">Deliveries by waste type</caption>
                                 <thead className="bg-surface text-neutral-800">
