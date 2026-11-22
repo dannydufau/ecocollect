@@ -59,6 +59,7 @@ test('role activation persists both directions, serializes duplicates and rolls 
   const accounts = Array.from({ length: 3 }, () => 'roles-' + randomUUID());
   const [residentId, volunteerId, failingId] = accounts;
   const claims = [];
+  const appliedRoles = new Map<string, string[]>();
   const failure = t.mock.method(console, 'error', () => {});
   const post = await start(t, () => ({
     connect: async () => {
@@ -74,7 +75,8 @@ test('role activation persists both directions, serializes duplicates and rolls 
       claims.push([uid, value]);
       const result = await pool.query('SELECT 1 FROM users.outbox WHERE aggregate_id = $1', [uid]);
       assert.equal(result.rowCount, 0, 'the relay cannot see the event during the claims call');
-      if (uid === failingId) throw new Error('Claims failed');
+      appliedRoles.set(uid, value.roles);
+      if (uid === failingId && value.roles.length === 2) throw new Error('Claims applied but response timed out');
     },
   });
   try {
@@ -105,7 +107,9 @@ test('role activation persists both directions, serializes duplicates and rolls 
       [residentId, { roles: ['resident', 'volunteer'] }],
       [volunteerId, { roles: ['volunteer', 'resident'] }],
       ...Array.from({ length: 3 }, () => [failingId, { roles: ['resident', 'volunteer'] }]),
+      [failingId, { roles: ['resident'] }],
     ]);
+    assert.deepEqual(appliedRoles.get(failingId), ['resident']);
 
     const profileAuth = { getUser: async () => ({ email: 'test@example.com' }) };
     const residentProfile = await loadProfile(pool, profileAuth, residentId);

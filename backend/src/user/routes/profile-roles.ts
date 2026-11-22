@@ -116,7 +116,18 @@ async function activateRole(pool: Pick<Pool, 'connect'>, auth: () => Auth, accou
       data: { accountId, changed: ['roles'], publicName: account.public_name, roles },
     });
     // Keep the event invisible to the publisher and the acceptance rollbackable until Firebase confirms.
-    await setRoles(auth(), accountId, roles);
+    const firebaseAuth = auth();
+    try {
+      await setRoles(firebaseAuth, accountId, roles);
+    } catch (error) {
+      // A timed-out attempt may have applied the claims. Restore them while the account is locked.
+      try {
+        await setRoles(firebaseAuth, accountId, [oldRole]);
+      } catch (restoreError) {
+        console.error('Could not restore the original Firebase role:', restoreError);
+      }
+      throw error;
+    }
     committing = true;
     await client.query('COMMIT');
     return roles;
