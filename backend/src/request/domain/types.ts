@@ -325,3 +325,7 @@ export type GetDetailRow = {
   allowed_actions: string[];
   refresh_at: Date | null;
 };
+
+export type ExpireRow = {
+  result_code: 'duplicate' | 'request_unavailable' | 'not_open' | 'not_due' | 'expired';
+};

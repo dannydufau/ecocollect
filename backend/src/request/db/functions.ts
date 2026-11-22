@@ -4,7 +4,7 @@ import type pg from 'pg';
 import type {
   AcceptInput, AcceptRow, CancelAssignmentInput, CancelAssignmentRow, CancelInput, CancelRow, CategoryRow, ConfirmCollectedInput, ConfirmCollectedRow, CreateRequestsInput,
   CreateRequestsRow, FacilityRow, GetDetailRow, GetRequestsRow, ListAvailableRow, ListMineRow,
-  RecordDeliveryInput, RecordDeliveryRow, ReportMissedInput, ReportMissedRow, EditInput, EditRow,
+  RecordDeliveryInput, RecordDeliveryRow, ReportMissedInput, ReportMissedRow, EditInput, EditRow, ExpireRow,
   VolunteerHistoryRow,
 } from '../domain/types.ts';
 import type { PhotoPurpose } from '../imagekit/photos.ts';
@@ -159,6 +159,15 @@ export async function edit(pool: pg.Pool, input: EditInput): Promise<EditRow> {
        $1::uuid, $2, $3::text[], $4, $5::int, $6, $7::date[], $8::smallint[], $9, $10, $11, $12)`,
     [input.requestId, input.residentId, input.sent, input.categoryId, input.quantity, input.notes,
      input.dates, input.hours, input.fileId, input.filePath, input.demo, input.traceId]);
+  // a function with OUT parameters always returns exactly one row, so the ! (not-null assertion) is safe.
+  return rows[0]!;
+}
+
+// CleanupRequest. One call records the message's event id, then expires the
+// request if it is still Open and overdue (RequestExpired).
+export async function expire(pool: pg.Pool, requestId: string, eventId: string): Promise<ExpireRow> {
+  const { rows } = await pool.query<ExpireRow>(
+    'SELECT * FROM requests.req_expire($1::uuid, $2::uuid)', [requestId, eventId]);
   // a function with OUT parameters always returns exactly one row, so the ! (not-null assertion) is safe.
   return rows[0]!;
 }
