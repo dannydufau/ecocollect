@@ -15,12 +15,13 @@ const ACCOUNT_KEY = "e2e-account";
 
 // Stands in for the Firebase auth object. The mock API reads the token as the account id, so the id is the token.
 export function fakeAuth(): Auth {
+  // An empty account ID keeps guest routes signed out during browser tests.
   const accountId = sessionStorage.getItem(ACCOUNT_KEY) ?? "demo-resident-1";
   const listeners = new Set<(user: User | null) => void>();
   let current: User | null = null;
 
   // The mock's profile has the roles. A real login gets them from the token claims.
-  const ready = fetch("/api/profile", { headers: { Authorization: `Bearer ${accountId}` } })
+  const ready = accountId === "" ? Promise.resolve() : fetch("/api/profile", { headers: { Authorization: `Bearer ${accountId}` } })
     .then((res) => {
       if (!res.ok) throw new Error(`the mock does not know ${accountId} (${res.status})`);
       return res.json();
