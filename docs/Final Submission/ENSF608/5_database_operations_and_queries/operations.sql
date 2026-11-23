@@ -472,3 +472,45 @@ JOIN assignment a ON a.assignment_id = e.assignment_id
 JOIN terms_acceptance ta ON ta.terms_acceptance_id = a.terms_acceptance_id
 GROUP BY ta.account_id
 ORDER BY points DESC, account_id;
+
+-- 11. Stored procedures
+
+-- P1. mark_all_read: mark all of an account's notifications as read.
+--    Rationale: the "mark all as read" action in the notification list (FR19).
+--    Citation:  FR19 · App (#103): notification-store.js markAllRead (l.120), same UPDATE
+--    Concepts:  stored procedure, IN parameter, UPDATE ... FROM (multi-table update), CALL
+--    Mandate:   Lecture 12 §3: data changes encapsulated in stored procedures, called with
+--               CALL. Postgres form: $$ body instead of DELIMITER, LANGUAGE plpgsql.
+DROP PROCEDURE IF EXISTS mark_all_read(VARCHAR);
+
+CREATE PROCEDURE mark_all_read(IN p_account_id VARCHAR(50))
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    UPDATE notification n
+    SET is_read = TRUE
+    FROM request_notification rn
+    WHERE n.notification_id = rn.notification_id
+      AND rn.account_id = p_account_id
+      AND NOT n.is_read;
+END;
+$$;
+
+-- Demo: before, CALL, after (rolled back).
+BEGIN;
+
+SELECT n.type, n.is_read
+FROM request_notification rn
+JOIN notification n ON n.notification_id = rn.notification_id
+WHERE rn.account_id = 'resident1'
+ORDER BY n.created_at DESC;
+
+CALL mark_all_read('resident1');
+
+SELECT n.type, n.is_read
+FROM request_notification rn
+JOIN notification n ON n.notification_id = rn.notification_id
+WHERE rn.account_id = 'resident1'
+ORDER BY n.created_at DESC;
+
+ROLLBACK;
