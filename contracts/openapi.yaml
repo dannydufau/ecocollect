@@ -1823,6 +1823,7 @@ components:
             (the original `createdAt` when editing). Times are decided in Calgary time with the database clock.
         notes:
           type: string
+          maxLength: 500
         termsDocumentId:
           description: Use the current terms UUID returned by U5. Check before database casts; malformed, unknown or outdated IDs return 409 terms_outdated.
           type: string
@@ -2242,6 +2243,7 @@ components:
           type:
             - string
             - 'null'
+          maxLength: 500
         windows:
           type: array
           minItems: 1

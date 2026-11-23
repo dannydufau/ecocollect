@@ -1,11 +1,9 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { skip, openPool, addFixtures, removeFixtures } = require('./db');
-const { createStore } = require('../src/api/requests/store');
+const { randomUUID } = require('node:crypto');
+const { skip, openPool } = require('./db');
 const { publishNext, sendConfirmed } = require('../src/messaging/outbox');
 const { exchange } = require('../src/messaging/topology');
-
-const windows = [{ date: '2030-01-15', startHour: 14 }];
 
 // Stands in for the broker's channel: confirms (or refuses) every message it is given.
 function fakeChannel({ refuse } = {}) {
@@ -74,15 +72,24 @@ test('publishNext refuses a table name that is not a plain name, before any SQL 
 
 test('the outbox', { skip }, async (t) => {
   const pool = openPool();
-  const fx = await addFixtures(pool);
-  const store = createStore(pool);
-  const make = () => store.createRequests({ uid: fx.resident.uid, items: [{ categoryId: 'laptops', quantity: 1 }], windows }).then(([r]) => r.requestId);
+  const made = [];
+  // Adds one unsent RequestCreated event for a new request id, and returns that id.
+  const make = async () => {
+    const requestId = randomUUID();
+    await pool.query(
+      `INSERT INTO outbox (event_type, routing_key, aggregate_id, payload)
+       VALUES ('RequestCreated', 'request.created', $1, $2)`,
+      [requestId, { type: 'RequestCreated', data: { requestId } }],
+    );
+    made.push(requestId);
+    return requestId;
+  };
   const status = async (requestId) =>
     (await pool.query('SELECT published_at FROM outbox WHERE aggregate_id = $1', [requestId])).rows[0].published_at;
   // Leftover events would get in the way, so mark them as done first. Use a scratch database for these tests.
   await pool.query('UPDATE outbox SET published_at = now() WHERE published_at IS NULL');
   t.after(async () => {
-    await removeFixtures(pool, fx.uids);
+    await pool.query('DELETE FROM outbox WHERE aggregate_id = ANY($1)', [made]);
     await pool.end();
   });
 
