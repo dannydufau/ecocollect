@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Button } from "./button";
 import { AlertIcon, CheckIcon, InfoIcon, WarningIcon } from "./icons";
 
@@ -16,23 +16,17 @@ const styles: Record<Variant, { box: string; lead: string; Icon: typeof AlertIco
     info: { box: "border-neutral-400 bg-info-tint text-text-muted", lead: "Note.", Icon: InfoIcon },
 };
 
-export function Alert({ variant, children, error, scrollIntoView = false, onDismiss }: {
+export function Alert({ variant, children, error, onDismiss }: {
     variant: Variant;
     children?: ReactNode;
     error?: Error | { message?: string } | string;
-    scrollIntoView?: boolean;
     onDismiss?: () => void;
 }) {
-    const ref = useRef<HTMLDivElement>(null);
     const message = typeof error === "string" ? error : error?.message;
     const { box, lead, Icon } = styles[variant];
 
-    useEffect(() => {
-        if (scrollIntoView) ref.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    }, [scrollIntoView, children, message]);
-
     return (
-        <div ref={ref} className={`fade-in flex items-start gap-2.5 rounded-2xl border px-4 py-3 text-small leading-snug ${box}`}>
+        <div className={`fade-in flex items-start gap-2.5 rounded-2xl border px-4 py-3 text-small leading-snug ${box}`}>
             <Icon className="mt-px size-5 flex-none" />
             {/* The live region leaves out the Dismiss button, so it is not read with the message */}
             <div role={variant === "error" ? "alert" : "status"} className="min-w-0 flex-1 self-center">
