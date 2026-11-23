@@ -30,14 +30,14 @@ export default function TermsCheckbox({ value, onChange }: Props) {
                 role="region"
                 aria-label="Terms and safety guidelines"
                 tabIndex={0}
-                className="max-h-56 overflow-y-auto whitespace-pre-wrap rounded-xl border border-border-strong bg-neutral-100 px-4 py-3 text-sm leading-normal text-text-muted"
+                className="max-h-56 overflow-y-auto whitespace-pre-wrap rounded-xl border border-border-strong bg-surface px-4 py-3 text-sm leading-normal text-text-muted"
             >
                 {data.content}
             </div>
             <label className="flex min-h-11 items-center gap-2.5">
                 <input
                     type="checkbox"
-                    className="h-5 w-5 flex-none accent-accent"
+                    className="size-6 flex-none accent-accent"
                     checked={value === data.termsDocumentId}
                     onChange={(e) => onChange(e.target.checked ? data.termsDocumentId : null)}
                 />

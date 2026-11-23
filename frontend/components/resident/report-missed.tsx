@@ -88,7 +88,7 @@ export default function ReportMissed({ request, onNotice }: { request: RequestDe
                         rows={3} className={textarea} />}
                 </Field>
                 <label className="flex min-h-11 items-center gap-2.5">
-                    <input type="checkbox" className="h-5 w-5 flex-none accent-accent" checked={reschedule} disabled={action.isPending}
+                    <input type="checkbox" className="size-6 flex-none accent-accent" checked={reschedule} disabled={action.isPending}
                         onChange={event => setReschedule(event.target.checked)} />
                     Create a new request with new pickup windows
                 </label>

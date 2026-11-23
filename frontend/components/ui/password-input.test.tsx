@@ -48,3 +48,8 @@ it("forwards the input props and works inside Field", async () => {
     await userEvent.type(field, "d");
     expect(onChange).toHaveBeenCalled();
 });
+
+it("keeps the focus ring of the Show password button inside the button", () => {
+    render(<PasswordInput aria-label="Password" />);
+    expect(screen.getByRole("button", { name: "Show password" })).toHaveClass("text-text-muted", "hover:bg-text/10", "focus-visible:outline-offset-[-3px]");
+});

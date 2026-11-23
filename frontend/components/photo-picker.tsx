@@ -70,7 +70,7 @@ export default function PhotoPicker({ purpose, requestId, optional = false, onUp
     return (
         <div className="flex max-w-full flex-col gap-2">
             <div className="relative">
-                <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-border-strong bg-white px-4 pb-8 pt-3 text-center font-semibold hover:bg-surface has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent-700">
+                <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-border-strong bg-surface-elevated px-4 pb-8 pt-3 text-center font-semibold hover:bg-surface has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent-700">
                     <CameraIcon className="size-6" />
                     <span>Photo{optional && <span className="font-normal text-text-muted"> (optional)</span>}</span>
                     <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" onChange={choose} className="sr-only" />
