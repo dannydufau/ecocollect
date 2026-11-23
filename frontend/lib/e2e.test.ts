@@ -39,6 +39,19 @@ it("stays signed out when the mock does not know the account", async () => {
   expect(auth.currentUser).toBeNull();
 });
 
+it("stays signed out without asking the mock when the stored account is empty", async () => {
+  const fetchMock = vi.fn();
+  vi.stubGlobal("fetch", fetchMock);
+  sessionStorage.setItem("e2e-account", "");
+  const auth = (await load("true", "localhost")).fakeAuth();
+  const seen: unknown[] = [];
+  auth.onAuthStateChanged((user) => seen.push(user?.uid ?? null));
+  await auth.authStateReady();
+  expect(fetchMock).not.toHaveBeenCalled();
+  expect(auth.currentUser).toBeNull();
+  expect(seen).toEqual([null]);
+});
+
 it("signs in as the stored account with the roles from the mock, and signs out", async () => {
   const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ roles: ["resident", "volunteer"] }) });
   vi.stubGlobal("fetch", fetchMock);

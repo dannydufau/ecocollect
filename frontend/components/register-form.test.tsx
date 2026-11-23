@@ -45,7 +45,9 @@ it("shows street and postal code for a resident, and hides the street for a volu
 
 it("groups the fields like the design, with Role details for either role", async () => {
     render(<RegisterForm />);
-    for (const name of ["About you", "Account", "I want to"]) expect(screen.getByRole("group", { name })).toBeInTheDocument();
+    expect(screen.getAllByRole("group").slice(1)).toEqual([
+        ...["Your role", "I want to", "About you", "Account"].map(name => screen.getByRole("group", { name })),
+    ]);
     expect(screen.queryByRole("group", { name: "Role details" })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("radio", { name: "Request pickups (Resident)" }));
     expect(screen.getByRole("group", { name: "Role details" })).toContainElement(label("Street"));
@@ -68,8 +70,9 @@ it("lowercases the username and tidies the postal code when the field is left", 
     expect(label("Postal code")).toHaveValue("T2P1J9");
 });
 
-it("sets the latest birth date to 18 years ago", () => {
+it("explains the age requirement and sets the latest birth date to 18 years ago", () => {
     render(<RegisterForm />);
+    expect(label("Date of birth")).toHaveAccessibleDescription("You must be 18 or older.");
     expect(label("Date of birth")).toHaveAttribute("max", eighteenYearsAgo(calgaryToday()));
 });
 
@@ -81,13 +84,13 @@ it("shows a message under each empty field, sends nothing and moves focus to the
     expect(onValid).not.toHaveBeenCalled();
     expect(label("First name")).toHaveAccessibleDescription("Enter your first name.");
     expect(label("Last name")).toHaveAccessibleDescription("Enter your last name.");
-    expect(label("Date of birth")).toHaveAccessibleDescription("Enter your date of birth.");
+    expect(label("Date of birth")).toHaveAccessibleDescription("You must be 18 or older. Enter your date of birth.");
     expect(label("Public name")).toHaveAccessibleDescription(/Enter a public name\./);
     expect(label("Username")).toHaveAccessibleDescription(/Use 3 to 50 characters: a to z, 0 to 9, _ and -\./);
     expect(label("Email")).toHaveAccessibleDescription("Enter a valid email.");
     expect(label("Password")).toHaveAccessibleDescription(/Choose a password\./);
     expect(screen.getByText("Choose how you want to use EcoCollect.")).toBeInTheDocument();
-    expect(label("First name")).toHaveFocus();
+    expect(screen.getByText("Choose how you want to use EcoCollect.")).toHaveFocus();
 });
 
 it("says why a birth date under 18 or in the future does not work, and updates as the user types", async () => {
@@ -195,11 +198,28 @@ it("shows and hides the password with a button and says the length rule", () => 
 it("picks a role card with the keyboard and marks it without relying on colour", async () => {
     render(<RegisterForm />);
     const resident = screen.getByRole("radio", { name: "Request pickups (Resident)" });
-    resident.focus();
+    await userEvent.tab();
+    expect(resident).toHaveFocus();
     await userEvent.keyboard(" ");
     expect(resident).toBeChecked();
     expect(resident.closest("label")!.querySelector("svg[aria-hidden=true]")).not.toBeNull();
     await userEvent.keyboard("{ArrowRight}");
     expect(screen.getByRole("radio", { name: "Collect and deliver items (Volunteer)" })).toBeChecked();
-    expect(screen.getByRole("group", { name: "Your role" })).toBeInTheDocument();
+    await userEvent.tab();
+    expect(label("First name")).toHaveFocus();
+});
+
+it("updates the persistent live region when the selected role changes", async () => {
+    render(<RegisterForm />);
+    const note = screen.getByRole("status");
+    expect(note).toHaveAttribute("aria-live", "polite");
+    expect(note).toBeEmptyDOMElement();
+
+    await userEvent.click(screen.getByRole("radio", { name: "Request pickups (Resident)" }));
+    expect(screen.getByRole("status")).toBe(note);
+    expect(note).toHaveTextContent(/^We will ask for your Calgary pickup address below\.$/);
+
+    await userEvent.keyboard("{ArrowRight}");
+    expect(screen.getByRole("status")).toBe(note);
+    expect(note).toHaveTextContent(/^You can choose up to three areas for notifications below\.$/);
 });

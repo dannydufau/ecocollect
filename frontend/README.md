@@ -59,6 +59,25 @@ It opens as `demo-resident-1`. To use another mock account, run `sessionStorage.
 
 Never set `NEXT_PUBLIC_E2E` or `E2E_BUILD_CONFIRM` for a deployed build. The build refuses to run without `E2E_BUILD_CONFIRM=1`, and the signed-in shortcut only works on `localhost`, `127.0.0.1` and `[::1]`, so any other address still goes to the real login.
 
+## Browser tests
+
+From `frontend/`, install Chromium after installing the npm dependencies, then run the suite:
+
+```bash
+npx playwright install chromium
+npm run e2e
+```
+
+Playwright starts its own mock API on port 3101 and signed-in test build on port 3100. Keep those ports free. The mock and browser share a fixed date, and the suite uses synthetic accounts without Firebase credentials. Route smoke tests run at 320, 375, 768 and 1280 px. Axe scans run at 375 and 1280 px and fail on serious or critical violations. The browser runs with reduced motion on, so a scan never catches an alert halfway through its fade-in (that read as low contrast and failed some runs). A test that checks an animation turns it back on with `test.use({ reducedMotion: "no-preference" })`.
+
+To cover another page, add its path, expected heading and mock account to `e2e/routes.ts`. Use an account or request ID from `mock/fixtures.mjs`, or set the account to `null` for signed-out pages. Set `destination` if the route redirects. The demo page requires a separate demo build.
+
+Run a single viewport or route using Playwright's filters:
+
+```bash
+npm run e2e -- --project=chromium-375 --grep registration
+```
+
 ## Contracts
 
 The API and event contracts live at the repo root: `contracts/openapi.yaml` (every endpoint and body) and `contracts/README.md` (the rules behind them). `npm run types` reads `contracts/openapi.yaml`.
@@ -73,6 +92,7 @@ The API and event contracts live at the repo root: `contracts/openapi.yaml` (eve
 | `npm test` | Unit and component tests (Vitest) |
 | `npm run lint` | ESLint |
 | `npm run mock` | Mock API |
+| `npm run e2e` | Chromium route checks and axe scans |
 | `npm run e2e:app` | Builds the signed-in test mode and serves it on port 3100 (see below) |
 | `npm run types` | Regenerates `lib/api-types.ts` from `../contracts/openapi.yaml`. Don't edit that file by hand. |
 

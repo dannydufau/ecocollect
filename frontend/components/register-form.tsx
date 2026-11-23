@@ -9,6 +9,11 @@ import {
     eighteenYearsAgo, normalizeUsername, validateAccount, type AccountValues,
 } from "@/lib/validate-account";
 
+const roleNotes = {
+    resident: "We will ask for your Calgary pickup address below.",
+    volunteer: "You can choose up to three areas for notifications below.",
+};
+
 // A card with its title inside, like the prototype. The legend floats so it sits in the card and not on its border.
 function Group({ title, children }: { title: string; children: ReactNode }) {
     return <fieldset className={`${card} min-w-0`}>
@@ -67,14 +72,31 @@ export default function RegisterForm({ onValid, fieldErrors = {}, busy = false, 
     }
 
     return (
-        <form ref={formRef} onSubmit={submit} aria-busy={busy} noValidate className="min-w-0 space-y-8">
-            <fieldset disabled={busy} className="min-w-0 space-y-8">
+        <form ref={formRef} onSubmit={submit} aria-busy={busy} noValidate className="min-w-0 space-y-6">
+            <fieldset disabled={busy} className="min-w-0 space-y-6">
+                <Group title="Your role">
+                    <fieldset aria-describedby={errors.role ? `${id}-role-error` : undefined} className="min-w-0">
+                        <legend className="mb-2 font-semibold">I want to</legend>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            {([["resident", "Request pickups (Resident)"], ["volunteer", "Collect and deliver items (Volunteer)"]] as const).map(([role, label]) => (
+                                <ChoiceCard key={role} name={`${id}-role`} value={role} title={label} tone={role}
+                                    checked={values.role === role} onChange={() => change({ role })} />
+                            ))}
+                        </div>
+                    </fieldset>
+                    <p role="status" aria-live="polite" className="text-text-muted empty:absolute">
+                        {values.role && roleNotes[values.role]}
+                    </p>
+                    <p className="text-text-muted">You can add the other role later in your profile.</p>
+                    {errors.role && <FieldError id={`${id}-role-error`} tabIndex={-1}>{errors.role}</FieldError>}
+                </Group>
+
                 <Group title="About you">
                     <div className="grid gap-4 sm:grid-cols-2">
                         {text("firstName", "First name", "given-name")}
                         {text("lastName", "Last name", "family-name")}
                     </div>
-                    <Field label="Date of birth" error={errors.dateOfBirth}>
+                    <Field label="Date of birth" hint="You must be 18 or older." error={errors.dateOfBirth}>
                         {control => <input {...control} type="date" autoComplete="bday" max={eighteenYearsAgo(today)} value={values.dateOfBirth} className={input}
                             onChange={event => change({ dateOfBirth: event.target.value })} />}
                     </Field>
@@ -88,20 +110,6 @@ export default function RegisterForm({ onValid, fieldErrors = {}, busy = false, 
                         {control => <PasswordInput {...control} autoComplete="new-password" value={values.password}
                             onChange={event => change({ password: event.target.value })} />}
                     </Field>
-                </Group>
-
-                <Group title="Your role">
-                    <fieldset aria-describedby={errors.role ? `${id}-role-error` : undefined} className="min-w-0">
-                        <legend className="mb-2 font-semibold">I want to</legend>
-                        <div className="grid gap-3 sm:grid-cols-2">
-                            {([["resident", "Request pickups (Resident)"], ["volunteer", "Collect and deliver items (Volunteer)"]] as const).map(([role, label]) => (
-                                <ChoiceCard key={role} name={`${id}-role`} value={role} title={label} tone={role}
-                                    checked={values.role === role} onChange={() => change({ role })} />
-                            ))}
-                        </div>
-                    </fieldset>
-                    <p className="text-text-muted">You can add the other role later in your profile.</p>
-                    {errors.role && <FieldError id={`${id}-role-error`} tabIndex={-1}>{errors.role}</FieldError>}
                 </Group>
 
                 {values.role === "resident" && <Group title="Role details">
