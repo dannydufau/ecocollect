@@ -80,7 +80,7 @@ it("loads the requested ID through the shared detail hook and shows the owner fi
         expect(screen.getByText("101 Example Street SW")).toBeInTheDocument();
     expect(screen.getByText("Calgary, T2P 1J9")).toBeInTheDocument();
     expect(screen.getByText(/Use the side entrance/)).toHaveTextContent("Please ring the bell.");
-    expect(screen.getByText(formatWindow(detail().windows[0]))).toBeInTheDocument();
+    expect(within(screen.getByRole("region", { name: "Summary" })).getByText(formatWindow(detail().windows[0]))).toBeInTheDocument();
     expect(screen.getByText(formatTimestamp(detail().createdAt))).toBeInTheDocument();
     expect(screen.getByText("Windows and times are Calgary time.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Back to my requests" })).toHaveAttribute("href", "/resident");
@@ -105,7 +105,7 @@ it.each(["Open", "Assigned", "Collected", "Delivered", "Cancelled", "Expired", "
         const progress = panel.queryByRole("list", { name: "Request progress" });
         if (status === "Cancelled" || status === "Expired" || status === "Missed") {
             expect(progress).not.toBeInTheDocument();
-            expect(panel.queryByRole("term")).not.toBeInTheDocument();
+            expect(panel.queryByText(/^(Pickup windows offered|Open until|Volunteer|Facility)/)).not.toBeInTheDocument();
         } else {
             expect(progress).toBeInTheDocument();
             expect(within(progress!).getByText(`${status} (now)`)).toHaveAttribute("aria-current", "step");
@@ -168,7 +168,8 @@ it("shows offered windows and expiration above the Open request actions", () => 
     const request = detail();
     render(<ResidentRequestView request={request} onPhotoError={vi.fn()} actionRenderers={actionRenderers} />);
     const panel = within(screen.getByRole("region", { name: "Request status" }));
-    expect(panel.getByText("Pickup windows offered").nextElementSibling).toHaveTextContent(friendlyWindow(request.windows[0]));
+    expect(panel.getByText("Pickup windows offered")).toBeInTheDocument();
+    expect(panel.getByText(formatWindow(request.windows[0]))).toBeInTheDocument();
     const expires = panel.getByText(formatTimestamp(request.expiresAt));
     expect(expires).toHaveAttribute("datetime", request.expiresAt);
     expect(expires.compareDocumentPosition(panel.getByRole("button", { name: "Edit" })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();

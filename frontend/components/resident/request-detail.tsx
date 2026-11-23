@@ -30,26 +30,29 @@ function UnavailableRequest() {
 function ResidentStatusFacts({ request }: { request: RequestDetail }) {
     const { status, assignment, delivery, expiresAt, windows } = request;
     if (status === "Open") {
-        return <dl className="text-small">
-            <div><dt className="inline font-semibold">Pickup windows offered </dt><dd className="inline">{windows.map(friendlyWindow).join(" · ")}</dd></div>
-            <div><dt className="inline font-semibold">Open until </dt><dd className="inline"><time dateTime={expiresAt}>{formatTimestamp(expiresAt)}</time></dd></div>
-        </dl>;
+        return <div className="space-y-2 text-small">
+            <div className="space-y-1">
+                <p className="font-semibold">Pickup windows offered</p>
+                <WindowList windows={windows} />
+            </div>
+            <p><strong className="font-semibold">Open until</strong> <time dateTime={expiresAt}>{formatTimestamp(expiresAt)}</time></p>
+        </div>;
     }
     if ((status === "Assigned" || status === "Collected") && assignment) {
         const { volunteer, window, collectedAt } = assignment;
-        return <dl className="text-small">
-            <div><dt className="inline font-semibold">Volunteer </dt><dd className="inline break-words">
+        return <div className="space-y-1 text-small">
+            <p className="break-words"><strong className="font-semibold">Volunteer</strong>{" "}
                 <Link href={`/profiles/${encodeURIComponent(volunteer.accountId)}`} className={textLink}>{volunteer.publicName}</Link>
-            </dd></div>
-            {status === "Assigned" && <div><dt className="inline font-semibold">Selected window </dt><dd className="inline">{friendlyWindow(window)}</dd></div>}
-            {status === "Collected" && collectedAt && <div><dt className="inline font-semibold">Collected </dt><dd className="inline"><time dateTime={collectedAt}>{formatTimestamp(collectedAt)}</time></dd></div>}
-        </dl>;
+            </p>
+            {status === "Assigned" && <p><strong className="font-semibold">Selected window</strong> {friendlyWindow(window)}</p>}
+            {status === "Collected" && collectedAt && <p><strong className="font-semibold">Collected</strong> <time dateTime={collectedAt}>{formatTimestamp(collectedAt)}</time></p>}
+        </div>;
     }
     if (status === "Delivered" && delivery) {
-        return <dl className="text-small">
-            <div><dt className="inline font-semibold">Facility </dt><dd className="inline break-words">{delivery.facility.name}</dd></div>
-            <div><dt className="inline font-semibold">Delivered </dt><dd className="inline"><time dateTime={delivery.deliveredAt}>{formatTimestamp(delivery.deliveredAt)}</time></dd></div>
-        </dl>;
+        return <div className="space-y-1 text-small">
+            <p className="break-words"><strong className="font-semibold">Facility</strong> {delivery.facility.name}</p>
+            <p><strong className="font-semibold">Delivered</strong> <time dateTime={delivery.deliveredAt}>{formatTimestamp(delivery.deliveredAt)}</time></p>
+        </div>;
     }
     return null;
 }
