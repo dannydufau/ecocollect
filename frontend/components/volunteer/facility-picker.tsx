@@ -26,7 +26,7 @@ export function FacilityPicker({ categoryId, value, onChange }: {
 
     return (
         <fieldset className="min-w-0 space-y-2">
-            <legend className="mb-1 text-[14px] font-semibold">Facility</legend>
+            <legend className="mb-1 text-small font-semibold">Facility</legend>
             {data.length === 0 && <p>No facility accepts this category right now.</p>}
             {data.map(facility => (
                 <label key={facility.facilityId} className={`flex min-h-11 min-w-0 cursor-pointer items-start gap-3 rounded-xl border px-3.5 py-2.5 ${value === facility.facilityId ? "border-accent-2-700 bg-accent-2-200 ring-1 ring-accent-2-700" : "border-border-strong bg-white"}`}>
@@ -35,7 +35,7 @@ export function FacilityPicker({ categoryId, value, onChange }: {
                     <span className="min-w-0 flex-1 break-words">
                         <span className="block font-semibold">{facility.name}</span>
                         <span className="flex items-start gap-1"><MapPinIcon className="mt-0.5 size-4 flex-none" /><span>{facility.street}, Calgary <span className={mono}>{formatPostalCode(facility.postalCode)}</span></span></span>
-                        {facility.specialInstructions && <span className="mt-1 block rounded-lg bg-surface px-2.5 py-1.5 text-[13px] text-text-muted">{facility.specialInstructions}</span>}
+                        {facility.specialInstructions && <span className="mt-1 block rounded-lg bg-surface px-2.5 py-1.5 text-caption text-text-muted">{facility.specialInstructions}</span>}
                     </span>
                     {value === facility.facilityId && <CheckIcon className="size-5 flex-none text-accent-2-800" />}
                 </label>

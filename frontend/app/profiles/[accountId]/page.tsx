@@ -66,10 +66,10 @@ export default function PublicProfilePage() {
                         </div>
                     </header>
                     <dl className="grid gap-4 p-5 sm:grid-cols-3">
-                        <div><dt className="text-[13px] text-text-muted">Roles</dt><dd>{data.roles.map(role => roleNames[role]).join(" and ")}</dd></div>
-                        <div><dt className="text-[13px] text-text-muted">Member since</dt><dd>{formatDate(calgaryToday(new Date(data.memberSince)))}</dd></div>
+                        <div><dt className="text-caption text-text-muted">Roles</dt><dd>{data.roles.map(role => roleNames[role]).join(" and ")}</dd></div>
+                        <div><dt className="text-caption text-text-muted">Member since</dt><dd>{formatDate(calgaryToday(new Date(data.memberSince)))}</dd></div>
                         <div>
-                            <dt className="text-[13px] text-text-muted">EcoPoints</dt>
+                            <dt className="text-caption text-text-muted">EcoPoints</dt>
                             <dd className="whitespace-nowrap text-2xl font-bold tabular-nums">
                                 {stats.data ? stats.data.ecopoints.toFixed(2) : stats.isError ? <span className="text-base font-normal">Not available right now</span> : "…"}
                             </dd>

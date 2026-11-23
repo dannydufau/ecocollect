@@ -58,7 +58,7 @@ export default function AcceptRequest({ request, onDone }: { request: RequestDet
                                 onChange={() => setWindowId(window.windowId)} className="mt-1 h-5 w-5 flex-none accent-accent" />
                             <span className="min-w-0 flex-1">
                                 <span className="block font-semibold">{friendlyWindow(window)}</span>
-                                <span className="block text-[13px] text-text-muted">{formatWindow(window)}</span>
+                                <span className="block text-caption text-text-muted">{formatWindow(window)}</span>
                             </span>
                             {windowId === window.windowId && <CheckIcon className="size-5 flex-none text-accent-2-800" />}
                         </label>

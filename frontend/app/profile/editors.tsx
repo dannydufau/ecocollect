@@ -70,7 +70,7 @@ export function PublicNameEditor(props: EditorProps) {
                 const publicName = name.trim();
                 send(publicName ? {} : { publicName: "Enter a public name." }, publicName !== profile.publicName ? { publicName } : {});
             }}
-            read={<><p className="text-[13px] text-text-muted">Public name</p><p className="break-words">{profile.publicName}</p></>}
+            read={<><p className="text-caption text-text-muted">Public name</p><p className="break-words">{profile.publicName}</p></>}
             fields={<Field label="Public name" hint="Other people see this name." error={errors.publicName}>
                 {(control) => <input {...control} type="text" autoComplete="nickname" value={name} className={input}
                     onChange={(event) => setDraft(event.target.value)} />}
@@ -96,7 +96,7 @@ export function AddressEditor(props: EditorProps) {
             }}
             read={address && <>
                 <p className="break-words">{address.street}<br />{address.city}, <span className={mono}>{formatPostalCode(address.postalCode)}</span></p>
-                {locked && <p className="mt-1 text-[13px] text-text-muted">Locked while you have an Open or Assigned request.</p>}
+                {locked && <p className="mt-1 text-small text-text-muted">Locked while you have an Open or Assigned request.</p>}
             </>}
             fields={<AddressFields street={street} postalCode={postalCode} errors={errors} onStreet={(next) => setDraft({ street: next, postalCode })} onPostalCode={(next) => setDraft({ street, postalCode: next })} />} />
     );

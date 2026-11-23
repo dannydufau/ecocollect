@@ -36,7 +36,7 @@ export function ConfirmDialog({ open, title, children, confirmLabel, cancelLabel
             aria-labelledby={titleId} aria-busy={busy}>
             <h2 id={titleId} className="text-xl">{title}</h2>
             <div className="mt-3">{open && children}</div>
-            {error && <p role="alert" className="mt-3 text-[13px] font-semibold text-danger">{error}</p>}
+            {error && <p role="alert" className="mt-3 text-small font-semibold text-danger">{error}</p>}
             <div className="mt-5 flex flex-wrap justify-end gap-3">
                 <Button variant="secondary" onClick={onCancel} disabled={busy}>{cancelLabel}</Button>
                 <Button variant={danger ? "danger" : "primary"} onClick={onConfirm} disabled={busy || confirmDisabled}>{confirmLabel}</Button>

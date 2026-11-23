@@ -47,7 +47,7 @@ export default function StatsPage() {
                     <section className="overflow-hidden rounded-2xl border border-border bg-surface-elevated shadow-rest" aria-labelledby="waste-types">
                         <h2 id="waste-types" className="p-4">By waste type</h2>
                         {!data.byWasteType.length ? <EmptyState bare title="No deliveries yet." /> : (
-                            <div className="overflow-x-auto"><table className="w-full text-left text-sm sm:text-[15px]">
+                            <div className="overflow-x-auto"><table className="w-full text-left text-small">
                                 <caption className="sr-only">Deliveries by waste type</caption>
                                 <thead className="bg-surface text-text-muted">
                                     <tr><th scope="col" className={cell}>Waste type</th><th scope="col" className={`${cell} text-right`}>Deliveries</th><th scope="col" className={`${cell} text-right`}>Items</th><th scope="col" className={`${cell} text-right`}>Estimated kg</th></tr>
@@ -63,7 +63,7 @@ export default function StatsPage() {
                             </table></div>
                         )}
                     </section>
-                    <p className="text-[13px] text-text-muted">Updated <time dateTime={data.updatedAt}>{formatTimestamp(data.updatedAt)}</time></p>
+                    <p className="text-caption text-text-muted">Updated <time dateTime={data.updatedAt}>{formatTimestamp(data.updatedAt)}</time></p>
                 </>}
             </div>
         </main>

@@ -81,7 +81,7 @@ export default function NotificationsPage() {
                                 {!item.isRead && <span className="sr-only">Unread: </span>}
                                 <span className={`block break-words ${item.isRead ? "" : "font-bold text-text"}`}>{item.title}</span>
                                 <span className={`block break-words ${item.isRead ? "" : "text-text-muted"}`}>{item.body}</span>
-                                <time dateTime={item.createdAt} className="block text-[13px] text-text-muted">{formatTimestamp(item.createdAt)}</time>
+                                <time dateTime={item.createdAt} className="block text-caption text-text-muted">{formatTimestamp(item.createdAt)}</time>
                             </span>
                         </Link>
                     </li>)}

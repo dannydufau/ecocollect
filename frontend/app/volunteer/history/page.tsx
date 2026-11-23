@@ -57,8 +57,8 @@ export default function VolunteerHistoryPage() {
                             {waiting && <p><span className={linkButton}>Record delivery</span></p>}
                             {row.estimatedWeightKg !== null && row.postalCode !== null && <p className="text-text-muted"><span className="tabular-nums">{row.estimatedWeightKg.toFixed(2)} kg</span> · <span className={mono}>{formatPostalCode(row.postalCode)}</span></p>}
                             <p>{formatWindow(row.assignment.window)}</p>
-                            <p className="text-[13px] text-text-muted">Accepted {formatTimestamp(row.assignment.acceptedAt)}</p>
-                            {row.assignment.endedAt && <p className="text-[13px] text-text-muted">Ended {formatTimestamp(row.assignment.endedAt)}</p>}
+                            <p className="text-caption text-text-muted">Accepted {formatTimestamp(row.assignment.acceptedAt)}</p>
+                            {row.assignment.endedAt && <p className="text-caption text-text-muted">Ended {formatTimestamp(row.assignment.endedAt)}</p>}
                         </li>;
                     })}
                 </ul>}

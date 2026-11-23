@@ -31,7 +31,7 @@ export function PostalCodeList({ codes, errors, onChange }: { codes: string[]; e
     const setCode = (index: number, code: string) => onChange(codes.map((old, i) => (i === index ? code : old)));
     return (
         <div className="space-y-3">
-            {errors.preferredPostalCodes && <p role="alert" tabIndex={-1} className="text-[13px] font-semibold text-danger">{errors.preferredPostalCodes}</p>}
+            {errors.preferredPostalCodes && <p role="alert" tabIndex={-1} className="text-small font-semibold text-danger">{errors.preferredPostalCodes}</p>}
             {codes.map((code, index) => <div key={index} className="flex items-end gap-3">
                 <div className="min-w-0 flex-1">
                     <Field label={`Postal code ${index + 1}`} error={errors[`preferredPostalCodes[${index}]`]}>
