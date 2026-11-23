@@ -30,8 +30,17 @@ it.each(["192.168.1.20", "ecocollect.example.com", "localhost.evil.com"])("is of
   expect((await load("true", hostname)).e2eActive()).toBe(false);
 });
 
+it("stays signed out when the mock does not know the account", async () => {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 401 }));
+  vi.spyOn(console, "warn").mockImplementation(() => {});
+  sessionStorage.setItem("e2e-account", "nobody");
+  const auth = (await load("true", "localhost")).fakeAuth();
+  await auth.authStateReady();
+  expect(auth.currentUser).toBeNull();
+});
+
 it("signs in as the stored account with the roles from the mock, and signs out", async () => {
-  const fetchMock = vi.fn().mockResolvedValue({ json: async () => ({ roles: ["resident", "volunteer"] }) });
+  const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ roles: ["resident", "volunteer"] }) });
   vi.stubGlobal("fetch", fetchMock);
   sessionStorage.setItem("e2e-account", "demo-resident-5");
   const auth = (await load("true", "localhost")).fakeAuth();

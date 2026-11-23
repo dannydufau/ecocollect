@@ -21,7 +21,10 @@ export function fakeAuth(): Auth {
 
   // The mock's profile has the roles. A real login gets them from the token claims.
   const ready = fetch("/api/profile", { headers: { Authorization: `Bearer ${accountId}` } })
-    .then((res) => res.json())
+    .then((res) => {
+      if (!res.ok) throw new Error(`the mock does not know ${accountId} (${res.status})`);
+      return res.json();
+    })
     .then(({ roles }) => {
       current = {
         uid: accountId,
