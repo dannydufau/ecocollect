@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { EmptyState, LoadingRegion, QueryError, ScaleIcon, card, pageTitle } from "@/components/ui";
+import { EmptyState, LoadingRegion, QueryError, ScaleIcon, card, pageTitle, pageWidth } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import type { operations } from "@/lib/api-types";
 import { usePublicStream } from "@/lib/public-stream";
@@ -24,8 +24,8 @@ export default function StatsPage() {
     usePublicStream({ stats: true }, () => void refetch());
 
     return (
-        <main className="p-4 sm:p-8">
-            <div className="mx-auto max-w-5xl space-y-6">
+        <main className={`${pageWidth} p-4 sm:p-8`}>
+            <div className="space-y-6">
                 <h1 className={pageTitle}>Community impact</h1>
                 {isPending && <LoadingRegion label="Loading stats..." />}
                 {isError && <QueryError message="We could not load the stats. Check your connection and try again." onRetry={() => refetch()} busy={isFetching} />}

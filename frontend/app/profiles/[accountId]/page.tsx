@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { EmptyState, EyeOffIcon, LoadingRegion, QueryError, RoleBadge, identifier, linkButton, pageTitle } from "@/components/ui";
+import { EmptyState, EyeOffIcon, LoadingRegion, QueryError, RoleBadge, identifier, linkButton, pageTitle, pageWidth } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { usePublicStream } from "@/lib/public-stream";
 import { queryKeys } from "@/lib/query-keys";
@@ -40,8 +40,8 @@ export default function PublicProfilePage() {
     });
 
     if (profile.error instanceof ApiError && profile.error.status === 404) return (
-        <main className="p-4 sm:p-8">
-            <div className="mx-auto max-w-3xl space-y-6">
+        <main className={`${pageWidth} p-4 sm:p-8`}>
+            <div className="max-w-3xl space-y-6">
                 <h1 className={pageTitle}>Profile not found</h1>
                 <EmptyState icon={<EyeOffIcon />} title="This profile does not exist or is no longer active."
                     action={<Link href="/stats" className={linkButton}>See the community stats</Link>} />
@@ -51,8 +51,8 @@ export default function PublicProfilePage() {
 
     const data = profile.data;
     return (
-        <main className="p-4 sm:p-8">
-            <div className="mx-auto max-w-3xl space-y-6">
+        <main className={`${pageWidth} p-4 sm:p-8`}>
+            <div className="max-w-3xl space-y-6">
                 {!data && <h1 className={pageTitle}>Public profile</h1>}
                 {profile.isPending && <LoadingRegion label="Loading the profile..." />}
                 {profile.isError && <QueryError message="We could not load this profile. Check your connection and try again." onRetry={() => { void profile.refetch(); void stats.refetch(); }} busy={profile.isFetching} />}

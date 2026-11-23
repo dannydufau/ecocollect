@@ -2,6 +2,8 @@ import { buttonClass } from "./button";
 
 // The page heading (h1): 30px on a phone, up to 40px on a wide screen
 export const pageTitle = "text-[length:clamp(1.875rem,5vw,2.5rem)]";
+// One width for the header and every page, so their left edges line up. A narrow page puts its own max width on a child.
+export const pageWidth = "mx-auto w-full max-w-4xl min-w-0";
 // The card shape without colours, for a card with its own background and border
 export const panel = "rounded-2xl border p-4 shadow-rest sm:p-5";
 export const card = `${panel} border-border bg-surface-elevated`;
