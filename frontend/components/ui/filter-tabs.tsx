@@ -41,7 +41,7 @@ export function FilterTabs<T extends string>({ label, options, value, onChange }
                 {options.map((option) => (
                     // The chosen and focused chips sit above the fade
                     <button key={option} ref={option === value ? chosen : undefined} type="button" aria-pressed={option === value} onClick={() => onChange(option)}
-                        className={`soft-transition min-h-11 shrink-0 whitespace-nowrap rounded-full border px-4 py-2 font-semibold focus-visible:relative focus-visible:z-10 ${option === value
+                        className={`soft-transition min-h-11 shrink-0 whitespace-nowrap rounded-full border px-4 py-2 font-semibold motion-safe:active:scale-[0.985] motion-safe:active:duration-(--duration-press) focus-visible:relative focus-visible:z-10 ${option === value
                             ? "relative z-10 border-text bg-text text-bg"
                             : "border-neutral-600 text-text hover:bg-surface"}`}>
                         {option}

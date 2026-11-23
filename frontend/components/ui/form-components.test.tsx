@@ -137,6 +137,11 @@ it("RequestPhoto keeps a fixed box, and the failure box has the same shape, an i
     expect(screen.getByText("The photo is not available right now.")).toBeInTheDocument();
 });
 
+it("a filter chip scales down while pressed, but not under reduced motion", () => {
+    render(<FilterTabs label="Status" options={["Open", "Assigned"]} value="Open" onChange={vi.fn()} />);
+    for (const name of ["Open", "Assigned"]) expect(screen.getByRole("button", { name })).toHaveClass("motion-safe:active:scale-[0.985]", "motion-safe:active:duration-(--duration-press)");
+});
+
 describe("FilterTabs fade", () => {
     function sized(scrollWidth: number, clientWidth: number) {
         vi.spyOn(HTMLElement.prototype, "scrollWidth", "get").mockReturnValue(scrollWidth);
