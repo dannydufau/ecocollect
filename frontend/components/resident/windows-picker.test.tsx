@@ -141,11 +141,11 @@ describe("WindowsPicker", () => {
 
     it("has its own card by default and none when embedded", () => {
         const { container, unmount } = render(<Picker />);
-        expect(container.querySelector("fieldset")).toHaveClass("rounded-2xl", "border", "p-5", "bg-surface-elevated");
+        expect(container.querySelector("fieldset")).toHaveClass("rounded-2xl", "border", "p-4", "sm:p-5", "bg-surface-elevated");
         unmount();
         const embedded = render(<WindowsPicker embedded value={[]} onChange={vi.fn()} />);
         const fieldset = embedded.container.querySelector("fieldset")!;
-        for (const name of ["rounded-2xl", "border", "p-5", "bg-surface-elevated", "shadow-rest"]) expect(fieldset).not.toHaveClass(name);
+        for (const name of ["rounded-2xl", "border", "p-4", "sm:p-5", "bg-surface-elevated", "shadow-rest"]) expect(fieldset).not.toHaveClass(name);
     });
 
     it("disables the hours already past today, and none on a later day", () => {

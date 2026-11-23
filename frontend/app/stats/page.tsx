@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { EmptyState, LoadingRegion, QueryError, ScaleIcon, pageTitle } from "@/components/ui";
+import { EmptyState, LoadingRegion, QueryError, ScaleIcon, card, pageTitle } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import type { operations } from "@/lib/api-types";
 import { usePublicStream } from "@/lib/public-stream";
@@ -37,7 +37,7 @@ export default function StatsPage() {
                             { label: "Estimated weight (kg)", value: data.estimatedWeightKgDelivered.toFixed(2) },
                             { label: "EcoPoints awarded", value: data.ecopointsAwarded.toFixed(2) },
                         ].map(({ label, value }) => (
-                            <div key={label} className="flex min-w-0 flex-col justify-between gap-1 rounded-2xl border border-border bg-surface-elevated p-3 shadow-rest sm:p-5">
+                            <div key={label} className={`${card} flex min-w-0 flex-col justify-between gap-1`}>
                                 <dt className="text-sm text-text-muted">{label}</dt>
                                 {/* A very long number scrolls inside its card, the digits never split */}
                                 <dd className="overflow-x-auto whitespace-nowrap text-[clamp(20px,6.2vw,36px)] font-bold leading-tight tabular-nums">{value}</dd>
