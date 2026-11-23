@@ -102,7 +102,7 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-    healthcheck:                    # /health needs no gateway headers
+    healthcheck:                    # /health needs no gateway headers; unhealthy until load-db.sh has run
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:80/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
       interval: 5s
       timeout: 3s
@@ -131,8 +131,8 @@ services:
       - caddy_data:/data            # keeps Caddy's local certificate authority, so you trust it in the browser only once
       - caddy_config:/config
     depends_on:
-      request:
-        condition: service_healthy
+      request:                      # started, not healthy: without load-db.sh only request calls fail, not the whole site
+        condition: service_started
       user:
         condition: service_healthy
       frontend:

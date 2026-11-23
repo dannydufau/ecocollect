@@ -50,8 +50,19 @@ export function createApp({
   app.disable('x-powered-by');
 
   // For the compose healthcheck, before the gateway headers are required.
-  // Caddy never routes /health, so it isn't public.
-  app.get('/health', (_req, res) => { res.json({ status: 'ok' }); });
+  // Caddy never routes /health, so it isn't public. Healthy only when the
+  // database answers as this service's login: it fails until load-db.sh has
+  // created the login and loaded the functions.
+  app.get('/health', async (_req, res) => {
+    try {
+      // Call one cheap read function through the pool.
+      await pool.query('SELECT 1 FROM requests.req_list_categories() LIMIT 1');
+      res.json({ status: 'ok' });
+    } catch (err) {
+      console.error('request service: health check failed:', (err as Error).message);
+      res.status(503).json({ status: 'unavailable' });
+    }
+  });
 
   app.use(express.json());
   app.use(gatewayUser);
