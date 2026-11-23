@@ -1,8 +1,10 @@
 // The app's shared behaviour: health, gateway headers, unknown paths, bad JSON.
-// No database needed: none of these reach a query, and pg connects only on the
-// first one, so the pool startApp makes stays unused.
+// Only /health needs the database (it runs a query), so it is skipped without
+// REQUEST_TEST_DATABASE_URL. The rest reach no query, and pg connects only on
+// the first one, so the pool startApp makes stays unused.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { skipDb } from './db.ts';
 import { owner, startApp, type App, type ErrorBody } from './helpers.ts';
 
 let app: App;
@@ -11,9 +13,11 @@ after(() => app.close());
 
 const codeOf = (body: unknown) => (body as ErrorBody).error.code;
 
-test('the app answers in the contract shape', async () => {
+test('health answers 200 when the database answers', { skip: skipDb }, async () => {
   assert.equal((await app.call('GET', '/health', {})).status, 200);
+});
 
+test('the app answers in the contract shape', async () => {
   const noUser = await app.call('GET', '/api/categories', {});
   assert.equal(noUser.status, 401);
   assert.equal(codeOf(noUser.body), 'unauthorized');
