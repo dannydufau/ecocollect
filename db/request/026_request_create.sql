@@ -67,6 +67,7 @@ DECLARE
     k_status_open            CONSTANT VARCHAR(30) := 'Open';
     k_event_created          CONSTANT TEXT := 'RequestCreated';
     k_lock_account           CONSTANT TEXT := 'account:';   -- account lock key prefix, shared with the User Service
+    k_lock_key_cleanup       CONSTANT TEXT := 'request:idempotency-key-cleanup';   -- one create at a time deletes old keys
     v_now           TIMESTAMPTZ := now();   -- one moment for the whole action
     v_count         INT := coalesce(cardinality(p_category_ids), 0);
     v_street        VARCHAR(255);
@@ -77,6 +78,7 @@ DECLARE
     v_ta_id         UUID := gen_random_uuid();
     v_transition_id UUID := gen_random_uuid();
     v_has_photo     BOOLEAN;                -- item i was sent with a photo
+    v_cleans_keys   BOOLEAN;                -- this call got the cleanup lock
 BEGIN
     error_fields   := '{}';
     error_messages := '{}';
@@ -184,6 +186,15 @@ BEGIN
     IF cardinality(error_fields) > 0 THEN
         result_code := k_code_validation_failed;
         RETURN;
+    END IF;
+
+    -- 4b. Take the cleanup lock if it is free; another create holding it does the cleanup.
+    v_cleans_keys := pg_try_advisory_xact_lock(hashtext(k_lock_key_cleanup));
+
+    -- Delete every resident's keys older than 24 h.
+    IF v_cleans_keys THEN
+        DELETE FROM requests.idempotency_keys k
+        WHERE k.created_at <= v_now - k_key_ttl;
     END IF;
 
     -- 5. The idempotency key goes in before the requests, so a concurrent call with
