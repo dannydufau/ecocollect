@@ -276,6 +276,12 @@ export type RecordDeliveryRow = {
   error_messages: string[];
 };
 
+// The actions for a viewer: openapi's allowedActions enum, the
+// same names as 030's k_action_ constants.
+export type AllowedAction =
+  | 'edit' | 'cancel' | 'cancel_assignment' | 'confirm_collected'
+  | 'report_missed' | 'accept' | 'record_delivery';
+
 // The one row of requests.req_get_detail (Q8). For 'request_unavailable' every
 // other column is null. For 'ok' the columns the viewer may not see are null
 // (030's header says which); the window and history arrays line up like
@@ -322,7 +328,7 @@ export type GetDetailRow = {
   history_at: Date[] | null;           // owner only
   history_status: string[] | null;
   history_reason: (string | null)[] | null;
-  allowed_actions: string[];
+  allowed_actions: AllowedAction[];
   refresh_at: Date | null;
 };
 
