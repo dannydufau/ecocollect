@@ -120,3 +120,45 @@ WHERE account_id = 'resident1';
 
 ROLLBACK;
 
+-- U2. Replace an Open request's pickup windows (resident edit).
+--    Rationale: residents may replace active windows while Open; old windows are kept
+--               as history (is_active = FALSE), not deleted.
+--    Citation:  FR10, FR07
+--    Concepts:  transaction, row lock (FOR UPDATE), UPDATE, INSERT ... SELECT,
+--               business-rule check (CALL), ROLLBACK keeps the seed unchanged
+--    Uses:      check_business_rules() (transactions.sql); request ...0001 from seed.sql
+BEGIN;
+
+-- a) Lock the request; a resident editing and a volunteer accepting can
+--    collide; accept_request locks the same row, so the second one waits and then
+--    sees the new windows.
+SELECT pickup_request_id FROM pickup_request
+WHERE pickup_request_id = '00000003-0000-4000-8000-000000000001'
+FOR UPDATE;
+
+-- b) Retire the current active windows (kept as history).
+UPDATE pickup_window
+SET is_active = FALSE
+WHERE pickup_request_id = '00000003-0000-4000-8000-000000000001'
+  AND is_active;
+
+-- c) Add the replacement window: 3 days after creation, 15:00 Calgary time
+--    (any start after creation and end within 30 days is valid, FR07).
+INSERT INTO pickup_window (pickup_window_id, pickup_request_id, pickup_date, start_hour, is_active)
+SELECT '00000091-0000-4000-8000-000000000002', pr.pickup_request_id,
+       (pr.created_at AT TIME ZONE 'America/Edmonton')::date + 3, 15, TRUE
+FROM pickup_request pr
+WHERE pr.pickup_request_id = '00000003-0000-4000-8000-000000000001';
+
+-- d) Bump the published sequence: an edit is a new request event, and consumers
+--    use request_seq to spot late events.
+UPDATE pickup_request
+SET request_seq = request_seq + 1
+WHERE pickup_request_id = '00000003-0000-4000-8000-000000000001';
+
+-- e) Multi-row rules (1-3 active windows, distinct, inside the 30-day period).
+CALL check_business_rules();
+
+-- f) Show the result.
+SELECT RIGHT(w.pickup_window_id::text, 4) AS
+
