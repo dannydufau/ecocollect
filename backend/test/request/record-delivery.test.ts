@@ -33,11 +33,11 @@ describe('Q15 record delivery', { skip: skipDb }, () => {
   });
   after(async () => { await app.close(); await noImageKit.close(); });
 
-  test('403 for another volunteer; 409 not_collected; 400 without ImageKit; 200 after collection; then 409', async () => {
+  test('404 for another volunteer; 409 not_collected; 400 without ImageKit; 200 after collection; then 409', async () => {
     const path = `/api/requests/${requestId}/assignment/delivery`;
     const body = { facilityId, evidencePhoto: { fileId: `test-${requestId}` } };
 
-    check.expectError(await app.call('POST', path, otherVolunteer, body), 403, 'forbidden');
+    check.expectError(await app.call('POST', path, otherVolunteer, body), 404, 'request_unavailable');
     check.expectError(await app.call('POST', path, volunteer, body), 409, 'not_collected');
 
     assert.equal((await app.call('POST', `/api/requests/${requestId}/assignment/collected`, owner)).status, 200);

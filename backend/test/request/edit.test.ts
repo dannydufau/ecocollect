@@ -27,14 +27,14 @@ describe('Q9 edit', { skip: skipDb }, () => {
   });
   after(() => app.close());
 
-  test('403 for another resident; 400 for {}; 200 edits; replaced photo deleted; same values: no event', async () => {
+  test('404 for another resident; 400 for {}; 200 edits; replaced photo deleted; same values: no event', async () => {
     const requestId = await createOpen(app.call, owner);
     const path = `/api/requests/${requestId}`;
     const first = `test-${requestId}-a`;
     const second = `test-${requestId}-b`;
     const windows = [{ date: calgaryDay(2), startHour: 10 }];
 
-    check.expectError(await app.call('PATCH', path, otherResident, { quantity: 2 }), 403, 'forbidden');
+    check.expectError(await app.call('PATCH', path, otherResident, { quantity: 2 }), 404, 'request_unavailable');
     check.expectError(await app.call('PATCH', path, owner, {}), 400, 'validation_failed');
 
     const edited = await app.call('PATCH', path, owner, { quantity: 2, notes: 'Side door', windows, photo: { fileId: first } });
@@ -57,7 +57,7 @@ describe('Q9 edit', { skip: skipDb }, () => {
 
   test('overdue: 409 expired, then 409 not_open', async () => {
     const requestId = await createOpen(app.call, owner);
-    await moveIntoPast(app.pool, requestId, 2);   // its only window has started
+    await moveIntoPast(requestId, 2);   // its only window has started
     const path = `/api/requests/${requestId}`;
 
     check.expectError(await app.call('PATCH', path, owner, { quantity: 2 }), 409, 'expired');

@@ -16,9 +16,15 @@ The [User database setup](scripts/user/README.md) creates the account and terms 
 
 `db/terms.ts` exports `getCurrentTerms(client)` for registration and role activation. It selects the document with the latest `published_at` that is not in the future, using its ID to break ties, and returns only `termsDocumentId`, `content` and UTC `publishedAt`. The public route uses the same lookup and reads no identity headers. An empty terms table returns a JSON 500 error. Run `node --test test/user-terms.test.js` from `backend/`; set `TEST_DATABASE_URL` to a loaded scratch database to include the newest-document database test.
 
+### Demo sessions
+
+Set `DEMO_MODE=true` only on a dedicated demo User Service with a separate database, RabbitMQ vhost, and Firebase project or Auth emulator. The production Caddy site does not expose `POST /api/demo/session`. The endpoint allows five attempts per client IP per minute, per User Service process. For the demo gateway, set `DEMO_PROXY_IP` to the address of its single directly connected proxy, which must replace or append the actual peer in `X-Forwarded-For`. Without this setting the service uses the socket address.
+
+In the demo Compose profile, put Caddy and the demo User Service on the same dedicated network. Set that network's `ipam.config` subnet to an unused range, then set the Caddy service's `networks.<demo-network>.ipv4_address` to an unused address in that subnet. Pass the same address as `DEMO_PROXY_IP` to the demo User Service. This keeps the trusted peer stable across container recreation and gives each visitor their own rate-limit bucket.
+
 ### Shared-schema profile tests
 
-Load `db/init/*.sql` in filename order into a fresh scratch PostgreSQL database. Use its admin login in `PROFILE_EDIT_TEST_DATABASE_URL` so the tests can create and remove fixtures and switch to `ecocollect_user` for endpoint calls. From `backend/`, run `node --test test/user-profile-update.test.js` for profile edits or `node --test test/user-profile-delete.test.js` for deactivation. The database-backed cases are skipped without that URL.
+Load db/init/*.sql in filename order into a fresh scratch PostgreSQL database. Set PROFILE_EDIT_TEST_DATABASE_URL to the database's admin connection string. From backend/, run node --test test/user-profile-update.test.js. The database-backed cases are skipped without that URL.
 
 ## Auth module (`src/user/auth/`)
 
@@ -76,7 +82,23 @@ DATABASE_URL=postgres://ecocollect_request:<REQUEST_DB_PASSWORD>@localhost:5432/
 | `IMAGEKIT_ROOT_FOLDER` | Upload folders start with this: `/ecocollect`, or `/ecocollect-demo` in the demo stack. |
 | `DEMO_MODE` | `true` only in the demo stack: the resident also gets the new-request notification for their own request (contract 17.5). |
 
-Tests: `npm run typecheck` and `npm run test:request`. The database tests need `REQUEST_TEST_DATABASE_URL` pointing at a database built by `load-db.sh --test` (`ecocollect_request_test`: every `db/init` file, `db/request/`, then the test accounts and requests in `test/request/seed.sql`); without it they are skipped. Use the admin login in that URL: the tests move requests into the past by changing rows the service itself may not change.
+Tests: `npm run typecheck` and `npm run test:request`. The database tests need `REQUEST_TEST_DATABASE_URL` pointing at a database built by `load-db.sh --test` (`ecocollect_request_test`: every `db/init` file, `db/request/`, then the test accounts and requests in `test/request/seed.sql`); without it they are skipped. Use the service login (`ecocollect_request`) in that URL, so the tests run with the service's real grants, and set `REQUEST_TEST_ADMIN_DATABASE_URL` to the same database with the admin login: the tests move requests into the past by changing rows the service itself may not change. Without the admin URL, the tests use `REQUEST_TEST_DATABASE_URL` for that too, which then has to be the admin login.
+
+From `backend/`, with `docker compose up -d postgres` running:
+
+```bash
+# Rebuild the test database. Do this before every run: some tests change seed rows for good (Q11 accept).
+scripts/request/load-db.sh --test
+
+# Load .env into this shell (use a fresh terminal: these exports override .env later).
+set -a && . ../.env && set +a
+
+REQUEST_TEST_DATABASE_URL="postgres://ecocollect_request:${REQUEST_DB_PASSWORD}@127.0.0.1:5432/ecocollect_request_test" \
+REQUEST_TEST_ADMIN_DATABASE_URL="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@127.0.0.1:5432/ecocollect_request_test" \
+  npm run test:request
+```
+
+Use `127.0.0.1`, not `localhost`: if another Postgres runs on your machine (Homebrew, for example), `localhost` can reach it instead of the Compose one, and every test fails with `role "ecocollect" does not exist`.
 
 ## Run it
 

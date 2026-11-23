@@ -42,7 +42,7 @@ describe('Q3 upload ticket', { skip: skipDb }, () => {
     assert.deepEqual(Object.keys((gif.body as ErrorBody).error.details?.fields ?? {}), ['contentType']);
   });
 
-  test('evidence: 403 before collection; 200 after, in the request folder; 403 / 404 / 400', async () => {
+  test('evidence: 403 before collection; 200 after, in the request folder; 404 for another volunteer or an unknown request; 400 without requestId', async () => {
     const requestId = await createAssigned(app.call, owner, volunteer);
     const body = { purpose: 'delivery_evidence', requestId, fileName: 'e.png', contentType: 'image/png', sizeBytes: 1000 };
 
@@ -55,7 +55,7 @@ describe('Q3 upload ticket', { skip: skipDb }, () => {
     assert.equal((res.body as Ticket).fields.folder,
       `/ecocollect/delivery-evidence/${volunteer['X-User-Id']}/${requestId}/`);
 
-    check.expectError(await app.call('POST', '/api/uploads', otherVolunteer, body), 403, 'forbidden');
+    check.expectError(await app.call('POST', '/api/uploads', otherVolunteer, body), 404, 'request_unavailable');
     check.expectError(await app.call('POST', '/api/uploads', volunteer, { ...body, requestId: UNKNOWN_REQUEST_ID }),
       404, 'request_unavailable');
 

@@ -18,9 +18,12 @@
 --   resident   the owner
 --   volunteer  the volunteer of the request's latest assignment (by accepted_at),
 --              with a volunteer row. Latest, not only unfinished: after their own
---              cancellation a repeat call gets 'no_active_assignment', not 'forbidden'.
+--              cancellation, while the request is Open again, a repeat call gets
+--              'no_active_assignment', not 'forbidden'. Once someone else accepts
+--              it or it expires, Q8 hides it: 'request_unavailable'.
 --
 -- Returns the first rule that fails, in this order:
+--   'request_unavailable'  Q8 hides the request from the caller (req_viewer, 022)
 --   'forbidden'             neither side, or the caller's account is deactivated
 --   'as_required'           both sides and p_as is NULL (the write function turns
 --                           it into a 400 under `as`)
@@ -44,6 +47,7 @@ AS $$
 DECLARE
     k_code_ok              CONSTANT TEXT := 'ok';
     k_code_forbidden       CONSTANT TEXT := 'forbidden';
+    k_code_unavailable     CONSTANT TEXT := 'request_unavailable';
     k_code_as_required     CONSTANT TEXT := 'as_required';
     k_code_collected       CONSTANT TEXT := 'already_collected';
     k_code_no_active       CONSTANT TEXT := 'no_active_assignment';
@@ -56,6 +60,7 @@ DECLARE
     v_is_volunteer  BOOLEAN;     -- volunteer side
     v_is_active     BOOLEAN;     -- the caller's account is not deactivated
     v_side          TEXT;        -- the side this call acts on
+    v_is_visible    BOOLEAN;     -- Q8 shows the request to the caller
 BEGIN
     IF p_request_id IS NULL OR p_actor_id IS NULL OR p_at IS NULL THEN
         RAISE EXCEPTION 'req_check_cancel_assignment: missing argument';
@@ -65,6 +70,13 @@ BEGIN
     END IF;
     IF requests.req_current_status(p_request_id) IS NULL THEN
         RAISE EXCEPTION 'req_check_cancel_assignment: request % not found', p_request_id;
+    END IF;
+
+    -- 0. Hidden from the caller in Q8: the same 404 as Q8, never 403
+    -- (contract Conventions, NFR03).
+    v_is_visible := requests.req_viewer(p_request_id, p_actor_id) IS NOT NULL;
+    IF NOT v_is_visible THEN
+        RETURN k_code_unavailable;
     END IF;
 
     -- The latest assignment, found through its window and the volunteer's terms

@@ -1,11 +1,18 @@
-// Q4 body shape checks (CreateRequests in openapi.yaml), before any database
-// call. Rules that need the database (category exists, window in the future,
-// within 30 days, terms current) are req_create_requests' job.
-// Every failing field is reported, one entry per field with zero-based paths,
-// so the resident sees them all at once.
+// Q4 body checks (CreateRequests in openapi.yaml), before any database call.
+// Rules that need the database (category exists, window in the future, within
+// 30 days, terms current) are req_create_requests' job.
+// Errors come back in stages, each stage reporting all of its failing fields
+// (one entry per field, zero-based paths) and stopping the call:
+//   1. the body's shape (valibot);
+//   2. a repeated categoryId or photo fileId (here);
+//   3. an unknown categoryId (the route);
+//   4. everything else (req_create_requests).
+// Stages 2 and 3 run before any ImageKit call, so a body costs at most one
+// check per known category. A rare repeat costs the resident one more try.
 import * as v from 'valibot';
 import { parseBody, Uuid } from './body-validation.ts';
-import { termsOutdated } from './errors.ts';
+import { termsOutdated, validationFailed } from './errors.ts';
+import { blankToNull, fitsFreeTextLimit } from './input-free-text.ts';
 
 const INT_MAX = 2_147_483_647;         // quantity is an INT parameter
 
@@ -48,7 +55,7 @@ const CreateRequests = v.strictObject({
     photo: v.optional(PhotoRef),
   })), v.minLength(1)), 'must have at least 1 item'),
   windows: PickupWindows,
-  notes: v.message(v.optional(v.string()), 'must be text'),
+  notes: v.optional(v.pipe(v.string('must be text'), fitsFreeTextLimit)),
   termsDocumentId: v.message(v.pipe(v.string(), v.minLength(1)), 'must be the current terms document id'),
 });
 
@@ -58,7 +65,7 @@ export type CreateRequestsBody = {
   photoFileIds: (string | null)[];     // null: the item has no photo
   dates: string[];                     // 'YYYY-MM-DD', a real calendar date
   hours: number[];
-  notes: string | null;
+  notes: string | null;                // null: not sent, or blank
   termsDocumentId: string;             // a well-formed UUID
 };
 
@@ -69,13 +76,26 @@ export function parseCreateRequestsBody(body: unknown): CreateRequestsBody {
   // database would fail to cast it to UUID.
   if (!v.is(Uuid, termsDocumentId)) throw termsOutdated();
 
+  // A repeated categoryId or photo fileId, before any ImageKit call: each item
+  // after the first with that value is reported, as req_create_requests words it.
+  const fields: Record<string, string> = {};
+  items.forEach((item, i) => {
+    const firstWithCategory = items.findIndex((other) => other.categoryId === item.categoryId);
+    if (firstWithCategory < i) fields[`items[${i}].categoryId`] = 'already selected';
+
+    const fileId = item.photo?.fileId;
+    const firstWithFile = items.findIndex((other) => other.photo?.fileId === fileId);
+    if (fileId !== undefined && firstWithFile < i) fields[`items[${i}].photo.fileId`] = 'already used';
+  });
+  if (Object.keys(fields).length > 0) throw validationFailed(fields);
+
   return {
     categoryIds: items.map((item) => item.categoryId),
     quantities: items.map((item) => item.quantity),
     photoFileIds: items.map((item) => item.photo?.fileId ?? null),
     dates: windows.map((w) => w.date),
     hours: windows.map((w) => w.startHour),
-    notes: notes ?? null,
+    notes: blankToNull(notes),
     termsDocumentId,
   };
 }
