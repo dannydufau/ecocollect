@@ -110,7 +110,8 @@ it.each(["Open", "Assigned", "Collected", "Delivered", "Cancelled", "Expired", "
             expect(progress).toBeInTheDocument();
             expect(within(progress!).getByText(`${status} (now)`)).toHaveAttribute("aria-current", "step");
         }
-        if (status !== "Open") expect(screen.queryByText(/^Expires /)).not.toBeInTheDocument();
+        // The panel says "Open until", so the Summary card no longer repeats it as "Expires"
+        expect(screen.queryByText(/^Expires/)).not.toBeInTheDocument();
     },
 );
 
