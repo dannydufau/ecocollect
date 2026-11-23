@@ -9,7 +9,7 @@ import { formatPostalCode } from "@/lib/postal-code";
 import { formatTimestamp, formatWindow, friendlyWindow } from "@/lib/time";
 import type { AvailableRequest } from "@/lib/types";
 import { useProfile } from "@/lib/use-profile";
-import { Button, EmptyState, MapPinIcon, QueryError, Spinner, clickableCard, identifier, pageTitle, stretchedLink, textLink } from "@/components/ui";
+import { Button, EmptyState, MapPinIcon, QueryError, LoadingRegion, clickableCard, identifier, pageTitle, stretchedLink, textLink } from "@/components/ui";
 import PostalFilter from "./postal-filter";
 
 export default function AvailableRequests() {
@@ -33,7 +33,7 @@ export default function AvailableRequests() {
             {!empty && codes?.length === 0 && profile.data?.preferredPostalCodes.length === 0 && <p className="text-text-muted">
                 Save preferred postal codes in your <Link href="/profile" className={textLink}>profile</Link> to see nearby requests first.
             </p>}
-            {isPending && <Spinner label="Loading requests..." />}
+            {isPending && <LoadingRegion label="Loading requests..." />}
             {isError && <QueryError message="We could not load the requests. Please try again." onRetry={() => void refetch()} busy={isFetching} />}
             {empty && (codes?.length
                 ? <EmptyState title="No open requests in these areas." action={<Button variant="secondary" onClick={() => setCodes([])}>Show all areas</Button>} />

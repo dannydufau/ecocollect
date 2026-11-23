@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import EnableNotifications from "@/components/enable-notifications";
-import { Alert, BellIcon, QueryError, RoleBadge, Spinner, card, identifier, pageTitle, textLink } from "@/components/ui";
+import { Alert, BellIcon, QueryError, RoleBadge, LoadingRegion, card, identifier, pageTitle, textLink } from "@/components/ui";
 import { ApiError, isAuthError } from "@/lib/api";
 import { formatDate, formatTimestamp } from "@/lib/time";
 import type { Profile } from "@/lib/types";
@@ -49,7 +49,7 @@ export default function ProfilePage() {
                 {profile && <Link href={`/profiles/${encodeURIComponent(profile.accountId)}`} className={textLink}>View my public profile</Link>}
             </div>
             {notice && <Alert variant={notice.variant} onDismiss={() => setNotice(null)}>{notice.text}</Alert>}
-            {isPending && <Spinner label="Loading your profile..." />}
+            {isPending && <LoadingRegion label="Loading your profile..." />}
             {isError && <QueryError message={isAuthError(error)
                         ? "Please log in to view your profile."
                         : error instanceof ApiError && error.status === 404

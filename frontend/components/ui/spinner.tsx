@@ -7,6 +7,11 @@ export function Spinner({ label = "Loading" }: { label?: string }) {
     );
 }
 
+// A region that fills with data. It keeps its height, so the page does not jump when the data arrives.
+export function LoadingRegion({ label }: { label: string }) {
+    return <div className="flex min-h-48 items-center justify-center"><Spinner label={label} /></div>;
+}
+
 // Fills the space it is given and centres the spinner, for a whole page that is still loading
 export function PageLoading() {
     return <div className="flex min-h-48 flex-1 items-center justify-center p-8"><Spinner label="Loading..." /></div>;

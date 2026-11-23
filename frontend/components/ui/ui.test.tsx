@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useEffect } from "react";
-import { Alert, Button, ConfirmDialog, PageLoading, Spinner, StatusBadge } from "./index";
+import { Alert, Button, ConfirmDialog, LoadingRegion, PageLoading, Spinner, StatusBadge } from "./index";
 import { buttonClass } from "./button";
 import { AlertIcon, CheckIcon, InfoIcon, WarningIcon } from "./icons";
 import { clickableCard, input, linkButton, secondaryLinkButton, select, textarea } from "./styles";
@@ -226,4 +226,12 @@ it.each([["input", input], ["textarea", textarea], ["select", select]])("the %s 
 it("only the select style draws its own chevron", () => {
     expect(select.split(" ")).toContain("select-chevron");
     expect(input.split(" ")).not.toContain("select-chevron");
+});
+
+it("LoadingRegion keeps a minimum height around a labelled spinner, so the page does not jump", () => {
+    render(<LoadingRegion label="Loading stats..." />);
+    const status = screen.getByRole("status");
+    expect(status).toHaveTextContent("Loading stats...");
+    expect(status.parentElement).toHaveClass("min-h-48", "items-center", "justify-center");
+    expect(status.querySelector("[aria-hidden=true]")).toHaveClass("motion-reduce:animate-none");
 });

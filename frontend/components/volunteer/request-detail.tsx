@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Alert, QueryError, RequestPhoto, Spinner, StatusBadge, card, identifier, pageTitle, textLink } from "@/components/ui";
+import { Alert, QueryError, RequestPhoto, LoadingRegion, StatusBadge, card, identifier, pageTitle, textLink } from "@/components/ui";
 import { isAuthError } from "@/lib/api";
 import { formatPostalCode } from "@/lib/postal-code";
 import { nextStepText } from "@/lib/status-text";
@@ -41,7 +41,7 @@ export default function VolunteerRequestDetail({ requestId }: { requestId: strin
         <h1 className={pageTitle}>This request is no longer available</h1>
         {back}
     </section>;
-    if (isPending) return <Spinner label="Loading the request..." />;
+    if (isPending) return <LoadingRegion label="Loading the request..." />;
     if (isError || !request) return <section className="space-y-3">
         <h1 className={pageTitle}>Pickup request</h1>
         <QueryError message={isAuthError(error)

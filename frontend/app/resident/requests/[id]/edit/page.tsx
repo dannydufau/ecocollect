@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import RequestForm, { type RequestValues } from "@/components/resident/request-form";
-import { Alert, EmptyState, QueryError, Spinner, pageTitle, secondaryLinkButton, textLink } from "@/components/ui";
+import { Alert, EmptyState, QueryError, LoadingRegion, pageTitle, secondaryLinkButton, textLink } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import type { EditRequest, PickupWindow } from "@/lib/types";
@@ -46,7 +46,7 @@ export default function EditRequestPage() {
                 {!blocked && <Link href={back} className={textLink}>Back to request</Link>}
                 <h1 className={pageTitle}>Edit request</h1>
                 {action.message && <Alert variant="error">{action.message}</Alert>}
-                {isPending && <Spinner label="Loading your request..." />}
+                {isPending && <LoadingRegion label="Loading your request..." />}
                 {isError && !unavailable && <QueryError message="We could not load your request. Please try again." onRetry={() => void refetch()} busy={isFetching} />}
                 {blocked && <EmptyState title="This request can't be edited now."
                     action={<Link href={back} className={secondaryLinkButton}>Back to request</Link>} />}

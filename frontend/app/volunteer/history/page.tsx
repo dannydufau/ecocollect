@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Button, EmptyState, FilterTabs, QueryError, Spinner, StatusBadge, card, clickableCard, linkButton, identifier, pageTitle, stretchedLink } from "@/components/ui";
+import { Button, EmptyState, FilterTabs, QueryError, LoadingRegion, StatusBadge, card, clickableCard, linkButton, identifier, pageTitle, stretchedLink } from "@/components/ui";
 import { api } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { formatPostalCode } from "@/lib/postal-code";
@@ -35,7 +35,7 @@ export default function VolunteerHistoryPage() {
             <div className="mx-auto max-w-5xl space-y-6">
                 <h1 className={pageTitle}>My assignments</h1>
                 <FilterTabs label="Assignment status" options={filters} value={filter} onChange={setFilter} />
-                {isPending && <Spinner label="Loading your assignments..." />}
+                {isPending && <LoadingRegion label="Loading your assignments..." />}
                 {isError && <QueryError message="We could not load your assignments. Please try again." onRetry={() => void refetch()} busy={isFetching} />}
                 {!isPlaceholderData && rows?.length === 0 && (filter === "All"
                     ? <EmptyState title="No assignments yet." action={<Link href="/volunteer" className={linkButton}>Browse available requests</Link>}>

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { EmptyState, QueryError, RoleBadge, Spinner, linkButton, identifier, pageTitle } from "@/components/ui";
+import { EmptyState, QueryError, RoleBadge, LoadingRegion, linkButton, identifier, pageTitle } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { usePublicStream } from "@/lib/public-stream";
 import { queryKeys } from "@/lib/query-keys";
@@ -54,7 +54,7 @@ export default function PublicProfilePage() {
         <main className="p-4 sm:p-8">
             <div className="mx-auto max-w-3xl space-y-6">
                 {!data && <h1 className={pageTitle}>Public profile</h1>}
-                {profile.isPending && <Spinner label="Loading the profile..." />}
+                {profile.isPending && <LoadingRegion label="Loading the profile..." />}
                 {profile.isError && <QueryError message="We could not load this profile. Check your connection and try again." onRetry={() => { void profile.refetch(); void stats.refetch(); }} busy={profile.isFetching} />}
                 {data && <section aria-label="Profile details" className="overflow-hidden rounded-2xl border border-border bg-surface-elevated shadow-rest">
                     <header className="flex min-w-0 items-center gap-4 bg-accent-2-200 p-5">
