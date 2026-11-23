@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
-import { Button, card, input } from "@/components/ui";
+import { Button, card, input, select } from "@/components/ui";
 import { calgaryHour, calgaryToday, formatHour, formatWindow } from "@/lib/time";
 import type { PickupWindow } from "@/lib/types";
 
@@ -80,7 +80,7 @@ export function WindowsPicker({ value, onChange, createdAt, embedded = false }: 
                                     <select id={`${id}-${index}-hour`} required value={row.startHour}
                                         onChange={event => updateRow(index, { startHour: event.target.value })}
                                         aria-invalid={Boolean(error)} aria-describedby={error ? errorId : undefined}
-                                        className={`${input} min-w-0`}>
+                                        className={`${select} min-w-0`}>
                                         <option value="" disabled>Choose an hour</option>
                                         {Array.from({ length: 24 }, (_, hour) => (
                                             <option key={hour} value={hour} disabled={row.date === today && hour <= currentHour}>{formatHour(hour)}</option>
