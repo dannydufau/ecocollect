@@ -10,7 +10,7 @@ import { formatTimestamp } from "@/lib/time";
 
 type Stats = operations["getPublicStats"]["responses"][200]["content"]["application/json"];
 
-const cell = "px-1.5 py-3 first:pl-4 last:pr-4 sm:px-4";
+const cell = "px-1 py-3 sm:px-4";
 
 // Public route, so a plain fetch without the Authorization header that api.get adds
 async function getStats(): Promise<Stats> {
@@ -47,7 +47,7 @@ export default function StatsPage() {
                     <section className="overflow-hidden rounded-2xl border border-border bg-surface-elevated shadow-rest" aria-labelledby="waste-types">
                         <h2 id="waste-types" className="p-4">By waste type</h2>
                         {!data.byWasteType.length ? <EmptyState bare icon={<ScaleIcon />} title="No deliveries yet." /> : (
-                            <div className="overflow-x-auto"><table className="w-full text-left text-small">
+                            <div className="mx-3 min-w-0 overflow-x-auto sm:mx-0"><table className="w-full text-left text-small">
                                 <caption className="sr-only">Deliveries by waste type</caption>
                                 <thead className="bg-surface text-text-muted">
                                     <tr><th scope="col" className={cell}>Waste type</th><th scope="col" className={`${cell} text-right`}>Deliveries</th><th scope="col" className={`${cell} text-right`}>Items</th><th scope="col" className={`${cell} text-right`}>Estimated kg</th></tr>

@@ -47,10 +47,10 @@ export default function VolunteerHistoryPage() {
                     {rows.map(row => {
                         const waiting = row.assignment.status === "Collected";
                         return <li key={row.assignment.assignmentId} className={`${row.category ? clickableCard : `${card} border-dashed`} ${waiting ? "border-l-4 border-l-accent" : ""} min-w-0 space-y-1`}>
-                            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+                            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3">
                                 {row.category
                                     ? <Link href={`/volunteer/requests/${encodeURIComponent(row.requestId)}`} className={stretchedLink}>{row.quantity} × {row.category.name}</Link>
-                                    : <p className="text-lg font-semibold text-text-muted">Request no longer available to you</p>}
+                                    : <p className="min-w-0 break-words text-lg font-semibold text-text-muted">Request no longer available to you</p>}
                                 <StatusBadge status={labels[row.assignment.status]} />
                             </div>
                             {/* The whole card is the link, so this only looks like a button */}
