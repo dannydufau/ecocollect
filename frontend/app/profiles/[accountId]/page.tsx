@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { EmptyState, QueryError, RoleBadge, Spinner, linkButton, mono, pageTitle } from "@/components/ui";
+import { EmptyState, QueryError, RoleBadge, Spinner, linkButton, identifier, pageTitle } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { usePublicStream } from "@/lib/public-stream";
 import { queryKeys } from "@/lib/query-keys";
@@ -61,15 +61,15 @@ export default function PublicProfilePage() {
                         <span aria-hidden="true" className="inline-flex size-16 flex-none items-center justify-center rounded-full bg-accent-2-800 text-2xl font-bold text-on-moss">{initials(data.publicName)}</span>
                         <div className="min-w-0 space-y-1">
                             <h1 className={`break-words ${pageTitle}`}>{data.publicName}</h1>
-                            <p className={`break-all text-text-muted ${mono}`}>@{data.accountId}</p>
+                            <p className={`break-all text-text-muted ${identifier}`}>@{data.accountId}</p>
                             <p className="flex flex-wrap gap-2">{data.roles.map(role => <RoleBadge key={role} role={role} />)}</p>
                         </div>
                     </header>
                     <dl className="grid gap-4 p-5 sm:grid-cols-3">
-                        <div><dt className="text-[13px] text-text-muted">Roles</dt><dd>{data.roles.map(role => roleNames[role]).join(" and ")}</dd></div>
-                        <div><dt className="text-[13px] text-text-muted">Member since</dt><dd>{formatDate(calgaryToday(new Date(data.memberSince)))}</dd></div>
+                        <div><dt className="text-caption text-text-muted">Roles</dt><dd>{data.roles.map(role => roleNames[role]).join(" and ")}</dd></div>
+                        <div><dt className="text-caption text-text-muted">Member since</dt><dd>{formatDate(calgaryToday(new Date(data.memberSince)))}</dd></div>
                         <div>
-                            <dt className="text-[13px] text-text-muted">EcoPoints</dt>
+                            <dt className="text-caption text-text-muted">EcoPoints</dt>
                             <dd className="whitespace-nowrap text-2xl font-bold tabular-nums">
                                 {stats.data ? stats.data.ecopoints.toFixed(2) : stats.isError ? <span className="text-base font-normal">Not available right now</span> : "…"}
                             </dd>

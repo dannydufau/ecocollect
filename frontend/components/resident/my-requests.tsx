@@ -64,7 +64,7 @@ export default function MyRequests({ created }: { created?: string }) {
                     </li>;
                 })}
             </ul>
-            <p className="text-[13px] text-text-muted">Times are Calgary time.</p>
+            <p className="text-caption text-text-muted">Times are Calgary time.</p>
             </>}
         </section>
     );

@@ -9,7 +9,7 @@ import { formatPostalCode } from "@/lib/postal-code";
 import { formatTimestamp, formatWindow, friendlyWindow } from "@/lib/time";
 import type { AvailableRequest } from "@/lib/types";
 import { useProfile } from "@/lib/use-profile";
-import { Button, EmptyState, MapPinIcon, QueryError, Spinner, clickableCard, mono, pageTitle, stretchedLink, textLink } from "@/components/ui";
+import { Button, EmptyState, MapPinIcon, QueryError, Spinner, clickableCard, identifier, pageTitle, stretchedLink, textLink } from "@/components/ui";
 import PostalFilter from "./postal-filter";
 
 export default function AvailableRequests() {
@@ -48,19 +48,19 @@ export default function AvailableRequests() {
                                                         <Link href={`/volunteer/requests/${encodeURIComponent(request.requestId)}`} className={stretchedLink}>
                                 {request.quantity} × {request.category.name}
                             </Link>
-                            <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-neutral-100 px-3 py-1 text-text-muted ${mono}`}><MapPinIcon className="size-4" />{formatPostalCode(request.postalCode)}</span>
+                            <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-neutral-100 px-3 py-1 text-text-muted ${identifier}`}><MapPinIcon className="size-4" />{formatPostalCode(request.postalCode)}</span>
                         </div>
                         <p className="mt-1 text-text-muted">{request.estimatedWeightKg.toFixed(2)} kg{request.hasPhoto && " · Photo"}</p>
                         <ul className="mt-1">
                             {request.windows.map(window => <li key={window.windowId} className="mb-1 flex flex-wrap items-baseline gap-x-2">
                                 <strong>{friendlyWindow(window)}</strong>
-                                <span className="text-[13px] text-text-muted">{formatWindow(window)}</span>
+                                <span className="text-caption text-text-muted">{formatWindow(window)}</span>
                             </li>)}
                         </ul>
-                        <p className="mt-1 text-[14px] text-text-muted">Open until {formatTimestamp(request.expiresAt)}</p>
+                        <p className="mt-1 text-small text-text-muted">Open until {formatTimestamp(request.expiresAt)}</p>
                     </li>)}
                 </ul>
-                <p className="text-[13px] text-text-muted">Times are Calgary time.</p>
+                <p className="text-caption text-text-muted">Times are Calgary time.</p>
             </>}
         </section>
     );

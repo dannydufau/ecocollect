@@ -152,7 +152,7 @@ it("shows the address card with a moss border after accepting, with a formatted 
     const card = screen.getByRole("region", { name: "Pickup address and notes" });
     expect(card).toHaveClass("border-l-4", "border-l-accent-2-700");
     expect(card).not.toHaveClass("bg-accent-200");
-    expect(within(card).getByText("T2P 1J9")).toHaveClass("font-mono");
+    expect(within(card).getByText("T2P 1J9")).toHaveClass("tabular-nums");
 });
 
 it("does not repeat the category and quantity from the title in Details", async () => {

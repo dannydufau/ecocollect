@@ -15,7 +15,7 @@ export default function NotificationBell() {
                 <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
             </svg>
             {count > 0 && <span aria-hidden="true"
-                className="absolute -right-1 -top-1 min-w-5 rounded-full bg-danger px-1.5 text-center ring-2 ring-bg text-[12px] font-bold leading-5 text-on-danger">
+                className="absolute -right-1 -top-1 min-w-5 rounded-full bg-danger px-1.5 text-center ring-2 ring-bg text-caption font-bold leading-5 text-on-danger">
                 {count > 99 ? "99+" : count}
             </span>}
         </Link>

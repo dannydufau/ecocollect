@@ -60,7 +60,7 @@ export default function EcoPointsPage() {
                                             {award.kind === "DELIVERY" && award.categoryName
                                                 ? <p className="break-words">{award.quantity} × {award.categoryName}, <span className="tabular-nums">{award.estimatedWeightKg?.toFixed(2)} kg</span></p>
                                                 : <p className="text-text-muted">Item details are not shown for this award.</p>}
-                                            <p className="text-[13px] text-text-muted">{formulaText(award)} · <time dateTime={award.awardedAt}>{formatTimestamp(award.awardedAt)}</time></p>
+                                            <p className="text-caption text-text-muted">{formulaText(award)} · <time dateTime={award.awardedAt}>{formatTimestamp(award.awardedAt)}</time></p>
                                         </div>
                                         {award.kind === "DELIVERY" && <Link
                                             href={`/${award.earnedAs}/requests/${award.requestId}`}

@@ -87,10 +87,10 @@ it("marks the chosen option with a checked radio, a moss border and a check", as
     expect(screen.getByRole("radio", { name: /Demo Recycling Facility/ }).closest("label")!.querySelectorAll("svg")).toHaveLength(1);
 });
 
-it("shows a pin icon, a mono postal code and the instructions in an inset box", async () => {
+it("shows a pin icon, a postal code and the instructions in an inset box", async () => {
     renderWithClient(<FacilityPicker categoryId="laptops" value={null} onChange={() => {}} />);
     const row = (await screen.findByRole("radio", { name: /Demo Recycling Facility/ })).closest("label")!;
     expect(row.querySelector("svg[aria-hidden=true]")).not.toBeNull();
-    expect(screen.getByText("T2G 4R7")).toHaveClass("font-mono");
+    expect(screen.getByText("T2G 4R7")).toHaveClass("tabular-nums");
     expect(screen.getByText("Use the loading dock.")).toHaveClass("bg-surface");
 });

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { AddressFields, PostalCodeList } from "@/components/address-fields";
-import { Field, input, mono } from "@/components/ui";
+import { Field, input, identifier } from "@/components/ui";
 import { ApiError, friendlyError } from "@/lib/api";
 import { formatPostalCode } from "@/lib/postal-code";
 import type { Profile, ProfileEdit } from "@/lib/types";
@@ -70,7 +70,7 @@ export function PublicNameEditor(props: EditorProps) {
                 const publicName = name.trim();
                 send(publicName ? {} : { publicName: "Enter a public name." }, publicName !== profile.publicName ? { publicName } : {});
             }}
-            read={<><p className="text-[13px] text-text-muted">Public name</p><p className="break-words">{profile.publicName}</p></>}
+            read={<><p className="text-caption text-text-muted">Public name</p><p className="break-words">{profile.publicName}</p></>}
             fields={<Field label="Public name" hint="Other people see this name." error={errors.publicName}>
                 {(control) => <input {...control} type="text" autoComplete="nickname" value={name} className={input}
                     onChange={(event) => setDraft(event.target.value)} />}
@@ -95,8 +95,8 @@ export function AddressEditor(props: EditorProps) {
                 send(validateAddress(street, postalCode), changed ? { address: next } : {});
             }}
             read={address && <>
-                <p className="break-words">{address.street}<br />{address.city}, <span className={mono}>{formatPostalCode(address.postalCode)}</span></p>
-                {locked && <p className="mt-1 text-[13px] text-text-muted">Locked while you have an Open or Assigned request.</p>}
+                <p className="break-words">{address.street}<br />{address.city}, <span className={identifier}>{formatPostalCode(address.postalCode)}</span></p>
+                {locked && <p className="mt-1 text-small text-text-muted">Locked while you have an Open or Assigned request.</p>}
             </>}
             fields={<AddressFields street={street} postalCode={postalCode} errors={errors} onStreet={(next) => setDraft({ street: next, postalCode })} onPostalCode={(next) => setDraft({ street, postalCode: next })} />} />
     );
@@ -117,7 +117,7 @@ export function CodesEditor(props: EditorProps) {
             }}
             read={profile.preferredPostalCodes.length > 0
                 ? <ul className="flex flex-wrap gap-2">{profile.preferredPostalCodes.map((code) => (
-                    <li key={code} className={`rounded-full bg-neutral-100 px-3.5 py-1.5 ${mono}`}>{formatPostalCode(code)}</li>
+                    <li key={code} className={`rounded-full bg-neutral-100 px-3.5 py-1.5 ${identifier}`}>{formatPostalCode(code)}</li>
                 ))}</ul>
                 : <p>You have no saved codes. You will not get new-request notifications and the list shows every area.</p>}
             fields={<div className="space-y-3">

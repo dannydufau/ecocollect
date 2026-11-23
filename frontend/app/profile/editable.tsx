@@ -29,7 +29,7 @@ export function Editable({ id, editLabel, open, unsaved, onOpen, onClose, saving
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">
                     {read}
-                    {unsaved && <p className="mt-1 text-[13px] font-semibold text-accent-700">You have unsaved changes here. Press Edit to finish them.</p>}
+                    {unsaved && <p className="mt-1 text-small font-semibold text-accent-700">You have unsaved changes here. Press Edit to finish them.</p>}
                 </div>
                 <Button id={`edit-${id}`} variant="secondary" aria-label={editLabel} onClick={onOpen}>Edit</Button>
             </div>

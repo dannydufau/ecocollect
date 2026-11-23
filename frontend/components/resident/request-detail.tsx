@@ -17,7 +17,7 @@ import { RequestActions, type ResidentActionRenderers } from "./request-actions"
 import StatusHistory from "./status-history";
 
 const cardStyle = `${card} min-w-0 space-y-3`;
-const cardTitle = "text-[22px]";
+const cardTitle = "text-title";
 const part = "py-4 first:pt-0 last:pb-0";
 
 function UnavailableRequest() {
