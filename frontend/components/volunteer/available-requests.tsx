@@ -48,7 +48,7 @@ export default function AvailableRequests() {
                                                         <Link href={`/volunteer/requests/${encodeURIComponent(request.requestId)}`} className={stretchedLink}>
                                 {request.quantity} × {request.category.name}
                             </Link>
-                            <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-neutral-100 px-3 py-1 text-text-muted ${identifier}`}><MapPinIcon className="size-4" />{formatPostalCode(request.postalCode)}</span>
+                            <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-surface px-3 py-1 text-text-muted ${identifier}`}><MapPinIcon className="size-4" />{formatPostalCode(request.postalCode)}</span>
                         </div>
                         <p className="mt-1 text-text-muted">{request.estimatedWeightKg.toFixed(2)} kg{request.hasPhoto && " · Photo"}</p>
                         <ul className="mt-1">

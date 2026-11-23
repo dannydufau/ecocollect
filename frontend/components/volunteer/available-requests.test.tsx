@@ -153,7 +153,7 @@ it("shows the postal code as a badge with a pin icon", async () => {
     renderWithClient(<AvailableRequests />);
     const badge = await screen.findByText("T2P 1J9");
     expect(badge.querySelector("svg[aria-hidden=true]")).not.toBeNull();
-    expect(badge).toHaveClass("tabular-nums");
+    expect(badge).toHaveClass("tabular-nums", "bg-surface", "rounded-full");
 });
 
 it("never shows a street address, even if the server sends one", async () => {
