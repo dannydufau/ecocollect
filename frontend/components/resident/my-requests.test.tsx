@@ -5,13 +5,18 @@ import type { MyRequest } from "@/lib/types";
 import { renderWithClient } from "@/test/utils";
 import MyRequests from "./my-requests";
 
+let searchParams: URLSearchParams;
+vi.mock("next/navigation", () => ({ useSearchParams: () => searchParams }));
 vi.mock("@/lib/api", () => ({ api: { get: vi.fn() }, isAuthError: () => false }));
 const request = (overrides: Partial<MyRequest> = {}): MyRequest => ({
     requestId: "r1", category: { categoryId: "laptops", name: "Computers/Laptops", wasteType: "Computers" },
     quantity: 2, estimatedWeightKg: 5, status: "Open", createdAt: "2026-11-15T15:00:00Z",
     expiresAt: "2026-11-20T15:00:00Z", hasPhoto: true, ...overrides,
 });
-beforeEach(() => vi.mocked(api.get).mockResolvedValue([request()]));
+beforeEach(() => {
+    searchParams = new URLSearchParams();
+    vi.mocked(api.get).mockResolvedValue([request()]);
+});
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
 
 it("renders the current contract fields and keeps server order", async () => {
@@ -61,12 +66,14 @@ it("shows an API error and lets the resident retry", async () => {
     expect(await screen.findByRole("link", { name: "2 × Computers/Laptops" })).toBeInTheDocument();
 });
 it.each([["1", "Your request was created."], ["2", "2 requests were created."]])("shows confirmation for created=%s", async (created, message) => {
-    renderWithClient(<MyRequests created={created} />);
+    searchParams.set("created", created);
+    renderWithClient(<MyRequests />);
     expect(screen.getByText(message)).toBeInTheDocument();
     await screen.findByRole("link", { name: "2 × Computers/Laptops" });
 });
 it.each(["0", "-1", "oops", "2.5"])("ignores invalid created=%s", async created => {
-    renderWithClient(<MyRequests created={created} />);
+    searchParams.set("created", created);
+    renderWithClient(<MyRequests />);
     await screen.findByRole("link", { name: "2 × Computers/Laptops" });
     expect(screen.queryByText(/requests? (was|were) created/)).not.toBeInTheDocument();
 });
@@ -122,10 +129,18 @@ it("resets an empty filter with Show all requests", async () => {
     expect(await screen.findByRole("link", { name: "2 × Computers/Laptops" })).toBeInTheDocument();
 });
 it("lets the created banner be dismissed", async () => {
-    renderWithClient(<MyRequests created="1" />);
+    searchParams.set("created", "1");
+    renderWithClient(<MyRequests />);
     await screen.findByRole("link", { name: "2 × Computers/Laptops" });
     fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
     expect(screen.queryByText("Your request was created.")).not.toBeInTheDocument();
+});
+
+it("ignores repeated created parameters", async () => {
+    searchParams = new URLSearchParams("created=1&created=2");
+    renderWithClient(<MyRequests />);
+    await screen.findByText(/Computers\/Laptops/);
+    expect(screen.queryByText(/requests? (was|were) created/)).not.toBeInTheDocument();
 });
 it("shows Expires on Open cards only and quiets closed ones", async () => {
     vi.mocked(api.get).mockResolvedValue([request(), request({ requestId: "r2", status: "Cancelled" }), request({ requestId: "r3", status: "Expired" })]);
