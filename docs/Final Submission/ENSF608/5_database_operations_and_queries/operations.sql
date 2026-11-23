@@ -12,6 +12,7 @@ SET search_path TO ecocollect608, public;
 --    Citation:  supports FR09, FR12
 --    Concepts:  view, 3-table join, correlated subquery, MAX
 --    Used by:   F3 (filters to Open requests for a volunteer's codes),
+--               A2 (weight stats of Open requests),
 --               J2 (shows each of a resident's requests with its current status)
 CREATE OR REPLACE VIEW request_current_status AS
 SELECT pr.pickup_request_id,
@@ -310,3 +311,18 @@ SELECT COUNT(*) AS delivered_requests,
 FROM pickup_request pr
 JOIN status_change sc ON sc.pickup_request_id = pr.pickup_request_id
 WHERE sc.status = 'Delivered';
+
+-- A2. Weight of requests waiting for a volunteer: average, lightest, heaviest.
+--    Rationale: volunteers see each request's weight (FR12); the spread tells whether
+--               typical pickups fit in a car or need more capacity.
+--    Citation:  FR12, FR06 (system-estimated weight)
+--    Concepts:  AVG, MIN, MAX, COUNT, ROUND, join, WHERE
+--    Uses:      view request_current_status (op 0) to find Open requests
+SELECT COUNT(*) AS open_requests,
+       ROUND(AVG(pr.estimated_weight_kg), 2) AS avg_kg,
+       MIN(pr.estimated_weight_kg) AS min_kg,
+       MAX(pr.estimated_weight_kg) AS max_kg
+FROM pickup_request pr
+JOIN request_current_status rcs ON rcs.pickup_request_id = pr.pickup_request_id
+WHERE rcs.status = 'Open';
+
