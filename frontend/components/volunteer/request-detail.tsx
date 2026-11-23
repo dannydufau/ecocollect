@@ -95,7 +95,7 @@ export default function VolunteerRequestDetail({ requestId }: { requestId: strin
                         <p>{request.address.street}</p>
                         <p>Calgary, <span className={mono}>{formatPostalCode(request.address.postalCode)}</span></p>
                     </div>}
-                    {request.notes && <p className="whitespace-pre-wrap break-words"><span className="text-neutral-800">Notes:</span> {request.notes}</p>}
+                    {request.notes && <p className="whitespace-pre-wrap break-words"><span className="text-text-muted">Notes:</span> {request.notes}</p>}
                 </section>}
 
                 {request.delivery && <section aria-labelledby="delivery-heading" className={cardStyle}>
@@ -116,7 +116,7 @@ export default function VolunteerRequestDetail({ requestId }: { requestId: strin
                     <h3>Selected pickup window</h3>
                     <Windows windows={[assignment.window]} />
                     {assignment.collectedAt && <p>Collected {formatTimestamp(assignment.collectedAt)}</p>}
-                    {assignment.status === "Active" && <p className="text-neutral-800">Waiting for the resident to confirm collection.</p>}
+                    {assignment.status === "Active" && <p className="text-text-muted">Waiting for the resident to confirm collection.</p>}
                 </section>}
 
                 {request.resident && <section aria-labelledby="resident-heading" className={cardStyle}>

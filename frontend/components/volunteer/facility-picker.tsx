@@ -35,7 +35,7 @@ export function FacilityPicker({ categoryId, value, onChange }: {
                     <span className="min-w-0 flex-1 break-words">
                         <span className="block font-semibold">{facility.name}</span>
                         <span className="flex items-start gap-1"><MapPinIcon className="mt-0.5 size-4 flex-none" /><span>{facility.street}, Calgary <span className={mono}>{formatPostalCode(facility.postalCode)}</span></span></span>
-                        {facility.specialInstructions && <span className="mt-1 block rounded-lg bg-surface px-2.5 py-1.5 text-[13px] text-neutral-800">{facility.specialInstructions}</span>}
+                        {facility.specialInstructions && <span className="mt-1 block rounded-lg bg-surface px-2.5 py-1.5 text-[13px] text-text-muted">{facility.specialInstructions}</span>}
                     </span>
                     {value === facility.facilityId && <CheckIcon className="size-5 flex-none text-accent-2-800" />}
                 </label>

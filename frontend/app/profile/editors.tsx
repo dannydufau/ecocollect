@@ -121,7 +121,7 @@ export function CodesEditor(props: EditorProps) {
                 ))}</ul>
                 : <p>You have no saved codes. You will not get new-request notifications and the list shows every area.</p>}
             fields={<div className="space-y-3">
-                <p className="text-neutral-700">Up to 3 codes. You get notifications for new requests in these areas.</p>
+                <p className="text-text-muted">Up to 3 codes. You get notifications for new requests in these areas.</p>
                 <PostalCodeList codes={codes} errors={errors} onChange={setDraft} />
             </div>} />
     );

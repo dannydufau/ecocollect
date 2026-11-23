@@ -106,7 +106,7 @@ export default function RegisterForm({ onValid, fieldErrors = {}, busy = false, 
                             })}
                         </div>
                     </fieldset>
-                    <p className="text-neutral-700">You can add the other role later in your profile.</p>
+                    <p className="text-text-muted">You can add the other role later in your profile.</p>
                     {errors.role && <p id={`${id}-role-error`} role="alert" tabIndex={-1} className="font-semibold text-danger">{errors.role}</p>}
                 </Group>
 
@@ -117,7 +117,7 @@ export default function RegisterForm({ onValid, fieldErrors = {}, busy = false, 
 
                 {values.role === "volunteer" && <Group title="Role details">
                     <p className="font-semibold">Preferred postal codes (optional, up to 3)</p>
-                    <p className="text-neutral-700">You get notifications for new requests in these areas. You can change them later.</p>
+                    <p className="text-text-muted">You get notifications for new requests in these areas. You can change them later.</p>
                     <PostalCodeList codes={values.preferredPostalCodes} errors={errors} onChange={preferredPostalCodes => change({ preferredPostalCodes })} />
                 </Group>}
 

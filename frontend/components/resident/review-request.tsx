@@ -41,7 +41,7 @@ export default function ReviewRequest({ values, busy, accepted, onBack, onConfir
             })}</ul>
             {values.items.length > 1 && <>
                 {categories.data && <p>Total estimated weight: <strong className="tabular-nums">{total.toFixed(2)} kg</strong></p>}
-                <p className="text-neutral-800">This creates {values.items.length} separate requests, one per item.</p>
+                <p className="text-text-muted">This creates {values.items.length} separate requests, one per item.</p>
             </>}
         </section>
         <section aria-label="Pickup windows"><h3 className="mb-2 text-xl">Pickup windows</h3><WindowList windows={values.windows} /><p className="mt-2 text-[13px] text-text-muted">Times are Calgary time.</p></section>

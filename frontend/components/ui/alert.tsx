@@ -11,7 +11,7 @@ const styles: Record<Variant, { box: string; lead: string; Icon: typeof AlertIco
     error: { box: "border-danger bg-danger-50 text-danger-800", lead: "Error.", Icon: AlertIcon },
     success: { box: "border-accent-2-500 bg-accent-2-100 text-accent-2-800", lead: "Done.", Icon: CheckIcon },
     warning: { box: "border-accent-500 bg-warning-tint text-accent-800", lead: "Heads up.", Icon: WarningIcon },
-    info: { box: "border-neutral-400 bg-info-tint text-neutral-800", lead: "Note.", Icon: InfoIcon },
+    info: { box: "border-neutral-400 bg-info-tint text-text-muted", lead: "Note.", Icon: InfoIcon },
 };
 
 export function Alert({ variant, children, error, scrollIntoView = false, onDismiss }: {

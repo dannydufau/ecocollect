@@ -31,7 +31,7 @@ export default function PostalFilter({ codes, onChange, showAll = true }: { code
                         <span className={mono}>{formatPostalCode(code)}</span> <span aria-hidden="true">×</span>
                     </button>
                 </li>)}
-            </ul></> : <p className="text-neutral-700">Showing all postal codes.</p>}
+            </ul></> : <p className="text-text-muted">Showing all postal codes.</p>}
             <div className="flex flex-wrap items-end gap-3">
                 <div className="min-w-0 flex-1 basis-48">
                     <Field label="Add a postal code" error={error || undefined}>

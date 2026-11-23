@@ -45,16 +45,16 @@ export default function ChooseRolePage() {
         <main className="flex w-full min-w-0 flex-1 flex-col items-center justify-center p-4 sm:p-8">
             <div className="flex w-full max-w-sm flex-col gap-4">
                 <h1 className={pageTitle}>Continue as</h1>
-                {user.email && <p className="break-words text-neutral-800">Signed in as {user.email}</p>}
+                {user.email && <p className="break-words text-text-muted">Signed in as {user.email}</p>}
                 {roles.map((role) => (
                     <button key={role} type="button" onClick={() => choose(role)}
                         className={`${card} flex min-h-11 w-full items-center gap-4 px-6 py-4 text-left hover:bg-accent-200`}>
                         {labels[role].icon}
                         <span className="flex min-w-0 flex-1 flex-col">
                             <span><RoleBadge role={role} /></span>
-                            <span className="text-neutral-800">{labels[role].text}</span>
+                            <span className="text-text-muted">{labels[role].text}</span>
                         </span>
-                        <ChevronRightIcon className="size-5 flex-none text-neutral-700" />
+                        <ChevronRightIcon className="size-5 flex-none text-text-muted" />
                     </button>
                 ))}
             </div>

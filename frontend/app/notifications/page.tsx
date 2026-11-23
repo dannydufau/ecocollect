@@ -80,7 +80,7 @@ export default function NotificationsPage() {
                             <span className="min-w-0 flex-1">
                                 {!item.isRead && <span className="sr-only">Unread: </span>}
                                 <span className={`block break-words ${item.isRead ? "" : "font-bold text-text"}`}>{item.title}</span>
-                                <span className={`block break-words ${item.isRead ? "" : "text-neutral-800"}`}>{item.body}</span>
+                                <span className={`block break-words ${item.isRead ? "" : "text-text-muted"}`}>{item.body}</span>
                                 <time dateTime={item.createdAt} className="block text-[13px] text-text-muted">{formatTimestamp(item.createdAt)}</time>
                             </span>
                         </Link>

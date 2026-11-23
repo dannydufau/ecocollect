@@ -49,7 +49,7 @@ export default function StatsPage() {
                         {!data.byWasteType.length ? <EmptyState bare title="No deliveries yet." /> : (
                             <div className="overflow-x-auto"><table className="w-full text-left text-sm sm:text-[15px]">
                                 <caption className="sr-only">Deliveries by waste type</caption>
-                                <thead className="bg-surface text-neutral-800">
+                                <thead className="bg-surface text-text-muted">
                                     <tr><th scope="col" className={cell}>Waste type</th><th scope="col" className={`${cell} text-right`}>Deliveries</th><th scope="col" className={`${cell} text-right`}>Items</th><th scope="col" className={`${cell} text-right`}>Estimated kg</th></tr>
                                 </thead>
                                 <tbody>

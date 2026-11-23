@@ -36,7 +36,7 @@ export default function EcoPointsPage() {
                             { label: "As volunteer", points: data.asVolunteer, dot: "bg-accent-2-800" },
                         ].map(({ label, points, dot }) => (
                             <div key={label} className={`min-w-0 ${label === "Total" ? `${panel} border-transparent bg-accent-2-800 text-on-moss` : card}`}>
-                                <dt className={`flex items-center gap-2 ${label === "Total" ? "" : "text-neutral-700"}`}>
+                                <dt className={`flex items-center gap-2 ${label === "Total" ? "" : "text-text-muted"}`}>
                                     {dot && <span aria-hidden="true" className={`size-2.5 rounded-full ${dot}`} />}{label}
                                 </dt>
                                 {/* A very long number scrolls inside its card, the digits never split */}
@@ -44,7 +44,7 @@ export default function EcoPointsPage() {
                             </div>
                         ))}
                     </dl>
-                    <p className="text-neutral-800">Volunteers earn 3 points per item plus 4 per kg. Residents earn half of that when their request is delivered.</p>
+                    <p className="text-text-muted">Volunteers earn 3 points per item plus 4 per kg. Residents earn half of that when their request is delivered.</p>
                     <section className="space-y-3" aria-labelledby="award-history">
                         <h2 id="award-history" className="text-2xl">Your awards</h2>
                         {!data.awards.length ? <EmptyState title="No EcoPoints yet.">Points are awarded when a pickup is delivered.</EmptyState> : (

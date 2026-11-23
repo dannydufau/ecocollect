@@ -25,7 +25,7 @@ export default function StatusHistory({ statusHistory = [], rescheduledFrom, res
                         <StatusBadge status={entry.status} />
                         <time dateTime={entry.changedAt} className="text-sm text-text-muted">{formatTimestamp(entry.changedAt)}</time>
                     </div>
-                    {entry.reason && <p className="whitespace-pre-wrap break-words text-neutral-800">Reason: {entry.reason}</p>}
+                    {entry.reason && <p className="whitespace-pre-wrap break-words text-text-muted">Reason: {entry.reason}</p>}
                 </li>)}
             </ol>
         </section>}

@@ -169,7 +169,7 @@ export default function RequestForm({ initialValues, createdAt, single = false, 
                 <WindowsPicker value={values.windows} onChange={windows => updateValues({ ...values, windows })} createdAt={createdAt} />
                 {windowErrors.length > 0 && <p role="alert" tabIndex={-1} className="text-[13px] font-semibold text-danger">{windowErrors.join(" ")}</p>}
                 <div>
-                    <label htmlFor={`${id}-notes`} className="mb-1 block font-semibold">Notes <span className="font-normal text-neutral-700">(optional)</span></label>
+                    <label htmlFor={`${id}-notes`} className="mb-1 block font-semibold">Notes <span className="font-normal text-text-muted">(optional)</span></label>
                     <textarea id={`${id}-notes`} value={values.notes} onChange={event => updateValues({ ...values, notes: event.target.value })}
                         aria-invalid={Boolean(errors.notes)} aria-describedby={errors.notes ? `${id}-notes-error` : undefined}
                         rows={3} placeholder="For example: Side door" className={`${textarea} min-w-0`} />
