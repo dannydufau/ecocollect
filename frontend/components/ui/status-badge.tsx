@@ -1,3 +1,6 @@
+import { CheckIcon, CircleHalfIcon, CircleIcon, CircleThreeQuartersIcon, CrossIcon, DashIcon, ExclamationIcon } from "./icons";
+import { badge } from "./styles";
+
 type Status = "Open" | "Assigned" | "Collected" | "Delivered" | "Cancelled" | "Expired" | "Missed"
     | "Active" | "Cancelled by me" | "Cancelled by resident";
 
@@ -15,16 +18,17 @@ const styles: Record<Status, string> = {
     "Cancelled by resident": "bg-neutral-300 text-text",
 };
 
-const symbols: Record<Status, string> = {
-    Open: "○", Assigned: "◐", Collected: "◕", Delivered: "✓",
-    Cancelled: "✕", Expired: "–", Missed: "!",
-    Active: "◐", "Cancelled by me": "✕", "Cancelled by resident": "✕",
+const icons: Record<Status, typeof CircleIcon> = {
+    Open: CircleIcon, Assigned: CircleHalfIcon, Collected: CircleThreeQuartersIcon, Delivered: CheckIcon,
+    Cancelled: CrossIcon, Expired: DashIcon, Missed: ExclamationIcon,
+    Active: CircleHalfIcon, "Cancelled by me": CrossIcon, "Cancelled by resident": CrossIcon,
 };
 
 export function StatusBadge({ status }: { status: Status }) {
+    const Icon = icons[status];
     return (
-        <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-3.5 py-1 text-caption font-semibold ${styles[status]}`}>
-            <span aria-hidden="true">{symbols[status]}</span>
+        <span className={`${badge} ${styles[status]}`}>
+            <Icon className="size-4 flex-none" />
             {status}
         </span>
     );

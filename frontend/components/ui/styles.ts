@@ -6,6 +6,8 @@ export const card = `${panel} border-border bg-surface-elevated`;
 const control = "min-h-11 w-full rounded-xl border border-border-strong bg-neutral-100 px-3.5 py-2 text-base text-text aria-invalid:border-danger";
 export const input = control;
 export const textarea = control;
+// The shared base of the status and role badges, so they line up when shown together
+export const badge = "inline-flex items-center gap-1 whitespace-nowrap rounded-full px-3 py-1 text-caption font-semibold";
 // A link that looks like the primary Button, and a plain text link (accent-700 has enough contrast on the page color)
 export const linkButton = "soft-transition inline-flex min-h-11 items-center justify-center rounded-full bg-accent px-5 py-2 font-semibold text-on-accent hover:bg-accent-700 active:bg-accent-800";
 export const secondaryLinkButton = "soft-transition inline-flex min-h-11 items-center rounded-full border border-neutral-600 px-5 py-2 font-semibold text-text hover:bg-text/10";
