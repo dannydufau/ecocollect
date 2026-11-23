@@ -297,3 +297,16 @@ WHERE rn.account_id = 'resident1'
   AND NOT n.is_expired
 ORDER BY n.created_at DESC
 LIMIT 2;
+
+-- 6. SELECT queries with aggregate functions
+
+-- A1. Community impact totals: delivered requests and estimated weight diverted.
+--    Rationale: the public statistics page shows how much e-waste has reached
+--               recycling facilities (FR23).
+--    Citation:  FR23
+--    Concepts:  COUNT, SUM, AS, join, WHERE
+SELECT COUNT(*) AS delivered_requests,
+       SUM(pr.estimated_weight_kg) AS total_weight_kg
+FROM pickup_request pr
+JOIN status_change sc ON sc.pickup_request_id = pr.pickup_request_id
+WHERE sc.status = 'Delivered';
