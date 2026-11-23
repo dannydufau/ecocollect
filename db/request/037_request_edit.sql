@@ -10,6 +10,7 @@
 --   p_at  the moment to judge "overdue" at
 --
 -- Returns the first rule that fails, in this order:
+--   'request_unavailable'  Q8 hides the request from the caller (req_viewer, 022)
 --   'forbidden'  p_resident_id is not the request's owner, or the owner's
 --                account is deactivated
 --   'not_open'   any status other than Open
@@ -27,16 +28,18 @@ STABLE
 SET search_path TO requests, users, pg_temp
 AS $$
 DECLARE
-    k_code_ok        CONSTANT TEXT := 'ok';
-    k_code_forbidden CONSTANT TEXT := 'forbidden';
-    k_code_not_open  CONSTANT TEXT := 'not_open';
-    k_code_overdue   CONSTANT TEXT := 'overdue';
-    k_status_open    CONSTANT VARCHAR(30) := 'Open';
-    v_status    VARCHAR(30);
-    v_is_owner  BOOLEAN;        -- p_resident_id owns the request
-    v_is_active BOOLEAN;        -- and their account is not deactivated
-    v_is_open   BOOLEAN;        -- the request's current status is Open
-    v_overdue   BOOLEAN;        -- the latest active window has started
+    k_code_ok          CONSTANT TEXT := 'ok';
+    k_code_forbidden   CONSTANT TEXT := 'forbidden';
+    k_code_unavailable CONSTANT TEXT := 'request_unavailable';
+    k_code_not_open    CONSTANT TEXT := 'not_open';
+    k_code_overdue     CONSTANT TEXT := 'overdue';
+    k_status_open      CONSTANT VARCHAR(30) := 'Open';
+    v_status     VARCHAR(30);
+    v_is_owner   BOOLEAN;       -- p_resident_id owns the request
+    v_is_active  BOOLEAN;       -- and their account is not deactivated
+    v_is_open    BOOLEAN;       -- the request's current status is Open
+    v_overdue    BOOLEAN;       -- the latest active window has started
+    v_is_visible BOOLEAN;       -- Q8 shows the request to the caller
 BEGIN
     IF p_request_id IS NULL OR p_resident_id IS NULL OR p_at IS NULL THEN
         RAISE EXCEPTION 'req_check_edit: missing argument';
@@ -45,6 +48,13 @@ BEGIN
     v_status := requests.req_current_status(p_request_id);
     IF v_status IS NULL THEN
         RAISE EXCEPTION 'req_check_edit: request % not found', p_request_id;
+    END IF;
+
+    -- 0. Hidden from the caller in Q8: the same 404 as Q8, never 403
+    -- (contract Conventions, NFR03).
+    v_is_visible := requests.req_viewer(p_request_id, p_resident_id) IS NOT NULL;
+    IF NOT v_is_visible THEN
+        RETURN k_code_unavailable;
     END IF;
 
     v_is_owner  := requests.req_owner_id(p_request_id) = p_resident_id;

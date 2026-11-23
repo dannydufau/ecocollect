@@ -59,6 +59,9 @@ export const SEED_CANCELLED_VOLUNTEER_ID = 'volunteer3';
 /** An `account_id` in `INSERT INTO volunteer` other than `SEED_VOLUNTEER_ID`. */
 export const SEED_OTHER_VOLUNTEER_ID = 'volunteer2';
 
+/** An `account_id` in both `INSERT INTO resident` and `INSERT INTO volunteer`, not deactivated. */
+export const SEED_RESIDENT_VOLUNTEER_ID = 'both1';
+
 /** A `pickup_request_id` whose last `status_change` is `Open`, used by no other test: the Q11 test accepts it. */
 export const SEED_ACCEPT_REQUEST_ID = '00000003-0000-4000-8000-00000000000b';
 

@@ -28,12 +28,12 @@ describe('Q14 report missed', { skip: skipDb }, () => {
   });
   after(() => app.close());
 
-  test('before the window ends: 409 window_not_ended; another resident: 403', async () => {
+  test('before the window ends: 409 window_not_ended; another resident: 404', async () => {
     const requestId = await createAssigned(app.call, owner, volunteer);
     const path = `/api/requests/${requestId}/assignment/missed`;
 
     check.expectError(await app.call('POST', path, owner), 409, 'window_not_ended');
-    check.expectError(await app.call('POST', path, otherResident), 403, 'forbidden');
+    check.expectError(await app.call('POST', path, otherResident), 404, 'request_unavailable');
   });
 
   test('with a reschedule and a reason: Missed and a new Open request (E8, then E1); then 409 not_assigned', async () => {

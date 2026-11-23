@@ -26,7 +26,7 @@ describe('Q12 cancel assignment', { skip: skipDb }, () => {
   });
   after(() => app.close());
 
-  test('volunteer: 400 with windows; 403 for another resident; 200 reopens (E7, E2); then 409 no_active_assignment', async () => {
+  test('volunteer: 400 with windows; 404 for another resident; 200 reopens (E7, E2); then 409 no_active_assignment', async () => {
     const requestId = await createAssigned(app.call, owner, volunteer);
     const path = `/api/requests/${requestId}/assignment/cancel`;
 
@@ -34,7 +34,7 @@ describe('Q12 cancel assignment', { skip: skipDb }, () => {
     check.expectError(withWindows, 400, 'validation_failed');
     assert.ok((withWindows.body as ErrorBody).error.details?.fields?.windows);
 
-    check.expectError(await app.call('POST', path, otherResident), 403, 'forbidden');
+    check.expectError(await app.call('POST', path, otherResident), 404, 'request_unavailable');
 
     const cancelled = await app.call('POST', path, volunteer);
     assert.equal(cancelled.status, 200);

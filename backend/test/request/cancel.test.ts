@@ -6,10 +6,14 @@ import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { REASON_MAX_CHARS } from '../../src/request/http/reason.ts';
 import { skipDb } from './db.ts';
+import { SEED_RESIDENT_VOLUNTEER_ID } from './seed.ts';
 import {
   contractChecks, createAssigned, createOpen, events, otherResident, owner, startApp, volunteer,
   type App, type ContractChecks, type ErrorBody,
 } from './helpers.ts';
+
+// Has the resident role, so the route lets them through to the database's check.
+const residentVolunteer = { 'X-User-Id': SEED_RESIDENT_VOLUNTEER_ID, 'X-User-Roles': 'resident,volunteer' };
 
 type Detail = {
   status: string; allowedActions: string[];
@@ -26,7 +30,7 @@ describe('Q10 cancel', { skip: skipDb }, () => {
   });
   after(() => app.close());
 
-  test('400 for a too long reason; 403 for another resident; 200 Open -> Cancelled; then 409 not_cancellable', async () => {
+  test('400 for a too long reason; 404 for another resident; 403 for a resident who is also a volunteer; 200 Open -> Cancelled; then 409 not_cancellable', async () => {
     const requestId = await createOpen(app.call, owner);
     const path = `/api/requests/${requestId}/cancel`;
 
@@ -34,7 +38,9 @@ describe('Q10 cancel', { skip: skipDb }, () => {
     check.expectError(tooLong, 400, 'validation_failed');
     assert.ok((tooLong.body as ErrorBody).error.details?.fields?.reason);
 
-    check.expectError(await app.call('POST', path, otherResident), 403, 'forbidden');
+    // Q8 hides the request from a resident-only account, but shows an Open request to a volunteer.
+    check.expectError(await app.call('POST', path, otherResident), 404, 'request_unavailable');
+    check.expectError(await app.call('POST', path, residentVolunteer), 403, 'forbidden');
 
     const cancelled = await app.call('POST', path, owner, { reason: 'moved away' });
     assert.equal(cancelled.status, 200);
