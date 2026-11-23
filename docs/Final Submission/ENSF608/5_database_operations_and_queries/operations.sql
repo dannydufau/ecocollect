@@ -367,3 +367,18 @@ JOIN item_category c ON c.category_id = pr.category_id
 GROUP BY c.name
 HAVING COUNT(*) >= 2
 ORDER BY requests DESC, category;
+
+-- 8. SELECT queries with INNER JOIN
+
+-- J1. Facilities that accept a category (where a volunteer can deliver phones).
+--    Rationale: a volunteer must deliver to an eligible facility, one that accepts
+--               the request's category (FR17).
+--    Citation:  FR17
+--    Concepts:  INNER JOIN across 3 tables (junction table), WHERE, ORDER BY
+SELECT c.name AS category, f.name AS facility, f.street, f.postal_code,
+       f.special_instructions
+FROM facility_accepts fa
+JOIN recycling_facility f ON f.facility_id = fa.facility_id
+JOIN item_category c ON c.category_id = fa.category_id
+WHERE fa.category_id = 'phones'
+ORDER BY f.name;
