@@ -80,6 +80,7 @@ export default function ReportMissed({ request, onNotice }: { request: RequestDe
         <Button variant="danger-outline" onClick={start}>Report missed pickup</Button>
         <ConfirmDialog open={open} title="Report a missed pickup?" confirmLabel={action.isPending ? "Reporting..." : "Report missed pickup"} cancelLabel="Cancel"
             danger size="lg" busy={action.isPending} confirmDisabled={!ready} error={action.message ?? undefined}
+            blocked={windowsValid ? "Accept the terms." : "Choose valid pickup windows."}
             onConfirm={confirm} onCancel={() => { if (!sending.current) setOpen(false); }}>
             <div className="space-y-3">
                 <p>Use this if the volunteer did not come. The request will be marked Missed.</p>

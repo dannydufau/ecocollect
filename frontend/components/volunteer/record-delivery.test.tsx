@@ -53,10 +53,13 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); onDone.mockReset(); });
 it("keeps Confirm disabled until a facility and a photo are set", () => {
     const dialog = openDialog();
     expect(confirmButton(dialog)).toBeDisabled();
+    expect(confirmButton(dialog)).toHaveAccessibleDescription("Choose a facility.");
     fireEvent.click(within(dialog).getByRole("button", { name: "Pick facility for laptops" }));
     expect(confirmButton(dialog)).toBeDisabled();
+    expect(confirmButton(dialog)).toHaveAccessibleDescription("Add a delivery photo.");
     fireEvent.click(within(dialog).getByRole("button", { name: "Upload delivery_evidence for r1" }));
     expect(confirmButton(dialog)).toBeEnabled();
+    expect(confirmButton(dialog)).not.toHaveAttribute("aria-describedby");
 });
 
 it("posts the facility and the photo id, then refreshes the request, history and EcoPoints", async () => {
