@@ -87,6 +87,7 @@ export default function LoginPage() {
               required autoComplete="current-password" />
           )}
         </Field>
+        <Link href="/forgot-password" className={`${textLink} self-start`}>Forgot password?</Link>
         {error && <Alert variant="error">{error}</Alert>}
         <Button type="submit" busy={submitting} busyLabel="Signing in..." className="w-full">Sign in</Button>
         <Link href="/register" className={`${textLink} self-start`}>Create an account</Link>

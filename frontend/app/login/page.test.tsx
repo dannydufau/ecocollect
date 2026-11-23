@@ -41,6 +41,11 @@ it("shows the sign in form without a second mark and links to register and the s
     expect(screen.getByLabelText("Email")).toBeRequired();
 });
 
+it("links to the password reset page", () => {
+    render(<LoginPage />);
+    expect(screen.getByRole("link", { name: "Forgot password?" })).toHaveAttribute("href", "/forgot-password");
+});
+
 it.each(["auth/invalid-credential", "auth/wrong-password", "auth/user-not-found", "auth/invalid-email"])(
     "shows one message for %s and stays on the page", async (code) => {
         signIn.mockRejectedValue(new FirebaseError(code, "bad"));
