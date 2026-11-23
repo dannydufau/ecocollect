@@ -23,11 +23,13 @@
 --
 -- Account lock (FR04): before reading the resident, it takes the advisory lock
 -- pg_advisory_xact_lock(hashtext('account:' || account_id)), shared with the User
--- Service's address edit (U7) and deactivation (U9), and with req_accept (Q11).
--- Without it, an address edit or a deactivation running at the same time misses
--- the new Open requests, and this call reads the address or deactivated_at from
--- before that change. The address is read in a later statement than the lock, so
--- it sees anything committed while this call waited.
+-- Service's address edit (U7) and deactivation (U9), and with req_accept (Q11)
+-- and req_edit (Q9). Without it, an address edit or a deactivation running at the
+-- same time misses the new Open requests, and this call reads the address or
+-- deactivated_at from before that change. The address is read in a later
+-- statement than the lock, so it sees anything committed while this call waited.
+-- It also keeps two of the resident's Q4 or Q9 calls from checking the same new
+-- photo at once (12.7): the second sees the first's photo row ('already used').
 CREATE OR REPLACE FUNCTION requests.req_create_requests(
     p_resident_id       VARCHAR(50),
     p_idempotency_key   VARCHAR(200),       -- NULL when the header is absent
@@ -98,7 +100,7 @@ BEGIN
         END IF;
     END LOOP;
 
-    -- 0b. Take the resident's account lock, waiting for any address edit or deactivation.
+    -- 0b. Take the resident's account lock, waiting for any address edit, deactivation or same photo fileId.
     PERFORM pg_advisory_xact_lock(hashtext(k_lock_account || p_resident_id));
 
     -- 1. An active resident; the address is copied from the profile (FR07).

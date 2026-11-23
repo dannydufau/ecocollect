@@ -203,7 +203,8 @@ BEGIN
 
     -- 4. Writes, at v_at: end the collected assignment (Collected has exactly one
     -- unfinished, collected assignment, check_request rule 7), then the photo and
-    -- the delivery. A concurrent use of the same new file id raises on photo_pk.
+    -- the delivery. An evidence file belongs to one request (6.2 folder), so a
+    -- second call with the same file waited on the row lock and stopped at 'already_delivered'.
     UPDATE assignment a
     SET ended_at = v_at, end_reason = k_end_delivered
     FROM pickup_window pw

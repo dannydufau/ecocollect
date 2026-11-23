@@ -107,6 +107,14 @@ $$;
 -- replaced it and no request uses it any more; TypeScript deletes the file from
 -- ImageKit after commit (6.7). NULL otherwise.
 -- Business failures are returned; a RAISE means a bug and rolls back everything.
+--
+-- Account lock (12.7): before the request row lock, it takes the advisory lock
+-- pg_advisory_xact_lock(hashtext('account:' || account_id)) on the caller, the
+-- same lock req_create_requests (Q4) takes. A photo can be sent only by the
+-- account that uploaded it (6.5), so with this lock no two of that account's Q4
+-- or Q9 calls check the same new file at once: the second waits, then sees the
+-- first's photo row and answers 'already used' instead of failing on photo_pk.
+-- The account lock always comes before any row lock, in every caller.
 CREATE OR REPLACE FUNCTION requests.req_edit(
     p_request_id  UUID,
     p_resident_id VARCHAR(50),
@@ -155,7 +163,8 @@ DECLARE
     k_changed_notes       CONSTANT TEXT := 'notes';
     k_changed_windows     CONSTANT TEXT := 'windows';
     k_changed_photo       CONSTANT TEXT := 'photo';
-    v_at            TIMESTAMPTZ;            -- the action's one moment, taken after the lock
+    k_lock_account        CONSTANT TEXT := 'account:';   -- account lock key prefix, shared with Q4 and the User Service
+    v_at           TIMESTAMPTZ;            -- the action's one moment, taken after the lock
     v_check         TEXT;
     v_old           RECORD;                 -- the request row as it was before this call
     v_sent_category BOOLEAN;                -- each field: present in the body
@@ -224,6 +233,9 @@ BEGIN
     IF NOT v_sent_photo AND p_file_path IS NOT NULL THEN
         RAISE EXCEPTION 'req_edit: p_file_path is set, but photo is not in p_sent';
     END IF;
+
+    -- 0. Take the caller's account lock, waiting for their other Q4 or Q9 calls.
+    PERFORM pg_advisory_xact_lock(hashtext(k_lock_account || p_resident_id));
 
     -- 1. Lock the request row and keep its current values, then take the time.
     SELECT p.created_at, p.category_id, p.quantity, p.notes, p.file_id INTO v_old
@@ -339,8 +351,7 @@ BEGIN
         RETURN;
     END IF;
 
-    -- 6. Store the new photo first (the request row references it). A concurrent
-    -- use of the same new file id raises on photo_pk.
+    -- 6. Store the new photo first (the request row references it).
     IF v_new_photo THEN
         INSERT INTO photo (file_id, file_path) VALUES (p_file_id, p_file_path);
     END IF;
