@@ -44,6 +44,19 @@ All of them go in `.env.local` (copied from `.env.example`). The `NEXT_PUBLIC_` 
 
 Not in the example: `NEXT_PUBLIC_DEMO=true` builds the demo version (banner and Start demo page instead of login).
 
+## Signed-in test mode
+
+For browser tests and screenshots. It skips Firebase and signs in as a mock account, so it only works with the mock API.
+
+```bash
+npm run mock
+npm run e2e:app   # builds into .next-e2e and serves on http://localhost:3100
+```
+
+It opens as `demo-resident-1`. To use another mock account, run `sessionStorage.setItem("e2e-account", "demo-volunteer-1")` in the browser console and reload.
+
+Never set `NEXT_PUBLIC_E2E` or `E2E_BUILD_CONFIRM` for a deployed build. The build refuses to run without `E2E_BUILD_CONFIRM=1`, and the signed-in shortcut only works on `localhost`, `127.0.0.1` and `[::1]`, so any other address still goes to the real login.
+
 ## Contracts
 
 The API and event contracts live at the repo root: `contracts/openapi.yaml` (every endpoint and body) and `contracts/README.md` (the rules behind them). `npm run types` reads `contracts/openapi.yaml`.
@@ -57,6 +70,7 @@ The API and event contracts live at the repo root: `contracts/openapi.yaml` (eve
 | `npm test` | Unit and component tests (Vitest) |
 | `npm run lint` | ESLint |
 | `npm run mock` | Mock API |
+| `npm run e2e:app` | Builds the signed-in test mode and serves it on port 3100 (see below) |
 | `npm run types` | Regenerates `lib/api-types.ts` from `../contracts/openapi.yaml`. Don't edit that file by hand. |
 
 ## Where things are
