@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Caprasimo, Figtree } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
@@ -21,6 +21,8 @@ export const metadata: Metadata = {
   title: "EcoCollect",
   description: "E-waste pickup requests",
 };
+
+export const viewport: Viewport = { themeColor: "#f5ead8" };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
