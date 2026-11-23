@@ -191,3 +191,34 @@ WHERE account_id = 'volunteer1'
 ORDER BY postal_code;
 
 ROLLBACK;
+
+-- D2. Delete expired push subscriptions.
+--    Rationale: a browser subscription past its expiration time can't receive pushes;
+--               removing it keeps the Notification Service from sending to dead endpoints.
+--    Citation:  FR19 · App (#103): subscriptions.js remove (l.39), variant: by expiry, not one endpoint
+--    Concepts:  DELETE ... WHERE, IS NOT NULL, AND, comparison with now()
+BEGIN;
+
+-- a) Setup: the seed has no expired subscription, so add one.
+INSERT INTO push_subscription (endpoint, account_id, p256dh, auth, expiration_time, user_agent, updated_at)
+VALUES ('https://push.example.test/resident2-old-phone', 'resident2',
+        'BExampleP256dhKeyResident2Phone', 'exampleAuthSecret2',
+        now() - INTERVAL '1 day', 'Chrome on Android', now() - INTERVAL '40 days');
+
+-- b) Before: which subscriptions are expired.
+SELECT account_id, endpoint,
+       expiration_time IS NOT NULL AND expiration_time < now() AS expired
+FROM push_subscription
+ORDER BY account_id;
+
+-- c) Delete every expired subscription.
+DELETE FROM push_subscription
+WHERE expiration_time IS NOT NULL
+  AND expiration_time < now();
+
+-- d) After.
+SELECT account_id, endpoint
+FROM push_subscription
+ORDER BY account_id;
+
+ROLLBACK;
