@@ -26,7 +26,15 @@ function getTypeParser(oid: number, format?: 'text' | 'binary') {
 }
 
 export function createPool(connectionString: string): pg.Pool {
-  const pool = new pg.Pool({ connectionString, types: { getTypeParser } });
+  // Fail instead of hanging: wait at most 5 s for a free connection, and let
+  // PostgreSQL cancel any statement (lock wait included) after 15 s, which also
+  // releases its advisory lock. Both surface as a 500 (503 on /health).
+  const pool = new pg.Pool({
+    connectionString,
+    types: { getTypeParser },
+    connectionTimeoutMillis: 5000,
+    statement_timeout: 15000,
+  });
   // An idle client that loses its connection emits 'error' on the pool;
   // without a listener Node would crash the process.
   pool.on('error', (err) => console.error('request db pool:', err.message));
