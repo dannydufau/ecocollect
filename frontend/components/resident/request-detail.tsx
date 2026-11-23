@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Alert, LoadingRegion, QueryError, RequestPhoto, StatusBadge, WindowList, card, pageTitle, secondaryLinkButton, textLink } from "@/components/ui";
+import { Alert, LoadingRegion, QueryError, RequestPhoto, WindowList, card, pageTitle, secondaryLinkButton, textLink } from "@/components/ui";
+import { NextStepPanel } from "@/components/ui/next-step-panel";
 import { isAuthError } from "@/lib/api";
 import { formatPostalCode } from "@/lib/postal-code";
-import { nextStepText } from "@/lib/status-text";
-import { formatTimestamp } from "@/lib/time";
+import { friendlyWindow, formatTimestamp } from "@/lib/time";
 import type { RequestDetail } from "@/lib/types";
 import { useRequestDetail } from "@/lib/use-request";
 import CancelAssignment from "./cancel-assignment";
@@ -25,6 +25,33 @@ function UnavailableRequest() {
         <h1 className={pageTitle}>This request is no longer available.</h1>
         <Link href="/resident" className={textLink}>Back to my requests</Link>
     </section>;
+}
+
+function ResidentStatusFacts({ request }: { request: RequestDetail }) {
+    const { status, assignment, delivery, expiresAt, windows } = request;
+    if (status === "Open") {
+        return <dl className="text-small">
+            <div><dt className="inline font-semibold">Pickup windows offered </dt><dd className="inline">{windows.map(friendlyWindow).join(" · ")}</dd></div>
+            <div><dt className="inline font-semibold">Open until </dt><dd className="inline"><time dateTime={expiresAt}>{formatTimestamp(expiresAt)}</time></dd></div>
+        </dl>;
+    }
+    if ((status === "Assigned" || status === "Collected") && assignment) {
+        const { volunteer, window, collectedAt } = assignment;
+        return <dl className="text-small">
+            <div><dt className="inline font-semibold">Volunteer </dt><dd className="inline break-words">
+                <Link href={`/profiles/${encodeURIComponent(volunteer.accountId)}`} className={textLink}>{volunteer.publicName}</Link>
+            </dd></div>
+            {status === "Assigned" && <div><dt className="inline font-semibold">Selected window </dt><dd className="inline">{friendlyWindow(window)}</dd></div>}
+            {status === "Collected" && collectedAt && <div><dt className="inline font-semibold">Collected </dt><dd className="inline"><time dateTime={collectedAt}>{formatTimestamp(collectedAt)}</time></dd></div>}
+        </dl>;
+    }
+    if (status === "Delivered" && delivery) {
+        return <dl className="text-small">
+            <div><dt className="inline font-semibold">Facility </dt><dd className="inline break-words">{delivery.facility.name}</dd></div>
+            <div><dt className="inline font-semibold">Delivered </dt><dd className="inline"><time dateTime={delivery.deliveredAt}>{formatTimestamp(delivery.deliveredAt)}</time></dd></div>
+        </dl>;
+    }
+    return null;
 }
 
 export default function ResidentRequestDetail({ requestId, rescheduled = false, actionRenderers }: {
@@ -67,19 +94,16 @@ export function ResidentRequestView({ request, onPhotoError, actionRenderers, no
 
     return <>
         <Link href="/resident" className={textLink}>Back to my requests</Link>
-        <header className="min-w-0 space-y-2">
-            <div className="flex flex-wrap items-center gap-3">
-                <h1 className={`break-words ${pageTitle}`}>{request.quantity} × {request.category.name}</h1>
-                <StatusBadge status={request.status} />
-            </div>
-            <p className="text-[17px]">{nextStepText(request.status, "resident")}</p>
-        </header>
-
-        {notice && <Alert variant={notice.kind}>{notice.text}</Alert>}
-        {request.allowedActions.includes("report_missed") && <Alert variant="warning">
-            Your action is needed: confirm the collection or report a missed pickup.
-        </Alert>}
-        <RequestActions request={request} renderers={actionRenderers} />
+        <NextStepPanel title={`${request.quantity} × ${request.category.name}`} status={request.status} viewer="resident"
+            facts={<ResidentStatusFacts request={request} />}
+            notices={<>
+                {notice && <Alert variant={notice.kind}>{notice.text}</Alert>}
+                {request.allowedActions.includes("report_missed") && <Alert variant="warning">
+                    Your action is needed: confirm the collection or report a missed pickup.
+                </Alert>}
+            </>}
+            actions={<RequestActions request={request} renderers={actionRenderers} />}
+        />
 
         {/* The page order is the phone order. On wide screens the grid puts the summary first on the left. */}
         <div className="grid min-w-0 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:grid-rows-[auto_1fr]">

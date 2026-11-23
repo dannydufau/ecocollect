@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { api, ApiError } from "@/lib/api";
 import { nextStepText } from "@/lib/status-text";
-import { formatTimestamp, formatWindow } from "@/lib/time";
+import { friendlyWindow, formatTimestamp, formatWindow } from "@/lib/time";
 import type { RequestDetail } from "@/lib/types";
 import { renderWithClient } from "@/test/utils";
 import ResidentRequestDetail, { ResidentRequestView } from "./request-detail";
@@ -99,15 +99,26 @@ it("shows loading without stale details while waiting for the first response", a
 it.each(["Open", "Assigned", "Collected", "Delivered", "Cancelled", "Expired", "Missed"] as const)(
     "shows the %s status and its resident next-step sentence", status => {
         render(<ResidentRequestView request={detail({ status, allowedActions: [] })} onPhotoError={vi.fn()} />);
-        expect(screen.getByText(status)).toBeInTheDocument();
-        expect(screen.getByText(nextStepText(status, "resident"))).toBeInTheDocument();
+        const panel = within(screen.getByRole("region", { name: "Request status" }));
+        expect(panel.getByText(status, { selector: "span" })).toBeInTheDocument();
+        expect(panel.getByText(nextStepText(status, "resident"))).toBeInTheDocument();
+        const progress = panel.queryByRole("list", { name: "Request progress" });
+        if (status === "Cancelled" || status === "Expired" || status === "Missed") {
+            expect(progress).not.toBeInTheDocument();
+            expect(panel.queryByRole("term")).not.toBeInTheDocument();
+        } else {
+            expect(progress).toBeInTheDocument();
+            expect(within(progress!).getByText(`${status} (now)`)).toHaveAttribute("aria-current", "step");
+        }
         if (status !== "Open") expect(screen.queryByText(/^Expires /)).not.toBeInTheDocument();
     },
 );
 
 it("shows the volunteer's public profile and selected window", () => {
     render(<ResidentRequestView request={detail({ status: "Assigned", assignment })} onPhotoError={vi.fn()} />);
-    expect(screen.getByRole("link", { name: "Maya B." })).toHaveAttribute("href", "/profiles/maya");
+    const panel = within(screen.getByRole("region", { name: "Request status" }));
+    expect(panel.getByRole("link", { name: "Maya B." })).toHaveAttribute("href", "/profiles/maya");
+    expect(panel.getByText(friendlyWindow(assignment.window))).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Selected pickup window" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Delivery" })).not.toBeInTheDocument();
 });
@@ -144,11 +155,36 @@ it("shows the delivery facility, Calgary time and evidence photo", () => {
     render(<ResidentRequestView request={detail({ status: "Delivered", allowedActions: [], assignment: {
         ...assignment, status: "Delivered", collectedAt: "2026-11-20T19:00:00Z", endedAt: delivery.deliveredAt, endReason: "Delivered",
     }, delivery, photoUrl: "https://images.example.test/item.jpg" })} onPhotoError={vi.fn()} />);
-    expect(screen.getByText("Sample electronics depot")).toBeInTheDocument();
+    const panel = within(screen.getByRole("region", { name: "Request status" }));
+    expect(panel.getByText("Sample electronics depot")).toBeInTheDocument();
+    expect(panel.getByText(formatTimestamp(delivery.deliveredAt))).toHaveAttribute("datetime", delivery.deliveredAt);
     expect(screen.getByText(`Delivered ${formatTimestamp(delivery.deliveredAt)}`)).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Delivery photo" })).toHaveAttribute("src", delivery.evidencePhotoUrl);
     expect(screen.getByRole("img", { name: "Photo of the items" })).toHaveAttribute("src", "https://images.example.test/item.jpg");
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
+});
+
+it("shows offered windows and expiration above the Open request actions", () => {
+    const request = detail();
+    render(<ResidentRequestView request={request} onPhotoError={vi.fn()} actionRenderers={actionRenderers} />);
+    const panel = within(screen.getByRole("region", { name: "Request status" }));
+    expect(panel.getByText("Pickup windows offered").nextElementSibling).toHaveTextContent(friendlyWindow(request.windows[0]));
+    const expires = panel.getByText(formatTimestamp(request.expiresAt));
+    expect(expires).toHaveAttribute("datetime", request.expiresAt);
+    expect(expires.compareDocumentPosition(panel.getByRole("button", { name: "Edit" })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});
+
+it("puts the collection facts and notices before the actions", () => {
+    const collectedAt = "2026-11-20T19:00:00Z";
+    render(<ResidentRequestView request={detail({ status: "Collected", assignment: { ...assignment, collectedAt },
+        allowedActions: ["report_missed"] })} onPhotoError={vi.fn()} actionRenderers={actionRenderers}
+        notice={{ kind: "success", text: "Request updated." }} />);
+    const panel = within(screen.getByRole("region", { name: "Request status" }));
+    const action = panel.getByRole("button", { name: "Report missed pickup" });
+    for (const item of [panel.getByRole("link", { name: "Maya B." }), panel.getByText(formatTimestamp(collectedAt)),
+        panel.getByText("Request updated."), panel.getByText(/Your action is needed/)]) {
+        expect(item.compareDocumentPosition(action) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    }
 });
 
 it.each(["Photo of the items", "Delivery photo"])("refetches once and gives a text fallback when %s fails", name => {
