@@ -32,6 +32,8 @@ WHERE sc.changed_at = (SELECT MAX(s2.changed_at)
                        WHERE s2.pickup_request_id = pr.pickup_request_id);
 
 -- Check: one row per request (11 in the seed), all seven statuses.
+-- RIGHT(id::text, 4): ::text converts the UUID to text (standard: CAST(id AS TEXT)),
+-- RIGHT keeps the last 4 characters so the output stays readable.
 SELECT RIGHT(pickup_request_id::text, 4) AS request, resident_id, category_id,
        pickup_postal_code, status
 FROM request_current_status
@@ -165,6 +167,7 @@ WHERE pickup_request_id = '00000003-0000-4000-8000-000000000001';
 CALL check_business_rules();
 
 -- f) Show the result.
+-- (ids shown as their last 4 characters, see op 0)
 SELECT RIGHT(w.pickup_window_id::text, 4) AS window, w.pickup_date, w.start_hour,
        w.is_active, pr.request_seq
 FROM pickup_window w
@@ -264,6 +267,7 @@ ORDER BY name;
 --    Citation:  FR12 · App: store.js:135 listAvailable ("pickup_postal_code = ANY($1)")
 --    Concepts:  WHERE, AND, IN (with a list from a subquery)
 --    Uses:      view request_current_status (op 0) for the current status
+-- (ids shown as their last 4 characters, see op 0)
 SELECT RIGHT(pickup_request_id::text, 4) AS request, category_id, pickup_postal_code
 FROM request_current_status
 WHERE status = 'Open'
@@ -277,6 +281,7 @@ ORDER BY pickup_postal_code, request;
 --               and for the windows a volunteer can still pick from.
 --    Citation:  FR07, FR12
 --    Concepts:  WHERE, BETWEEN (inclusive date range), AND, boolean column
+-- (ids shown as their last 4 characters, see op 0)
 SELECT RIGHT(pickup_request_id::text, 4) AS request, pickup_date, start_hour
 FROM pickup_window
 WHERE is_active
@@ -301,6 +306,7 @@ ORDER BY waste_type, name;
 --    Citation:  FR19 · App: notification-store.js:84 listForAccount (#103;
 --               "ORDER BY n.created_at DESC ... LIMIT $3")
 --    Concepts:  ORDER BY ... DESC, LIMIT, WHERE, AND NOT, join
+-- (ids shown as their last 4 characters, see op 0)
 SELECT n.type, n.created_at, n.is_read,
        RIGHT(rn.pickup_request_id::text, 4) AS request
 FROM request_notification rn
@@ -399,6 +405,7 @@ ORDER BY f.name;
 --    Citation:  FR09 · App: store.js:120 listMine (same operation, Oct 28 schema)
 --    Concepts:  INNER JOIN (view + 2 tables), WHERE, ORDER BY ... DESC
 --    Uses:      view request_current_status (op 0) for the owner and current status
+-- (ids shown as their last 4 characters, see op 0)
 SELECT RIGHT(pr.pickup_request_id::text, 4) AS request,
        c.name AS category, pr.quantity, pr.estimated_weight_kg, rcs.status
 FROM request_current_status rcs
@@ -413,6 +420,7 @@ ORDER BY pr.created_at DESC;
 --               until it ends (delivered, cancelled or missed).
 --    Citation:  FR21, FR13, FR15
 --    Concepts:  INNER JOIN across 5 tables, WHERE ... IS NULL, boolean expression, ORDER BY
+-- (ids shown as their last 4 characters, see op 0)
 SELECT ta.account_id AS volunteer,
        RIGHT(pr.pickup_request_id::text, 4) AS request,
        c.name AS category,
@@ -436,6 +444,7 @@ ORDER BY volunteer, w.pickup_date, w.start_hour;
 --    Citation:  FR21, FR17
 --    Concepts:  LEFT JOIN (keeps rows without a match, NULL columns), INNER JOIN,
 --               WHERE, ORDER BY ... DESC
+-- (ids shown as their last 4 characters, see op 0)
 SELECT RIGHT(pr.pickup_request_id::text, 4) AS request,
        a.accepted_at::date AS accepted,
        a.end_reason AS outcome,
@@ -491,12 +500,12 @@ ORDER BY points DESC, account_id;
 --    Citation:  FR19 · App: notification-store.js:120 markAllRead (#103, same UPDATE)
 --    Concepts:  stored procedure, IN parameter, UPDATE ... FROM (multi-table update), CALL
 --    Mandate:   Lecture 12 - 3: data changes encapsulated in stored procedures, called with
---               CALL. Postgres form: $$ body instead of DELIMITER, LANGUAGE plpgsql.
-DROP PROCEDURE IF EXISTS mark_all_read(VARCHAR);
+--               CALL. Postgres syntax noted inline.
+DROP PROCEDURE IF EXISTS mark_all_read(VARCHAR);    -- Postgres names a procedure by its parameter types
 
 CREATE PROCEDURE mark_all_read(IN p_account_id VARCHAR(50))
-LANGUAGE plpgsql
-AS $$
+LANGUAGE plpgsql    -- the body is Postgres's procedural language (BEGIN ... END)
+AS $$               -- start of the quoted body; replaces Lecture 12's DELIMITER //
 BEGIN
     UPDATE notification n
     SET is_read = TRUE
@@ -505,7 +514,7 @@ BEGIN
       AND rn.account_id = p_account_id
       AND NOT n.is_read;
 END;
-$$;
+$$;                 -- end of the body
 
 -- Demo: before, CALL, after (rolled back).
 BEGIN;
@@ -532,9 +541,10 @@ ROLLBACK;
 --               happened (the app answers 404 when nothing matched).
 --    Citation:  FR19 · App: notification-store.js:108 markRead (#103, same UPDATE;
 --               "return rowCount > 0")
---    Concepts:  stored procedure, IN and OUT parameters, UPDATE ... FROM, FOUND, CALL
---    Mandate:   Lecture 12 - 2.2: typed IN/OUT parameters; result returned through OUT.
---               Postgres form: OUT value set with :=, CALL passes NULL for the OUT slot.
+--    Concepts:  stored procedure, IN and OUT parameters, SELECT ... INTO, COUNT,
+--               UPDATE ... FROM, CALL
+--    Mandate:   Lecture 12 - 2.2: typed IN/OUT parameters; OUT set with SELECT ... INTO
+--               (pattern 7, CountStudents). Postgres syntax noted inline (see P1).
 DROP PROCEDURE IF EXISTS mark_read(VARCHAR, UUID, BOOLEAN);
 
 CREATE PROCEDURE mark_read(
@@ -542,16 +552,22 @@ CREATE PROCEDURE mark_read(
     IN  p_notification_id UUID,
     OUT p_found           BOOLEAN
 )
-LANGUAGE plpgsql
-AS $$
+LANGUAGE plpgsql    -- as in P1
+AS $$               -- as in P1
 BEGIN
+    -- Does this notification belong to this account? (SELECT ... INTO the OUT parameter)
+    SELECT COUNT(*) > 0 INTO p_found
+    FROM request_notification
+    WHERE account_id = p_account_id
+      AND notification_id = p_notification_id;
+
+    -- Mark it read (changes nothing when it isn't theirs).
     UPDATE notification n
     SET is_read = TRUE
     FROM request_notification rn
     WHERE n.notification_id = rn.notification_id
       AND rn.account_id = p_account_id
       AND n.notification_id = p_notification_id;
-    p_found := FOUND;   -- TRUE if the UPDATE changed a row
 END;
 $$;
 
@@ -559,6 +575,7 @@ $$;
 BEGIN;
 
 -- a) resident1 reads their own unread notification -> found = t
+--    (NULL fills the OUT slot; Postgres prints the OUT value as a row, no @variable)
 CALL mark_read('resident1', '0000000a-0000-4000-8000-000000000008', NULL);
 
 -- b) resident1 tries resident2's notification -> found = f, nothing changes
