@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { EmptyState, QueryError, Spinner, pageTitle } from "@/components/ui";
+import { EmptyState, LoadingRegion, QueryError, ScaleIcon, pageTitle } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import type { operations } from "@/lib/api-types";
 import { usePublicStream } from "@/lib/public-stream";
@@ -27,7 +27,7 @@ export default function StatsPage() {
         <main className="p-4 sm:p-8">
             <div className="mx-auto max-w-5xl space-y-6">
                 <h1 className={pageTitle}>Community impact</h1>
-                {isPending && <Spinner label="Loading stats..." />}
+                {isPending && <LoadingRegion label="Loading stats..." />}
                 {isError && <QueryError message="We could not load the stats. Check your connection and try again." onRetry={() => refetch()} busy={isFetching} />}
                 {data && <>
                     <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -46,7 +46,7 @@ export default function StatsPage() {
                     </dl>
                     <section className="overflow-hidden rounded-2xl border border-border bg-surface-elevated shadow-rest" aria-labelledby="waste-types">
                         <h2 id="waste-types" className="p-4">By waste type</h2>
-                        {!data.byWasteType.length ? <EmptyState bare title="No deliveries yet." /> : (
+                        {!data.byWasteType.length ? <EmptyState bare icon={<ScaleIcon />} title="No deliveries yet." /> : (
                             <div className="overflow-x-auto"><table className="w-full text-left text-small">
                                 <caption className="sr-only">Deliveries by waste type</caption>
                                 <thead className="bg-surface text-text-muted">
