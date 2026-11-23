@@ -57,6 +57,11 @@
   --color-info-tint: #eef2ee;
   --color-scrim: rgba(31, 28, 26, 0.5);
 
+  /* Named text sizes: captions and timestamps, hints and details, and card and dialog headings */
+  --text-caption: 0.8125rem;
+  --text-small: 0.875rem;
+  --text-title: 1.375rem;
+
   --shadow-rest: 0 1px 2px rgba(31, 28, 26, 0.06);
   --shadow-hover: 0 3px 10px rgba(31, 28, 26, 0.14);
   --shadow-dialog: 0 12px 32px rgba(31, 28, 26, 0.22);
@@ -95,7 +100,7 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-body), sans-serif;
-  font-size: 17px;
+  font-size: 1.0625rem;
 }
 
 /* The display font is only for the page title (h1) and the brand */

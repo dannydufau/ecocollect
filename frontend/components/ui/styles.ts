@@ -1,5 +1,5 @@
 // The page heading (h1): 30px on a phone, up to 40px on a wide screen
-export const pageTitle = "text-[length:clamp(30px,5vw,40px)]";
+export const pageTitle = "text-[length:clamp(1.875rem,5vw,2.5rem)]";
 // The card shape without colours, for a card with its own background and border
 export const panel = "rounded-2xl border p-5 shadow-rest";
 export const card = `${panel} border-border bg-surface-elevated`;
