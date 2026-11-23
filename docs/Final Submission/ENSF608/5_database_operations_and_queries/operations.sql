@@ -222,3 +222,15 @@ FROM push_subscription
 ORDER BY account_id;
 
 ROLLBACK;
+
+-- 4. Basic SELECT queries with filtering
+
+-- F1. A volunteer's preferred postal codes.
+--    Rationale: shown on the volunteer's profile; these codes decide which new requests
+--               they're notified about and their default discovery filter.
+--    Citation:  FR04, FR12 · App: profile.ts (preferred codes subquery)
+--    Concepts:  SELECT, WHERE
+SELECT postal_code
+FROM volunteer_preferred_postal_code
+WHERE account_id = 'volunteer1'
+ORDER BY postal_code;
