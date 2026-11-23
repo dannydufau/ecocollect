@@ -263,7 +263,7 @@ test('a RequestCreated reaches the resident and matched volunteers as signals, n
     assert.equal(toVolunteer.id, toVolunteer.data.notificationId);
     assert.equal(toVolunteer.data.type, 'NEW_MATCHING_REQUEST');
     assert.equal(toVolunteer.data.title, 'New pickup near you');
-    assert.equal(toVolunteer.data.body, '2 x Computers/Laptops in T2P1J9');
+    assert.equal(toVolunteer.data.body, '2 * Computers/Laptops in T2P1J9');
     assert.equal(toVolunteer.data.url, `/volunteer/requests/${requestId}`);
     assert.equal(notificationsIn(residentTab)[0].data.type, 'REQUEST_CREATED');
 

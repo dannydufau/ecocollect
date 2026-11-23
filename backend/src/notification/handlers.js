@@ -58,7 +58,7 @@ function signal(type, requestId) {
 function describe(request) {
   const { quantity, categoryName, postalCode } = request;
   if (!quantity || !categoryName || !postalCode) return 'Pickup request';
-  return `${quantity} x ${categoryName} in ${postalCode}`;
+  return `${quantity} * ${categoryName} in ${postalCode}`;
 }
 
 /*

@@ -72,7 +72,7 @@ test('pushPayload keeps only what the OS notification needs, tagged by request o
     requestId: 'r1',
     awardId: null,
     title: 'New pickup near you',
-    body: '2 x Computers/Laptops in T2P1J9',
+    body: '2 * Computers/Laptops in T2P1J9',
     url: '/volunteer/requests/r1',
     createdAt: '2026-10-28T16:15:00Z',
   };
@@ -80,7 +80,7 @@ test('pushPayload keeps only what the OS notification needs, tagged by request o
   assert.deepEqual(pushPayload(notification), {
     notificationId: 'n_1',
     title: 'New pickup near you',
-    body: '2 x Computers/Laptops in T2P1J9',
+    body: '2 * Computers/Laptops in T2P1J9',
     url: '/volunteer/requests/r1',
     tag: 'request-r1',
     silent: false,
