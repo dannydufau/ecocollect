@@ -126,7 +126,8 @@ it("shows the volunteer's public profile and selected window", () => {
 
 it.each([
     ["Open", ["edit", "cancel"], ["Edit", "Cancel request"]],
-    ["Assigned", ["cancel_assignment", "confirm_collected"], ["Cancel assignment", "Confirm collected"]],
+    ["Assigned", ["cancel_assignment", "confirm_collected"], ["Confirm collected", "Cancel assignment"]],
+    ["Assigned", ["cancel", "cancel_assignment", "confirm_collected"], ["Confirm collected", "Cancel assignment", "Cancel request"]],
     ["Assigned", ["confirm_collected", "report_missed"], ["Confirm collected", "Report missed pickup"]],
     ["Delivered", [], []],
 ] as const)("renders only supplied actions allowed by the server for %s", (status, allowedActions, names) => {
