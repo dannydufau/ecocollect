@@ -5,6 +5,7 @@ import { api, ApiError } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { calgaryToday } from "@/lib/time";
 import type { RequestDetail } from "@/lib/types";
+import { pageWidth } from "@/components/ui";
 import EditRequestPage from "./page";
 
 const router = vi.hoisted(() => ({ push: vi.fn() }));
@@ -57,6 +58,14 @@ it("prefills the form from the request in single item mode", async () => {
     expect(screen.getByLabelText("Date 2")).toHaveValue(day(1));
     expect(screen.getByRole("img", { name: "Photo of the items" })).toHaveAttribute("src", current.photoUrl);
     expect(screen.queryByRole("button", { name: "Add another item" })).not.toBeInTheDocument();
+});
+
+it("keeps the form in a narrow column at the left of the page width", async () => {
+    await mount();
+    const main = screen.getByRole("main");
+    expect(main).toHaveClass(...pageWidth.split(" "));
+    expect(main.firstElementChild).toHaveClass("max-w-3xl");
+    expect(main.firstElementChild).not.toHaveClass("mx-auto");
 });
 
 it("sends only the quantity when only that changed, then goes back to the request", async () => {

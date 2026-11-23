@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import RequestForm, { type RequestValues } from "@/components/resident/request-form";
-import { Alert, EmptyState, LoadingRegion, PackageIcon, QueryError, pageTitle, secondaryLinkButton, textLink } from "@/components/ui";
+import { Alert, EmptyState, LoadingRegion, PackageIcon, QueryError, pageTitle, pageWidth, secondaryLinkButton, textLink } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import type { EditRequest, PickupWindow } from "@/lib/types";
@@ -41,8 +41,8 @@ export default function EditRequestPage() {
     const editable = data && data.viewer === "owner" && data.allowedActions.includes("edit");
     const blocked = unavailable || (data && !editable);
     return (
-        <main className="p-4 sm:p-8">
-            <div className="mx-auto max-w-3xl space-y-6">
+        <main className={`${pageWidth} p-4 sm:p-8`}>
+            <div className="max-w-3xl space-y-6">
                 {!blocked && <Link href={back} className={textLink}>Back to request</Link>}
                 <h1 className={pageTitle}>Edit request</h1>
                 {action.message && <Alert variant="error">{action.message}</Alert>}

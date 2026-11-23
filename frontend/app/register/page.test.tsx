@@ -3,6 +3,7 @@ import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { ApiError, api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { renderWithClient } from "@/test/utils";
+import { pageWidth } from "@/components/ui";
 import RegisterPage from "./page";
 
 const router = { replace: vi.fn(), push: vi.fn() };
@@ -64,6 +65,16 @@ it("shows the form, a link to sign in and the logo", async () => {
     expect(signIn).toHaveLength(2);
     for (const link of signIn) expect(link).toHaveAttribute("href", "/login");
     expect(document.querySelector("img[src*='ecocollect-mark']")).not.toBeNull();
+    await screen.findByRole("checkbox", { name: termsBox });
+});
+
+it("keeps the form in a narrow column that sits at the left of the page width", async () => {
+    renderWithClient(<RegisterPage />);
+    const main = screen.getByRole("main");
+    expect(main).toHaveClass(...pageWidth.split(" "));
+    const column = main.firstElementChild!;
+    expect(column).toHaveClass("max-w-xl");
+    expect(column).not.toHaveClass("mx-auto");
     await screen.findByRole("checkbox", { name: termsBox });
 });
 
