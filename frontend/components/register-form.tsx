@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { AddressFields, PostalCodeList } from "@/components/address-fields";
-import { Button, CheckIcon, Field, PasswordInput, card, input, textLink } from "@/components/ui";
+import { Button, CheckIcon, Field, FieldError, PasswordInput, card, input, textLink } from "@/components/ui";
 import { calgaryToday } from "@/lib/time";
 import {
     eighteenYearsAgo, normalizeUsername, validateAccount, type AccountValues,
@@ -107,7 +107,7 @@ export default function RegisterForm({ onValid, fieldErrors = {}, busy = false, 
                         </div>
                     </fieldset>
                     <p className="text-text-muted">You can add the other role later in your profile.</p>
-                    {errors.role && <p id={`${id}-role-error`} role="alert" tabIndex={-1} className="font-semibold text-danger">{errors.role}</p>}
+                    {errors.role && <FieldError id={`${id}-role-error`} tabIndex={-1}>{errors.role}</FieldError>}
                 </Group>
 
                 {values.role === "resident" && <Group title="Role details">

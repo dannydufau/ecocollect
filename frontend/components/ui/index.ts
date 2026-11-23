@@ -8,11 +8,11 @@ export { Alert } from "./alert";
 export { PageLoading, Spinner } from "./spinner";
 export { ConfirmDialog } from "./confirm-dialog";
 export { Button } from "./button";
-export { Field } from "./field";
+export { Field, FieldError } from "./field";
 export { PasswordInput } from "./password-input";
 export { FilterTabs } from "./filter-tabs";
 export { RequestPhoto } from "./request-photo";
-export { card, clickableCard, input, linkButton, identifier, pageTitle, panel, secondaryLinkButton, stretchedLink, textarea, textLink } from "./styles";
+export { card, clickableCard, input, linkButton, identifier, pageTitle, panel, secondaryLinkButton, select, stretchedLink, textarea, textLink } from "./styles";
 export {
     AlertIcon, BellIcon, CalendarIcon, CameraIcon, CameraOffIcon, CheckIcon, ChevronRightIcon, ClockIcon, EyeIcon, EyeOffIcon,
     InfoIcon, LeafIcon, MapPinIcon, PackageIcon, PlusIcon, ScaleIcon, TruckIcon, WarningIcon,

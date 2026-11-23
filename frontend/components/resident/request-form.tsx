@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import PhotoPicker from "@/components/photo-picker";
-import { Button, RequestPhoto, card, input, textarea, secondaryLinkButton } from "@/components/ui";
+import { Button, FieldError, RequestPhoto, card, input, textarea, secondaryLinkButton } from "@/components/ui";
 import { CategoryPicker, useCategories } from "./category-picker";
 import { WindowsPicker } from "./windows-picker";
 import { calgaryInstant, isValidWindow } from "@/lib/time";
@@ -111,7 +111,7 @@ export default function RequestForm({ initialValues, createdAt, single = false, 
             <fieldset disabled={busy} className="min-w-0 space-y-6">
                 <fieldset className="min-w-0 space-y-4">
                     <legend className="sr-only">Items</legend>
-                    {errors.items && <p role="alert" tabIndex={-1} className="text-small font-semibold text-danger">{errors.items}</p>}
+                    {errors.items && <FieldError tabIndex={-1}>{errors.items}</FieldError>}
                     {values.items.map((item, index) => {
                         const categoryError = errors[`items[${index}].categoryId`];
                         const quantityError = errors[`items[${index}].quantity`];
@@ -128,7 +128,7 @@ export default function RequestForm({ initialValues, createdAt, single = false, 
                                     <div className="min-w-0">
                                         <CategoryPicker value={item.categoryId} onChange={categoryId => update({ categoryId })} invalid={Boolean(categoryError)}
                                             disabledIds={values.items.filter((_, rowIndex) => rowIndex !== index).map(row => row.categoryId)} />
-                                        {categoryError && <p role="alert" className="mt-1 text-small font-semibold text-danger">{categoryError}</p>}
+                                        {categoryError && <FieldError className="mt-1">{categoryError}</FieldError>}
                                     </div>
                                     <div>
                                         <label htmlFor={`${id}-quantity-${index}`} className="mb-1 block font-semibold">Quantity</label>
@@ -136,7 +136,7 @@ export default function RequestForm({ initialValues, createdAt, single = false, 
                                             onChange={event => update({ quantity: event.target.value })}
                                             aria-invalid={Boolean(quantityError)} aria-describedby={quantityError ? `${id}-quantity-error-${index}` : undefined}
                                             className={`${input} min-w-0`} />
-                                        {quantityError && <p id={`${id}-quantity-error-${index}`} role="alert" className="mt-1 text-small font-semibold text-danger">{quantityError}</p>}
+                                        {quantityError && <FieldError id={`${id}-quantity-error-${index}`} className="mt-1">{quantityError}</FieldError>}
                                     </div>
                                 </div>
                                 <p>Estimated weight: <strong>{weight === null ? "—" : `${weight} kg`}</strong></p>
@@ -151,7 +151,7 @@ export default function RequestForm({ initialValues, createdAt, single = false, 
                                         onClear={() => { update({ photo: replacing ? undefined : currentPhoto ? null : undefined }); setReplacing(false); }} />
                                     {currentPhoto && <Button variant="secondary" onClick={() => { update({ photo: undefined }); setReplacing(false); }}>Keep current photo</Button>}
                                 </div>}
-                                {photoError && <p role="alert" className="text-small font-semibold text-danger">{photoError}</p>}
+                                {photoError && <FieldError>{photoError}</FieldError>}
                                 {!single && values.items.length > 1 && <div><Button variant="secondary" aria-label={`Remove item ${index + 1}`}
                                     onClick={() => {
                                         setKeys(keys.filter((_, rowIndex) => rowIndex !== index));
@@ -167,13 +167,13 @@ export default function RequestForm({ initialValues, createdAt, single = false, 
                         }}>Add another item</Button></div>}
                 </fieldset>
                 <WindowsPicker value={values.windows} onChange={windows => updateValues({ ...values, windows })} createdAt={createdAt} />
-                {windowErrors.length > 0 && <p role="alert" tabIndex={-1} className="text-small font-semibold text-danger">{windowErrors.join(" ")}</p>}
+                {windowErrors.length > 0 && <FieldError tabIndex={-1}>{windowErrors.join(" ")}</FieldError>}
                 <div>
                     <label htmlFor={`${id}-notes`} className="mb-1 block font-semibold">Notes <span className="font-normal text-text-muted">(optional)</span></label>
                     <textarea id={`${id}-notes`} value={values.notes} onChange={event => updateValues({ ...values, notes: event.target.value })}
                         aria-invalid={Boolean(errors.notes)} aria-describedby={errors.notes ? `${id}-notes-error` : undefined}
                         rows={3} placeholder="For example: Side door" className={`${textarea} min-w-0`} />
-                    {errors.notes && <p id={`${id}-notes-error`} role="alert" className="text-small font-semibold text-danger">{errors.notes}</p>}
+                    {errors.notes && <FieldError id={`${id}-notes-error`}>{errors.notes}</FieldError>}
                 </div>
                 {single ? <p>The pickup address comes from your profile and can&apos;t be changed here.</p>
                     : <PickupAddress />}

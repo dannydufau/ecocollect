@@ -51,6 +51,12 @@ it("shows a preview, uploads the file and calls onUploaded", async () => {
     expect(onUploaded).toHaveBeenCalledWith("f1");
 });
 
+it("draws the drop area on the raised surface with a dashed strong border", () => {
+    const { input } = setup();
+    expect(input.closest("label")).toHaveClass("bg-surface-elevated", "border-dashed", "border-border-strong", "hover:bg-surface");
+    expect(input.closest("label")).not.toHaveClass("bg-white");
+});
+
 it("shows the hint", () => {
     setup();
     expect(screen.getByText("No house numbers, faces, mail or documents in the photo. JPEG, PNG or WEBP, up to 10 MB.")).toBeInTheDocument();

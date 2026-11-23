@@ -82,3 +82,12 @@ it("shows an error and lets the user try again", async () => {
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(await screen.findByRole("checkbox")).toBeInTheDocument();
 });
+
+it("shows a 24px checkbox in a row at least 44px tall, and the terms on the inset surface", async () => {
+    vi.mocked(api.get).mockResolvedValue(terms("t1"));
+    renderWithClient(<Form onChange={vi.fn()} />);
+    const box = await screen.findByRole("checkbox");
+    expect(box).toHaveClass("size-6");
+    expect(box.closest("label")).toHaveClass("min-h-11");
+    expect(screen.getByRole("region", { name: "Terms and safety guidelines" })).toHaveClass("bg-surface");
+});

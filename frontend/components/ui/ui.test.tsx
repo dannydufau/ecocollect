@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { Alert, Button, ConfirmDialog, PageLoading, Spinner, StatusBadge } from "./index";
 import { buttonClass } from "./button";
 import { AlertIcon, CheckIcon, InfoIcon, WarningIcon } from "./icons";
-import { clickableCard, linkButton, secondaryLinkButton } from "./styles";
+import { clickableCard, input, linkButton, secondaryLinkButton, select, textarea } from "./styles";
 afterEach(() => {
     cleanup();
 });
@@ -213,4 +213,17 @@ it("a clickable card goes back to its resting shadow when pressed, and is never 
     expect(clickableCard).toContain("hover:shadow-hover");
     expect(clickableCard).toContain("active:shadow-rest");
     expect(clickableCard).not.toContain("scale");
+});
+
+it.each([["input", input], ["textarea", textarea], ["select", select]])("the %s style has a raised fill and a look for focus, invalid, disabled and read-only", (_, style) => {
+    expect(style.split(" ")).toEqual(expect.arrayContaining([
+        "bg-surface-elevated", "focus:border-accent-700", "aria-invalid:border-danger", "aria-invalid:ring-1", "aria-invalid:ring-danger",
+        "disabled:bg-surface", "disabled:text-text-muted", "disabled:cursor-not-allowed", "[&[readonly]]:bg-surface",
+    ]));
+    expect(style).not.toMatch(/bg-white|bg-neutral-100/);
+});
+
+it("only the select style draws its own chevron", () => {
+    expect(select.split(" ")).toContain("select-chevron");
+    expect(input.split(" ")).not.toContain("select-chevron");
 });

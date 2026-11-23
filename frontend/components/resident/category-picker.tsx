@@ -2,7 +2,7 @@
 
 import { useId } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { QueryError, input } from "@/components/ui";
+import { QueryError, select } from "@/components/ui";
 import { api } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -40,7 +40,7 @@ export function CategoryPicker({ value, onChange, disabledIds = [], invalid = fa
             <label htmlFor={id} className="mb-1 block font-semibold">Category</label>
             <select id={id} value={value} onChange={event => onChange(event.target.value)}
                 disabled={data.length === 0} aria-invalid={invalid}
-                className={`${input} min-w-0 disabled:opacity-50`}>
+                className={`${select} min-w-0`}>
                 <option value="" disabled>{data.length ? "Choose a category" : "No categories available"}</option>
                 {data.map(category => (
                     <option key={category.categoryId} value={category.categoryId}
