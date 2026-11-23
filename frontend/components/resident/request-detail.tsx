@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Alert, QueryError, RequestPhoto, Spinner, StatusBadge, WindowList, card, pageTitle, secondaryLinkButton, textLink } from "@/components/ui";
+import { Alert, LoadingRegion, QueryError, RequestPhoto, StatusBadge, WindowList, card, pageTitle, secondaryLinkButton, textLink } from "@/components/ui";
 import { isAuthError } from "@/lib/api";
 import { formatPostalCode } from "@/lib/postal-code";
 import { nextStepText } from "@/lib/status-text";
@@ -35,7 +35,7 @@ export default function ResidentRequestDetail({ requestId, rescheduled = false, 
     const { data, isPending, isError, unavailable, error, refetch, isFetching } = useRequestDetail(requestId);
     const [notice, setNotice] = useState<Notice | null>(rescheduled ? { kind: "success", text: "Missed pickup reported. Your new request is open." } : null);
     if (unavailable || (data && data.viewer !== "owner")) return <UnavailableRequest />;
-    if (isPending) return <Spinner label="Loading your request..." />;
+    if (isPending) return <LoadingRegion label="Loading your request..." />;
     if (isError || !data) return <section className="space-y-3">
         <h1 className={pageTitle}>Pickup request</h1>
         {isAuthError(error)

@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { seed, store } from "../store.mjs";
+import { fixtureRequests } from "../fixtures.mjs";
 import { buildDetail, windowStart } from "../detail.mjs";
 import { register } from "./resident.mjs";
 import type { PickupWindow, RequestStatus } from "@/lib/types";
@@ -146,7 +147,8 @@ describe("resident mock routes", () => {
         const result = call("POST", "/api/requests", "demo-resident-1", body);
         expect(result.status).toBe(400);
         expect(JSON.stringify(result.body.error.details.fields)).toContain(message);
-        expect(mockStore.requests).toHaveLength(5);
+        expect(mockStore.requests.map(request => request.requestId)).toEqual(expect.arrayContaining(Object.values(fixtureRequests)));
+        expect(mockStore.requests).toHaveLength(Object.keys(fixtureRequests).length);
     });
 
     it("rejects a window whose end exceeds the 30-day limit", () => {
@@ -167,7 +169,7 @@ describe("resident mock routes", () => {
         expect(result.status).toBe(400);
         expect(result.body.error.details.fields).toHaveProperty("items[1].categoryId");
         expect(result.body.error.details.fields).toHaveProperty("windows[1]");
-        expect(mockStore.requests).toHaveLength(5);
+        expect(mockStore.requests).toHaveLength(Object.keys(fixtureRequests).length);
     });
 
     it("returns terms_outdated for an old terms document", () => {
@@ -175,7 +177,7 @@ describe("resident mock routes", () => {
         expect(call("POST", "/api/requests", "demo-resident-1", body)).toMatchObject({
             status: 409, body: { error: { code: "terms_outdated" } },
         });
-        expect(mockStore.requests).toHaveLength(5);
+        expect(mockStore.requests).toHaveLength(Object.keys(fixtureRequests).length);
     });
 
     it("rejects anonymous callers and non-resident creation", () => {

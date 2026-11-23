@@ -48,7 +48,7 @@
   --color-danger-border: #c24b3b;
 
   --color-surface-elevated: #fcf9f2;
-  --color-border: color-mix(in srgb, #201e1d 14%, transparent);
+  --color-border: color-mix(in srgb, #201e1d 20%, transparent);
   --color-border-strong: #766d5e;
   --color-on-accent: #fffaf3;
   --color-on-danger: var(--color-on-accent);

@@ -2,10 +2,11 @@
 
 import { useId, useState } from "react";
 import { Button, FieldError, card, input, select } from "@/components/ui";
-import { calgaryHour, calgaryToday, formatHour, formatWindow } from "@/lib/time";
+import { calgaryHour, calgaryToday, formatHour, formatWindow, friendlyWindow } from "@/lib/time";
 import type { PickupWindow } from "@/lib/types";
 
 type Row = { date: string; startHour: string };
+const hourGroups = ["Overnight", "Morning", "Afternoon", "Evening"];
 
 function rowsFrom(windows: PickupWindow[]): Row[] {
     return windows.length
@@ -30,6 +31,9 @@ export function WindowsPicker({ value, onChange, createdAt, embedded = false }: 
     }
 
     const today = calgaryToday();
+    const nextDay = new Date(`${today}T12:00:00Z`);
+    nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+    const tomorrow = calgaryToday(nextDay);
     const lastDay = new Date(createdAt ?? `${today}T12:00:00Z`);
     lastDay.setUTCDate(lastDay.getUTCDate() + 30);
     const maxDate = calgaryToday(lastDay);
@@ -66,7 +70,7 @@ export function WindowsPicker({ value, onChange, createdAt, embedded = false }: 
 
                     return (
                         <div key={index} className="min-w-0">
-                            <div className="grid min-w-0 gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+                            <div className="grid min-w-0 gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-start">
                                 <div className="min-w-0">
                                     <label htmlFor={`${id}-${index}-date`} className="mb-1 block font-semibold">Date {index + 1}</label>
                                     <input id={`${id}-${index}-date`} type="date" required
@@ -74,6 +78,12 @@ export function WindowsPicker({ value, onChange, createdAt, embedded = false }: 
                                         onChange={event => updateRow(index, { date: event.target.value })}
                                         aria-invalid={Boolean(error)} aria-describedby={error ? errorId : undefined}
                                         className={`${input} min-w-0`} />
+                                    <div className="mt-2 flex flex-wrap gap-2">
+                                        <Button variant="secondary" size="sm" disabled={today > maxDate || currentHour >= 23}
+                                            onClick={() => updateRow(index, { date: today })}>Today</Button>
+                                        <Button variant="secondary" size="sm" disabled={tomorrow > maxDate}
+                                            onClick={() => updateRow(index, { date: tomorrow })}>Tomorrow</Button>
+                                    </div>
                                 </div>
                                 <div className="min-w-0">
                                     <label htmlFor={`${id}-${index}-hour`} className="mb-1 block font-semibold">Start hour {index + 1}</label>
@@ -82,8 +92,13 @@ export function WindowsPicker({ value, onChange, createdAt, embedded = false }: 
                                         aria-invalid={Boolean(error)} aria-describedby={error ? errorId : undefined}
                                         className={`${select} min-w-0`}>
                                         <option value="" disabled>Choose an hour</option>
-                                        {Array.from({ length: 24 }, (_, hour) => (
-                                            <option key={hour} value={hour} disabled={row.date === today && hour <= currentHour}>{formatHour(hour)}</option>
+                                        {hourGroups.map((label, groupIndex) => (
+                                            <optgroup key={label} label={label}>
+                                                {Array.from({ length: 6 }, (_, offset) => {
+                                                    const hour = groupIndex * 6 + offset;
+                                                    return <option key={hour} value={hour} disabled={row.date === today && hour <= currentHour}>{formatHour(hour)}</option>;
+                                                })}
+                                            </optgroup>
                                         ))}
                                     </select>
                                 </div>
@@ -93,6 +108,9 @@ export function WindowsPicker({ value, onChange, createdAt, embedded = false }: 
                                 </Button>}
                             </div>
                             {error && <FieldError id={errorId} className="mt-2">{error}</FieldError>}
+                            {row.date && row.startHour !== "" && <p className="mt-2 text-small text-text-muted">
+                                {friendlyWindow({ date: row.date, startHour: Number(row.startHour) })}
+                            </p>}
                         </div>
                     );
                 })}

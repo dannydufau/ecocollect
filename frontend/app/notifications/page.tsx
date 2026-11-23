@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Alert, BellIcon, Button, EmptyState, LeafIcon, MapPinIcon, QueryError, Spinner, TruckIcon, pageTitle } from "@/components/ui";
+import { Alert, BellIcon, Button, EmptyState, LeafIcon, LoadingRegion, MapPinIcon, QueryError, TruckIcon, pageTitle } from "@/components/ui";
 import { api, isAuthError } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { formatTimestamp } from "@/lib/time";
@@ -69,9 +69,9 @@ export default function NotificationsPage() {
                         busy={readAll.isPending} busyLabel="Marking...">Mark all read</Button>}
                 </div>
                 {readAll.isError && <Alert variant="error">We could not mark them as read. Please try again.</Alert>}
-                {isPending && <Spinner label="Loading notifications..." />}
+                {isPending && <LoadingRegion label="Loading notifications..." />}
                 {isError && <QueryError message={isAuthError(error) ? "Please log in to see your notifications." : "We could not load your notifications. Please try again."} onRetry={() => refetch()} busy={isFetching} />}
-                {data && rows.length === 0 && <EmptyState title="No notifications yet.">You will see updates about your requests and pickups here.</EmptyState>}
+                {data && rows.length === 0 && <EmptyState icon={<BellIcon />} title="No notifications yet.">You will see updates about your requests and pickups here.</EmptyState>}
                 {rows.length > 0 && <ul className="divide-y divide-border rounded-2xl border border-border bg-surface-elevated shadow-rest">
                     {rows.map(item => <li key={item.notificationId} className="first:rounded-t-2xl last:rounded-b-2xl">
                         <Link href={ownPage(item.url)} onClick={() => markRead(item)}

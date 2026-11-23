@@ -92,5 +92,5 @@ it("shows a pin icon, a postal code and the instructions in an inset box", async
     const row = (await screen.findByRole("radio", { name: /Demo Recycling Facility/ })).closest("label")!;
     expect(row.querySelector("svg[aria-hidden=true]")).not.toBeNull();
     expect(screen.getByText("T2G 4R7")).toHaveClass("tabular-nums");
-    expect(screen.getByText("Use the loading dock.")).toHaveClass("bg-surface");
+    expect(screen.getByText("Use the loading dock.")).toHaveClass("bg-surface", "rounded-xl");
 });

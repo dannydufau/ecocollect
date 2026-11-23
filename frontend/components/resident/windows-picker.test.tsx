@@ -47,6 +47,28 @@ describe("WindowsPicker", () => {
         expect(screen.queryByRole("button", { name: "Remove window 1" })).not.toBeInTheDocument();
     });
 
+    it("sets Calgary dates, groups hours, and summarizes overnight windows", () => {
+        vi.setSystemTime(new Date("2026-11-15T04:00:00Z"));
+        render(<Picker />);
+        fireEvent.click(screen.getByRole("button", { name: "Today" }));
+        expect(screen.getByLabelText("Date 1")).toHaveValue("2026-11-14");
+        expect(screen.getByRole("option", { name: "00:00" })).toBeDisabled();
+        fireEvent.click(screen.getByRole("button", { name: "Tomorrow" }));
+        expect(screen.getByLabelText("Date 1")).toHaveValue("2026-11-15");
+        expect(screen.getAllByRole("group").filter(group => group.tagName === "OPTGROUP")
+            .map(group => group.getAttribute("label"))).toEqual(["Overnight", "Morning", "Afternoon", "Evening"]);
+        expect(screen.getByRole("option", { name: "00:00" })).toBeEnabled();
+        fireEvent.change(screen.getByLabelText("Start hour 1"), { target: { value: "0" } });
+        expect(screen.getByText("Tomorrow, 12 to 1 a.m.")).toBeInTheDocument();
+    });
+
+    it("disables shortcuts after the last future hour and at the edit limit", () => {
+        vi.setSystemTime(new Date("2026-01-16T06:15:00Z"));
+        render(<WindowsPicker value={[]} onChange={vi.fn()} createdAt="2025-12-16T12:00:00Z" />);
+        expect(screen.getByRole("button", { name: "Today" })).toBeDisabled();
+        expect(screen.getByRole("button", { name: "Tomorrow" })).toBeDisabled();
+    });
+
     it("shows a row error for duplicate date and hour slots", () => {
         render(<Picker value={[{ date: "2026-12-01", startHour: 9 }]} />);
         fireEvent.click(screen.getByRole("button", { name: "Add window" }));
@@ -141,11 +163,11 @@ describe("WindowsPicker", () => {
 
     it("has its own card by default and none when embedded", () => {
         const { container, unmount } = render(<Picker />);
-        expect(container.querySelector("fieldset")).toHaveClass("rounded-2xl", "border", "p-5", "bg-surface-elevated");
+        expect(container.querySelector("fieldset")).toHaveClass("rounded-2xl", "border", "p-4", "sm:p-5", "bg-surface-elevated");
         unmount();
         const embedded = render(<WindowsPicker embedded value={[]} onChange={vi.fn()} />);
         const fieldset = embedded.container.querySelector("fieldset")!;
-        for (const name of ["rounded-2xl", "border", "p-5", "bg-surface-elevated", "shadow-rest"]) expect(fieldset).not.toHaveClass(name);
+        for (const name of ["rounded-2xl", "border", "p-4", "sm:p-5", "bg-surface-elevated", "shadow-rest"]) expect(fieldset).not.toHaveClass(name);
     });
 
     it("disables the hours already past today, and none on a later day", () => {
