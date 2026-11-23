@@ -1,4 +1,5 @@
 export { LifecycleStepper } from "./lifecycle-stepper";
+export { ChoiceCard } from "./choice-card";
 export { QueryError } from "./query-error";
 export { RoleBadge } from "./role-badge";
 export { StatusBadge } from "./status-badge";

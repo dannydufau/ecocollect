@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { AddressFields, PostalCodeList } from "@/components/address-fields";
-import { Button, CheckIcon, Field, FieldError, PasswordInput, card, input, textLink } from "@/components/ui";
+import { Button, ChoiceCard, Field, FieldError, PasswordInput, card, input, textLink } from "@/components/ui";
 import { calgaryToday } from "@/lib/time";
 import {
     eighteenYearsAgo, normalizeUsername, validateAccount, type AccountValues,
@@ -94,16 +94,10 @@ export default function RegisterForm({ onValid, fieldErrors = {}, busy = false, 
                     <fieldset aria-describedby={errors.role ? `${id}-role-error` : undefined} className="min-w-0">
                         <legend className="mb-2 font-semibold">I want to</legend>
                         <div className="grid gap-3 sm:grid-cols-2">
-                            {([["resident", "Request pickups (Resident)"], ["volunteer", "Collect and deliver items (Volunteer)"]] as const).map(([role, label]) => {
-                                const selected = values.role === role;
-                                return <label key={role} className={`relative flex min-h-11 cursor-pointer items-center gap-3 rounded-xl p-4 has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent-700 ${selected ? "border-2 border-accent-700 bg-accent-100 font-semibold" : "border border-border-strong"}`}>
-                                    <input type="radio" name={`${id}-role`} value={role} checked={selected} onChange={() => change({ role })} className="sr-only" />
-                                    <span aria-hidden="true" className={`inline-flex size-6 flex-none items-center justify-center rounded-full border ${selected ? "border-accent-700 bg-accent-700 text-on-accent" : "border-border-strong"}`}>
-                                        {selected && <CheckIcon className="size-4" />}
-                                    </span>
-                                    {label}
-                                </label>;
-                            })}
+                            {([["resident", "Request pickups (Resident)"], ["volunteer", "Collect and deliver items (Volunteer)"]] as const).map(([role, label]) => (
+                                <ChoiceCard key={role} name={`${id}-role`} value={role} title={label} tone={role}
+                                    checked={values.role === role} onChange={() => change({ role })} />
+                            ))}
                         </div>
                     </fieldset>
                     <p className="text-text-muted">You can add the other role later in your profile.</p>

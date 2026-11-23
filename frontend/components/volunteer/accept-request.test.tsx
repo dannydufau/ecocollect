@@ -42,9 +42,39 @@ async function fill(dialog: HTMLElement) {
 }
 
 beforeEach(() => {
+    vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-11-19T18:00:00Z"));
     vi.spyOn(api, "get").mockResolvedValue({ termsDocumentId: "terms_3", content: "Some terms", publishedAt: "2026-11-01T00:00:00Z" });
     vi.spyOn(api, "post").mockResolvedValue(request);
     invalidate = vi.spyOn(QueryClient.prototype, "invalidateQueries");
+});
+
+it("disables a window once it starts and keeps the later window available", async () => {
+    vi.mocked(Date.now).mockReturnValue(Date.parse("2026-11-20T19:00:00Z"));
+    const dialog = await openDialog();
+    expect(within(dialog).getByRole("radio", { name: /Fri, Nov 20/ })).toBeDisabled();
+    expect(within(dialog).getByRole("radio", { name: /Sat, Nov 21/ })).toBeEnabled();
+});
+
+it("requires a new choice if the selected window starts while the dialog is open", async () => {
+    const dialog = await openDialog();
+    const first = within(dialog).getByRole("radio", { name: /Fri, Nov 20/ });
+    fireEvent.click(first);
+    fireEvent.click(within(dialog).getByLabelText(termsBox));
+    vi.mocked(Date.now).mockReturnValue(Date.parse("2026-11-20T19:00:00Z"));
+    fireEvent.click(confirmButton(dialog));
+    expect(api.post).not.toHaveBeenCalled();
+    expect(first).toBeDisabled();
+    expect(confirmButton(dialog)).toHaveAccessibleDescription("Choose a pickup window.");
+    expect(within(dialog).getByRole("alert")).toHaveTextContent("That pickup window has started. Choose another.");
+
+    fireEvent.click(within(dialog).getByRole("radio", { name: /Sat, Nov 21/ }));
+    expect(within(dialog).queryByRole("alert")).not.toBeInTheDocument();
+});
+
+it("says so when every window has started", async () => {
+    vi.mocked(Date.now).mockReturnValue(Date.parse("2026-11-30T19:00:00Z"));
+    const dialog = await openDialog();
+    expect(confirmButton(dialog)).toHaveAccessibleDescription("Every pickup window has started.");
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); onDone.mockReset(); });
 

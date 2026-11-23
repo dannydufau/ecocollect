@@ -67,7 +67,7 @@ it("shows the address with a spaced postal code", async () => {
 it("fills the chosen row", async () => {
     renderWithClient(<FacilityPicker categoryId="laptops" value="f2" onChange={() => {}} />);
     expect((await screen.findByRole("radio", { name: /North Electronics Depot/ })).closest("label")).toHaveClass("bg-accent-2-200");
-    expect(screen.getByRole("radio", { name: /Demo Recycling Facility/ }).closest("label")).toHaveClass("bg-white", "border-border-strong");
+    expect(screen.getByRole("radio", { name: /Demo Recycling Facility/ }).closest("label")).toHaveClass("bg-surface-elevated", "border-border-strong");
 });
 
 it("lets the volunteer try again after an error", async () => {
@@ -84,7 +84,7 @@ it("marks the chosen option with a checked radio, a moss border and a check", as
     expect(radio).toBeChecked();
     expect(radio.closest("label")).toHaveClass("border-accent-2-700");
     expect(radio.closest("label")!.querySelectorAll("svg[aria-hidden=true]")).toHaveLength(2);
-    expect(screen.getByRole("radio", { name: /Demo Recycling Facility/ }).closest("label")!.querySelectorAll("svg")).toHaveLength(1);
+    expect(screen.getByRole("radio", { name: /Demo Recycling Facility/ }).closest("label")!.querySelector(".opacity-0 svg")).not.toBeNull();
 });
 
 it("shows a pin icon, a postal code and the instructions in an inset box", async () => {
