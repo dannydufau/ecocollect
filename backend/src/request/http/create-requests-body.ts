@@ -5,7 +5,7 @@
 // so the resident sees them all at once.
 import * as v from 'valibot';
 import { parseBody, Uuid } from './body-validation.ts';
-import { termsOutdated } from './errors.ts';
+import { termsOutdated, validationFailed } from './errors.ts';
 
 const INT_MAX = 2_147_483_647;         // quantity is an INT parameter
 
@@ -68,6 +68,19 @@ export function parseCreateRequestsBody(body: unknown): CreateRequestsBody {
   // Contract: a malformed id is answered like an outdated one, before the
   // database would fail to cast it to UUID.
   if (!v.is(Uuid, termsDocumentId)) throw termsOutdated();
+
+  // A repeated categoryId or photo fileId, before any ImageKit call: each item
+  // after the first with that value is reported, as req_create_requests words it.
+  const fields: Record<string, string> = {};
+  items.forEach((item, i) => {
+    const firstWithCategory = items.findIndex((other) => other.categoryId === item.categoryId);
+    if (firstWithCategory < i) fields[`items[${i}].categoryId`] = 'already selected';
+
+    const fileId = item.photo?.fileId;
+    const firstWithFile = items.findIndex((other) => other.photo?.fileId === fileId);
+    if (fileId !== undefined && firstWithFile < i) fields[`items[${i}].photo.fileId`] = 'already used';
+  });
+  if (Object.keys(fields).length > 0) throw validationFailed(fields);
 
   return {
     categoryIds: items.map((item) => item.categoryId),

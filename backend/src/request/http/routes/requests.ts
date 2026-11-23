@@ -13,8 +13,8 @@ import * as v from 'valibot';
 import type { RouteDeps } from '../../app.ts';
 import type { AllowedAction } from '../../domain/types.ts';
 import {
-  accept, cancel, cancelAssignment, confirmCollected, createRequests, edit, getDetail, getRequests, listAvailable, listMine,
-  listVolunteerHistory, recordDelivery, reportMissed,
+  accept, cancel, cancelAssignment, confirmCollected, createRequests, edit, getDetail, getRequests, listAvailable,
+  listCategories, listMine, listVolunteerHistory, recordDelivery, reportMissed,
 } from '../../db/functions.ts';
 import {
   availableRequest, createdRequest, myRequest, requestDetail, volunteerAssignment,
@@ -57,6 +57,15 @@ export default function requestsRouter({ pool, nudgePublisher, demo, imagekit }:
       throw validationFailed({ 'Idempotency-Key': `must be 1 to ${IDEMPOTENCY_KEY_MAX} characters` });
     }
     const body = parseCreateRequestsBody(req.body);
+
+    // Answer unknown categories before any ImageKit call, so a body of made-up
+    // category ids can't cost one check each. req_create_requests checks them again.
+    const categoryIds = new Set((await listCategories(pool)).map((category) => category.category_id));
+    const unknownCategories: Record<string, string> = {};
+    body.categoryIds.forEach((categoryId, i) => {
+      if (!categoryIds.has(categoryId)) unknownCategories[`items[${i}].categoryId`] = 'unknown category';
+    });
+    if (Object.keys(unknownCategories).length > 0) throw validationFailed(unknownCategories);
 
     // Check each item's photo with ImageKit (6.5), all at once. A failed check
     // goes in as a null path: req_create_requests answers it with the other fields.
