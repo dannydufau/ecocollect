@@ -415,3 +415,25 @@ JOIN pickup_request pr ON pr.pickup_request_id = w.pickup_request_id
 JOIN item_category c ON c.category_id = pr.category_id
 WHERE a.ended_at IS NULL
 ORDER BY volunteer, w.pickup_date, w.start_hour;
+
+-- 9. SELECT queries with LEFT JOIN or RIGHT JOIN
+
+-- L1. A volunteer's pickup history, with the facility for delivered ones.
+--    Rationale: volunteers view their assigned, collected and delivered pickups (FR21);
+--               only delivered assignments have a delivery record, but every
+--               assignment must still appear.
+--    Citation:  FR21, FR17
+--    Concepts:  LEFT JOIN (keeps rows without a match, NULL columns), INNER JOIN,
+--               WHERE, ORDER BY ... DESC
+SELECT RIGHT(pr.pickup_request_id::text, 4) AS request,
+       a.accepted_at::date AS accepted,
+       a.end_reason AS outcome,
+       f.name AS delivered_to
+FROM assignment a
+JOIN terms_acceptance ta ON ta.terms_acceptance_id = a.terms_acceptance_id
+JOIN pickup_window w ON w.pickup_window_id = a.pickup_window_id
+JOIN pickup_request pr ON pr.pickup_request_id = w.pickup_request_id
+LEFT JOIN delivery d ON d.assignment_id = a.assignment_id
+LEFT JOIN recycling_facility f ON f.facility_id = d.facility_id
+WHERE ta.account_id = 'volunteer1'
+ORDER BY a.accepted_at DESC;
