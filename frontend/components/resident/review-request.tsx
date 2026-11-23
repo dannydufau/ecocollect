@@ -36,7 +36,10 @@ export default function ReviewRequest({ values, busy, accepted, onBack, onConfir
                 return <li key={item.categoryId} className={`${card} flex flex-col gap-0.5 break-words`}>
                     <span className="text-lg font-bold">{item.quantity} × {found?.name ?? item.categoryId}</span>
                     {found && <span>Estimated weight: <strong>{(found.standardWeightKg * Number(item.quantity)).toFixed(2)} kg</strong></span>}
-                    {item.photo && <span>Photo attached</span>}
+                    {item.photo && item.photoPreviewUrl && (
+                        // eslint-disable-next-line @next/next/no-img-element -- this preview is a local object URL
+                        <img src={item.photoPreviewUrl} alt="Photo of item" className="mt-2 size-16 rounded-lg border border-border object-cover" />
+                    )}
                 </li>;
             })}</ul>
             {values.items.length > 1 && <>
@@ -44,10 +47,10 @@ export default function ReviewRequest({ values, busy, accepted, onBack, onConfir
                 <p className="text-text-muted">This creates {values.items.length} separate requests, one per item.</p>
             </>}
         </section>
-        <section aria-label="Pickup windows"><h3 className="mb-2 text-xl">Pickup windows</h3><WindowList windows={values.windows} /><p className="mt-2 text-[13px] text-text-muted">Times are Calgary time.</p></section>
-        <section aria-label="Notes"><h3 className="text-xl">Notes</h3><p className="whitespace-pre-wrap break-words">{values.notes || "No notes added."}</p></section>
+        <section aria-label="Pickup windows"><h2 className="mb-2 text-xl">Pickup windows</h2><WindowList windows={values.windows} /><p className="mt-2 text-[13px] text-text-muted">Times are Calgary time.</p></section>
+        <section aria-label="Notes"><h2 className="text-xl">Notes</h2><p className="whitespace-pre-wrap break-words">{values.notes || "No notes added."}</p></section>
         <section aria-label="Pickup address" className="space-y-2">
-            <h3 className="text-xl">Pickup address</h3>
+            <h2 className="text-xl">Pickup address</h2>
             {profile.isPending ? <p role="status">Loading your address...</p> : profile.isError ?
                 <Alert variant="error">Could not load your address. <button type="button" onClick={() => void profile.refetch()} className="underline">Try again</button></Alert> :
                 address ? <p className="break-words">{address.street}, {formatPostalCode(address.postalCode)}</p> : <Alert variant="error">Add an address to your profile before sending.</Alert>}
