@@ -395,3 +395,23 @@ JOIN pickup_request pr ON pr.pickup_request_id = rcs.pickup_request_id
 JOIN item_category c ON c.category_id = pr.category_id
 WHERE rcs.resident_id = 'resident1'
 ORDER BY pr.created_at DESC;
+
+-- J3. Active assignments: which volunteer has which request, when, and whether
+--     the items are already collected.
+--    Rationale: volunteers track their current pickups (FR21); an assignment is active
+--               until it ends (delivered, cancelled or missed).
+--    Citation:  FR21, FR13, FR15
+--    Concepts:  INNER JOIN across 5 tables, WHERE ... IS NULL, boolean expression, ORDER BY
+SELECT ta.account_id AS volunteer,
+       RIGHT(pr.pickup_request_id::text, 4) AS request,
+       c.name AS category,
+       pr.pickup_postal_code,
+       w.pickup_date, w.start_hour,
+       a.collected_at IS NOT NULL AS collected
+FROM assignment a
+JOIN terms_acceptance ta ON ta.terms_acceptance_id = a.terms_acceptance_id
+JOIN pickup_window w ON w.pickup_window_id = a.pickup_window_id
+JOIN pickup_request pr ON pr.pickup_request_id = w.pickup_request_id
+JOIN item_category c ON c.category_id = pr.category_id
+WHERE a.ended_at IS NULL
+ORDER BY volunteer, w.pickup_date, w.start_hour;
