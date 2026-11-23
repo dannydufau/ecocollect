@@ -14,6 +14,7 @@
 --   p_at  the moment to judge "window ended" at
 --
 -- Returns the first rule that fails, in this order:
+--   'request_unavailable'  Q8 hides the request from the caller (req_viewer, 022)
 --   'forbidden'         p_resident_id is not the request's owner, or the owner's
 --                       account is deactivated
 --   'not_assigned'      any other status than Assigned
@@ -32,6 +33,7 @@ AS $$
 DECLARE
     k_code_ok               CONSTANT TEXT := 'ok';
     k_code_forbidden        CONSTANT TEXT := 'forbidden';
+    k_code_unavailable      CONSTANT TEXT := 'request_unavailable';
     k_code_not_assigned     CONSTANT TEXT := 'not_assigned';
     k_code_window_not_ended CONSTANT TEXT := 'window_not_ended';
     k_status_assigned       CONSTANT VARCHAR(30) := 'Assigned';
@@ -39,6 +41,7 @@ DECLARE
     v_is_owner   BOOLEAN;        -- the caller owns the request
     v_is_active  BOOLEAN;        -- the caller's account is not deactivated
     v_window_end TIMESTAMPTZ;    -- end of the unfinished assignment's window
+    v_is_visible BOOLEAN;        -- Q8 shows the request to the caller
 BEGIN
     IF p_request_id IS NULL OR p_resident_id IS NULL OR p_at IS NULL THEN
         RAISE EXCEPTION 'req_check_report_missed: missing argument';
@@ -47,6 +50,13 @@ BEGIN
     v_status := requests.req_current_status(p_request_id);
     IF v_status IS NULL THEN
         RAISE EXCEPTION 'req_check_report_missed: request % not found', p_request_id;
+    END IF;
+
+    -- 0. Hidden from the caller in Q8: the same 404 as Q8, never 403
+    -- (contract Conventions, NFR03).
+    v_is_visible := requests.req_viewer(p_request_id, p_resident_id) IS NOT NULL;
+    IF NOT v_is_visible THEN
+        RETURN k_code_unavailable;
     END IF;
 
     v_is_owner  := requests.req_owner_id(p_request_id) = p_resident_id;

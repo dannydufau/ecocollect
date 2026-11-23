@@ -11,9 +11,10 @@
 import { Router } from 'express';
 import * as v from 'valibot';
 import type { RouteDeps } from '../../app.ts';
+import type { AllowedAction } from '../../domain/types.ts';
 import {
-  accept, cancel, cancelAssignment, confirmCollected, createRequests, edit, getDetail, getRequests, listAvailable, listMine,
-  listVolunteerHistory, recordDelivery, reportMissed,
+  accept, cancel, cancelAssignment, confirmCollected, createRequests, edit, getDetail, getRequests, listAvailable,
+  listCategories, listMine, listVolunteerHistory, recordDelivery, reportMissed,
 } from '../../db/functions.ts';
 import {
   availableRequest, createdRequest, myRequest, requestDetail, volunteerAssignment,
@@ -37,6 +38,15 @@ const IDEMPOTENCY_KEY_MAX = 200;       // idempotency_keys.idempotency_key is VA
 export default function requestsRouter({ pool, nudgePublisher, demo, imagekit }: RouteDeps): Router {
   const router = Router();
 
+  // Whether Q8 lists `action` for the caller now. Edit and delivery ask this
+  // before the ImageKit check, so a caller who may not act costs one database
+  // read, not an ImageKit call. A no goes in as a null path, and the write
+  // function's own state checks still decide the error.
+  async function mayTakeAction(requestId: string, callerId: string, action: AllowedAction): Promise<boolean> {
+    const row = await getDetail(pool, requestId, callerId);
+    return row.result_code === 'ok' && row.allowed_actions.includes(action);
+  }
+
   router.post('/api/requests', requireRole('resident'), async (req, res) => {
     const caller = callerOf(res);
 
@@ -47,6 +57,15 @@ export default function requestsRouter({ pool, nudgePublisher, demo, imagekit }:
       throw validationFailed({ 'Idempotency-Key': `must be 1 to ${IDEMPOTENCY_KEY_MAX} characters` });
     }
     const body = parseCreateRequestsBody(req.body);
+
+    // Answer unknown categories before any ImageKit call, so a body of made-up
+    // category ids can't cost one check each. req_create_requests checks them again.
+    const categoryIds = new Set((await listCategories(pool)).map((category) => category.category_id));
+    const unknownCategories: Record<string, string> = {};
+    body.categoryIds.forEach((categoryId, i) => {
+      if (!categoryIds.has(categoryId)) unknownCategories[`items[${i}].categoryId`] = 'unknown category';
+    });
+    if (Object.keys(unknownCategories).length > 0) throw validationFailed(unknownCategories);
 
     // Check each item's photo with ImageKit (6.5), all at once. A failed check
     // goes in as a null path: req_create_requests answers it with the other fields.
@@ -128,9 +147,10 @@ export default function requestsRouter({ pool, nudgePublisher, demo, imagekit }:
   });
 
   // Order: role (403), id (404), body shape (400), the ImageKit check of a new
-  // photo, one write call; after commit, delete the old photo if no request uses
-  // it (best effort, logged); then the detail. A failed photo check goes in as a
-  // null path: req_edit answers it with the other fields, after its state checks.
+  // photo (only when Q8 lists 'edit' for the caller), one write call; after
+  // commit, delete the old photo if no request uses it (best effort, logged);
+  // then the detail. A skipped or failed photo check goes in as a null path:
+  // req_edit answers it with the other fields, after its state checks.
   router.patch('/api/requests/:id', requireRole('resident'), async (req, res) => {
     const caller = callerOf(res);
     const id = req.params.id;
@@ -138,7 +158,7 @@ export default function requestsRouter({ pool, nudgePublisher, demo, imagekit }:
     const body = parseEditBody(req.body);
 
     let filePath: string | null = null;
-    if (body.fileId !== null) {
+    if (body.fileId !== null && await mayTakeAction(id, caller.id, 'edit')) {
       filePath = await imagekit.verify({
         fileId: body.fileId, purpose: 'item_photo', callerId: caller.id, requestId: null,
       });
@@ -360,18 +380,22 @@ export default function requestsRouter({ pool, nudgePublisher, demo, imagekit }:
     res.json({ request: requestDetail(row, imagekit.sign), rescheduledRequest });
   });
 
-  // Order: role (403), id (404), body shape (400), the ImageKit check, one write
-  // call; then the detail, as in Q11. A failed photo check goes in as a null
-  // path: req_record_delivery answers it with the facility, after its state checks.
+  // Order: role (403), id (404), body shape (400), the ImageKit check (only when
+  // Q8 lists 'record_delivery' for the caller), one write call; then the detail,
+  // as in Q11. A skipped or failed photo check goes in as a null path:
+  // req_record_delivery answers it with the facility, after its state checks.
   router.post('/api/requests/:id/assignment/delivery', requireRole('volunteer'), async (req, res) => {
     const caller = callerOf(res);
     const id = req.params.id;
     if (!v.is(Uuid, id)) throw requestUnavailable();
     const body = parseRecordDeliveryBody(req.body);
 
-    const filePath = await imagekit.verify({
-      fileId: body.fileId, purpose: 'delivery_evidence', callerId: caller.id, requestId: id,
-    });
+    let filePath: string | null = null;
+    if (await mayTakeAction(id, caller.id, 'record_delivery')) {
+      filePath = await imagekit.verify({
+        fileId: body.fileId, purpose: 'delivery_evidence', callerId: caller.id, requestId: id,
+      });
+    }
     const result = await recordDelivery(pool, {
       requestId: id, volunteerId: caller.id, ...body, filePath, traceId: caller.traceId,
     });

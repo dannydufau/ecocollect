@@ -11,6 +11,7 @@
 -- timing rule.
 --
 -- Returns the first rule that fails, in this order:
+--   'request_unavailable'  Q8 hides the request from the caller (req_viewer, 022)
 --   'forbidden'          p_volunteer_id is not an active volunteer
 --   'already_delivered'  they delivered this request already (a retry)
 --   'forbidden'          they have no unfinished assignment on this request
@@ -28,6 +29,7 @@ AS $$
 DECLARE
     k_code_ok                CONSTANT TEXT := 'ok';
     k_code_forbidden         CONSTANT TEXT := 'forbidden';
+    k_code_unavailable       CONSTANT TEXT := 'request_unavailable';
     k_code_already_delivered CONSTANT TEXT := 'already_delivered';
     k_code_not_collected     CONSTANT TEXT := 'not_collected';
     k_status_collected       CONSTANT VARCHAR(30) := 'Collected';
@@ -36,6 +38,7 @@ DECLARE
     v_is_volunteer  BOOLEAN;   -- an active volunteer account
     v_has_active    BOOLEAN;   -- has an unfinished assignment on this request
     v_has_delivered BOOLEAN;   -- has an assignment on this request that they delivered
+    v_is_visible    BOOLEAN;   -- Q8 shows the request to the caller
 BEGIN
     IF p_request_id IS NULL OR p_volunteer_id IS NULL THEN
         RAISE EXCEPTION 'req_check_record_delivery: missing argument';
@@ -44,6 +47,13 @@ BEGIN
     v_status := requests.req_current_status(p_request_id);
     IF v_status IS NULL THEN
         RAISE EXCEPTION 'req_check_record_delivery: request % not found', p_request_id;
+    END IF;
+
+    -- 0. Hidden from the caller in Q8: the same 404 as Q8, never 403
+    -- (contract Conventions, NFR03).
+    v_is_visible := requests.req_viewer(p_request_id, p_volunteer_id) IS NOT NULL;
+    IF NOT v_is_visible THEN
+        RETURN k_code_unavailable;
     END IF;
 
     -- Read from the model tables (not from X-User-Roles), as req_check_accept does.
@@ -193,7 +203,8 @@ BEGIN
 
     -- 4. Writes, at v_at: end the collected assignment (Collected has exactly one
     -- unfinished, collected assignment, check_request rule 7), then the photo and
-    -- the delivery. A concurrent use of the same new file id raises on photo_pk.
+    -- the delivery. An evidence file belongs to one request (6.2 folder), so a
+    -- second call with the same file waited on the row lock and stopped at 'already_delivered'.
     UPDATE assignment a
     SET ended_at = v_at, end_reason = k_end_delivered
     FROM pickup_window pw

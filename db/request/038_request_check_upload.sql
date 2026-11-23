@@ -12,7 +12,7 @@
 --                 item photo is uploaded before Q4 creates its request)
 --
 -- Returns:
---   'request_unavailable'  evidence: no such request (404)
+--   'request_unavailable'  evidence: no such request, or Q8 hides it from the caller (404)
 --   'forbidden'            item photo: not an active resident (403)
 --                          evidence: the caller may not record this delivery
 --                          now: not the assigned volunteer, not Collected yet,
@@ -76,7 +76,12 @@ BEGIN
     -- Ask Q15's own state check: may this caller record the delivery now?
     v_delivery_check := requests.req_check_record_delivery(p_request_id, p_actor_id);
 
-    -- Return 403 for any answer other than 'ok'.
+    -- Return 404 when Q8 hides the request from the caller.
+    IF v_delivery_check = k_code_unavailable THEN
+        RETURN k_code_unavailable;
+    END IF;
+
+    -- Return 403 for any other answer than 'ok'.
     IF v_delivery_check <> k_code_ok THEN
         RETURN k_code_forbidden;
     END IF;

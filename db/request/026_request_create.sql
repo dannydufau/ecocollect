@@ -23,11 +23,13 @@
 --
 -- Account lock (FR04): before reading the resident, it takes the advisory lock
 -- pg_advisory_xact_lock(hashtext('account:' || account_id)), shared with the User
--- Service's address edit (U7) and deactivation (U9), and with req_accept (Q11).
--- Without it, an address edit or a deactivation running at the same time misses
--- the new Open requests, and this call reads the address or deactivated_at from
--- before that change. The address is read in a later statement than the lock, so
--- it sees anything committed while this call waited.
+-- Service's address edit (U7) and deactivation (U9), and with req_accept (Q11)
+-- and req_edit (Q9). Without it, an address edit or a deactivation running at the
+-- same time misses the new Open requests, and this call reads the address or
+-- deactivated_at from before that change. The address is read in a later
+-- statement than the lock, so it sees anything committed while this call waited.
+-- It also keeps two of the resident's Q4 or Q9 calls from checking the same new
+-- photo at once (12.7): the second sees the first's photo row ('already used').
 CREATE OR REPLACE FUNCTION requests.req_create_requests(
     p_resident_id       VARCHAR(50),
     p_idempotency_key   VARCHAR(200),       -- NULL when the header is absent
@@ -67,6 +69,7 @@ DECLARE
     k_status_open            CONSTANT VARCHAR(30) := 'Open';
     k_event_created          CONSTANT TEXT := 'RequestCreated';
     k_lock_account           CONSTANT TEXT := 'account:';   -- account lock key prefix, shared with the User Service
+    k_lock_key_cleanup       CONSTANT TEXT := 'request:idempotency-key-cleanup';   -- one create at a time deletes old keys
     v_now           TIMESTAMPTZ := now();   -- one moment for the whole action
     v_count         INT := coalesce(cardinality(p_category_ids), 0);
     v_street        VARCHAR(255);
@@ -77,6 +80,7 @@ DECLARE
     v_ta_id         UUID := gen_random_uuid();
     v_transition_id UUID := gen_random_uuid();
     v_has_photo     BOOLEAN;                -- item i was sent with a photo
+    v_cleans_keys   BOOLEAN;                -- this call got the cleanup lock
 BEGIN
     error_fields   := '{}';
     error_messages := '{}';
@@ -96,7 +100,7 @@ BEGIN
         END IF;
     END LOOP;
 
-    -- 0b. Take the resident's account lock, waiting for any address edit or deactivation.
+    -- 0b. Take the resident's account lock, waiting for any address edit, deactivation or same photo fileId.
     PERFORM pg_advisory_xact_lock(hashtext(k_lock_account || p_resident_id));
 
     -- 1. An active resident; the address is copied from the profile (FR07).
@@ -184,6 +188,15 @@ BEGIN
     IF cardinality(error_fields) > 0 THEN
         result_code := k_code_validation_failed;
         RETURN;
+    END IF;
+
+    -- 4b. Take the cleanup lock if it is free; another create holding it does the cleanup.
+    v_cleans_keys := pg_try_advisory_xact_lock(hashtext(k_lock_key_cleanup));
+
+    -- Delete every resident's keys older than 24 h.
+    IF v_cleans_keys THEN
+        DELETE FROM requests.idempotency_keys k
+        WHERE k.created_at <= v_now - k_key_ttl;
     END IF;
 
     -- 5. The idempotency key goes in before the requests, so a concurrent call with

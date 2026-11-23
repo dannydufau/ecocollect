@@ -10,6 +10,7 @@
 --   p_at  the moment to judge "overdue" at
 --
 -- Returns the first rule that fails, in this order:
+--   'request_unavailable'  Q8 hides the request from the caller (req_viewer, 022)
 --   'forbidden'  p_resident_id is not the request's owner, or the owner's
 --                account is deactivated
 --   'not_open'   any status other than Open
@@ -27,16 +28,18 @@ STABLE
 SET search_path TO requests, users, pg_temp
 AS $$
 DECLARE
-    k_code_ok        CONSTANT TEXT := 'ok';
-    k_code_forbidden CONSTANT TEXT := 'forbidden';
-    k_code_not_open  CONSTANT TEXT := 'not_open';
-    k_code_overdue   CONSTANT TEXT := 'overdue';
-    k_status_open    CONSTANT VARCHAR(30) := 'Open';
-    v_status    VARCHAR(30);
-    v_is_owner  BOOLEAN;        -- p_resident_id owns the request
-    v_is_active BOOLEAN;        -- and their account is not deactivated
-    v_is_open   BOOLEAN;        -- the request's current status is Open
-    v_overdue   BOOLEAN;        -- the latest active window has started
+    k_code_ok          CONSTANT TEXT := 'ok';
+    k_code_forbidden   CONSTANT TEXT := 'forbidden';
+    k_code_unavailable CONSTANT TEXT := 'request_unavailable';
+    k_code_not_open    CONSTANT TEXT := 'not_open';
+    k_code_overdue     CONSTANT TEXT := 'overdue';
+    k_status_open      CONSTANT VARCHAR(30) := 'Open';
+    v_status     VARCHAR(30);
+    v_is_owner   BOOLEAN;       -- p_resident_id owns the request
+    v_is_active  BOOLEAN;       -- and their account is not deactivated
+    v_is_open    BOOLEAN;       -- the request's current status is Open
+    v_overdue    BOOLEAN;       -- the latest active window has started
+    v_is_visible BOOLEAN;       -- Q8 shows the request to the caller
 BEGIN
     IF p_request_id IS NULL OR p_resident_id IS NULL OR p_at IS NULL THEN
         RAISE EXCEPTION 'req_check_edit: missing argument';
@@ -45,6 +48,13 @@ BEGIN
     v_status := requests.req_current_status(p_request_id);
     IF v_status IS NULL THEN
         RAISE EXCEPTION 'req_check_edit: request % not found', p_request_id;
+    END IF;
+
+    -- 0. Hidden from the caller in Q8: the same 404 as Q8, never 403
+    -- (contract Conventions, NFR03).
+    v_is_visible := requests.req_viewer(p_request_id, p_resident_id) IS NOT NULL;
+    IF NOT v_is_visible THEN
+        RETURN k_code_unavailable;
     END IF;
 
     v_is_owner  := requests.req_owner_id(p_request_id) = p_resident_id;
@@ -97,6 +107,14 @@ $$;
 -- replaced it and no request uses it any more; TypeScript deletes the file from
 -- ImageKit after commit (6.7). NULL otherwise.
 -- Business failures are returned; a RAISE means a bug and rolls back everything.
+--
+-- Account lock (12.7): before the request row lock, it takes the advisory lock
+-- pg_advisory_xact_lock(hashtext('account:' || account_id)) on the caller, the
+-- same lock req_create_requests (Q4) takes. A photo can be sent only by the
+-- account that uploaded it (6.5), so with this lock no two of that account's Q4
+-- or Q9 calls check the same new file at once: the second waits, then sees the
+-- first's photo row and answers 'already used' instead of failing on photo_pk.
+-- The account lock always comes before any row lock, in every caller.
 CREATE OR REPLACE FUNCTION requests.req_edit(
     p_request_id  UUID,
     p_resident_id VARCHAR(50),
@@ -145,7 +163,8 @@ DECLARE
     k_changed_notes       CONSTANT TEXT := 'notes';
     k_changed_windows     CONSTANT TEXT := 'windows';
     k_changed_photo       CONSTANT TEXT := 'photo';
-    v_at            TIMESTAMPTZ;            -- the action's one moment, taken after the lock
+    k_lock_account        CONSTANT TEXT := 'account:';   -- account lock key prefix, shared with Q4 and the User Service
+    v_at           TIMESTAMPTZ;            -- the action's one moment, taken after the lock
     v_check         TEXT;
     v_old           RECORD;                 -- the request row as it was before this call
     v_sent_category BOOLEAN;                -- each field: present in the body
@@ -159,7 +178,8 @@ DECLARE
     v_new_quantity  INT;
     v_new_notes     TEXT;
     v_new_file_id   TEXT;
-    v_standard_weight NUMERIC(10,2);        -- the new category's kg per item
+    v_reweigh       BOOLEAN;                -- the category or the quantity changed (FR10)
+    v_new_weight    NUMERIC(10,2);          -- estimated_weight_kg after this edit
     v_old_windows   TEXT[];                 -- active windows before / after, as sorted 'date hour'
     v_new_windows   TEXT[];
     v_changed       TEXT[] := '{}';         -- E2's 'changed'
@@ -215,8 +235,11 @@ BEGIN
         RAISE EXCEPTION 'req_edit: p_file_path is set, but photo is not in p_sent';
     END IF;
 
+    -- 0. Take the caller's account lock, waiting for their other Q4 or Q9 calls.
+    PERFORM pg_advisory_xact_lock(hashtext(k_lock_account || p_resident_id));
+
     -- 1. Lock the request row and keep its current values, then take the time.
-    SELECT p.created_at, p.category_id, p.quantity, p.notes, p.file_id INTO v_old
+    SELECT p.created_at, p.category_id, p.quantity, p.notes, p.file_id, p.estimated_weight_kg INTO v_old
     FROM pickup_request p WHERE p.pickup_request_id = p_request_id FOR UPDATE;
     IF NOT FOUND THEN
         result_code := k_code_unavailable;
@@ -329,16 +352,20 @@ BEGIN
         RETURN;
     END IF;
 
-    -- 6. Store the new photo first (the request row references it). A concurrent
-    -- use of the same new file id raises on photo_pk.
+    -- 6. Store the new photo first (the request row references it).
     IF v_new_photo THEN
         INSERT INTO photo (file_id, file_path) VALUES (p_file_id, p_file_path);
     END IF;
 
-    -- 7. Look up the (new) category's current standard weight.
-    SELECT c.standard_weight_kg INTO v_standard_weight
-    FROM item_category c
-    WHERE c.category_id = v_new_category;
+    -- 7. Keep the stored weight, unless the category or the quantity changed (FR10).
+    v_reweigh := k_changed_category = ANY (v_changed) OR k_changed_quantity = ANY (v_changed);
+    v_new_weight := v_old.estimated_weight_kg;
+    IF v_reweigh THEN
+        -- Price it with the (new) category's current standard weight.
+        SELECT v_new_quantity * c.standard_weight_kg INTO v_new_weight
+        FROM item_category c
+        WHERE c.category_id = v_new_category;
+    END IF;
 
     -- Update the request.
     UPDATE pickup_request p
@@ -346,7 +373,7 @@ BEGIN
         quantity            = v_new_quantity,
         notes               = v_new_notes,
         file_id             = v_new_file_id,
-        estimated_weight_kg = v_new_quantity * v_standard_weight
+        estimated_weight_kg = v_new_weight
     WHERE p.pickup_request_id = p_request_id;
 
     -- 8. Replace the active windows. The old rows stay, inactive (assignment history).

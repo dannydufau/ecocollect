@@ -1,7 +1,7 @@
 -- req_get_detail: Q8, one request as the viewer may see it (RequestDetail in
 -- openapi.yaml, contract 5.2 visibility table). Called by TypeScript as
 --   SELECT * FROM requests.req_get_detail($1, $2)
--- Needs 022 (helpers) and the req_check_<action> functions (031 onwards; PL/pgSQL
+-- Needs 022 (helpers, req_viewer) and the req_check_<action> functions (031 onwards; PL/pgSQL
 -- looks them up when called, so loading them after this file is fine).
 -- Created in "requests"; course tables are named without a
 -- schema (see 020). The OUT parameters share names with columns (status, notes,
@@ -100,7 +100,6 @@ DECLARE
     k_cancellation_window    CONSTANT INTERVAL := INTERVAL '24 hours';   -- before the window starts
     v_now          TIMESTAMPTZ := now();
     v_owner_id     VARCHAR(50);
-    v_linked       BOOLEAN;     -- the viewer has an assignment that still links them
     v_linked_id    UUID;        -- that assignment
     v_collected_at TIMESTAMPTZ;
     v_ended_at     TIMESTAMPTZ;
@@ -112,16 +111,19 @@ BEGIN
         RAISE EXCEPTION 'req_get_detail: missing argument';
     END IF;
 
-    status := requests.req_current_status(p_request_id);
-    IF status IS NULL THEN
+    -- 1. How the viewer relates to the request (the shared rule, 022). NULL:
+    -- no such request, or hidden from them.
+    viewer := requests.req_viewer(p_request_id, p_viewer_id);
+    IF viewer IS NULL THEN
         result_code := k_code_unavailable;
         RETURN;
     END IF;
+    status     := requests.req_current_status(p_request_id);
     v_owner_id := requests.req_owner_id(p_request_id);
 
-    -- 1. How the viewer relates to the request. The linking assignment is the
-    -- unfinished one (at most one per request, 12.7) or the delivered one
-    -- (Delivered is final), so at most one row matches.
+    -- Read the viewer's linking assignment, for the fields below: the unfinished
+    -- one (at most one per request, 12.7) or the delivered one (Delivered is
+    -- final), so at most one row matches. None for the owner or a volunteer on Open.
     SELECT a.assignment_id, a.collected_at, a.ended_at
     INTO v_linked_id, v_collected_at, v_ended_at
     FROM assignment a
@@ -130,22 +132,6 @@ BEGIN
     WHERE pw.pickup_request_id = p_request_id
       AND ta.account_id = p_viewer_id
       AND (a.ended_at IS NULL OR a.end_reason = k_end_delivered);
-    v_linked := FOUND;
-
-    IF p_viewer_id = v_owner_id THEN
-        viewer := k_viewer_owner;
-    ELSIF v_linked THEN
-        viewer := k_viewer_assigned;
-    ELSIF status = k_status_open AND EXISTS (
-            SELECT 1 FROM volunteer vo
-            JOIN account ac ON ac.account_id = vo.account_id
-            WHERE vo.account_id = p_viewer_id
-              AND ac.deactivated_at IS NULL) THEN
-        viewer := k_viewer_volunteer;
-    ELSE
-        result_code := k_code_unavailable;
-        RETURN;
-    END IF;
     result_code     := k_code_ok;
 
     -- The actions the viewer may take now: the same checks the write functions

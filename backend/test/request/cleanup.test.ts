@@ -39,7 +39,7 @@ describe('CleanupRequest consumer', { skip: skipDb }, () => {
     assert.equal(await status(requestId), 'Open');
 
     // Overdue: expired, with RequestExpired (trigger cleanup_job), and the publisher nudged.
-    await moveIntoPast(app.pool, requestId, 2);
+    await moveIntoPast(requestId, 2);
     const eventId = randomUUID();
     await handle(message(eventId, requestId));
     assert.equal(await status(requestId), 'Expired');

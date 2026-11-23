@@ -103,6 +103,71 @@ BEGIN
 END;
 $$;
 
+-- How the caller relates to the request: the column of Q8's visibility table
+-- (contract 5.2). NULL when Q8 hides the request from them, or it doesn't
+-- exist. Q8 and every write's state check ask this one function, so a caller
+-- Q8 answers with 404 gets 404 from every other endpoint too, never 403
+-- (contract Conventions, NFR03).
+--   'owner'               the request's resident; wins when also the volunteer
+--   'assigned_volunteer'  the volunteer of an assignment that is unfinished or
+--                         ended by their delivery
+--   'volunteer'           any active volunteer, while the request is Open
+CREATE OR REPLACE FUNCTION requests.req_viewer(p_request_id UUID, p_viewer_id VARCHAR(50))
+RETURNS TEXT
+LANGUAGE plpgsql
+STABLE
+SET search_path TO requests, users, pg_temp
+AS $$
+DECLARE
+    k_viewer_owner     CONSTANT TEXT := 'owner';
+    k_viewer_assigned  CONSTANT TEXT := 'assigned_volunteer';
+    k_viewer_volunteer CONSTANT TEXT := 'volunteer';
+    k_status_open      CONSTANT VARCHAR(30) := 'Open';
+    k_end_delivered    CONSTANT VARCHAR(30) := 'Delivered';   -- assignment end_reason
+    v_status       VARCHAR(30);
+    v_is_owner     BOOLEAN;   -- the caller is the request's resident
+    v_is_linked    BOOLEAN;   -- the caller has an unfinished or delivered assignment on it
+    v_is_volunteer BOOLEAN;   -- the caller is a volunteer with an active account
+BEGIN
+    -- Read the current status; none means no such request.
+    v_status := requests.req_current_status(p_request_id);
+    IF v_status IS NULL THEN
+        RETURN NULL;
+    END IF;
+
+    -- Compare the caller with the request's resident.
+    v_is_owner := requests.req_owner_id(p_request_id) = p_viewer_id;
+
+    -- Look for the caller's unfinished assignment (at most one per request, 12.7)
+    -- or delivered one (Delivered is final).
+    v_is_linked := EXISTS (
+        SELECT 1 FROM assignment a
+        JOIN pickup_window pw    ON pw.pickup_window_id = a.pickup_window_id
+        JOIN terms_acceptance ta ON ta.terms_acceptance_id = a.terms_acceptance_id
+        WHERE pw.pickup_request_id = p_request_id
+          AND ta.account_id = p_viewer_id
+          AND (a.ended_at IS NULL OR a.end_reason = k_end_delivered));
+
+    -- Look up the caller's volunteer row with an active account.
+    v_is_volunteer := EXISTS (
+        SELECT 1 FROM volunteer vo
+        JOIN account ac ON ac.account_id = vo.account_id
+        WHERE vo.account_id = p_viewer_id
+          AND ac.deactivated_at IS NULL);
+
+    IF v_is_owner THEN
+        RETURN k_viewer_owner;
+    END IF;
+    IF v_is_linked THEN
+        RETURN k_viewer_assigned;
+    END IF;
+    IF v_status = k_status_open AND v_is_volunteer THEN
+        RETURN k_viewer_volunteer;
+    END IF;
+    RETURN NULL;
+END;
+$$;
+
 -- matchedVolunteerUids for E1 and E2 (contract 10.3): every volunteer whose
 -- preferred postal codes include the request's postal code (exact 6-character
 -- match), leaving out deactivated accounts and the request's own resident. In
