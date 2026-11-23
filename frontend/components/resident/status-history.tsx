@@ -18,7 +18,7 @@ export default function StatusHistory({ statusHistory = [], rescheduledFrom, res
         </section>}
         {history.length > 0 && <section aria-labelledby="status-history-heading" className={cardStyle}>
             <h2 id="status-history-heading">History</h2>
-            <ol className="ml-1.5 space-y-5 border-l-2 border-border">
+            <ol className="ml-1.5 space-y-3 border-l-2 border-border">
                 {history.map((entry, index) => <li key={`${entry.changedAt}-${index}`}
                     className="relative min-w-0 space-y-2 pl-5 before:absolute before:-left-[7px] before:top-2 before:size-3 before:rounded-full before:bg-accent-700">
                     <div className="flex flex-wrap items-center gap-2">

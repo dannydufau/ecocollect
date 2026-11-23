@@ -3,7 +3,7 @@ import { buttonClass } from "./button";
 // The page heading (h1): 30px on a phone, up to 40px on a wide screen
 export const pageTitle = "text-[length:clamp(1.875rem,5vw,2.5rem)]";
 // The card shape without colours, for a card with its own background and border
-export const panel = "rounded-2xl border p-5 shadow-rest";
+export const panel = "rounded-2xl border p-4 shadow-rest sm:p-5";
 export const card = `${panel} border-border bg-surface-elevated`;
 // Raised fill with a strong border. Invalid adds a ring, not width, so the field does not change size. Disabled and read-only are on the inset surface.
 const control = "min-h-11 w-full rounded-xl border border-border-strong bg-surface-elevated px-3.5 py-2 text-base text-text focus:border-accent-700 aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-danger disabled:cursor-not-allowed disabled:bg-surface disabled:text-text-muted [&[readonly]]:bg-surface";

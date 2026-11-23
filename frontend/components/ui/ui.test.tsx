@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useEffect } from "react";
-import { Alert, Button, ConfirmDialog, PageLoading, Spinner, StatusBadge } from "./index";
+import { Alert, Button, ConfirmDialog, LoadingRegion, PageLoading, Spinner, StatusBadge } from "./index";
 import { buttonClass } from "./button";
 import { AlertIcon, CheckIcon, InfoIcon, WarningIcon } from "./icons";
-import { clickableCard, input, linkButton, secondaryLinkButton, select, textarea } from "./styles";
+import { card, clickableCard, input, linkButton, panel, secondaryLinkButton, select, textarea } from "./styles";
 afterEach(() => {
     cleanup();
 });
@@ -81,7 +81,7 @@ describe("UI components", () => {
         expect(onCancel).toHaveBeenCalledOnce();
     });
 
-    it("mounts children only while open and cleans them up on close", () => {
+    it("cleans up dialog children after closing", async () => {
         const onMount = vi.fn();
         const onUnmount = vi.fn();
         function DialogContent() {
@@ -107,7 +107,7 @@ describe("UI components", () => {
         expect(screen.getByText("Facility picker")).toBeInTheDocument();
 
         rerender(<ConfirmDialog {...props} open={false} />);
-        expect(onUnmount).toHaveBeenCalledOnce();
+        await waitFor(() => expect(onUnmount).toHaveBeenCalledOnce());
         expect(screen.queryByText("Facility picker")).toBeNull();
 
         rerender(<ConfirmDialog {...props} open />);
@@ -193,9 +193,9 @@ it("Alert only has a Dismiss button with onDismiss, outside the live region", ()
     expect(onDismiss).toHaveBeenCalledOnce();
 });
 
-it("ConfirmDialog rises in and Alert fades in", () => {
+it("applies the dialog transition and Alert fade classes", () => {
     const { container } = render(<><ConfirmDialog open title="T" confirmLabel="OK" onConfirm={vi.fn()} onCancel={vi.fn()}>Body</ConfirmDialog><Alert variant="info">Hi</Alert></>);
-    expect(container.querySelector("dialog")).toHaveClass("rise-in");
+    expect(container.querySelector("dialog")).toHaveClass("confirm-dialog");
     expect(screen.getByRole("status").parentElement).toHaveClass("fade-in");
 });
 
@@ -226,4 +226,17 @@ it.each([["input", input], ["textarea", textarea], ["select", select]])("the %s 
 it("only the select style draws its own chevron", () => {
     expect(select.split(" ")).toContain("select-chevron");
     expect(input.split(" ")).not.toContain("select-chevron");
+});
+
+it("LoadingRegion keeps a minimum height around a labelled spinner, so the page does not jump", () => {
+    render(<LoadingRegion label="Loading stats..." />);
+    const status = screen.getByRole("status");
+    expect(status).toHaveTextContent("Loading stats...");
+    expect(status.parentElement).toHaveClass("min-h-48", "items-center", "justify-center");
+    expect(status.querySelector("[aria-hidden=true]")).toHaveClass("motion-reduce:animate-none");
+});
+
+it("a card has 16px of padding on a phone and 20px from 640px, with the resting shadow only", () => {
+    for (const style of [card, panel]) expect(style.split(" ")).toEqual(expect.arrayContaining(["p-4", "sm:p-5", "shadow-rest"]));
+    expect(card).not.toMatch(/shadow-hover|shadow-dialog/);
 });

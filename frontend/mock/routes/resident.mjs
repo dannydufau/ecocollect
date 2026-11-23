@@ -3,6 +3,7 @@ import { currentUser, now, sendError } from "../store.mjs";
 import { buildDetail, requestSummary, windowStart } from "../detail.mjs";
 import { registerResidentActions } from "../resident-actions.mjs";
 import { volunteerList } from "./volunteer.mjs";
+import { fixtureAccounts, fixtureRequests, longUsername } from "../fixtures.mjs";
 
 const DAY = 24 * 60 * 60 * 1000;
 const HOUR = 60 * 60 * 1000;
@@ -91,26 +92,36 @@ function validate(body, timestamp, categories, createdAt = timestamp) {
 
 function seedRequests(store) {
   const timestamp = now().getTime();
-  const today = new Date(timestamp);
-  const resident = store.accounts.find((account) => account.uid === "demo-resident-1");
-  const statuses = ["Open", "Assigned", "Collected", "Delivered", "Missed"];
-  for (const [index, status] of statuses.entries()) {
-    const date = new Date(today);
-    date.setUTCDate(date.getUTCDate() + (index < 2 ? index + 1 : -index));
-    const window = { windowId: randomUUID(), date: date.toISOString().slice(0, 10), startHour: 14 };
+  const { resident, volunteer, both } = fixtureAccounts;
+  const fixtures = [
+    { status: "Open", id: fixtureRequests.Open, residentUid: resident, days: 1 },
+    { status: "Assigned", id: fixtureRequests.Assigned, residentUid: resident, volunteerId: volunteer, days: 2 },
+    { status: "Collected", id: fixtureRequests.Collected, residentUid: resident, volunteerId: volunteer, days: -2 },
+    { status: "Delivered", id: fixtureRequests.Delivered, residentUid: resident, volunteerId: volunteer, days: -3 },
+    { status: "Cancelled", id: fixtureRequests.Cancelled, residentUid: resident, volunteerId: volunteer, days: -3 },
+    { status: "Expired", id: fixtureRequests.Expired, residentUid: resident, days: -4 },
+    { status: "Missed", id: fixtureRequests.Missed, residentUid: resident, volunteerId: volunteer, days: -4 },
+    { status: "Cancelled", id: fixtureRequests.bothResident, residentUid: both, days: -4 },
+    { status: "Assigned", id: fixtureRequests.bothVolunteer, residentUid: longUsername, volunteerId: both, days: 2 },
+  ];
+  for (const { status, id, residentUid, volunteerId, days } of fixtures) {
+    const owner = store.accounts.find((account) => account.uid === residentUid);
+    const date = new Date(timestamp + days * DAY);
+    const fixtureKey = id.slice(1);
+    const window = { windowId: `2${fixtureKey}`, date: date.toISOString().slice(0, 10), startHour: 14 };
     const start = windowStart(window.date, window.startHour).getTime();
     const createdAt = new Date(timestamp - 7 * DAY).toISOString();
     const request = {
-      requestId: randomUUID(), residentUid: "demo-resident-1", categoryId: "laptops", quantity: 2,
-      estimatedWeightKg: 5, status, postalCode: "T2P1J9",
-      address: { ...resident.address }, notes: "Side door",
+      requestId: id, residentUid, categoryId: "laptops", quantity: 2,
+      estimatedWeightKg: 5, status, postalCode: owner.postalCode,
+      address: { ...owner.address }, notes: "Side door",
       windows: [window], createdAt, expiresAt: new Date(start).toISOString(),
       termsDocumentId: store.terms.at(-1).termsDocumentId,
       statusHistory: [{ status: "Open", changedAt: createdAt, reason: null }],
     };
-    if (status !== "Open") {
+    if (volunteerId) {
       const assignment = {
-        assignmentId: randomUUID(), requestId: request.requestId, volunteerId: "demo-volunteer-1",
+        assignmentId: `3${fixtureKey}`, requestId: request.requestId, volunteerId,
         window, acceptedAt: new Date(timestamp - 6 * DAY).toISOString(),
         collectedAt: null, endedAt: null, endReason: null,
         termsDocumentId: store.terms.at(-1).termsDocumentId,
@@ -120,9 +131,9 @@ function seedRequests(store) {
         assignment.collectedAt = new Date(start + HOUR / 2).toISOString();
         request.statusHistory.push({ status: "Collected", changedAt: assignment.collectedAt, reason: null });
       }
-      if (["Delivered", "Missed"].includes(status)) {
-        assignment.endedAt = new Date(start + 2 * HOUR).toISOString();
-        assignment.endReason = status === "Delivered" ? "Delivered" : "Missed_Pickup";
+      if (["Delivered", "Missed", "Cancelled"].includes(status)) {
+        assignment.endedAt = new Date(start + (status === "Cancelled" ? -2 : 2) * HOUR).toISOString();
+        assignment.endReason = status === "Delivered" ? "Delivered" : status === "Cancelled" ? "Resident_Cancelled" : "Missed_Pickup";
         request.statusHistory.push({ status, changedAt: assignment.endedAt, reason: null });
       }
       if (status === "Delivered") request.delivery = {
@@ -130,6 +141,8 @@ function seedRequests(store) {
         deliveredAt: assignment.endedAt, evidencePhoto: { fileId: "mock-delivery-evidence" },
       };
       store.assignments.push(assignment);
+    } else if (status === "Cancelled" || status === "Expired") {
+      request.statusHistory.push({ status, changedAt: request.expiresAt, reason: null });
     }
     store.requests.push(request);
   }

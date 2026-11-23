@@ -51,10 +51,13 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); onDone.mockReset(); });
 it("keeps Confirm disabled until a window and the terms are chosen", async () => {
     const dialog = await openDialog();
     expect(confirmButton(dialog)).toBeDisabled();
+    expect(confirmButton(dialog)).toHaveAccessibleDescription("Choose a pickup window.");
     fireEvent.click(within(dialog).getByRole("radio", { name: /Sat, Nov 21/ }));
     expect(confirmButton(dialog)).toBeDisabled();
+    expect(confirmButton(dialog)).toHaveAccessibleDescription("Accept the terms.");
     fireEvent.click(within(dialog).getByLabelText(termsBox));
     expect(confirmButton(dialog)).toBeEnabled();
+    expect(confirmButton(dialog)).not.toHaveAttribute("aria-describedby");
 });
 
 it("shows each window with its friendly and full text and preselects a single window", async () => {

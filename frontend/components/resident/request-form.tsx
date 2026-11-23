@@ -13,7 +13,7 @@ import { useProfile } from "@/lib/use-profile";
 
 export type RequestValues = {
     // photo null removes the saved photo when editing
-    items: { categoryId: string; quantity: string; photo?: { fileId: string } | null }[];
+    items: { categoryId: string; quantity: string; photo?: { fileId: string } | null; photoPreviewUrl?: string }[];
     windows: PickupWindow[];
     notes: string;
 };
@@ -147,9 +147,9 @@ export default function RequestForm({ initialValues, createdAt, single = false, 
                                         <Button variant="secondary" onClick={() => update({ photo: null })}>Remove photo</Button>
                                     </div>
                                 </div> : <div className="space-y-2">
-                                    <PhotoPicker purpose="item_photo" optional onUploaded={fileId => update({ photo: { fileId } })}
-                                        onClear={() => { update({ photo: replacing ? undefined : currentPhoto ? null : undefined }); setReplacing(false); }} />
-                                    {currentPhoto && <Button variant="secondary" onClick={() => { update({ photo: undefined }); setReplacing(false); }}>Keep current photo</Button>}
+                                    <PhotoPicker purpose="item_photo" optional onUploaded={(fileId, photoPreviewUrl) => update({ photo: { fileId }, photoPreviewUrl })}
+                                        onClear={() => { update({ photo: replacing ? undefined : currentPhoto ? null : undefined, photoPreviewUrl: undefined }); setReplacing(false); }} />
+                                    {currentPhoto && <Button variant="secondary" onClick={() => { update({ photo: undefined, photoPreviewUrl: undefined }); setReplacing(false); }}>Keep current photo</Button>}
                                 </div>}
                                 {photoError && <FieldError>{photoError}</FieldError>}
                                 {!single && values.items.length > 1 && <div><Button variant="secondary" aria-label={`Remove item ${index + 1}`}

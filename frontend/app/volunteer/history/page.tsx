@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Button, EmptyState, FilterTabs, QueryError, Spinner, StatusBadge, card, clickableCard, linkButton, identifier, pageTitle, stretchedLink } from "@/components/ui";
+import { Button, EmptyState, FilterTabs, LoadingRegion, QueryError, StatusBadge, TruckIcon, card, clickableCard, identifier, linkButton, pageTitle, stretchedLink } from "@/components/ui";
 import { api } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { formatPostalCode } from "@/lib/postal-code";
@@ -35,22 +35,22 @@ export default function VolunteerHistoryPage() {
             <div className="mx-auto max-w-5xl space-y-6">
                 <h1 className={pageTitle}>My assignments</h1>
                 <FilterTabs label="Assignment status" options={filters} value={filter} onChange={setFilter} />
-                {isPending && <Spinner label="Loading your assignments..." />}
+                {isPending && <LoadingRegion label="Loading your assignments..." />}
                 {isError && <QueryError message="We could not load your assignments. Please try again." onRetry={() => void refetch()} busy={isFetching} />}
                 {!isPlaceholderData && rows?.length === 0 && (filter === "All"
-                    ? <EmptyState title="No assignments yet." action={<Link href="/volunteer" className={linkButton}>Browse available requests</Link>}>
+                    ? <EmptyState icon={<TruckIcon />} title="No assignments yet." action={<Link href="/volunteer" className={linkButton}>Browse available requests</Link>}>
                         Accept a request to see it here.
                     </EmptyState>
-                    : <EmptyState title={`No ${filter.toLowerCase()} assignments.`}
+                    : <EmptyState icon={<TruckIcon />} title={`No ${filter.toLowerCase()} assignments.`}
                         action={<Button variant="secondary" onClick={() => setFilter("All")}>Show all assignments</Button>} />)}
                 {rows && rows.length > 0 && <ul aria-busy={isPlaceholderData} className={`space-y-3 transition-opacity ${isPlaceholderData ? "opacity-60" : ""}`}>
                     {rows.map(row => {
                         const waiting = row.assignment.status === "Collected";
                         return <li key={row.assignment.assignmentId} className={`${row.category ? clickableCard : `${card} border-dashed`} ${waiting ? "border-l-4 border-l-accent" : ""} min-w-0 space-y-1`}>
-                            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+                            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3">
                                 {row.category
                                     ? <Link href={`/volunteer/requests/${encodeURIComponent(row.requestId)}`} className={stretchedLink}>{row.quantity} × {row.category.name}</Link>
-                                    : <p className="text-lg font-semibold text-text-muted">Request no longer available to you</p>}
+                                    : <p className="min-w-0 break-words text-lg font-semibold text-text-muted">Request no longer available to you</p>}
                                 <StatusBadge status={labels[row.assignment.status]} />
                             </div>
                             {/* The whole card is the link, so this only looks like a button */}

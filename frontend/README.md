@@ -17,6 +17,8 @@ Next.js (App Router), React, TypeScript, Tailwind and TanStack Query. Login goes
 
 3. Pick an API to talk to. `GATEWAY_URL` in `.env.local` is where `/api/*` is forwarded (default `http://localhost:8080`).
    - The mock API: `npm run mock` (listens on 8080, or set `MOCK_PORT`). It keeps data in memory and needs no backend.
+     Set `MOCK_NOW=2026-11-22T18:00:00Z` before starting it to freeze fixture and API timestamps for repeatable tests. Firebase emulator tokens use the emulator's wall clock.
+     Import seeded request IDs from `mock/fixtures.mjs`. Use `demo-resident-1` for all seven request statuses and `demo-volunteer-1` for available pickups and delivery history. Use `demo-both-1` for both roles, `demo-long-1` for a 50-character username and long profile text, and `demo-empty-1` for empty resident lists. These IDs can be sent directly as Bearer tokens to the mock API.
    - The real stack: `docker compose up` from the repo root, see the [main README](../README.md).
 
 4. Start the app:

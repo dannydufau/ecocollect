@@ -48,7 +48,7 @@
   --color-danger-border: #c24b3b;
 
   --color-surface-elevated: #fcf9f2;
-  --color-border: color-mix(in srgb, #201e1d 14%, transparent);
+  --color-border: color-mix(in srgb, #201e1d 20%, transparent);
   --color-border-strong: #766d5e;
   --color-on-accent: #fffaf3;
   --color-on-danger: var(--color-on-accent);
@@ -157,6 +157,58 @@ a, button, input, select, textarea, [tabindex] {
     opacity: 0;
     translate: 0 6px;
     scale: 0.97;
+  }
+}
+
+html {
+  scrollbar-gutter: stable;
+}
+
+html:has(dialog[open]) {
+  overflow: hidden;
+}
+
+.confirm-dialog {
+  opacity: 0;
+  scale: 0.97;
+  translate: 0 6px;
+  transition: opacity var(--duration-hover) var(--ease-decel),
+    scale var(--duration-hover) var(--ease-decel),
+    translate var(--duration-hover) var(--ease-decel),
+    display var(--duration-hover) allow-discrete,
+    overlay var(--duration-hover) allow-discrete;
+}
+
+.confirm-dialog[open] {
+  display: flex;
+  opacity: 1;
+  scale: 1;
+  translate: 0;
+  transition-duration: var(--duration-dialog);
+}
+
+.confirm-dialog::backdrop {
+  background-color: var(--color-scrim);
+  opacity: 0;
+  transition: opacity var(--duration-hover) var(--ease-decel),
+    display var(--duration-hover) allow-discrete,
+    overlay var(--duration-hover) allow-discrete;
+}
+
+.confirm-dialog[open]::backdrop {
+  opacity: 1;
+  transition-duration: var(--duration-dialog);
+}
+
+@starting-style {
+  .confirm-dialog[open] {
+    opacity: 0;
+    scale: 0.97;
+    translate: 0 6px;
+  }
+
+  .confirm-dialog[open]::backdrop {
+    opacity: 0;
   }
 }
 

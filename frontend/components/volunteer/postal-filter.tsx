@@ -27,7 +27,7 @@ export default function PostalFilter({ codes, onChange, showAll = true }: { code
             {codes.length > 0 ? <><p className="font-semibold">Showing requests in:</p><ul className="flex flex-wrap gap-2">
                 {codes.map(code => <li key={code}>
                     <button type="button" onClick={() => onChange(codes.filter(other => other !== code))} aria-label={`Remove ${formatPostalCode(code)}`}
-                        className="inline-flex min-h-11 items-center gap-2 rounded-full border border-neutral-600 bg-neutral-100 px-4 font-semibold hover:bg-text/10">
+                        className="inline-flex min-h-11 items-center gap-2 rounded-full border border-neutral-600 bg-surface px-4 font-semibold hover:bg-text/10">
                         <span className={identifier}>{formatPostalCode(code)}</span> <span aria-hidden="true">×</span>
                     </button>
                 </li>)}

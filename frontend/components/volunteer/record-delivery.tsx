@@ -40,6 +40,7 @@ export default function RecordDelivery({ request, onDone }: { request: RequestDe
         <Button onClick={start}>Record delivery</Button>
         <ConfirmDialog open={open} size="lg" title="Record delivery" confirmLabel={action.isPending ? "Saving..." : "Record delivery"}
             confirmDisabled={!facilityId || !fileId} busy={action.isPending} error={failed ? action.message ?? undefined : undefined}
+            blocked={!facilityId ? "Choose a facility." : "Add a delivery photo."}
             onConfirm={confirm} onCancel={() => setOpen(false)}>
             <div className="space-y-4">
                 <FacilityPicker categoryId={request.category.categoryId} value={facilityId} onChange={setFacilityId} />

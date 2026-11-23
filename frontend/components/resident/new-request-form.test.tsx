@@ -14,10 +14,10 @@ vi.mock("@/components/photo-picker", async () => {
     const { useState } = await import("react");
     let count = 0;
     return {
-        default: function PhotoPicker({ onUploaded, onClear }: { onUploaded: (fileId: string) => void; onClear: () => void }) {
+        default: function PhotoPicker({ onUploaded, onClear }: { onUploaded: (fileId: string, previewUrl: string) => void; onClear: () => void }) {
             const [shown, setShown] = useState("");
             return <div>
-                <button type="button" onClick={() => { const fileId = `f${++count}`; setShown(fileId); onUploaded(fileId); }}>Upload photo</button>
+                <button type="button" onClick={() => { const fileId = `f${++count}`; setShown(fileId); onUploaded(fileId, `blob:${fileId}`); }}>Upload photo</button>
                 <button type="button" onClick={() => { setShown(""); onClear(); }}>Clear photo</button>
                 {shown && <span>Preview {shown}</span>}
             </div>;
@@ -225,11 +225,14 @@ it("says how many requests the items will create", async () => {
     expect(await screen.findByText("This creates 2 separate requests, one per item.")).toBeInTheDocument();
     expect(screen.getByText("1 × Phones")).toBeInTheDocument();
 });
-it("sends the item photo only when one was uploaded, and says so in the review", async () => {
+it("shows the item thumbnail and sends only the uploaded file ID", async () => {
     mount(); await fill();
     fireEvent.click(screen.getByRole("button", { name: "Upload photo" }));
     fireEvent.click(screen.getByRole("button", { name: "Review" }));
-    expect(await screen.findByText("Photo attached")).toBeInTheDocument();
+    expect(await screen.findByRole("img", { name: "Photo of item" })).toHaveAttribute("src", expect.stringMatching(/^blob:f\d+$/));
+    for (const name of ["Pickup windows", "Notes", "Pickup address"]) {
+        expect(screen.getByRole("heading", { name, level: 2 })).toBeInTheDocument();
+    }
     await accept();
     fireEvent.click(button());
     await waitFor(() => expect(apiModule.apiFetch).toHaveBeenCalled());
@@ -242,7 +245,30 @@ it("leaves photo out of the item when nothing was uploaded", async () => {
     await waitFor(() => expect(apiModule.apiFetch).toHaveBeenCalled());
     const body = JSON.parse(vi.mocked(apiModule.apiFetch).mock.calls[0][1]!.body as string);
     expect(body.items).toEqual([{ categoryId: "laptops", quantity: 2 }]);
-    expect(screen.queryByText("Photo attached")).not.toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: "Photo of item" })).not.toBeInTheDocument();
+});
+it("keeps the review thumbnail across steps and clears it when the photo is removed", async () => {
+    mount(); await fill();
+    fireEvent.click(screen.getByRole("button", { name: "Upload photo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+    const thumbnail = await screen.findByRole("img", { name: "Photo of item" });
+    const url = thumbnail.getAttribute("src");
+    fireEvent.click(screen.getByRole("button", { name: "Back to edit" }));
+    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+    expect(await screen.findByRole("img", { name: "Photo of item" })).toHaveAttribute("src", url);
+    fireEvent.click(screen.getByRole("button", { name: "Back to edit" }));
+    fireEvent.click(screen.getByRole("button", { name: "Clear photo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+    expect(screen.queryByRole("img", { name: "Photo of item" })).not.toBeInTheDocument();
+});
+it("uses the shared heading size and the named text sizes on the review step", async () => {
+    mount(); await fill();
+    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+    for (const name of ["Pickup windows", "Notes", "Pickup address"]) {
+        expect(await screen.findByRole("heading", { name, level: 2 })).not.toHaveClass("text-xl");
+    }
+    expect(screen.getByText("Times are Calgary time.")).toHaveClass("text-caption");
+    expect(screen.getByText("Accept the terms above to send.")).toHaveClass("text-small");
 });
 it("shows the invalid_photo field error under the item's picker", async () => {
     vi.mocked(apiModule.apiFetch).mockRejectedValue(failure(400, "invalid_photo", { "items[0].photo": "This photo could not be used." }));

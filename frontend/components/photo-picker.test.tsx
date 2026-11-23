@@ -48,7 +48,7 @@ it("shows a preview, uploads the file and calls onUploaded", async () => {
     upload.resolve("f1");
     expect(await screen.findByText("Uploaded")).toBeInTheDocument();
     expect(onUploaded).toHaveBeenCalledTimes(1);
-    expect(onUploaded).toHaveBeenCalledWith("f1");
+    expect(onUploaded).toHaveBeenCalledWith("f1", "blob:1");
 });
 
 it("draws the drop area on the raised surface with a dashed strong border", () => {
@@ -82,7 +82,7 @@ it("uploads the same file again on Retry", async () => {
     expect(await screen.findByText("Uploaded")).toBeInTheDocument();
     expect(uploadPhoto).toHaveBeenCalledTimes(2);
     expect(vi.mocked(uploadPhoto).mock.calls[1][0]).toBe(file);
-    expect(onUploaded).toHaveBeenCalledWith("f1");
+    expect(onUploaded).toHaveBeenCalledWith("f1", "blob:1");
 });
 
 it("clears an old error when a new file is chosen", async () => {
@@ -149,7 +149,7 @@ it("ignores the first upload when a second file is chosen before it ends", async
     first.resolve("f1");
     await first.promise;
     expect(onUploaded).toHaveBeenCalledTimes(1);
-    expect(onUploaded).toHaveBeenCalledWith("f2");
+    expect(onUploaded).toHaveBeenCalledWith("f2", "blob:2");
     expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:1");
 });
 

@@ -1,4 +1,5 @@
 // In-memory data for the mock API, plus the helpers every route file uses.
+import { fixtureAccounts, longUsername } from "./fixtures.mjs";
 
 // Same people as scripts/seed/data.js
 const DEMO_ACCOUNTS = [
@@ -12,6 +13,10 @@ const DEMO_ACCOUNTS = [
   { uid: "demo-volunteer-3", displayName: "Vince V.", roles: ["volunteer"], postalCode: "T2E5A8", preferredPostalCodes: ["T2E5A8"] },
   { uid: "demo-volunteer-4", displayName: "Violet V.", roles: ["volunteer"], postalCode: "T2T4M3", preferredPostalCodes: ["T2T4M3"] },
   { uid: "demo-volunteer-5", displayName: "Vikram V.", roles: ["volunteer"], postalCode: "T3G1H6", preferredPostalCodes: ["T3G1H6"] },
+  { uid: fixtureAccounts.both, displayName: "Bailey B.", roles: ["resident", "volunteer"], postalCode: "T2P1J9", preferredPostalCodes: ["T2E5A8"] },
+  { uid: longUsername, displayName: "Alexandria Montgomery-Winterbourne Smith", roles: ["resident"], postalCode: "T2P1J9",
+    address: { street: "Apartment 1403, 12345 Upper Crescent View Boulevard Southwest", postalCode: "T2P1J9" } },
+  { uid: fixtureAccounts.empty, displayName: "Ellis E.", roles: ["resident"], postalCode: "T2P1J9" },
 ];
 
 export const store = {
@@ -42,7 +47,10 @@ export function seed() {
 }
 
 export function now() {
-  return new Date();
+  const fixed = process.env.MOCK_NOW;
+  const date = fixed === undefined ? new Date() : new Date(fixed);
+  if (Number.isNaN(date.getTime())) throw new Error("Set MOCK_NOW to a valid ISO timestamp.");
+  return date;
 }
 
 // The contract error format: { error: { code, message, details: { fields } } }
@@ -65,7 +73,8 @@ export function currentUser(req) {
   } catch {
     // not a JWT, so the whole token is used as the uid
   }
-  const uid = claims.user_id ?? claims.sub ?? token;
+  const subject = claims.user_id ?? claims.sub ?? token;
+  const uid = subject === fixtureAccounts.long ? longUsername : subject;
   const account = store.accounts.find((a) => a.uid === uid);
   return { uid, roles: Array.isArray(claims.roles) ? claims.roles : (account?.roles ?? []), account };
 }

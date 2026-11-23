@@ -69,7 +69,7 @@ export default function LoginPage() {
 
   return (
     <main className="flex w-full min-w-0 flex-1 flex-col items-center justify-center gap-4 p-4 sm:p-8">
-      <form onSubmit={handleSubmit} className={`${card} flex w-full max-w-[440px] min-w-0 flex-col gap-4 p-6 shadow-hover`}>
+      <form onSubmit={handleSubmit} className={`${card} flex w-full max-w-[440px] min-w-0 flex-col gap-4`}>
         <h1 className={pageTitle}>Sign in to EcoCollect</h1>
         <p className="text-text-muted">Calgary’s community e-waste courier.</p>
         <Suspense fallback={null}>

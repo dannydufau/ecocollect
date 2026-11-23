@@ -8,7 +8,7 @@ type Props = {
     purpose: "item_photo" | "delivery_evidence";
     requestId?: string;
     optional?: boolean;
-    onUploaded: (fileId: string) => void;
+    onUploaded: (fileId: string, previewUrl: string) => void;
     onClear: () => void;
 };
 
@@ -30,7 +30,7 @@ export default function PhotoPicker({ purpose, requestId, optional = false, onUp
         return () => { current.current++; };
     }, []);
 
-    async function upload(chosen: File) {
+    async function upload(chosen: File, previewUrl: string) {
         const id = ++attempt.current;
         setStatus("uploading");
         setError("");
@@ -38,7 +38,7 @@ export default function PhotoPicker({ purpose, requestId, optional = false, onUp
             const fileId = await uploadPhoto(chosen, { purpose, requestId });
             if (id !== attempt.current) return;
             setStatus("done");
-            onUploaded(fileId);
+            onUploaded(fileId, previewUrl);
         } catch (e) {
             if (id !== attempt.current) return;
             setStatus("error");
@@ -52,8 +52,9 @@ export default function PhotoPicker({ purpose, requestId, optional = false, onUp
         // The form still holds the id of the photo uploaded before. If this one fails it must not be sent.
         if (status === "done") onClear();
         setFile(chosen);
-        setPreview(URL.createObjectURL(chosen));
-        upload(chosen);
+        const previewUrl = URL.createObjectURL(chosen);
+        setPreview(previewUrl);
+        upload(chosen, previewUrl);
     }
 
     function remove() {
@@ -91,10 +92,10 @@ export default function PhotoPicker({ purpose, requestId, optional = false, onUp
                     <Button variant="secondary" onClick={remove}>Remove photo</Button>
                 </div>
             )}
-            {status === "error" && file && (
+            {status === "error" && file && preview && (
                 <div className="space-y-2">
                     <Alert variant="error">{error}</Alert>
-                    <Button variant="secondary" onClick={() => upload(file)}>Retry</Button>
+                    <Button variant="secondary" onClick={() => upload(file, preview)}>Retry</Button>
                 </div>
             )}
         </div>
