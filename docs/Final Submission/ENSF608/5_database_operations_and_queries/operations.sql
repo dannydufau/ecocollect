@@ -4,11 +4,9 @@
 
 SET search_path TO ecocollect608, public;
 
--- ===================================================================
--- Helper view used by later queries
--- ===================================================================
 
--- 0. Helper View: each request's owner and current status.
+-- 0. Helper view used by other queries
+--    View: each request's owner and current status.
 --    Rationale: status is stored as history (status_change); current = latest row.
 --               Defined once so later queries can select from it like a table.
 --    Citation:  supports FR09, FR12
@@ -34,3 +32,43 @@ SELECT RIGHT(pickup_request_id::text, 4) AS request, resident_id, category_id,
        pickup_postal_code, status
 FROM request_current_status
 ORDER BY status, resident_id;
+
+
+-- 1. INSERT operations
+
+-- I1. Register a resident.
+--    Rationale: sign-up creates the account, its resident role (with address) and the
+--               acceptance of the current terms, together or not at all.
+--    Citation:  FR01, FR22 · App: accounts.ts saveRegistration (l.69), same tables
+--    Concepts:  transaction, INSERT ... VALUES, INSERT ... SELECT, CALL, 3-table join
+--    Uses:      check_business_rules() (transactions.sql)
+BEGIN;
+
+-- a) The person.
+INSERT INTO account (account_id, first_name, last_name, public_name, date_of_birth, created_at)
+VALUES ('resident91', 'Jordan', 'Lee', 'Jordan L.', '1990-04-15', now());
+
+-- b) The resident role, with the Calgary address.
+INSERT INTO resident (account_id, street, postal_code)
+VALUES ('resident91', '200 Example St NW', 'T2N1N4');
+
+-- c) Acceptance of the current terms (newest document).
+INSERT INTO terms_acceptance (terms_acceptance_id, terms_document_id, account_id, accepted_at, type)
+SELECT '00000091-0000-4000-8000-000000000001', terms_document_id, 'resident91', now(),
+       'AT_RESIDENT_REGISTRATION_OR_ACTIVATION'
+FROM terms_document
+ORDER BY published_at DESC
+LIMIT 1;
+
+-- d) Multi-row rules (e.g. each role needs its registration acceptance).
+CALL check_business_rules();
+
+-- e) Show the new resident.
+SELECT a.account_id, a.public_name, r.postal_code, t.type,
+       RIGHT(t.terms_document_id::text, 4) AS terms
+FROM account a
+JOIN resident r ON r.account_id = a.account_id
+JOIN terms_acceptance t ON t.account_id = a.account_id
+WHERE a.account_id = 'resident91';
+
+ROLLBACK;
