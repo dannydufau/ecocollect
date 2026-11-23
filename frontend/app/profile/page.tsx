@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import EnableNotifications from "@/components/enable-notifications";
-import { Alert, BellIcon, QueryError, RoleBadge, Spinner, card, pageTitle, textLink } from "@/components/ui";
+import { Alert, BellIcon, QueryError, RoleBadge, Spinner, card, identifier, pageTitle, textLink } from "@/components/ui";
 import { ApiError, isAuthError } from "@/lib/api";
 import { formatDate, formatTimestamp } from "@/lib/time";
 import type { Profile } from "@/lib/types";
@@ -58,7 +58,7 @@ export default function ProfilePage() {
             {profile && <section className={section("name")} aria-labelledby="account-heading">
                 <h2 id="account-heading">Account</h2>
                 <dl className="grid gap-x-4 gap-y-3 sm:grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
-                    <Row name="Username"><span className="font-mono">{profile.accountId}</span></Row>
+                    <Row name="Username"><span className={identifier}>{profile.accountId}</span></Row>
                     <Row name="Email">{profile.email}</Row>
                     <Row name="Name">{profile.firstName} {profile.lastName}</Row>
                     <Row name="Date of birth">{formatDate(profile.dateOfBirth)}</Row>

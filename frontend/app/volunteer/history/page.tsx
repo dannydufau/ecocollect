@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Button, EmptyState, FilterTabs, QueryError, Spinner, StatusBadge, card, clickableCard, linkButton, mono, pageTitle, stretchedLink } from "@/components/ui";
+import { Button, EmptyState, FilterTabs, QueryError, Spinner, StatusBadge, card, clickableCard, linkButton, identifier, pageTitle, stretchedLink } from "@/components/ui";
 import { api } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { formatPostalCode } from "@/lib/postal-code";
@@ -55,7 +55,7 @@ export default function VolunteerHistoryPage() {
                             </div>
                             {/* The whole card is the link, so this only looks like a button */}
                             {waiting && <p><span className={linkButton}>Record delivery</span></p>}
-                            {row.estimatedWeightKg !== null && row.postalCode !== null && <p className="text-text-muted"><span className="tabular-nums">{row.estimatedWeightKg.toFixed(2)} kg</span> · <span className={mono}>{formatPostalCode(row.postalCode)}</span></p>}
+                            {row.estimatedWeightKg !== null && row.postalCode !== null && <p className="text-text-muted"><span className="tabular-nums">{row.estimatedWeightKg.toFixed(2)} kg</span> · <span className={identifier}>{formatPostalCode(row.postalCode)}</span></p>}
                             <p>{formatWindow(row.assignment.window)}</p>
                             <p className="text-caption text-text-muted">Accepted {formatTimestamp(row.assignment.acceptedAt)}</p>
                             {row.assignment.endedAt && <p className="text-caption text-text-muted">Ended {formatTimestamp(row.assignment.endedAt)}</p>}

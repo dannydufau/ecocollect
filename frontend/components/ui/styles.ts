@@ -10,7 +10,7 @@ export const textarea = control;
 export const linkButton = "soft-transition inline-flex min-h-11 items-center justify-center rounded-full bg-accent px-5 py-2 font-semibold text-on-accent hover:bg-accent-700 active:bg-accent-800";
 export const secondaryLinkButton = "soft-transition inline-flex min-h-11 items-center rounded-full border border-neutral-600 px-5 py-2 font-semibold text-text hover:bg-text/10";
 // Postal codes and @handles
-export const mono = "font-mono text-sm font-semibold";
+export const identifier = "text-small font-semibold tabular-nums tracking-wide";
 export const textLink = "inline-flex min-h-11 items-center text-accent-700 underline underline-offset-4";
 // A list card that can be opened. Put stretchedLink on its title link so the whole card is tappable.
 export const clickableCard = `${card} soft-transition relative min-w-0 hover:shadow-hover has-[a:focus-visible]:outline-3 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-accent-700`;

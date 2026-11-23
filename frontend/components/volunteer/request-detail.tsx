@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Alert, QueryError, RequestPhoto, Spinner, StatusBadge, card, mono, pageTitle, textLink } from "@/components/ui";
+import { Alert, QueryError, RequestPhoto, Spinner, StatusBadge, card, identifier, pageTitle, textLink } from "@/components/ui";
 import { isAuthError } from "@/lib/api";
 import { formatPostalCode } from "@/lib/postal-code";
 import { nextStepText } from "@/lib/status-text";
@@ -79,7 +79,7 @@ export default function VolunteerRequestDetail({ requestId }: { requestId: strin
                     <h2 id="details-heading" className={cardTitle}>Details</h2>
                     <dl className="grid gap-x-4 gap-y-3 sm:grid-cols-[repeat(auto-fit,minmax(160px,1fr))]">
                         <div><dt className="text-[13px] text-text-muted">Estimated weight</dt><dd className="tabular-nums">{request.estimatedWeightKg.toFixed(2)} kg</dd></div>
-                        <div><dt className="text-[13px] text-text-muted">Postal code</dt><dd className={mono}>{formatPostalCode(request.postalCode)}</dd></div>
+                        <div><dt className="text-[13px] text-text-muted">Postal code</dt><dd className={identifier}>{formatPostalCode(request.postalCode)}</dd></div>
                         {request.status === "Open" && <div><dt className="text-[13px] text-text-muted">Open until</dt><dd>{formatTimestamp(request.expiresAt)}</dd></div>}
                     </dl>
                     <div className="space-y-2 border-t border-border pt-3">
@@ -93,7 +93,7 @@ export default function VolunteerRequestDetail({ requestId }: { requestId: strin
                     <h2 id="address-heading" className={cardTitle}>Pickup address and notes</h2>
                     {request.address && <div className="break-words">
                         <p>{request.address.street}</p>
-                        <p>Calgary, <span className={mono}>{formatPostalCode(request.address.postalCode)}</span></p>
+                        <p>Calgary, <span className={identifier}>{formatPostalCode(request.address.postalCode)}</span></p>
                     </div>}
                     {request.notes && <p className="whitespace-pre-wrap break-words"><span className="text-text-muted">Notes:</span> {request.notes}</p>}
                 </section>}
