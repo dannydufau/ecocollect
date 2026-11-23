@@ -437,3 +437,14 @@ LEFT JOIN delivery d ON d.assignment_id = a.assignment_id
 LEFT JOIN recycling_facility f ON f.facility_id = d.facility_id
 WHERE ta.account_id = 'volunteer1'
 ORDER BY a.accepted_at DESC;
+
+-- L2. Every volunteer with their preferred postal codes, including volunteers with none.
+--    Rationale: a volunteer without preferred codes gets no default discovery filter
+--               and no area notifications (FR12, FR19); this shows who is in that case.
+--    Citation:  FR12, FR04
+--    Concepts:  LEFT JOIN (NULL for no match), INNER JOIN, ORDER BY two keys
+SELECT v.account_id AS volunteer, a.public_name, p.postal_code
+FROM volunteer v
+JOIN account a ON a.account_id = v.account_id
+LEFT JOIN volunteer_preferred_postal_code p ON p.account_id = v.account_id
+ORDER BY v.account_id, p.postal_code;
