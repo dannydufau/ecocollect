@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useEffect } from "react";
 import { Alert, Button, ConfirmDialog, LoadingRegion, PageLoading, Spinner, StatusBadge } from "./index";
 import { buttonClass } from "./button";
@@ -81,7 +81,7 @@ describe("UI components", () => {
         expect(onCancel).toHaveBeenCalledOnce();
     });
 
-    it("mounts children only while open and cleans them up on close", () => {
+    it("cleans up dialog children after closing", async () => {
         const onMount = vi.fn();
         const onUnmount = vi.fn();
         function DialogContent() {
@@ -107,7 +107,7 @@ describe("UI components", () => {
         expect(screen.getByText("Facility picker")).toBeInTheDocument();
 
         rerender(<ConfirmDialog {...props} open={false} />);
-        expect(onUnmount).toHaveBeenCalledOnce();
+        await waitFor(() => expect(onUnmount).toHaveBeenCalledOnce());
         expect(screen.queryByText("Facility picker")).toBeNull();
 
         rerender(<ConfirmDialog {...props} open />);
@@ -193,9 +193,9 @@ it("Alert only has a Dismiss button with onDismiss, outside the live region", ()
     expect(onDismiss).toHaveBeenCalledOnce();
 });
 
-it("ConfirmDialog rises in and Alert fades in", () => {
+it("applies the dialog transition and Alert fade classes", () => {
     const { container } = render(<><ConfirmDialog open title="T" confirmLabel="OK" onConfirm={vi.fn()} onCancel={vi.fn()}>Body</ConfirmDialog><Alert variant="info">Hi</Alert></>);
-    expect(container.querySelector("dialog")).toHaveClass("rise-in");
+    expect(container.querySelector("dialog")).toHaveClass("confirm-dialog");
     expect(screen.getByRole("status").parentElement).toHaveClass("fade-in");
 });
 

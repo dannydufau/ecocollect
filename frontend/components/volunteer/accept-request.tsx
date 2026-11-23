@@ -47,6 +47,7 @@ export default function AcceptRequest({ request, onDone }: { request: RequestDet
         <Button onClick={start}>Accept request</Button>
         <ConfirmDialog open={open} size="lg" title="Accept this request" confirmLabel={action.isPending ? "Accepting..." : "Accept request"}
             confirmDisabled={!windowId || !termsId} busy={action.isPending} error={failed ? action.message ?? undefined : undefined}
+            blocked={!windowId ? "Choose a pickup window." : "Accept the terms."}
             onConfirm={confirm} onCancel={() => setOpen(false)}>
             <div className="space-y-4">
                 <p>Pick one pickup window. The street address is shown after you accept.</p>

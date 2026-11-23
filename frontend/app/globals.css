@@ -160,6 +160,58 @@ a, button, input, select, textarea, [tabindex] {
   }
 }
 
+html {
+  scrollbar-gutter: stable;
+}
+
+html:has(dialog[open]) {
+  overflow: hidden;
+}
+
+.confirm-dialog {
+  opacity: 0;
+  scale: 0.97;
+  translate: 0 6px;
+  transition: opacity var(--duration-hover) var(--ease-decel),
+    scale var(--duration-hover) var(--ease-decel),
+    translate var(--duration-hover) var(--ease-decel),
+    display var(--duration-hover) allow-discrete,
+    overlay var(--duration-hover) allow-discrete;
+}
+
+.confirm-dialog[open] {
+  display: flex;
+  opacity: 1;
+  scale: 1;
+  translate: 0;
+  transition-duration: var(--duration-dialog);
+}
+
+.confirm-dialog::backdrop {
+  background-color: var(--color-scrim);
+  opacity: 0;
+  transition: opacity var(--duration-hover) var(--ease-decel),
+    display var(--duration-hover) allow-discrete,
+    overlay var(--duration-hover) allow-discrete;
+}
+
+.confirm-dialog[open]::backdrop {
+  opacity: 1;
+  transition-duration: var(--duration-dialog);
+}
+
+@starting-style {
+  .confirm-dialog[open] {
+    opacity: 0;
+    scale: 0.97;
+    translate: 0 6px;
+  }
+
+  .confirm-dialog[open]::backdrop {
+    opacity: 0;
+  }
+}
+
 @keyframes fade-in {
   from {
     opacity: 0;
