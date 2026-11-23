@@ -29,8 +29,8 @@ const roleNames: Record<Role, string> = { resident: "Resident", volunteer: "Volu
 const topLink = "soft-transition inline-flex min-h-11 items-center rounded-full px-4 hover:bg-accent-100 aria-[current=page]:bg-accent-200 aria-[current=page]:font-bold";
 // The current page is bold, in the role colour and has a bar on top, so it is not told by colour alone
 const bottomLink = "soft-transition relative flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-xl px-1 text-sm font-medium hover:bg-accent-100 aria-[current=page]:font-bold aria-[current=page]:after:absolute aria-[current=page]:after:inset-x-4 aria-[current=page]:after:top-0 aria-[current=page]:after:h-[3px] aria-[current=page]:after:rounded-full aria-[current=page]:after:bg-current";
-const roleColors: Record<Role, string> = { resident: "bg-accent-700", volunteer: "bg-accent-2-800" };
-const activeText: Record<Role, string> = { resident: "aria-[current=page]:text-accent-700", volunteer: "aria-[current=page]:text-accent-2-800" };
+const roleColors: Record<Role, string> = { resident: "bg-role-resident text-on-accent", volunteer: "bg-role-volunteer text-on-moss" };
+const activeText: Record<Role, string> = { resident: "aria-[current=page]:text-role-resident", volunteer: "aria-[current=page]:text-role-volunteer" };
 
 function Bar({ home = "/login", children }: { home?: string; children?: ReactNode }) {
     return (
@@ -126,11 +126,11 @@ export default function AppHeader() {
     );
     const switcher = both && (
         <div className="flex items-center gap-3">
-            <span className="text-sm text-neutral-800">Acting as</span>
+            <span className="text-sm text-text-muted">Acting as</span>
             <div role="group" aria-label="Active role" className="flex rounded-full bg-surface p-[3px]">
                 {(["resident", "volunteer"] as const).map((role) => (
                     <button key={role} type="button" aria-pressed={activeRole === role} onClick={() => switchTo(role)}
-                        className={`soft-transition min-h-[38px] rounded-full px-4 text-sm font-semibold ${activeRole === role ? `${roleColors[role]} text-white` : "hover:bg-accent-100"}`}>
+                        className={`soft-transition min-h-[38px] rounded-full px-4 text-sm font-semibold ${activeRole === role ? roleColors[role] : "hover:bg-accent-100"}`}>
                         {roleNames[role]}
                     </button>
                 ))}

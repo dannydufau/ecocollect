@@ -228,7 +228,7 @@ it("marks the current bottom link with aria-current, the role colour and a bar",
     render(<AppHeader />);
     const link = within(mobile()).getByRole("link", { name: "Assignments" });
     expect(link).toHaveAttribute("aria-current", "page");
-    expect(link).toHaveClass("aria-[current=page]:text-accent-2-800", "aria-[current=page]:font-bold", "aria-[current=page]:after:h-[3px]");
+    expect(link).toHaveClass("aria-[current=page]:text-role-volunteer", "aria-[current=page]:font-bold", "aria-[current=page]:after:h-[3px]");
     expect(within(mobile()).getByRole("link", { name: "Available" })).not.toHaveAttribute("aria-current");
 });
 

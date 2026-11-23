@@ -7,12 +7,12 @@ const styles: Record<Status, string> = {
     Assigned: "bg-accent-200 text-accent-900",
     Collected: "bg-accent-2-700 text-on-moss",
     Delivered: "bg-accent-2-900 text-on-moss",
-    Cancelled: "bg-neutral-300 text-neutral-900",
-    Expired: "bg-neutral-300 text-neutral-900",
-    Missed: "bg-danger text-white",
+    Cancelled: "bg-neutral-300 text-text",
+    Expired: "bg-neutral-300 text-text",
+    Missed: "bg-danger text-on-danger",
     Active: "bg-accent-200 text-accent-900",
-    "Cancelled by me": "bg-neutral-300 text-neutral-900",
-    "Cancelled by resident": "bg-neutral-300 text-neutral-900",
+    "Cancelled by me": "bg-neutral-300 text-text",
+    "Cancelled by resident": "bg-neutral-300 text-text",
 };
 
 const symbols: Record<Status, string> = {
