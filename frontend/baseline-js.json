@@ -40,8 +40,8 @@
     "gzip": 203121
   },
   "/resident": {
-    "raw": 661478,
-    "gzip": 200807
+    "raw": 661529,
+    "gzip": 200829
   },
   "/resident/requests/[id]": {
     "raw": 694389,

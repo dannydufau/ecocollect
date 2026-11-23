@@ -87,7 +87,7 @@ Times are shown in Calgary time (`lib/time.ts`). Postal codes are sent as `T2P1J
 
 ## Baseline
 
-`baseline-js.json` records the untouched `frontend` branch at `07e3e8a` using Next.js 16.4.3 with Turbopack. The size check reads the build's route diagnostics and sums each route's distinct first-load chunks in raw and gzip bytes. To compare with the recorded build, use the same placeholder Firebase configuration in a shell where the other `NEXT_PUBLIC_*` settings are unset. Next.js embeds these values in the browser bundle.
+`baseline-js.json` records the untouched `frontend` branch at `84abc8b` using Next.js 16.4.3 with Turbopack. The size check reads the build's route diagnostics and sums each route's distinct first-load chunks in raw and gzip bytes. To compare with the recorded build, use the same placeholder Firebase configuration in a shell where the other `NEXT_PUBLIC_*` settings are unset. Next.js embeds these values in the browser bundle.
 
 ```sh
 export NEXT_PUBLIC_FIREBASE_API_KEY=demo-local-key
