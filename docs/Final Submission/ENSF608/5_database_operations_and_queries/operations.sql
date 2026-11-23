@@ -353,3 +353,17 @@ FROM pickup_request pr
 JOIN item_category c ON c.category_id = pr.category_id
 GROUP BY c.waste_type
 ORDER BY total_weight_kg DESC;
+
+-- G2. Categories residents request repeatedly (2 or more requests).
+--    Rationale: recurring categories show steady demand; facilities accepting them
+--               matter most for the platform.
+--    Citation:  FR06, FR23
+--    Concepts:  GROUP BY, HAVING, COUNT, SUM, join, ORDER BY two keys
+SELECT c.name AS category,
+       COUNT(*) AS requests,
+       SUM(pr.quantity) AS items
+FROM pickup_request pr
+JOIN item_category c ON c.category_id = pr.category_id
+GROUP BY c.name
+HAVING COUNT(*) >= 2
+ORDER BY requests DESC, category;
