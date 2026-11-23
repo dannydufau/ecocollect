@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
-import { Button, card, input, select } from "@/components/ui";
+import { Button, FieldError, card, input, select } from "@/components/ui";
 import { calgaryHour, calgaryToday, formatHour, formatWindow } from "@/lib/time";
 import type { PickupWindow } from "@/lib/types";
 
@@ -92,7 +92,7 @@ export function WindowsPicker({ value, onChange, createdAt, embedded = false }: 
                                     Remove
                                 </Button>}
                             </div>
-                            {error && <p id={errorId} role="alert" className="mt-2 text-small font-semibold text-danger">{error}</p>}
+                            {error && <FieldError id={errorId} className="mt-2">{error}</FieldError>}
                         </div>
                     );
                 })}

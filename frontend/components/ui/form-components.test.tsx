@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { Button, CameraIcon, EmptyState, Field, FilterTabs, RequestPhoto, WindowList } from "./index";
+import { Button, CameraIcon, EmptyState, Field, FieldError, FilterTabs, RequestPhoto, WindowList } from "./index";
 
 afterEach(() => {
     cleanup();
@@ -26,6 +26,22 @@ describe("form components", () => {
         const input = screen.getByLabelText("Name");
         expect(input).toHaveAttribute("aria-invalid", "true");
         expect(input).toHaveAccessibleDescription("Enter a name");
+    });
+
+    it("shows an invalid field's message with an icon, announced, and fading in", () => {
+        render(<Field label="Name" error="Enter a name">{(control) => <input {...control} />}</Field>);
+        const message = screen.getByRole("alert");
+        expect(message).toHaveTextContent("Enter a name");
+        expect(message.querySelector("svg[aria-hidden=true]")).not.toBeNull();
+        expect(message).toHaveClass("fade-in", "text-danger");
+        expect(screen.getByLabelText("Name")).toHaveAttribute("aria-describedby", message.id);
+    });
+
+    it("FieldError passes an id and tabIndex on, so a form can focus it", () => {
+        render(<FieldError id="e1" tabIndex={-1} className="mt-1">Pick one</FieldError>);
+        expect(screen.getByRole("alert")).toHaveAttribute("id", "e1");
+        expect(screen.getByRole("alert")).toHaveAttribute("tabindex", "-1");
+        expect(screen.getByRole("alert")).toHaveClass("mt-1");
     });
 
     it("presses only the chosen filter and calls onChange", () => {
