@@ -178,7 +178,8 @@ DECLARE
     v_new_quantity  INT;
     v_new_notes     TEXT;
     v_new_file_id   TEXT;
-    v_standard_weight NUMERIC(10,2);        -- the new category's kg per item
+    v_reweigh       BOOLEAN;                -- the category or the quantity changed (FR10)
+    v_new_weight    NUMERIC(10,2);          -- estimated_weight_kg after this edit
     v_old_windows   TEXT[];                 -- active windows before / after, as sorted 'date hour'
     v_new_windows   TEXT[];
     v_changed       TEXT[] := '{}';         -- E2's 'changed'
@@ -238,7 +239,7 @@ BEGIN
     PERFORM pg_advisory_xact_lock(hashtext(k_lock_account || p_resident_id));
 
     -- 1. Lock the request row and keep its current values, then take the time.
-    SELECT p.created_at, p.category_id, p.quantity, p.notes, p.file_id INTO v_old
+    SELECT p.created_at, p.category_id, p.quantity, p.notes, p.file_id, p.estimated_weight_kg INTO v_old
     FROM pickup_request p WHERE p.pickup_request_id = p_request_id FOR UPDATE;
     IF NOT FOUND THEN
         result_code := k_code_unavailable;
@@ -356,10 +357,15 @@ BEGIN
         INSERT INTO photo (file_id, file_path) VALUES (p_file_id, p_file_path);
     END IF;
 
-    -- 7. Look up the (new) category's current standard weight.
-    SELECT c.standard_weight_kg INTO v_standard_weight
-    FROM item_category c
-    WHERE c.category_id = v_new_category;
+    -- 7. Keep the stored weight, unless the category or the quantity changed (FR10).
+    v_reweigh := k_changed_category = ANY (v_changed) OR k_changed_quantity = ANY (v_changed);
+    v_new_weight := v_old.estimated_weight_kg;
+    IF v_reweigh THEN
+        -- Price it with the (new) category's current standard weight.
+        SELECT v_new_quantity * c.standard_weight_kg INTO v_new_weight
+        FROM item_category c
+        WHERE c.category_id = v_new_category;
+    END IF;
 
     -- Update the request.
     UPDATE pickup_request p
@@ -367,7 +373,7 @@ BEGIN
         quantity            = v_new_quantity,
         notes               = v_new_notes,
         file_id             = v_new_file_id,
-        estimated_weight_kg = v_new_quantity * v_standard_weight
+        estimated_weight_kg = v_new_weight
     WHERE p.pickup_request_id = p_request_id;
 
     -- 8. Replace the active windows. The old rows stay, inactive (assignment history).
