@@ -32,22 +32,33 @@ function createWebPushSender({ vapid, subscriptions, log = console }) {
     let delivered = 0;
 
     for (const sub of await subscriptions.list(uid)) {
-      const req = webpush.generateRequestDetails(sub, body, {
-        vapidDetails: vapid,      // { subject, publicKey, privateKey }
-        TTL: 60 * 60,             // the push service holds it up to an hour if the device is offline
-      });
-      // fetch sets Content-Length itself.
-      const { 'Content-Length': _, ...headers } = req.headers;
-      const res = await fetch(req.endpoint, { method: req.method, headers, body: req.body });
+      try {
+        const req = webpush.generateRequestDetails(sub, body, {
+          vapidDetails: vapid,      // { subject, publicKey, privateKey }
+          TTL: 60 * 60,             // the push service holds it up to an hour if the device is offline
+        });
+        // fetch sets Content-Length itself.
+        const { 'Content-Length': _, ...headers } = req.headers;
+        const res = await fetch(req.endpoint, {
+          method: req.method,
+          headers,
+          body: req.body,
+          signal: AbortSignal.timeout(10000), // give up on a push service after 10 s
+          redirect: 'error',                  // never follow a push URL somewhere else
+        });
 
-      if (res.status === 404 || res.status === 410) {
-        // Browser unsubscribed or the subscription expired: forget it (BR40).
-        await subscriptions.remove(uid, sub.endpoint);
-        log.info?.(`[push] removed dead subscription for ${uid}`);
-      } else if (!res.ok) {
-        log.warn?.(`[push] ${res.status} from push service for ${uid}`);
-      } else {
-        delivered += 1;
+        if (res.status === 404 || res.status === 410) {
+          // Browser unsubscribed or the subscription expired: forget it.
+          await subscriptions.remove(uid, sub.endpoint);
+          log.info?.(`[push] removed dead subscription for ${uid}`);
+        } else if (!res.ok) {
+          log.warn?.(`[push] ${res.status} from push service for ${uid}`);
+        } else {
+          delivered += 1;
+        }
+      } catch (err) {
+        // One browser failing (network error, timeout, redirect) mustn't stop the others.
+        log.warn?.(`[push] failed for one of ${uid}'s browsers: ${err.message}`);
       }
     }
     return delivered;
