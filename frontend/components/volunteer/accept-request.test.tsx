@@ -65,6 +65,16 @@ it("requires a new choice if the selected window starts while the dialog is open
     expect(api.post).not.toHaveBeenCalled();
     expect(first).toBeDisabled();
     expect(confirmButton(dialog)).toHaveAccessibleDescription("Choose a pickup window.");
+    expect(within(dialog).getByRole("alert")).toHaveTextContent("That pickup window has started. Choose another.");
+
+    fireEvent.click(within(dialog).getByRole("radio", { name: /Sat, Nov 21/ }));
+    expect(within(dialog).queryByRole("alert")).not.toBeInTheDocument();
+});
+
+it("says so when every window has started", async () => {
+    vi.mocked(Date.now).mockReturnValue(Date.parse("2026-11-30T19:00:00Z"));
+    const dialog = await openDialog();
+    expect(confirmButton(dialog)).toHaveAccessibleDescription("Every pickup window has started.");
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); onDone.mockReset(); });
 

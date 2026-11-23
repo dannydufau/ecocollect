@@ -20,11 +20,14 @@ export default function AcceptRequest({ request, onDone }: { request: RequestDet
     const [open, setOpen] = useState(false);
     const [windowId, setWindowId] = useState<string | null>(null);
     const [checkedAt, setCheckedAt] = useState(0);
+    const [windowStarted, setWindowStarted] = useState(false);
     const [termsId, setTermsId] = useState<string | null>(null);
     const [failed, setFailed] = useState(false);
     const action = useRequestAction<AcceptBody>(request.requestId,
         body => api.post(`/api/requests/${encodeURIComponent(request.requestId)}/assignment`, body),
         [queryKeys.availableRequests, queryKeys.volunteerRequests]);
+
+    const allStarted = request.windows.every(window => hasStarted(window, checkedAt));
 
     function start() {
         const now = Date.now();
@@ -33,6 +36,7 @@ export default function AcceptRequest({ request, onDone }: { request: RequestDet
         setWindowId(request.windows.length === 1 && !hasStarted(onlyWindow, now) ? onlyWindow.windowId : null);
         setTermsId(null);
         setFailed(false);
+        setWindowStarted(false);
         setOpen(true);
     }
 
@@ -43,6 +47,7 @@ export default function AcceptRequest({ request, onDone }: { request: RequestDet
         if (!window || hasStarted(window, now)) {
             setCheckedAt(now);
             setWindowId(null);
+            setWindowStarted(true);
             return;
         }
         action.run({ windowId, termsDocumentId: termsId }, {
@@ -60,8 +65,8 @@ export default function AcceptRequest({ request, onDone }: { request: RequestDet
     return <>
         <Button onClick={start}>Accept request</Button>
         <ConfirmDialog open={open} size="lg" title="Accept this request" confirmLabel={action.isPending ? "Accepting..." : "Accept request"}
-            confirmDisabled={!windowId || !termsId} busy={action.isPending} error={failed ? action.message ?? undefined : undefined}
-            blocked={!windowId ? "Choose a pickup window." : "Accept the terms."}
+            confirmDisabled={!windowId || !termsId} busy={action.isPending} error={windowStarted ? "That pickup window has started. Choose another." : failed ? action.message ?? undefined : undefined}
+            blocked={!windowId ? (allStarted ? "Every pickup window has started." : "Choose a pickup window.") : "Accept the terms."}
             onConfirm={confirm} onCancel={() => setOpen(false)}>
             <div className="space-y-4">
                 <p>Pick one pickup window. The street address is shown after you accept.</p>
@@ -70,7 +75,7 @@ export default function AcceptRequest({ request, onDone }: { request: RequestDet
                     {request.windows.map(window => (
                         <ChoiceCard key={window.windowId} name={name} value={window.windowId} tone="volunteer"
                             title={friendlyWindow(window)} detail={<span className="text-caption text-text-muted">{formatWindow(window)}</span>}
-                            checked={windowId === window.windowId} onChange={setWindowId} disabled={hasStarted(window, checkedAt)} />
+                            checked={windowId === window.windowId} onChange={id => { setWindowId(id); setWindowStarted(false); }} disabled={hasStarted(window, checkedAt)} />
                     ))}
                 </fieldset>
                 <TermsCheckbox value={termsId} onChange={setTermsId} />
