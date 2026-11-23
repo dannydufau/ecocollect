@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "types": "openapi-typescript ../contracts/openapi.yaml -o lib/api-types.ts",
-    "mock": "node mock/server.mjs"
+    "mock": "node mock/server.mjs",
+    "e2e:app": "NEXT_PUBLIC_E2E=true E2E_BUILD_CONFIRM=1 sh -c 'next build && next start -p 3100'"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.104.5",
