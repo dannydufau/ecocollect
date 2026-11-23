@@ -338,3 +338,18 @@ JOIN notification n ON n.notification_id = rn.notification_id
 WHERE rn.account_id = 'resident1'
   AND NOT n.is_expired
   AND NOT n.is_read;
+
+-- 7. SELECT queries with GROUP BY
+
+-- G1. Requests and estimated weight per waste type (all requests).
+--    Rationale: shows what kinds of e-waste residents ask to have collected and how
+--               much, e.g. which facility types the platform needs most.
+--    Citation:  FR06, FR23
+--    Concepts:  GROUP BY, COUNT, SUM, join, ORDER BY an aggregate alias
+SELECT c.waste_type,
+       COUNT(*) AS requests,
+       SUM(pr.estimated_weight_kg) AS total_weight_kg
+FROM pickup_request pr
+JOIN item_category c ON c.category_id = pr.category_id
+GROUP BY c.waste_type
+ORDER BY total_weight_kg DESC;
