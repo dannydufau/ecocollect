@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
+import { e2eActive, fakeAuth, isE2E } from "@/lib/e2e";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -13,4 +14,4 @@ const firebaseConfig = {
 // Reuse the existing app if one is already initialized (hot reload re-runs this file).
 export const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
-export const auth = getAuth(app);
+export const auth = isE2E && e2eActive() ? fakeAuth() : getAuth(app);
