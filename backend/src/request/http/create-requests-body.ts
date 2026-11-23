@@ -1,8 +1,14 @@
-// Q4 body shape checks (CreateRequests in openapi.yaml), before any database
-// call. Rules that need the database (category exists, window in the future,
-// within 30 days, terms current) are req_create_requests' job.
-// Every failing field is reported, one entry per field with zero-based paths,
-// so the resident sees them all at once.
+// Q4 body checks (CreateRequests in openapi.yaml), before any database call.
+// Rules that need the database (category exists, window in the future, within
+// 30 days, terms current) are req_create_requests' job.
+// Errors come back in stages, each stage reporting all of its failing fields
+// (one entry per field, zero-based paths) and stopping the call:
+//   1. the body's shape (valibot);
+//   2. a repeated categoryId or photo fileId (here);
+//   3. an unknown categoryId (the route);
+//   4. everything else (req_create_requests).
+// Stages 2 and 3 run before any ImageKit call, so a body costs at most one
+// check per known category. A rare repeat costs the resident one more try.
 import * as v from 'valibot';
 import { parseBody, Uuid } from './body-validation.ts';
 import { termsOutdated, validationFailed } from './errors.ts';
