@@ -382,3 +382,16 @@ JOIN recycling_facility f ON f.facility_id = fa.facility_id
 JOIN item_category c ON c.category_id = fa.category_id
 WHERE fa.category_id = 'phones'
 ORDER BY f.name;
+
+-- J2. A resident's pickup requests with category, weight and current status.
+--    Rationale: the resident's "My requests" list (FR09), newest first.
+--    Citation:  FR09 · App: store.js listMine (l.120), same operation (Oct 28 schema)
+--    Concepts:  INNER JOIN (view + 2 tables), WHERE, ORDER BY ... DESC
+--    Uses:      view request_current_status (op 0) for the owner and current status
+SELECT RIGHT(pr.pickup_request_id::text, 4) AS request,
+       c.name AS category, pr.quantity, pr.estimated_weight_kg, rcs.status
+FROM request_current_status rcs
+JOIN pickup_request pr ON pr.pickup_request_id = rcs.pickup_request_id
+JOIN item_category c ON c.category_id = pr.category_id
+WHERE rcs.resident_id = 'resident1'
+ORDER BY pr.created_at DESC;
