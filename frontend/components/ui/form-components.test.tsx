@@ -90,7 +90,7 @@ describe("form components", () => {
 
     it("gives buttons a soft transition and a small press only with motion allowed", () => {
         render(<Button>Press</Button>);
-        expect(screen.getByRole("button", { name: "Press" })).toHaveClass("soft-transition", "motion-safe:active:scale-[0.985]");
+        expect(screen.getByRole("button", { name: "Press" })).toHaveClass("soft-transition", "motion-safe:not-disabled:active:scale-[0.985]");
     });
 
     it("keeps the h2 and h3 defaults in the base layer so size classes still win", () => {
