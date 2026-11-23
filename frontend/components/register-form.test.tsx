@@ -209,18 +209,17 @@ it("picks a role card with the keyboard and marks it without relying on colour",
     expect(label("First name")).toHaveFocus();
 });
 
-it("shows only the selected role's note and updates it when the role changes", async () => {
+it("updates the persistent live region when the selected role changes", async () => {
     render(<RegisterForm />);
-    const residentNote = "We will ask for your Calgary pickup address below.";
-    const volunteerNote = "You can choose up to three areas for notifications below.";
-    expect(screen.queryByText(residentNote)).not.toBeInTheDocument();
-    expect(screen.queryByText(volunteerNote)).not.toBeInTheDocument();
+    const note = screen.getByRole("status");
+    expect(note).toHaveAttribute("aria-live", "polite");
+    expect(note).toBeEmptyDOMElement();
 
     await userEvent.click(screen.getByRole("radio", { name: "Request pickups (Resident)" }));
-    expect(screen.getByText(residentNote)).toBeInTheDocument();
-    expect(screen.queryByText(volunteerNote)).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toBe(note);
+    expect(note).toHaveTextContent(/^We will ask for your Calgary pickup address below\.$/);
 
-    await userEvent.click(screen.getByRole("radio", { name: "Collect and deliver items (Volunteer)" }));
-    expect(screen.getByText(volunteerNote)).toBeInTheDocument();
-    expect(screen.queryByText(residentNote)).not.toBeInTheDocument();
+    await userEvent.keyboard("{ArrowRight}");
+    expect(screen.getByRole("status")).toBe(note);
+    expect(note).toHaveTextContent(/^You can choose up to three areas for notifications below\.$/);
 });

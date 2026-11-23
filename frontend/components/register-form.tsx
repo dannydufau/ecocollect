@@ -9,6 +9,11 @@ import {
     eighteenYearsAgo, normalizeUsername, validateAccount, type AccountValues,
 } from "@/lib/validate-account";
 
+const roleNotes = {
+    resident: "We will ask for your Calgary pickup address below.",
+    volunteer: "You can choose up to three areas for notifications below.",
+};
+
 // A card with its title inside, like the prototype. The legend floats so it sits in the card and not on its border.
 function Group({ title, children }: { title: string; children: ReactNode }) {
     return <fieldset className={`${card} min-w-0`}>
@@ -79,9 +84,9 @@ export default function RegisterForm({ onValid, fieldErrors = {}, busy = false, 
                             ))}
                         </div>
                     </fieldset>
-                    {values.role && <p className="text-text-muted">{values.role === "resident"
-                        ? "We will ask for your Calgary pickup address below."
-                        : "You can choose up to three areas for notifications below."}</p>}
+                    <p role="status" aria-live="polite" className="text-text-muted empty:absolute">
+                        {values.role && roleNotes[values.role]}
+                    </p>
                     <p className="text-text-muted">You can add the other role later in your profile.</p>
                     {errors.role && <FieldError id={`${id}-role-error`} tabIndex={-1}>{errors.role}</FieldError>}
                 </Group>
