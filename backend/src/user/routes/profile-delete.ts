@@ -81,10 +81,11 @@ export function register(app: Express, {
         }
       } catch (recoveryError) {
         discardClient = true;
+        console.error('Could not re-enable Firebase after failed account deactivation:', { accountId, traceId: req.get('X-Request-Id') }, recoveryError);
         throw new AggregateError([error, recoveryError], 'Could not recover the account after failed deactivation.');
       }
       if (committing) {
-        console.error('Could not confirm account deactivation:', error);
+        console.error('Could not confirm account deactivation:', { accountId, traceId: req.get('X-Request-Id') }, error);
         throw new HttpError(500, 'internal_error', 'We could not confirm account deactivation.');
       }
       throw error;
