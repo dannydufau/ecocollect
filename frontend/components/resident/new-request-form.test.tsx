@@ -261,6 +261,15 @@ it("keeps the review thumbnail across steps and clears it when the photo is remo
     fireEvent.click(screen.getByRole("button", { name: "Review" }));
     expect(screen.queryByRole("img", { name: "Photo of item" })).not.toBeInTheDocument();
 });
+it("uses the shared heading size and the named text sizes on the review step", async () => {
+    mount(); await fill();
+    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+    for (const name of ["Pickup windows", "Notes", "Pickup address"]) {
+        expect(await screen.findByRole("heading", { name, level: 2 })).not.toHaveClass("text-xl");
+    }
+    expect(screen.getByText("Times are Calgary time.")).toHaveClass("text-caption");
+    expect(screen.getByText("Accept the terms above to send.")).toHaveClass("text-small");
+});
 it("shows the invalid_photo field error under the item's picker", async () => {
     vi.mocked(apiModule.apiFetch).mockRejectedValue(failure(400, "invalid_photo", { "items[0].photo": "This photo could not be used." }));
     mount(); await fill();

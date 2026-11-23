@@ -47,10 +47,10 @@ export default function ReviewRequest({ values, busy, accepted, onBack, onConfir
                 <p className="text-text-muted">This creates {values.items.length} separate requests, one per item.</p>
             </>}
         </section>
-        <section aria-label="Pickup windows"><h2 className="mb-2 text-xl">Pickup windows</h2><WindowList windows={values.windows} /><p className="mt-2 text-[13px] text-text-muted">Times are Calgary time.</p></section>
-        <section aria-label="Notes"><h2 className="text-xl">Notes</h2><p className="whitespace-pre-wrap break-words">{values.notes || "No notes added."}</p></section>
+        <section aria-label="Pickup windows"><h2 className="mb-2">Pickup windows</h2><WindowList windows={values.windows} /><p className="mt-2 text-caption text-text-muted">Times are Calgary time.</p></section>
+        <section aria-label="Notes"><h2>Notes</h2><p className="whitespace-pre-wrap break-words">{values.notes || "No notes added."}</p></section>
         <section aria-label="Pickup address" className="space-y-2">
-            <h2 className="text-xl">Pickup address</h2>
+            <h2>Pickup address</h2>
             {profile.isPending ? <p role="status">Loading your address...</p> : profile.isError ?
                 <Alert variant="error">Could not load your address. <button type="button" onClick={() => void profile.refetch()} className="underline">Try again</button></Alert> :
                 address ? <p className="break-words">{address.street}, {formatPostalCode(address.postalCode)}</p> : <Alert variant="error">Add an address to your profile before sending.</Alert>}
@@ -62,7 +62,7 @@ export default function ReviewRequest({ values, busy, accepted, onBack, onConfir
                 <Button variant="secondary" onClick={onBack}>Back to edit</Button>
                 <Button type="submit" busy={busy} busyLabel="Sending..." disabled={!accepted || !ready} aria-describedby={!accepted ? "review-terms-hint" : undefined}>Confirm and send</Button>
             </div>
-            {!accepted && <p id="review-terms-hint" className="text-[13px] text-text-muted">Accept the terms above to send.</p>}
+            {!accepted && <p id="review-terms-hint" className="text-small text-text-muted">Accept the terms above to send.</p>}
         </fieldset>
     </form>;
 }
