@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Alert, QueryError, RequestPhoto, LoadingRegion, StatusBadge, WindowList, card, pageTitle, secondaryLinkButton, textLink } from "@/components/ui";
+import { Alert, LoadingRegion, QueryError, RequestPhoto, StatusBadge, WindowList, card, pageTitle, secondaryLinkButton, textLink } from "@/components/ui";
 import { isAuthError } from "@/lib/api";
 import { formatPostalCode } from "@/lib/postal-code";
 import { nextStepText } from "@/lib/status-text";

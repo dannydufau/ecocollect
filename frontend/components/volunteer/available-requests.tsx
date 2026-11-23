@@ -9,7 +9,7 @@ import { formatPostalCode } from "@/lib/postal-code";
 import { formatTimestamp, formatWindow, friendlyWindow } from "@/lib/time";
 import type { AvailableRequest } from "@/lib/types";
 import { useProfile } from "@/lib/use-profile";
-import { Button, EmptyState, MapPinIcon, QueryError, LoadingRegion, clickableCard, identifier, pageTitle, stretchedLink, textLink } from "@/components/ui";
+import { Button, EmptyState, LoadingRegion, MapPinIcon, PackageIcon, QueryError, clickableCard, identifier, pageTitle, stretchedLink, textLink } from "@/components/ui";
 import PostalFilter from "./postal-filter";
 
 export default function AvailableRequests() {
@@ -36,8 +36,8 @@ export default function AvailableRequests() {
             {isPending && <LoadingRegion label="Loading requests..." />}
             {isError && <QueryError message="We could not load the requests. Please try again." onRetry={() => void refetch()} busy={isFetching} />}
             {empty && (codes?.length
-                ? <EmptyState title="No open requests in these areas." action={<Button variant="secondary" onClick={() => setCodes([])}>Show all areas</Button>} />
-                : <EmptyState title="No open requests right now.">
+                ? <EmptyState icon={<PackageIcon />} title="No open requests in these areas." action={<Button variant="secondary" onClick={() => setCodes([])}>Show all areas</Button>} />
+                : <EmptyState icon={<PackageIcon />} title="No open requests right now.">
                     New requests appear here on their own. You can set your <Link href="/profile" className={textLink}>preferred postal codes in Profile</Link>.
                 </EmptyState>)}
             {data && data.length > 0 && <>

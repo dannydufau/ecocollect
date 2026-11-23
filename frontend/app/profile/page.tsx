@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import EnableNotifications from "@/components/enable-notifications";
-import { Alert, BellIcon, QueryError, RoleBadge, LoadingRegion, card, identifier, pageTitle, textLink } from "@/components/ui";
+import { Alert, BellIcon, LoadingRegion, QueryError, RoleBadge, card, identifier, pageTitle, textLink } from "@/components/ui";
 import { ApiError, isAuthError } from "@/lib/api";
 import { formatDate, formatTimestamp } from "@/lib/time";
 import type { Profile } from "@/lib/types";

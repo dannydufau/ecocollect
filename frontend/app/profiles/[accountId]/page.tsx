@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { EmptyState, QueryError, RoleBadge, LoadingRegion, linkButton, identifier, pageTitle } from "@/components/ui";
+import { EmptyState, EyeOffIcon, LoadingRegion, QueryError, RoleBadge, identifier, linkButton, pageTitle } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { usePublicStream } from "@/lib/public-stream";
 import { queryKeys } from "@/lib/query-keys";
@@ -43,7 +43,7 @@ export default function PublicProfilePage() {
         <main className="p-4 sm:p-8">
             <div className="mx-auto max-w-3xl space-y-6">
                 <h1 className={pageTitle}>Profile not found</h1>
-                <EmptyState title="This profile does not exist or is no longer active."
+                <EmptyState icon={<EyeOffIcon />} title="This profile does not exist or is no longer active."
                     action={<Link href="/stats" className={linkButton}>See the community stats</Link>} />
             </div>
         </main>

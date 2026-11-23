@@ -8,7 +8,7 @@ import { fetchMyRequests } from "@/lib/my-requests";
 import { queryKeys } from "@/lib/query-keys";
 import { formatTimestamp } from "@/lib/time";
 import type { RequestStatus } from "@/lib/types";
-import { Alert, Button, CalendarIcon, CameraIcon, ClockIcon, EmptyState, FilterTabs, QueryError, ScaleIcon, LoadingRegion, StatusBadge, clickableCard, linkButton, pageTitle, stretchedLink } from "@/components/ui";
+import { Alert, Button, CalendarIcon, CameraIcon, ClockIcon, EmptyState, FilterTabs, LoadingRegion, PackageIcon, QueryError, ScaleIcon, StatusBadge, clickableCard, linkButton, pageTitle, stretchedLink } from "@/components/ui";
 
 const statuses: RequestStatus[] = ["Open", "Assigned", "Collected", "Delivered", "Cancelled", "Expired", "Missed"];
 const detail = "inline-flex items-center gap-1.5";
@@ -38,12 +38,10 @@ export default function MyRequests({ created }: { created?: string }) {
             {isPending && <LoadingRegion label="Loading your requests..." />}
             {isError && <QueryError message={isAuthError(error) ? "You are not allowed to see this list. Please log in again as a resident." : "We could not load your requests. Please try again."} onRetry={() => refetch()} busy={isFetching} />}
             {!isPlaceholderData && data?.length === 0 && (status
-                ? <EmptyState title={`You have no ${status.toLowerCase()} requests.`}
+                ? <EmptyState icon={<PackageIcon />} title={`You have no ${status.toLowerCase()} requests.`}
                     action={<Button variant="secondary" onClick={() => setStatus(undefined)}>Show all requests</Button>} />
-                : <div className="flex flex-col items-start gap-3 py-6">
-                    <h2 className="text-2xl">You have no requests yet.</h2>
-                    <Link href="/resident/requests/new" className={linkButton}>Create your first request</Link>
-                </div>)}
+                : <EmptyState icon={<PackageIcon />} title="You have no requests yet."
+                    action={<Link href="/resident/requests/new" className={linkButton}>Create your first request</Link>} />)}
             {data && data.length > 0 && <>
             <ul aria-busy={isPlaceholderData} className={`space-y-3 transition-opacity ${isPlaceholderData ? "opacity-60" : ""}`}>
                 {data.map(request => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { EmptyState, QueryError, LoadingRegion, pageTitle } from "@/components/ui";
+import { EmptyState, LoadingRegion, QueryError, ScaleIcon, pageTitle } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import type { operations } from "@/lib/api-types";
 import { usePublicStream } from "@/lib/public-stream";
@@ -46,7 +46,7 @@ export default function StatsPage() {
                     </dl>
                     <section className="overflow-hidden rounded-2xl border border-border bg-surface-elevated shadow-rest" aria-labelledby="waste-types">
                         <h2 id="waste-types" className="p-4">By waste type</h2>
-                        {!data.byWasteType.length ? <EmptyState bare title="No deliveries yet." /> : (
+                        {!data.byWasteType.length ? <EmptyState bare icon={<ScaleIcon />} title="No deliveries yet." /> : (
                             <div className="overflow-x-auto"><table className="w-full text-left text-small">
                                 <caption className="sr-only">Deliveries by waste type</caption>
                                 <thead className="bg-surface text-text-muted">

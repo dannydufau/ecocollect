@@ -128,6 +128,8 @@ it("EmptyState is a dashed card with just a title and children", () => {
 it("EmptyState shows a hidden icon and an action", () => {
     const { container } = render(<EmptyState title="Nothing" icon={<CameraIcon />} action={<a href="/stats">See stats</a>}>Some text</EmptyState>);
     expect(container.querySelector("[aria-hidden=true] svg")).not.toBeNull();
+    // The icon is drawn at 24px and in the muted text colour, whatever size it was given
+    expect(container.querySelector("[aria-hidden=true]")).toHaveClass("text-text-muted", "[&>svg]:size-6");
     expect(screen.getByText("Some text")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "See stats" })).toHaveAttribute("href", "/stats");
 });
