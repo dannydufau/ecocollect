@@ -326,3 +326,15 @@ FROM pickup_request pr
 JOIN request_current_status rcs ON rcs.pickup_request_id = pr.pickup_request_id
 WHERE rcs.status = 'Open';
 
+-- A3. Unread notification count for an account (the badge on the bell icon).
+--    Rationale: users see how many unread, still-relevant notifications they have;
+--               expired ones don't count (FR19).
+--    Citation:  FR19 · App (#103): notification-store.js listForAccount (l.97),
+--               "SELECT count(*) ... AND NOT n.is_expired AND NOT n.is_read"
+--    Concepts:  COUNT, WHERE, AND NOT, join
+SELECT COUNT(*) AS unread
+FROM request_notification rn
+JOIN notification n ON n.notification_id = rn.notification_id
+WHERE rn.account_id = 'resident1'
+  AND NOT n.is_expired
+  AND NOT n.is_read;
