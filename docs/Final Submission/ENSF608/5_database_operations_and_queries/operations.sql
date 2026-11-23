@@ -72,3 +72,29 @@ JOIN terms_acceptance t ON t.account_id = a.account_id
 WHERE a.account_id = 'resident91';
 
 ROLLBACK;
+
+-- I2. Save a browser's push subscription.
+--    Rationale: when a user turns on push in a browser, its endpoint and keys are stored
+--               so pushes can be sent there; the same browser subscribing again updates
+--               its row instead of failing.
+--    Citation:  FR19 · App (#103): subscriptions.js add (l.9), same statement
+--    Concepts:  INSERT ... VALUES, ON CONFLICT DO UPDATE (upsert), EXCLUDED
+BEGIN;
+
+INSERT INTO push_subscription (endpoint, account_id, p256dh, auth, expiration_time, user_agent, updated_at)
+VALUES ('https://push.example.test/resident1-laptop', 'resident1',
+        'BExampleP256dhKeyResident1Laptop', 'exampleAuthSecret1', NULL, 'Firefox on Linux', now())
+ON CONFLICT (endpoint) DO UPDATE SET
+  account_id = EXCLUDED.account_id,  -- EXCLUDED = the row we tried to insert; take its value  p256dh = EXCLUDED.p256dh,
+  auth = EXCLUDED.auth,
+  expiration_time = EXCLUDED.expiration_time,
+  user_agent = EXCLUDED.user_agent,
+  updated_at = now();
+
+-- Show resident1's subscriptions.
+SELECT account_id, endpoint, user_agent
+FROM push_subscription
+WHERE account_id = 'resident1'
+ORDER BY endpoint;
+
+ROLLBACK;
