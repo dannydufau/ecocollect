@@ -57,7 +57,7 @@ describe('Q9 edit', { skip: skipDb }, () => {
 
   test('overdue: 409 expired, then 409 not_open', async () => {
     const requestId = await createOpen(app.call, owner);
-    await moveIntoPast(app.pool, requestId, 2);   // its only window has started
+    await moveIntoPast(requestId, 2);   // its only window has started
     const path = `/api/requests/${requestId}`;
 
     check.expectError(await app.call('PATCH', path, owner, { quantity: 2 }), 409, 'expired');

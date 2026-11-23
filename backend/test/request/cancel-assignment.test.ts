@@ -65,7 +65,7 @@ describe('Q12 cancel assignment', { skip: skipDb }, () => {
 
   test('volunteer, no window left in the future: Expired (E7, E10); the volunteer gets 404 (issue #368)', async () => {
     const requestId = await createAssigned(app.call, owner, volunteer);
-    await moveIntoPast(app.pool, requestId, 2);
+    await moveIntoPast(requestId, 2);
 
     const cancelled = await app.call('POST', `/api/requests/${requestId}/assignment/cancel`, volunteer);
     check.expectError(cancelled, 404, 'request_unavailable');

@@ -4,11 +4,11 @@
 // through the API (createOpen, createAssigned), so it runs again without a rebuild.
 import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
-import type pg from 'pg';
+import pg from 'pg';
 import { createApp, type AppDeps } from '../../src/request/app.ts';
 import { createPool } from '../../src/request/db/pool.ts';
 import { responseSchema, type OpenApi } from './contract.ts';
-import { testDatabaseUrl } from './db.ts';
+import { testAdminDatabaseUrl, testDatabaseUrl } from './db.ts';
 import {
   SEED_CATEGORY_ID, SEED_CURRENT_TERMS_ID, SEED_OTHER_RESIDENT_ONLY_ID, SEED_OTHER_VOLUNTEER_ID,
   SEED_RESIDENT_ONLY_ID, SEED_VOLUNTEER_ID,
@@ -113,8 +113,11 @@ export async function events(pool: pg.Pool, requestId: string): Promise<string[]
 // the acceptances (creation and assignments), accepted_at, created_at, the
 // status history and the window dates. 2 days puts tomorrow's window in the
 // past and stays after the current terms (published 40 days before the seed).
-export async function moveIntoPast(pool: pg.Pool, requestId: string, days: number): Promise<void> {
-  const client = await pool.connect();
+// Runs as the admin login on its own connection (see db.ts): the service login
+// may not change users.terms_acceptance.
+export async function moveIntoPast(requestId: string, days: number): Promise<void> {
+  const client = new pg.Client({ connectionString: testAdminDatabaseUrl });
+  await client.connect();
   try {
     await client.query('BEGIN');
     // Find the course tables without a schema prefix, until COMMIT.
@@ -147,9 +150,9 @@ export async function moveIntoPast(pool: pg.Pool, requestId: string, days: numbe
        WHERE pickup_request_id = $1`, [requestId, days]);
     await client.query('COMMIT');
   } catch (err) {
-    await client.query('ROLLBACK');    // never give the pool a connection inside a failed transaction
+    await client.query('ROLLBACK');
     throw err;
   } finally {
-    client.release();
+    await client.end();
   }
 }

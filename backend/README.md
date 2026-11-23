@@ -72,7 +72,23 @@ DATABASE_URL=postgres://ecocollect_request:<REQUEST_DB_PASSWORD>@localhost:5432/
 | `IMAGEKIT_ROOT_FOLDER` | Upload folders start with this: `/ecocollect`, or `/ecocollect-demo` in the demo stack. |
 | `DEMO_MODE` | `true` only in the demo stack: the resident also gets the new-request notification for their own request (contract 17.5). |
 
-Tests: `npm run typecheck` and `npm run test:request`. The database tests need `REQUEST_TEST_DATABASE_URL` pointing at a database built by `load-db.sh --test` (`ecocollect_request_test`: every `db/init` file, `db/request/`, then the test accounts and requests in `test/request/seed.sql`); without it they are skipped. Use the admin login in that URL: the tests move requests into the past by changing rows the service itself may not change.
+Tests: `npm run typecheck` and `npm run test:request`. The database tests need `REQUEST_TEST_DATABASE_URL` pointing at a database built by `load-db.sh --test` (`ecocollect_request_test`: every `db/init` file, `db/request/`, then the test accounts and requests in `test/request/seed.sql`); without it they are skipped. Use the service login (`ecocollect_request`) in that URL, so the tests run with the service's real grants, and set `REQUEST_TEST_ADMIN_DATABASE_URL` to the same database with the admin login: the tests move requests into the past by changing rows the service itself may not change. Without the admin URL, the tests use `REQUEST_TEST_DATABASE_URL` for that too, which then has to be the admin login.
+
+From `backend/`, with `docker compose up -d postgres` running:
+
+```bash
+# Rebuild the test database. Do this before every run: some tests change seed rows for good (Q11 accept).
+scripts/request/load-db.sh --test
+
+# Load .env into this shell (use a fresh terminal: these exports override .env later).
+set -a && . ../.env && set +a
+
+REQUEST_TEST_DATABASE_URL="postgres://ecocollect_request:${REQUEST_DB_PASSWORD}@127.0.0.1:5432/ecocollect_request_test" \
+REQUEST_TEST_ADMIN_DATABASE_URL="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@127.0.0.1:5432/ecocollect_request_test" \
+  npm run test:request
+```
+
+Use `127.0.0.1`, not `localhost`: if another Postgres runs on your machine (Homebrew, for example), `localhost` can reach it instead of the Compose one, and every test fails with `role "ecocollect" does not exist`.
 
 ## Run it
 
