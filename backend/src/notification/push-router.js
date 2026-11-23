@@ -13,6 +13,18 @@ function fail(res, status, code, message) {
   return res.status(status).json({ error: { code, message } });
 }
 
+// Only real push services: otherwise a user could make us POST to any address, internal ones included.
+const PUSH_HOSTS = ['fcm.googleapis.com', 'updates.push.services.mozilla.com', 'web.push.apple.com'];
+
+function allowedEndpoint(endpoint) {
+  let url;
+  try { url = new URL(endpoint); } catch { return false; }
+  // The integration test's fake push service (http, local); never set in Compose.
+  if (process.env.PUSH_TEST_HOST && url.hostname === process.env.PUSH_TEST_HOST) return true;
+  return url.protocol === 'https:'
+    && (PUSH_HOSTS.includes(url.hostname) || url.hostname.endsWith('.notify.windows.com'));
+}
+
 function createPushRouter({ subscriptions }) {
   const router = express.Router();
 
@@ -20,6 +32,9 @@ function createPushRouter({ subscriptions }) {
 
   // Body: subscription.toJSON(), { endpoint, expirationTime, keys: { p256dh, auth } }.
   router.post('/api/push/subscriptions', async (req, res) => {
+    if (!allowedEndpoint(req.body?.endpoint)) {
+      return fail(res, 400, 'invalid_subscription', 'endpoint must be a push service https URL');
+    }
     try {
       await subscriptions.add(req.user.uid, req.body ?? {}, req.get('User-Agent') ?? null);
     } catch (err) {

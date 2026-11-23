@@ -60,6 +60,7 @@ async function startService() {
       VAPID_PUBLIC_KEY: VAPID.publicKey,
       VAPID_PRIVATE_KEY: VAPID.privateKey,
       VAPID_SUBJECT: 'mailto:test@example.com',
+      PUSH_TEST_HOST: '127.0.0.1', // lets the fake push service through the endpoint check
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });

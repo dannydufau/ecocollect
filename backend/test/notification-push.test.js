@@ -127,13 +127,14 @@ test('POST /api/push/subscriptions saves the caller\'s subscription, DELETE remo
   const call = (method, headers, body) =>
     fetch(url, { method, headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body) });
   const user = { 'X-User-Id': 'uid_v1' };
-  const sub = browserSubscription('https://push.example/abc');
+  const sub = browserSubscription('https://fcm.googleapis.com/fcm/send/abc');
 
   assert.equal((await call('POST', {}, sub)).status, 401);
-  assert.equal((await call('POST', user, { endpoint: 'https://push.example/abc' })).status, 400);
+  assert.equal((await call('POST', user, { endpoint: sub.endpoint })).status, 400);
+  assert.equal((await call('POST', user, browserSubscription('http://postgres:5432/x'))).status, 400);
 
   assert.equal((await call('POST', user, sub)).status, 201);
-assert.equal((await subscriptions.list('uid_v1'))[0].endpoint, sub.endpoint);
+  assert.equal((await subscriptions.list('uid_v1'))[0].endpoint, sub.endpoint);
   assert.equal((await call('DELETE', user, { endpoint: sub.endpoint })).status, 204);
   assert.deepEqual(await subscriptions.list('uid_v1'), []);
 });
