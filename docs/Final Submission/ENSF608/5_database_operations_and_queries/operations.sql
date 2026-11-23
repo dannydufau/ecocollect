@@ -234,3 +234,14 @@ SELECT postal_code
 FROM volunteer_preferred_postal_code
 WHERE account_id = 'volunteer1'
 ORDER BY postal_code;
+
+-- F2. Facilities in a volunteer's areas that need no special drop-off steps.
+--    Rationale: when choosing where to deliver, a volunteer may prefer a nearby
+--               facility with a simple drop-off.
+--    Citation:  FR17
+--    Concepts:  WHERE, LIKE (prefix pattern), OR, AND, IS NULL, parentheses
+SELECT name, street, postal_code
+FROM recycling_facility
+WHERE (postal_code LIKE 'T2N%' OR postal_code LIKE 'T2T%')
+  AND special_instructions IS NULL
+ORDER BY name;
