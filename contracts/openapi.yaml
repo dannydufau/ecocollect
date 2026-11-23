@@ -913,6 +913,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RequestDetail'
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2259,6 +2261,7 @@ components:
       properties:
         reason:
           type: string
+          maxLength: 500
     AcceptRequest:
       type: object
       additionalProperties: false
@@ -2287,6 +2290,7 @@ components:
           description: Only when the caller is both the owner and the assigned volunteer.
         reason:
           type: string
+          maxLength: 500
         windows:
           type: array
           minItems: 1
@@ -2301,6 +2305,7 @@ components:
       properties:
         reason:
           type: string
+          maxLength: 500
         reschedule:
           type: object
           description: Creates a new Open request linked to the missed one, in the same transaction.
