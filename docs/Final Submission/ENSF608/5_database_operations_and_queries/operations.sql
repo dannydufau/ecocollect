@@ -271,3 +271,14 @@ WHERE is_active
   AND pickup_date BETWEEN (now() AT TIME ZONE 'America/Edmonton')::date
                       AND (now() AT TIME ZONE 'America/Edmonton')::date + 7
 ORDER BY pickup_date, start_hour, request;
+
+-- 5. SELECT queries with ORDER BY, DISTINCT or LIMIT
+
+-- O1. Item categories for the request form, by waste type then name.
+--    Rationale: residents pick a category when creating a request; its standard weight
+--               drives the system's weight estimate.
+--    Citation:  FR06 · App: store.js loadCategories (l.21)
+--    Concepts:  ORDER BY on two columns, AS (column alias)
+SELECT name AS category, waste_type, standard_weight_kg
+FROM item_category
+ORDER BY waste_type, name;
