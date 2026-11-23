@@ -1,21 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { Caprasimo, Figtree } from "next/font/google";
+import { body, heading } from "./fonts";
 import "./globals.css";
 import Providers from "./providers";
 import AppHeader from "@/components/app-header";
 import DemoBanner from "@/components/demo-banner";
-
-const heading = Caprasimo({
-  variable: "--font-heading",
-  weight: "400",
-  subsets: ["latin"],
-});
-
-const body = Figtree({
-  variable: "--font-body",
-  weight: ["400", "500", "600", "700"],
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "EcoCollect",
