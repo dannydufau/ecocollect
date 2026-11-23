@@ -2,7 +2,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useEffect } from "react";
 import { Alert, Button, ConfirmDialog, PageLoading, Spinner, StatusBadge } from "./index";
+import { buttonClass } from "./button";
 import { AlertIcon, CheckIcon, InfoIcon, WarningIcon } from "./icons";
+import { clickableCard, linkButton, secondaryLinkButton } from "./styles";
 afterEach(() => {
     cleanup();
 });
@@ -153,7 +155,7 @@ it.each([[undefined, "max-w-md"], ["md", "max-w-md"], ["lg", "max-w-xl"]] as con
 it("Button has a ghost variant and a small size, and keeps 44px by default", () => {
     render(<><Button variant="ghost" size="sm">Small</Button><Button>Normal</Button></>);
     const small = screen.getByRole("button", { name: "Small" });
-    expect(small).toHaveClass("min-h-9", "text-text", "hover:bg-text/10");
+    expect(small).toHaveClass("min-h-9", "text-text", "not-disabled:hover:bg-text/10");
     expect(small).not.toHaveClass("min-h-11", "bg-accent");
     expect(screen.getByRole("button", { name: "Normal" })).toHaveClass("min-h-11");
 });
@@ -195,4 +197,20 @@ it("ConfirmDialog rises in and Alert fades in", () => {
     const { container } = render(<><ConfirmDialog open title="T" confirmLabel="OK" onConfirm={vi.fn()} onCancel={vi.fn()}>Body</ConfirmDialog><Alert variant="info">Hi</Alert></>);
     expect(container.querySelector("dialog")).toHaveClass("rise-in");
     expect(screen.getByRole("status").parentElement).toHaveClass("fade-in");
+});
+
+it.each([[linkButton, "primary"], [secondaryLinkButton, "secondary"]] as const)("a link button carries every class of the %s Button", (link, variant) => {
+    expect(link.split(" ")).toEqual(expect.arrayContaining(buttonClass(variant).split(" ")));
+});
+
+it.each(["primary", "secondary", "danger", "danger-outline", "ghost"] as const)("the %s button changes on hover and press only when it is not disabled", variant => {
+    for (const name of buttonClass(variant).split(" ")) expect(name).not.toMatch(/^(hover|active|motion-safe:active):/);
+    expect(buttonClass(variant)).toMatch(/not-disabled:hover:/);
+    expect(buttonClass(variant)).toMatch(/motion-safe:not-disabled:active:scale-\[0.985\]/);
+});
+
+it("a clickable card goes back to its resting shadow when pressed, and is never scaled", () => {
+    expect(clickableCard).toContain("hover:shadow-hover");
+    expect(clickableCard).toContain("active:shadow-rest");
+    expect(clickableCard).not.toContain("scale");
 });
