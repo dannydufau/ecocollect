@@ -30,7 +30,8 @@ function present(row) {
     body: t?.listBody ?? 'Open EcoCollect for details',
     url: t ? `${t.path}${row.pickup_request_id}` : '/',
     isRead: row.is_read,
-    createdAt: row.created_at.toISOString().replace(/\.\d{3}Z$/, 'Z'),
+    // Keep the milliseconds: the client sends this back as `before`, and a page must end exactly here.
+    createdAt: row.created_at.toISOString(),
   };
 }
 

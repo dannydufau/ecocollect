@@ -68,7 +68,7 @@ test('N3 lists the caller\'s notifications in the contract shape, with the unrea
       body: 'A pickup request matches your area',
       url: `/volunteer/requests/${REQUEST_ID}`,
       isRead: false,
-      createdAt: '2026-11-20T16:15:00Z',
+      createdAt: '2026-11-20T16:15:00.000Z',
     }],
   });
 
