@@ -65,7 +65,7 @@ export default function AcceptRequest({ request, onDone }: { request: RequestDet
     return <>
         <Button onClick={start}>Accept request</Button>
         <ConfirmDialog open={open} size="lg" title="Accept this request" confirmLabel={action.isPending ? "Accepting..." : "Accept request"}
-            confirmDisabled={!windowId || !termsId} busy={action.isPending} error={windowStarted ? "That pickup window has started. Choose another." : failed ? action.message ?? undefined : undefined}
+            confirmDisabled={!windowId || !termsId} busy={action.isPending} error={windowStarted && !allStarted ? "That pickup window has started. Choose another." : failed ? action.message ?? undefined : undefined}
             blocked={!windowId ? (allStarted ? "Every pickup window has started." : "Choose a pickup window.") : "Accept the terms."}
             onConfirm={confirm} onCancel={() => setOpen(false)}>
             <div className="space-y-4">
