@@ -157,6 +157,15 @@ function seedFacilities() {
       specialInstructions: null, acceptedCategoryIds: ids(["Electronics", "Displays"]) },
     { facilityId: "mock-facility-3", name: "Phone and Cable Drop-off", street: "350 7 Ave SW", postalCode: "T2P3N9",
       specialInstructions: "Bring items to the front counter.", acceptedCategoryIds: ids(["Mobile Devices", "Accessories"]) },
+    ...[
+      ["West Electronics Depot", "1100 69 St SW", "T3H4Y7"],
+      ["South Electronics Depot", "250 Shawville Blvd SE", "T2Y2Z7"],
+      ["East Electronics Depot", "4300 17 Ave SE", "T2A0T2"],
+      ["Central Electronics Depot", "800 10 Ave SW", "T2R0A9"],
+    ].map(([name, street, postalCode], index) => ({
+      facilityId: `mock-facility-${index + 4}`, name, street, postalCode, specialInstructions: null,
+      acceptedCategoryIds: ids(["Electronics"]),
+    })),
   ];
 }
 

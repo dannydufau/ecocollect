@@ -38,22 +38,9 @@ function awardDeliveries(store) {
 
 function seedAwards(store) {
   awardDeliveries(store);
-  const delivered = store.assignments.find((assignment) => assignment.endReason === "Delivered");
-  if (!delivered) return;
-  const original = store.requests.find((request) => request.requestId === delivered.requestId);
-  const window = { ...delivered.window, windowId: randomUUID() };
-  const endedAt = new Date(windowStart(window.date, window.startHour).getTime() - 2 * HOUR).toISOString();
-  const request = { ...original, requestId: randomUUID(), status: "Cancelled", delivery: null, windows: [window],
-    statusHistory: [
-      { status: "Open", changedAt: original.createdAt, reason: null },
-      { status: "Assigned", changedAt: delivered.acceptedAt, reason: null },
-      { status: "Cancelled", changedAt: endedAt, reason: null },
-    ] };
-  const assignment = { ...delivered, assignmentId: randomUUID(), requestId: request.requestId, window,
-    collectedAt: null, endedAt, endReason: "Resident_Cancelled" };
-  store.requests.push(request);
-  store.assignments.push(assignment);
-  awardCancellation(store, assignment);
+  for (const assignment of store.assignments) {
+    if (assignment.endReason === "Resident_Cancelled") awardCancellation(store, assignment);
+  }
 }
 
 export function register(route, store) {
