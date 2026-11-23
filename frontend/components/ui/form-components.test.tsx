@@ -125,6 +125,12 @@ it("EmptyState is a dashed card with just a title and children", () => {
     expect(container.querySelector("[aria-hidden=true]")).toBeNull();
 });
 
+it("EmptyState fills its dashed box with the inset surface", () => {
+    const { container } = render(<EmptyState title="Nothing" />);
+    expect(container.firstElementChild).toHaveClass("bg-surface", "border-dashed", "rounded-2xl");
+    expect(container.firstElementChild!.className).not.toMatch(/bg-surface\/\d/);
+});
+
 it("EmptyState shows a hidden icon and an action", () => {
     const { container } = render(<EmptyState title="Nothing" icon={<CameraIcon />} action={<a href="/stats">See stats</a>}>Some text</EmptyState>);
     expect(container.querySelector("[aria-hidden=true] svg")).not.toBeNull();
