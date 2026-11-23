@@ -7,7 +7,7 @@ import { getPool } from '../db/pool.ts';
 import { getCurrentTerms } from '../db/terms.ts';
 import { setRoles } from '../firebase/accounts.ts';
 import { HttpError, validationFailed } from '../http/errors.ts';
-import { isCalgaryPostalCode } from '../validation/account.ts';
+import { validatePreferredPostalCodes, validateProfileAddress } from '../validation/account.ts';
 
 type Role = Parameters<typeof setRoles>[2][number];
 type Auth = Parameters<typeof setRoles>[0];
@@ -33,34 +33,8 @@ function validateActivation(body: unknown): RoleActivation {
   if (typeof body.termsDocumentId !== 'string' || !body.termsDocumentId) {
     fields.set('termsDocumentId', 'A terms document ID is required.');
   }
-  if (Object.hasOwn(body, 'address') || body.role === 'resident') {
-    if (!isObject(body.address)) fields.set('address', 'Enter a street and postal code.');
-    else {
-      const { street, postalCode, city } = body.address;
-      for (const key of Object.keys(body.address)) {
-        if (!['street', 'postalCode', 'city'].includes(key)) fields.set(`address.${key}`, 'This field is not allowed.');
-      }
-      if (typeof street !== 'string' || !street.trim() || [...street].length > 255) {
-        fields.set('address.street', 'Enter a street of 1 to 255 characters.');
-      }
-      if (!isCalgaryPostalCode(postalCode)) fields.set('address.postalCode', 'Enter a six-character Calgary postal code.');
-      if (Object.hasOwn(body.address, 'city') && city !== 'Calgary') fields.set('address.city', 'The city must be Calgary.');
-    }
-  }
-  if (Object.hasOwn(body, 'preferredPostalCodes')) {
-    const codes = body.preferredPostalCodes;
-    if (!Array.isArray(codes)) fields.set('preferredPostalCodes', 'Send a list of postal codes.');
-    else {
-      if (codes.length > 3) fields.set('preferredPostalCodes', 'Choose at most 3 postal codes.');
-      const seen = new Set<string>();
-      for (const [index, code] of codes.entries()) {
-        const key = `preferredPostalCodes[${index}]`;
-        if (!isCalgaryPostalCode(code)) fields.set(key, 'Enter a six-character Calgary postal code.');
-        else if (seen.has(code)) fields.set(key, 'This postal code is already selected.');
-        else seen.add(code);
-      }
-    }
-  }
+  if (Object.hasOwn(body, 'address') || body.role === 'resident') validateProfileAddress(body.address, fields);
+  if (Object.hasOwn(body, 'preferredPostalCodes')) validatePreferredPostalCodes(body.preferredPostalCodes, fields);
   if (fields.size) throw validationFailed(Object.fromEntries(fields));
   return body as RoleActivation;
 }
