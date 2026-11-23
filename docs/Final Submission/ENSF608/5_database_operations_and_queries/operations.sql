@@ -282,3 +282,18 @@ ORDER BY pickup_date, start_hour, request;
 SELECT name AS category, waste_type, standard_weight_kg
 FROM item_category
 ORDER BY waste_type, name;
+
+-- O2. Newest notifications for an account, first page.
+--    Rationale: the in-app notification list shows the newest first, a page at a time;
+--               expired notifications are hidden (FR19).
+--    Citation:  FR19 · App (#103): notification-store.js listForAccount (l.84),
+--               "ORDER BY n.created_at DESC ... LIMIT $3"
+--    Concepts:  ORDER BY ... DESC, LIMIT, WHERE, AND NOT, join
+SELECT n.type, n.created_at, n.is_read,
+       RIGHT(rn.pickup_request_id::text, 4) AS request
+FROM request_notification rn
+JOIN notification n ON n.notification_id = rn.notification_id
+WHERE rn.account_id = 'resident1'
+  AND NOT n.is_expired
+ORDER BY n.created_at DESC
+LIMIT 2;
