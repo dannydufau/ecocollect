@@ -45,7 +45,7 @@ export default function RecordDelivery({ request, onDone }: { request: RequestDe
                 <FacilityPicker categoryId={request.category.categoryId} value={facilityId} onChange={setFacilityId} />
                 <div className="space-y-1">
                     <p className="font-semibold">Delivery photo</p>
-                    <p className="text-neutral-800">Add a photo of the items at the facility. Only you and the resident can see it.</p>
+                    <p className="text-text-muted">Add a photo of the items at the facility. Only you and the resident can see it.</p>
                     <PhotoPicker purpose="delivery_evidence" requestId={request.requestId} onUploaded={setFileId} onClear={() => setFileId(null)} />
                 </div>
             </div>

@@ -45,7 +45,7 @@ export function CategoryPicker({ value, onChange, disabledIds = [], invalid = fa
                 {data.map(category => (
                     <option key={category.categoryId} value={category.categoryId}
                         disabled={disabledIds.includes(category.categoryId)}
-                        className="disabled:text-neutral-500">
+                        className="disabled:text-text-muted">
                         {category.name}
                     </option>
                 ))}

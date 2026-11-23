@@ -61,7 +61,7 @@ export default function PublicProfilePage() {
                         <span aria-hidden="true" className="inline-flex size-16 flex-none items-center justify-center rounded-full bg-accent-2-800 text-2xl font-bold text-on-moss">{initials(data.publicName)}</span>
                         <div className="min-w-0 space-y-1">
                             <h1 className={`break-words ${pageTitle}`}>{data.publicName}</h1>
-                            <p className={`break-all text-neutral-800 ${mono}`}>@{data.accountId}</p>
+                            <p className={`break-all text-text-muted ${mono}`}>@{data.accountId}</p>
                             <p className="flex flex-wrap gap-2">{data.roles.map(role => <RoleBadge key={role} role={role} />)}</p>
                         </div>
                     </header>

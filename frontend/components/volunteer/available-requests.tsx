@@ -30,7 +30,7 @@ export default function AvailableRequests() {
         <section aria-labelledby="available-heading" className="min-w-0 space-y-4">
             <h1 id="available-heading" className={pageTitle}>Available requests</h1>
             {codes && <PostalFilter codes={codes} onChange={setCodes} showAll={!empty} />}
-            {!empty && codes?.length === 0 && profile.data?.preferredPostalCodes.length === 0 && <p className="text-neutral-700">
+            {!empty && codes?.length === 0 && profile.data?.preferredPostalCodes.length === 0 && <p className="text-text-muted">
                 Save preferred postal codes in your <Link href="/profile" className={textLink}>profile</Link> to see nearby requests first.
             </p>}
             {isPending && <Spinner label="Loading requests..." />}
@@ -48,16 +48,16 @@ export default function AvailableRequests() {
                                                         <Link href={`/volunteer/requests/${encodeURIComponent(request.requestId)}`} className={stretchedLink}>
                                 {request.quantity} × {request.category.name}
                             </Link>
-                            <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-neutral-100 px-3 py-1 text-neutral-800 ${mono}`}><MapPinIcon className="size-4" />{formatPostalCode(request.postalCode)}</span>
+                            <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-neutral-100 px-3 py-1 text-text-muted ${mono}`}><MapPinIcon className="size-4" />{formatPostalCode(request.postalCode)}</span>
                         </div>
-                        <p className="mt-1 text-neutral-800">{request.estimatedWeightKg.toFixed(2)} kg{request.hasPhoto && " · Photo"}</p>
+                        <p className="mt-1 text-text-muted">{request.estimatedWeightKg.toFixed(2)} kg{request.hasPhoto && " · Photo"}</p>
                         <ul className="mt-1">
                             {request.windows.map(window => <li key={window.windowId} className="mb-1 flex flex-wrap items-baseline gap-x-2">
                                 <strong>{friendlyWindow(window)}</strong>
                                 <span className="text-[13px] text-text-muted">{formatWindow(window)}</span>
                             </li>)}
                         </ul>
-                        <p className="mt-1 text-[14px] text-neutral-700">Open until {formatTimestamp(request.expiresAt)}</p>
+                        <p className="mt-1 text-[14px] text-text-muted">Open until {formatTimestamp(request.expiresAt)}</p>
                     </li>)}
                 </ul>
                 <p className="text-[13px] text-text-muted">Times are Calgary time.</p>

@@ -1,6 +1,6 @@
 const styles = {
-    resident: { name: "Resident", color: "bg-accent-700 text-on-accent" },
-    volunteer: { name: "Volunteer", color: "bg-accent-2-800 text-on-moss" },
+    resident: { name: "Resident", color: "bg-role-resident text-on-accent" },
+    volunteer: { name: "Volunteer", color: "bg-role-volunteer text-on-moss" },
 };
 
 export function RoleBadge({ role, className = "" }: { role: "resident" | "volunteer"; className?: string }) {

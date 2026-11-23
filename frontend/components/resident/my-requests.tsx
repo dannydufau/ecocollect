@@ -55,7 +55,7 @@ export default function MyRequests({ created }: { created?: string }) {
                             </Link>
                             <StatusBadge status={request.status} />
                         </div>
-                        <div className={`mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm ${closed ? "text-text-muted" : "text-neutral-800"}`}>
+                        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-text-muted">
                             <span className={detail}><ScaleIcon className="size-4 flex-none" /><span className="tabular-nums">{request.estimatedWeightKg.toFixed(2)} kg</span></span>
                             <span className={detail}><ClockIcon className="size-4 flex-none" /><span>Created <time dateTime={request.createdAt}>{formatTimestamp(request.createdAt)}</time></span></span>
                             {request.hasPhoto && <span className={detail}><CameraIcon className="size-4 flex-none" />Has photo</span>}

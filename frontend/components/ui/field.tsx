@@ -18,7 +18,7 @@ export function Field({ label, hint, error, optional = false, children }: {
         <div className="flex flex-col gap-1">
             <label htmlFor={id} className="text-sm font-semibold">
                 {label}
-                {optional && <span className="font-normal text-neutral-700"> (optional)</span>}
+                {optional && <span className="font-normal text-text-muted"> (optional)</span>}
             </label>
             {hint && <p id={`${id}-hint`} className="text-[13px] text-text-muted">{hint}</p>}
             {children({ id, "aria-describedby": describedBy, "aria-invalid": error ? true : undefined })}
