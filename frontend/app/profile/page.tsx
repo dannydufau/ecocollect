@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import EnableNotifications from "@/components/enable-notifications";
-import { Alert, BellIcon, LoadingRegion, QueryError, RoleBadge, card, identifier, pageTitle, textLink } from "@/components/ui";
+import { Alert, BellIcon, LoadingRegion, QueryError, RoleBadge, card, identifier, pageTitle, pageWidth, textLink } from "@/components/ui";
 import { ApiError, isAuthError } from "@/lib/api";
 import { formatDate, formatTimestamp } from "@/lib/time";
 import type { Profile } from "@/lib/types";
@@ -43,7 +43,7 @@ export default function ProfilePage() {
     const section = (card: Card) => `${cardStyle} ${editing === card ? "ring-2 ring-accent-700" : ""}`;
 
     return (
-        <main className="mx-auto flex w-full max-w-4xl min-w-0 flex-col gap-6 p-4 sm:p-8">
+        <main className={`${pageWidth} flex flex-col gap-6 p-4 sm:p-8`}>
             <div>
                 <h1 className={pageTitle}>Profile</h1>
                 {profile && <Link href={`/profiles/${encodeURIComponent(profile.accountId)}`} className={textLink}>View my public profile</Link>}

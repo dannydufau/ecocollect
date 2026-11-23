@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Button, EmptyState, FilterTabs, LoadingRegion, QueryError, StatusBadge, TruckIcon, card, clickableCard, identifier, linkButton, pageTitle, stretchedLink } from "@/components/ui";
+import { Button, EmptyState, FilterTabs, LoadingRegion, QueryError, StatusBadge, TruckIcon, card, clickableCard, identifier, linkButton, pageTitle, pageWidth, stretchedLink } from "@/components/ui";
 import { api } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { formatPostalCode } from "@/lib/postal-code";
@@ -31,8 +31,8 @@ export default function VolunteerHistoryPage() {
     const rows = data && [...data].sort((a, b) => Number(b.assignment.status === "Collected") - Number(a.assignment.status === "Collected"));
 
     return (
-        <main className="p-4 sm:p-8">
-            <div className="mx-auto max-w-5xl space-y-6">
+        <main className={`${pageWidth} p-4 sm:p-8`}>
+            <div className="space-y-6">
                 <h1 className={pageTitle}>My assignments</h1>
                 <FilterTabs label="Assignment status" options={filters} value={filter} onChange={setFilter} />
                 {isPending && <LoadingRegion label="Loading your assignments..." />}

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Alert, BellIcon, Button, EmptyState, LeafIcon, LoadingRegion, MapPinIcon, QueryError, TruckIcon, pageTitle } from "@/components/ui";
+import { Alert, BellIcon, Button, EmptyState, LeafIcon, LoadingRegion, MapPinIcon, QueryError, TruckIcon, pageTitle, pageWidth } from "@/components/ui";
 import { api, isAuthError } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { formatTimestamp } from "@/lib/time";
@@ -58,8 +58,8 @@ export default function NotificationsPage() {
     const ownPage = (url: string) => url.startsWith("/") && !url.startsWith("//") ? url : "/notifications";
 
     return (
-        <main className="p-4 sm:p-8">
-            <div className="mx-auto max-w-5xl space-y-6">
+        <main className={`${pageWidth} p-4 sm:p-8`}>
+            <div className="space-y-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex flex-wrap items-baseline gap-x-3">
                         <h1 className={pageTitle}>Notifications</h1>
