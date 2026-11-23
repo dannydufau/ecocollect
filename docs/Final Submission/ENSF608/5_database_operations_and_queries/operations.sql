@@ -162,3 +162,32 @@ CALL check_business_rules();
 -- f) Show the result.
 SELECT RIGHT(w.pickup_window_id::text, 4) AS
 
+-- 3. DELETE operations
+
+-- D1. Volunteer drops a preferred postal code.
+--    Rationale: volunteers choose up to 3 postal codes to be notified about; removing
+--               one stops new-request notifications for that area.
+--    Citation:  FR04, FR01 (up to 3 preferred codes)
+--    Concepts:  DELETE ... WHERE, AND, row lock (FOR UPDATE), CALL
+--    Uses:      check_business_rules() (transactions.sql); volunteer1 from seed.sql
+BEGIN;
+
+-- a) Lock the volunteer: preferred-code changes lock the volunteer row
+--    (add_preferred_code does the same), so two edits can't race past the 3-code limit.
+SELECT account_id FROM volunteer WHERE account_id = 'volunteer1' FOR UPDATE;
+
+-- b) Remove one code.
+DELETE FROM volunteer_preferred_postal_code
+WHERE account_id = 'volunteer1'
+  AND postal_code = 'T2T4M3';
+
+-- c) Multi-row rules.
+CALL check_business_rules();
+
+-- d) Show the remaining codes.
+SELECT account_id, postal_code
+FROM volunteer_preferred_postal_code
+WHERE account_id = 'volunteer1'
+ORDER BY postal_code;
+
+ROLLBACK;
