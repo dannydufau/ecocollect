@@ -7,6 +7,8 @@ import { AlertIcon, CheckIcon, InfoIcon, WarningIcon } from "./icons";
 type Variant = "error" | "success" | "warning" | "info";
 
 // Pale fill, a thin border, an icon and a short bold lead, so the kind is not told by color alone
+// The success variant is also how the app says something worked (created, saved, accepted, delivered): place it directly
+// above the section it is about and keep it there. No toast and no auto-dismiss.
 const styles: Record<Variant, { box: string; lead: string; Icon: typeof AlertIcon }> = {
     error: { box: "border-danger bg-danger-50 text-danger-800", lead: "Error.", Icon: AlertIcon },
     success: { box: "border-accent-2-500 bg-accent-2-100 text-accent-2-800", lead: "Done.", Icon: CheckIcon },
