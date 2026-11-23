@@ -15,6 +15,7 @@ export const routes: BrowserRoute[] = [
     { name: "home", path: "/", account: null, heading: "Sign in to EcoCollect", destination: "/login" },
     { name: "sign-in", path: "/login", account: null, heading: "Sign in to EcoCollect" },
     { name: "registration", path: "/register", account: null, heading: "Create your account" },
+    { name: "forgot-password", path: "/forgot-password", account: null, heading: "Reset your password" },
     { name: "choose-role", path: "/choose-role", account: both, heading: "Continue as" },
     { name: "my-requests", path: "/resident", account: resident, heading: "My requests" },
     { name: "new-request", path: "/resident/requests/new", account: resident, heading: "New pickup request" },
