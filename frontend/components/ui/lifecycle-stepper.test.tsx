@@ -10,11 +10,9 @@ it("marks the current step in text and with aria-current", () => {
     expect(screen.getByText(/Assigned/)).toHaveAttribute("aria-current", "step");
 });
 
-it.each(["Cancelled", "Expired", "Missed"] as const)("shows %s instead of the later steps", status => {
+it.each(["Open", "Collected", "Delivered"] as const)("marks %s as the only current step", status => {
     render(<LifecycleStepper status={status} />);
     const steps = screen.getAllByRole("listitem");
-    expect(steps).toHaveLength(2);
-    expect(steps[1]).toHaveTextContent(status);
-    expect(screen.queryByText("Delivered")).not.toBeInTheDocument();
-    expect(document.querySelector("[aria-current]")).toBeNull();
+    expect(steps).toHaveLength(4);
+    expect(steps.filter(step => step.hasAttribute("aria-current"))).toEqual([screen.getByText(`${status} (now)`)]);
 });

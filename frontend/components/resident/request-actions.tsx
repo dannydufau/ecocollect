@@ -1,7 +1,8 @@
 import { Fragment, type ReactNode } from "react";
 import type { RequestDetail } from "@/lib/types";
 
-const residentActions = ["edit", "cancel", "cancel_assignment", "confirm_collected", "report_missed"] as const;
+// The main task first and the cancel actions last, so the main one stays in view on a phone
+const residentActions = ["confirm_collected", "edit", "report_missed", "cancel_assignment", "cancel"] as const;
 export type ResidentActionRenderers = Partial<Record<typeof residentActions[number], (request: RequestDetail) => ReactNode>>;
 
 export function RequestActions({ request, renderers = {} }: {
