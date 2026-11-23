@@ -245,3 +245,29 @@ FROM recycling_facility
 WHERE (postal_code LIKE 'T2N%' OR postal_code LIKE 'T2T%')
   AND special_instructions IS NULL
 ORDER BY name;
+
+-- F3. Open requests in a volunteer's preferred postal codes.
+--    Rationale: the volunteer's default discovery list shows only Open requests in
+--               their preferred codes (FR12).
+--    Citation:  FR12 · App: store.js listAvailable (l.135), "pickup_postal_code = ANY($1)"
+--    Concepts:  WHERE, AND, IN (with a list from a subquery)
+--    Uses:      view request_current_status (op 0) for the current status
+SELECT RIGHT(pickup_request_id::text, 4) AS request, category_id, pickup_postal_code
+FROM request_current_status
+WHERE status = 'Open'
+  AND pickup_postal_code IN (SELECT postal_code
+                             FROM volunteer_preferred_postal_code
+                             WHERE account_id = 'volunteer1')
+ORDER BY pickup_postal_code, request;
+
+-- F4. Active pickup windows in the next 7 days (Calgary dates).
+--    Rationale: shows the pickups scheduled for the coming week, for planning
+--               and for the windows a volunteer can still pick from.
+--    Citation:  FR07, FR12
+--    Concepts:  WHERE, BETWEEN (inclusive date range), AND, boolean column
+SELECT RIGHT(pickup_request_id::text, 4) AS request, pickup_date, start_hour
+FROM pickup_window
+WHERE is_active
+  AND pickup_date BETWEEN (now() AT TIME ZONE 'America/Edmonton')::date
+                      AND (now() AT TIME ZONE 'America/Edmonton')::date + 7
+ORDER BY pickup_date, start_hour, request;
