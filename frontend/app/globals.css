@@ -28,6 +28,8 @@
   --color-accent-2-800: #384528;
   --color-accent-2-900: #26301b;
   --color-on-moss: #f4f9ec;
+  --color-role-resident: var(--color-accent-700);
+  --color-role-volunteer: var(--color-accent-2-800);
 
   --color-neutral-100: #f9f4ed;
   --color-neutral-200: #eee7db;
@@ -49,6 +51,7 @@
   --color-border: color-mix(in srgb, #201e1d 14%, transparent);
   --color-border-strong: #766d5e;
   --color-on-accent: #fffaf3;
+  --color-on-danger: var(--color-on-accent);
   --color-text-muted: #5c5449;
   --color-warning-tint: #fdf0dc;
   --color-info-tint: #eef2ee;
