@@ -98,3 +98,25 @@ WHERE account_id = 'resident1'
 ORDER BY endpoint;
 
 ROLLBACK;
+
+-- 2. UPDATE operations
+
+-- U1. Change an account's public name.
+--    Rationale: users manage their profile; the public name is what others see on
+--               requests and public profiles. Deactivated accounts can't be edited.
+--    Citation:  FR04, FR05
+--    Concepts:  UPDATE ... SET ... WHERE, AND, IS NULL
+BEGIN;
+
+UPDATE account
+SET public_name = 'Avery CC'
+WHERE account_id = 'resident1'
+  AND deactivated_at IS NULL;
+
+-- Show the change.
+SELECT account_id, first_name, last_name, public_name
+FROM account
+WHERE account_id = 'resident1';
+
+ROLLBACK;
+
