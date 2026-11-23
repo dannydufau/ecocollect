@@ -13,10 +13,10 @@ HTMLDialogElement.prototype.close = function () { this.removeAttribute("open"); 
 
 describe("UI components", () => {
     it.each(["Open", "Assigned", "Collected", "Delivered", "Cancelled", "Expired", "Missed"] as const)(
-        "shows the %s badge with a symbol", (status) => {
+        "shows the %s badge with an icon and its word", (status) => {
             const { container } = render(<StatusBadge status={status} />);
             expect(screen.getByText(status)).toBeTruthy();
-            expect(container.querySelector('[aria-hidden="true"]')?.textContent).toBeTruthy();
+            expect(container.querySelector("svg[aria-hidden=true]")).not.toBeNull();
         },
     );
 
@@ -125,10 +125,24 @@ it("Spinner stops spinning for people who ask for less motion", () => {
     expect(screen.getByRole("status").querySelector("[aria-hidden=true]")).toHaveClass("motion-reduce:animate-none");
 });
 
-it.each(["Active", "Cancelled by me", "Cancelled by resident"] as const)("StatusBadge shows the assignment status %s with a symbol and its word", status => {
+it.each(["Active", "Cancelled by me", "Cancelled by resident"] as const)("StatusBadge shows the assignment status %s with an icon and its word", status => {
     render(<StatusBadge status={status} />);
     const badge = screen.getByText(status);
-    expect(badge.querySelector("[aria-hidden=true]")?.textContent).toBeTruthy();
+    expect(badge.querySelector("svg[aria-hidden=true]")).not.toBeNull();
+});
+
+it("StatusBadge draws a different shape for each kind of status, and no text symbol", () => {
+    const statuses = ["Open", "Assigned", "Collected", "Delivered", "Cancelled", "Expired", "Missed", "Active", "Cancelled by me", "Cancelled by resident"] as const;
+    const shapes = statuses.map(status => {
+        const { container, unmount } = render(<StatusBadge status={status} />);
+        const svg = container.querySelector("svg")!;
+        // The name stays the visible word, with no character from the icon in it
+        expect(container.firstElementChild!.textContent).toBe(status);
+        unmount();
+        return svg.innerHTML;
+    });
+    // Assigned and Active, and the three cancelled ones, share a shape on purpose
+    expect(new Set(shapes).size).toBe(7);
 });
 
 it.each([[undefined, "max-w-md"], ["md", "max-w-md"], ["lg", "max-w-xl"]] as const)("ConfirmDialog with size %s uses %s", (size, width) => {

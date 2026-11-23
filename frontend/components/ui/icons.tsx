@@ -72,3 +72,20 @@ export const BellIcon = (props: Props) => <Icon {...props}>
 export const LeafIcon = (props: Props) => <Icon {...props}>
     <path d="M5 19c0-8.5 5.5-14 15-14 0 9.5-5.5 15-14 15" /><path d="M5 19c3-4 6-6.5 10-8.5" />
 </Icon>;
+
+// The status badge shapes: empty, half and three-quarter circles for the steps of a pickup
+export const CircleIcon = (props: Props) => <Icon {...props}><circle cx="12" cy="12" r="8" /></Icon>;
+
+export const CircleHalfIcon = (props: Props) => <Icon {...props}>
+    <circle cx="12" cy="12" r="8" /><path d="M12 4a8 8 0 0 1 0 16Z" fill="currentColor" />
+</Icon>;
+
+export const CircleThreeQuartersIcon = (props: Props) => <Icon {...props}>
+    <circle cx="12" cy="12" r="8" /><path d="M12 12V4a8 8 0 1 1-8 8Z" fill="currentColor" />
+</Icon>;
+
+export const CrossIcon = (props: Props) => <Icon {...props}><path d="m6 6 12 12M18 6 6 18" /></Icon>;
+
+export const DashIcon = (props: Props) => <Icon {...props}><path d="M6 12h12" /></Icon>;
+
+export const ExclamationIcon = (props: Props) => <Icon {...props}><path d="M12 5v9M12 19h.01" /></Icon>;
