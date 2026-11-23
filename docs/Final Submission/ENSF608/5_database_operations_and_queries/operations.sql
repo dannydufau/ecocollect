@@ -1,6 +1,9 @@
 -- ENSF 608 Section 5: Database Operations and Queries
 -- Runs on the physical model in "../4. Physical model/" (tables.sql, transactions.sql, seed.sql).
 -- Sections follow the category table in the 608 project description.
+-- Citations: FRxx = ENSF607/1. Functional Requirements; App: <file>:<line> <function>, files under
+--   backend/src/ (store.js = api/requests/, accounts.ts and profile.ts = user/, notification-store.js
+--   and subscriptions.js = notification/ on branch 103-notification-sse-push, marked #103).
 
 SET search_path TO ecocollect608, public;
 
@@ -40,7 +43,7 @@ ORDER BY status, resident_id;
 -- I1. Register a resident.
 --    Rationale: sign-up creates the account, its resident role (with address) and the
 --               acceptance of the current terms, together or not at all.
---    Citation:  FR01, FR22 · App: accounts.ts saveRegistration (l.69), same tables
+--    Citation:  FR01, FR22 · App: accounts.ts:69 saveRegistration (same tables)
 --    Concepts:  transaction, INSERT ... VALUES, INSERT ... SELECT, CALL, 3-table join
 --    Uses:      check_business_rules() (transactions.sql)
 BEGIN;
@@ -78,7 +81,7 @@ ROLLBACK;
 --    Rationale: when a user turns on push in a browser, its endpoint and keys are stored
 --               so pushes can be sent there; the same browser subscribing again updates
 --               its row instead of failing.
---    Citation:  FR19 · App (#103): subscriptions.js add (l.9), same statement
+--    Citation:  FR19 · App: subscriptions.js:9 add (#103, same statement)
 --    Concepts:  INSERT ... VALUES, ON CONFLICT DO UPDATE (upsert), EXCLUDED
 BEGIN;
 
@@ -86,7 +89,8 @@ INSERT INTO push_subscription (endpoint, account_id, p256dh, auth, expiration_ti
 VALUES ('https://push.example.test/resident1-laptop', 'resident1',
         'BExampleP256dhKeyResident1Laptop', 'exampleAuthSecret1', NULL, 'Firefox on Linux', now())
 ON CONFLICT (endpoint) DO UPDATE SET
-  account_id = EXCLUDED.account_id,  -- EXCLUDED = the row we tried to insert; take its value  p256dh = EXCLUDED.p256dh,
+  account_id = EXCLUDED.account_id,  -- EXCLUDED = the row we tried to insert; take its value
+  p256dh = EXCLUDED.p256dh,
   auth = EXCLUDED.auth,
   expiration_time = EXCLUDED.expiration_time,
   user_agent = EXCLUDED.user_agent,
@@ -161,7 +165,14 @@ WHERE pickup_request_id = '00000003-0000-4000-8000-000000000001';
 CALL check_business_rules();
 
 -- f) Show the result.
-SELECT RIGHT(w.pickup_window_id::text, 4) AS
+SELECT RIGHT(w.pickup_window_id::text, 4) AS window, w.pickup_date, w.start_hour,
+       w.is_active, pr.request_seq
+FROM pickup_window w
+JOIN pickup_request pr ON pr.pickup_request_id = w.pickup_request_id
+WHERE w.pickup_request_id = '00000003-0000-4000-8000-000000000001'
+ORDER BY w.is_active DESC, w.pickup_date, w.start_hour;
+
+ROLLBACK;
 
 -- 3. DELETE operations
 
@@ -196,7 +207,7 @@ ROLLBACK;
 -- D2. Delete expired push subscriptions.
 --    Rationale: a browser subscription past its expiration time can't receive pushes;
 --               removing it keeps the Notification Service from sending to dead endpoints.
---    Citation:  FR19 · App (#103): subscriptions.js remove (l.39), variant: by expiry, not one endpoint
+--    Citation:  FR19 · App: subscriptions.js:39 remove (#103; variant: by expiry, not one endpoint)
 --    Concepts:  DELETE ... WHERE, IS NOT NULL, AND, comparison with now()
 BEGIN;
 
@@ -229,7 +240,7 @@ ROLLBACK;
 -- F1. A volunteer's preferred postal codes.
 --    Rationale: shown on the volunteer's profile; these codes decide which new requests
 --               they're notified about and their default discovery filter.
---    Citation:  FR04, FR12 · App: profile.ts (preferred codes subquery)
+--    Citation:  FR04, FR12 · App: profile.ts:18 loadProfile (preferred codes subquery)
 --    Concepts:  SELECT, WHERE
 SELECT postal_code
 FROM volunteer_preferred_postal_code
@@ -250,7 +261,7 @@ ORDER BY name;
 -- F3. Open requests in a volunteer's preferred postal codes.
 --    Rationale: the volunteer's default discovery list shows only Open requests in
 --               their preferred codes (FR12).
---    Citation:  FR12 · App: store.js listAvailable (l.135), "pickup_postal_code = ANY($1)"
+--    Citation:  FR12 · App: store.js:135 listAvailable ("pickup_postal_code = ANY($1)")
 --    Concepts:  WHERE, AND, IN (with a list from a subquery)
 --    Uses:      view request_current_status (op 0) for the current status
 SELECT RIGHT(pickup_request_id::text, 4) AS request, category_id, pickup_postal_code
@@ -278,7 +289,7 @@ ORDER BY pickup_date, start_hour, request;
 -- O1. Item categories for the request form, by waste type then name.
 --    Rationale: residents pick a category when creating a request; its standard weight
 --               drives the system's weight estimate.
---    Citation:  FR06 · App: store.js loadCategories (l.21)
+--    Citation:  FR06 · App: store.js:21 loadCategories
 --    Concepts:  ORDER BY on two columns, AS (column alias)
 SELECT name AS category, waste_type, standard_weight_kg
 FROM item_category
@@ -287,8 +298,8 @@ ORDER BY waste_type, name;
 -- O2. Newest notifications for an account, first page.
 --    Rationale: the in-app notification list shows the newest first, a page at a time;
 --               expired notifications are hidden (FR19).
---    Citation:  FR19 · App (#103): notification-store.js listForAccount (l.84),
---               "ORDER BY n.created_at DESC ... LIMIT $3"
+--    Citation:  FR19 · App: notification-store.js:84 listForAccount (#103;
+--               "ORDER BY n.created_at DESC ... LIMIT $3")
 --    Concepts:  ORDER BY ... DESC, LIMIT, WHERE, AND NOT, join
 SELECT n.type, n.created_at, n.is_read,
        RIGHT(rn.pickup_request_id::text, 4) AS request
@@ -329,8 +340,8 @@ WHERE rcs.status = 'Open';
 -- A3. Unread notification count for an account (the badge on the bell icon).
 --    Rationale: users see how many unread, still-relevant notifications they have;
 --               expired ones don't count (FR19).
---    Citation:  FR19 · App (#103): notification-store.js listForAccount (l.97),
---               "SELECT count(*) ... AND NOT n.is_expired AND NOT n.is_read"
+--    Citation:  FR19 · App: notification-store.js:97 listForAccount (#103;
+--               "SELECT count(*) ... AND NOT n.is_expired AND NOT n.is_read")
 --    Concepts:  COUNT, WHERE, AND NOT, join
 SELECT COUNT(*) AS unread
 FROM request_notification rn
@@ -385,7 +396,7 @@ ORDER BY f.name;
 
 -- J2. A resident's pickup requests with category, weight and current status.
 --    Rationale: the resident's "My requests" list (FR09), newest first.
---    Citation:  FR09 · App: store.js listMine (l.120), same operation (Oct 28 schema)
+--    Citation:  FR09 · App: store.js:120 listMine (same operation, Oct 28 schema)
 --    Concepts:  INNER JOIN (view + 2 tables), WHERE, ORDER BY ... DESC
 --    Uses:      view request_current_status (op 0) for the owner and current status
 SELECT RIGHT(pr.pickup_request_id::text, 4) AS request,
@@ -477,7 +488,7 @@ ORDER BY points DESC, account_id;
 
 -- P1. mark_all_read: mark all of an account's notifications as read.
 --    Rationale: the "mark all as read" action in the notification list (FR19).
---    Citation:  FR19 · App (#103): notification-store.js markAllRead (l.120), same UPDATE
+--    Citation:  FR19 · App: notification-store.js:120 markAllRead (#103, same UPDATE)
 --    Concepts:  stored procedure, IN parameter, UPDATE ... FROM (multi-table update), CALL
 --    Mandate:   Lecture 12 - 3: data changes encapsulated in stored procedures, called with
 --               CALL. Postgres form: $$ body instead of DELIMITER, LANGUAGE plpgsql.
@@ -519,8 +530,8 @@ ROLLBACK;
 --    Rationale: tapping a notification marks it read (FR19); a user must not be able to
 --               change someone else's notification, and the caller needs to know which
 --               happened (the app answers 404 when nothing matched).
---    Citation:  FR19 · App (#103): notification-store.js markRead (l.108), same UPDATE,
---               "return rowCount > 0"
+--    Citation:  FR19 · App: notification-store.js:108 markRead (#103, same UPDATE;
+--               "return rowCount > 0")
 --    Concepts:  stored procedure, IN and OUT parameters, UPDATE ... FROM, FOUND, CALL
 --    Mandate:   Lecture 12 - 2.2: typed IN/OUT parameters; result returned through OUT.
 --               Postgres form: OUT value set with :=, CALL passes NULL for the OUT slot.
