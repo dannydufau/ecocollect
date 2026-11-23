@@ -227,11 +227,13 @@ test('a RequestCreated reaches the resident and matched volunteers as signals, n
   const volunteer = `it-volunteer-${randomUUID()}`;
   const offline = `it-offline-${randomUUID()}`;
   const bystander = `it-bystander-${randomUUID()}`;
-  const subscribers = [resident, volunteer, offline];
+  const deactivated = `it-inactive-${randomUUID()}`;
+  const subscribers = [resident, volunteer, offline, deactivated];
   const db = new Pool({ connectionString: URL_DB });
   const tabs = [];
   try {
     await addAccounts(db, subscribers);
+    await db.query('UPDATE users.account SET deactivated_at = now() WHERE account_id = $1', [deactivated]);
     const residentTab = await openTab(service.url, resident);
     const volunteerTab = await openTab(service.url, volunteer);
     const bystanderTab = await openTab(service.url, bystander); // connected, but not a recipient
@@ -246,7 +248,7 @@ test('a RequestCreated reaches the resident and matched volunteers as signals, n
       categoryName: 'Computers/Laptops',
       quantity: 2,
       postalCode: 'T2P1J9',
-      matchedVolunteerUids: [volunteer, offline],
+      matchedVolunteerUids: [volunteer, offline, deactivated],
     });
 
     // The notification is written after the signal, so waiting for it means both arrived.
@@ -274,6 +276,7 @@ test('a RequestCreated reaches the resident and matched volunteers as signals, n
       'the pushes at the push service',
     );
     assert.ok(!pushService.paths.includes(`/push/${resident}`));
+    assert.ok(!pushService.paths.includes(`/push/${deactivated}`));
 
     // The offline volunteer had no tab: logged as delivered to 0 tabs, no error.
     assert.ok(service.lines.some((l) => l.includes(`-> ${offline} (0 open tabs)`)));
@@ -281,7 +284,7 @@ test('a RequestCreated reaches the resident and matched volunteers as signals, n
     assert.deepEqual(framesIn(bystanderTab, 'signal'), []);
     assert.deepEqual(notificationsIn(bystanderTab), []);
 
-    // Each recipient's notification is stored once, with its account and request.
+    // Each recipient's notification is stored once, with its account and request; none for the deactivated account.
     const stored = await db.query(
       'SELECT account_id FROM notifications.request_notification WHERE pickup_request_id = $1 ORDER BY account_id',
       [requestId],

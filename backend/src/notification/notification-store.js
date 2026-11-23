@@ -34,8 +34,16 @@ function createNotificationStore(pool) {
         [pickupRequestId, requestSeq, transitionId],
       );
 
+      // Deactivated accounts get nothing (and an id with no account is skipped, not retried forever).
+      const active = await client.query(
+        'SELECT account_id FROM users.account WHERE account_id = ANY($1) AND deactivated_at IS NULL',
+        [rows.map((r) => r.accountId)],
+      );
+      const activeIds = new Set(active.rows.map((r) => r.account_id));
+
       const saved = new Set();
       for (const row of rows) {
+        if (!activeIds.has(row.accountId)) continue;
         const { rowCount } = await client.query(
           `INSERT INTO notifications.notification
              (notification_id, type, created_at, pushed_at, is_read, is_expired)
