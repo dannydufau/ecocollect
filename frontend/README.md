@@ -67,6 +67,7 @@ The API and event contracts live at the repo root: `contracts/openapi.yaml` (eve
 |---|---|
 | `npm run dev` | Dev server |
 | `npm run build` | Production build |
+| `npm run size` | Check the first-load JavaScript produced by the build |
 | `npm test` | Unit and component tests (Vitest) |
 | `npm run lint` | ESLint |
 | `npm run mock` | Mock API |
@@ -81,3 +82,34 @@ The API and event contracts live at the repo root: `contracts/openapi.yaml` (eve
 - `mock/` the mock API. Each file in `mock/routes/` adds its own routes.
 
 Times are shown in Calgary time (`lib/time.ts`). Postal codes are sent as `T2P1J9` and shown as `T2P 1J9`.
+
+## Baseline
+
+`baseline-js.json` records the untouched `frontend` branch at `dc456ef` using Next.js 16.4.3 with Turbopack. The size check reads the build's route diagnostics and sums each route's distinct first-load chunks in raw and gzip bytes. To compare with the recorded build, use the same placeholder Firebase configuration in a shell where the other `NEXT_PUBLIC_*` settings are unset. Next.js embeds these values in the browser bundle.
+
+```sh
+export NEXT_PUBLIC_FIREBASE_API_KEY=demo-local-key
+export NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=example.test
+export NEXT_PUBLIC_FIREBASE_PROJECT_ID=demo-ecocollect
+export NEXT_PUBLIC_FIREBASE_APP_ID=1:123:web:demo
+npm run build
+npm run size
+```
+
+For intentional growth, rerun `npm run size -- --write` after the build and explain the increase in the PR.
+
+`next experimental-analyze --output` identified the 163,043-byte shared chunk (45,158 bytes gzip) as Next.js client runtime code. Its largest parts are the React Server Components client for Turbopack and the Next.js segment cache, prefetch scheduler, and render tree.
+
+Chrome DevTools Lighthouse 13.5.0 performance runs used the earlier production build from `843ceb8` and default navigation profiles. LCP and TBT are in milliseconds.
+
+| Route | Device | LCP (ms) | CLS | TBT (ms) |
+|---|---|---:|---:|---:|
+| `/login` | Mobile | 2,606 | 0 | 257 |
+| `/login` | Desktop | 541 | 0 | 0 |
+| `/register` | Mobile | 1,702 | 0 | 2,182 |
+| `/register` | Desktop | 637 | 0 | 49 |
+| `/resident`, `/volunteer`, a request detail, and `/ecopoints` | Mobile and desktop | Pending | Pending | Pending |
+
+FE-092 (#402) added the authenticated browser setup. The signed-in Lighthouse runs still need to be recorded. Real-account sign-in to first content still needs a DevTools Performance recording with a working Firebase account.
+
+`npm audit` reported 12 findings (4 high and 8 moderate). The high findings include Firebase, its Firestore packages, and gRPC. The Next.js build also reported that the installed version has a known vulnerability and recommended upgrading. Dependency versions are unchanged in this baseline.

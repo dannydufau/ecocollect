@@ -1,0 +1,74 @@
+{
+  "/": {
+    "raw": 656530,
+    "gzip": 198850
+  },
+  "/_not-found": {
+    "raw": 656112,
+    "gzip": 198530
+  },
+  "/choose-role": {
+    "raw": 658270,
+    "gzip": 199613
+  },
+  "/demo": {
+    "raw": 657970,
+    "gzip": 199625
+  },
+  "/ecopoints": {
+    "raw": 660947,
+    "gzip": 200811
+  },
+  "/login": {
+    "raw": 658835,
+    "gzip": 199917
+  },
+  "/notifications": {
+    "raw": 663592,
+    "gzip": 201789
+  },
+  "/profile": {
+    "raw": 678901,
+    "gzip": 206464
+  },
+  "/profiles/[accountId]": {
+    "raw": 659850,
+    "gzip": 200169
+  },
+  "/register": {
+    "raw": 668246,
+    "gzip": 203182
+  },
+  "/resident": {
+    "raw": 661095,
+    "gzip": 200883
+  },
+  "/resident/requests/[id]": {
+    "raw": 693157,
+    "gzip": 210033
+  },
+  "/resident/requests/[id]/edit": {
+    "raw": 678619,
+    "gzip": 206713
+  },
+  "/resident/requests/new": {
+    "raw": 680221,
+    "gzip": 206764
+  },
+  "/stats": {
+    "raw": 659909,
+    "gzip": 200098
+  },
+  "/volunteer": {
+    "raw": 664308,
+    "gzip": 202169
+  },
+  "/volunteer/history": {
+    "raw": 660667,
+    "gzip": 200793
+  },
+  "/volunteer/requests/[id]": {
+    "raw": 680081,
+    "gzip": 206464
+  }
+}
