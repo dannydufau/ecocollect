@@ -5,7 +5,7 @@
 import * as v from 'valibot';
 import { parseBody, Uuid } from './body-validation.ts';
 import { PickupWindows } from './create-requests-body.ts';
-import { normaliseReason, Reason } from './reason.ts';
+import { blankToNull, Reason } from './input-free-text.ts';
 
 const ReportMissed = v.strictObject({
   reason: v.optional(Reason),
@@ -35,7 +35,7 @@ export function parseReportMissedBody(body: unknown): ReportMissedBody {
     : null;
 
   return {
-    reason: normaliseReason(reason),
+    reason: blankToNull(reason),
     reschedule: reschedule !== undefined,
     termsDocumentId,
     dates: reschedule?.windows.map((w) => w.date) ?? null,

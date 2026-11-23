@@ -4,7 +4,7 @@
 // --test, REQUEST_TEST_DATABASE_URL (see db.ts), and `npm ci` in contracts/.
 import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { REASON_MAX_CHARS } from '../../src/request/http/reason.ts';
+import { FREE_TEXT_MAX_CHARS } from '../../src/request/http/input-free-text.ts';
 import { skipDb } from './db.ts';
 import { SEED_RESIDENT_VOLUNTEER_ID } from './seed.ts';
 import {
@@ -34,7 +34,7 @@ describe('Q10 cancel', { skip: skipDb }, () => {
     const requestId = await createOpen(app.call, owner);
     const path = `/api/requests/${requestId}/cancel`;
 
-    const tooLong = await app.call('POST', path, owner, { reason: 'x'.repeat(REASON_MAX_CHARS + 1) });
+    const tooLong = await app.call('POST', path, owner, { reason: 'x'.repeat(FREE_TEXT_MAX_CHARS + 1) });
     check.expectError(tooLong, 400, 'validation_failed');
     assert.ok((tooLong.body as ErrorBody).error.details?.fields?.reason);
 

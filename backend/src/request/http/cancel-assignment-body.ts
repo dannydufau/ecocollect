@@ -5,7 +5,7 @@
 import * as v from 'valibot';
 import { parseBody } from './body-validation.ts';
 import { PickupWindows } from './create-requests-body.ts';
-import { normaliseReason, Reason } from './reason.ts';
+import { blankToNull, Reason } from './input-free-text.ts';
 
 const CancelAssignment = v.strictObject({
   as: v.optional(v.picklist(['resident', 'volunteer'], 'must be "resident" or "volunteer"')),
@@ -25,7 +25,7 @@ export function parseCancelAssignmentBody(body: unknown): CancelAssignmentBody {
   const { as, reason, windows } = parseBody(CancelAssignment, body ?? {});
   return {
     as: as ?? null,
-    reason: normaliseReason(reason),
+    reason: blankToNull(reason),
     dates: windows?.map((w) => w.date) ?? null,
     hours: windows?.map((w) => w.startHour) ?? null,
   };

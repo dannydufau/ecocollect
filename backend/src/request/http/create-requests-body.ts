@@ -6,6 +6,7 @@
 import * as v from 'valibot';
 import { parseBody, Uuid } from './body-validation.ts';
 import { termsOutdated, validationFailed } from './errors.ts';
+import { blankToNull, fitsFreeTextLimit } from './input-free-text.ts';
 
 const INT_MAX = 2_147_483_647;         // quantity is an INT parameter
 
@@ -35,12 +36,6 @@ export const CategoryId = v.message(v.pipe(v.string(), v.minLength(1)), 'must be
 export const Quantity = v.message(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(INT_MAX)),
                                   `must be a whole number from 1 to ${INT_MAX}`);
 
-// The resident's notes (Q4, Q9): at most NOTES_MAX_CHARS, the same limit as reason.
-// Counted in code points, as reason.ts explains; checked on the string as sent.
-export const NOTES_MAX_CHARS = 500;
-export const notesFit = v.check((s: string) => [...s].length <= NOTES_MAX_CHARS,
-                                `must be at most ${NOTES_MAX_CHARS} characters`);
-
 // An uploaded photo (PhotoRef). Not an object, or an unknown key: toFields
 // words these itself. Whether the file is usable is checked with ImageKit (6.5).
 export const PhotoRef = v.strictObject({
@@ -54,7 +49,7 @@ const CreateRequests = v.strictObject({
     photo: v.optional(PhotoRef),
   })), v.minLength(1)), 'must have at least 1 item'),
   windows: PickupWindows,
-  notes: v.optional(v.pipe(v.string('must be text'), notesFit)),
+  notes: v.optional(v.pipe(v.string('must be text'), fitsFreeTextLimit)),
   termsDocumentId: v.message(v.pipe(v.string(), v.minLength(1)), 'must be the current terms document id'),
 });
 
@@ -64,7 +59,7 @@ export type CreateRequestsBody = {
   photoFileIds: (string | null)[];     // null: the item has no photo
   dates: string[];                     // 'YYYY-MM-DD', a real calendar date
   hours: number[];
-  notes: string | null;
+  notes: string | null;                // null: not sent, or blank
   termsDocumentId: string;             // a well-formed UUID
 };
 
@@ -94,7 +89,7 @@ export function parseCreateRequestsBody(body: unknown): CreateRequestsBody {
     photoFileIds: items.map((item) => item.photo?.fileId ?? null),
     dates: windows.map((w) => w.date),
     hours: windows.map((w) => w.startHour),
-    notes: notes ?? null,
+    notes: blankToNull(notes),
     termsDocumentId,
   };
 }

@@ -2,7 +2,7 @@
 // call. The body is optional: no body is the same as {}.
 import * as v from 'valibot';
 import { parseBody } from './body-validation.ts';
-import { normaliseReason, Reason } from './reason.ts';
+import { blankToNull, Reason } from './input-free-text.ts';
 
 const CancelRequest = v.strictObject({
   reason: v.optional(Reason),
@@ -15,5 +15,5 @@ export type CancelBody = {
 // express.json leaves req.body undefined when there is no body (or it isn't JSON).
 export function parseCancelBody(body: unknown): CancelBody {
   const { reason } = parseBody(CancelRequest, body ?? {});
-  return { reason: normaliseReason(reason) };
+  return { reason: blankToNull(reason) };
 }
