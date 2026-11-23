@@ -78,9 +78,9 @@ function deliverRequestEvent(handler, { leavesOpen }) {
     const deliveries = handler(envelope);
     const request = envelope.data.request ?? envelope.data;
     const requestId = request.requestId;
-    // A new request is at step 1; v2 and later events carry requestSeq.
+    // Only the old v1 RequestCreated lacks these (a new request is step 1, its own action);
+    // every later event is rejected by its handler without them.
     const requestSeq = request.requestSeq ?? 1;
-    // The user action behind the event; a v1 RequestCreated has none, so the event stands for itself.
     const transitionId = request.transitionId ?? envelope.eventId;
     const { saved, expired, stale } = await notifications.saveRequestNotifications(
       deliveries.map(({ uid, notification }) => ({

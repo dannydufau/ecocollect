@@ -131,7 +131,8 @@ function requestCreated(envelope) {
 
 /*
  * The request snapshot that every later request event carries in data.request.
- * Throws without the ids the notifications are built from, so the subscriber retries it.
+ * Throws without the ids, step or action the notifications are built from, so the
+ * subscriber retries the event and, if it never gets better, dead-letters it.
  */
 function snapshotOf(envelope, eventName) {
   const request = envelope?.data?.request;
@@ -140,6 +141,12 @@ function snapshotOf(envelope, eventName) {
   }
   if (typeof envelope.eventId !== 'string' || envelope.eventId === '') {
     throw new Error(`${eventName} without an eventId`);
+  }
+  if (!Number.isInteger(request.requestSeq) || request.requestSeq < 1) {
+    throw new Error(`${eventName} without a requestSeq`);
+  }
+  if (typeof request.transitionId !== 'string' || request.transitionId === '') {
+    throw new Error(`${eventName} without a transitionId`);
   }
   return request;
 }
