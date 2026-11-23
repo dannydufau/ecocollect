@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { EmptyState, QueryError, Spinner, card, pageTitle, panel, textLink } from "@/components/ui";
+import { EmptyState, LeafIcon, LoadingRegion, QueryError, card, pageTitle, panel, textLink } from "@/components/ui";
 import { api, isAuthError } from "@/lib/api";
 import type { operations } from "@/lib/api-types";
 import { queryKeys } from "@/lib/query-keys";
@@ -26,7 +26,7 @@ export default function EcoPointsPage() {
         <main className="p-4 sm:p-8">
             <div className="mx-auto max-w-5xl space-y-6">
                 <h1 className={pageTitle}>EcoPoints</h1>
-                {isPending && <Spinner label="Loading EcoPoints..." />}
+                {isPending && <LoadingRegion label="Loading EcoPoints..." />}
                 {isError && <QueryError message={isAuthError(error) ? "Please log in to view your EcoPoints." : "We could not load this page. Check your connection and try again."} onRetry={() => refetch()} busy={isFetching} />}
                 {data && <>
                     <dl className="grid gap-3 sm:grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
@@ -47,7 +47,7 @@ export default function EcoPointsPage() {
                     <p className="text-text-muted">Volunteers earn 3 points per item plus 4 per kg. Residents earn half of that when their request is delivered.</p>
                     <section className="space-y-3" aria-labelledby="award-history">
                         <h2 id="award-history" className="text-2xl">Your awards</h2>
-                        {!data.awards.length ? <EmptyState title="No EcoPoints yet.">Points are awarded when a pickup is delivered.</EmptyState> : (
+                        {!data.awards.length ? <EmptyState icon={<LeafIcon />} title="No EcoPoints yet.">Points are awarded when a pickup is delivered.</EmptyState> : (
                             <ul className="divide-y divide-border rounded-2xl border border-border bg-surface-elevated shadow-rest">
                                 {data.awards.map(award => (
                                     <li key={award.awardId} className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 p-4">

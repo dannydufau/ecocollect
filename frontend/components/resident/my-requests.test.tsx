@@ -46,6 +46,14 @@ it("shows an empty state and a new request link", async () => {
     expect(await screen.findByText("You have no requests yet.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Create your first request" })).toHaveAttribute("href", "/resident/requests/new");
 });
+it("draws the first-run empty state with the shared EmptyState and an icon, not its own heading", async () => {
+    vi.mocked(api.get).mockResolvedValue([]);
+    const { container } = renderWithClient(<MyRequests />);
+    const title = await screen.findByText("You have no requests yet.");
+    expect(title.tagName).toBe("P");
+    expect(title.parentElement!.querySelector("[aria-hidden=true] svg")).not.toBeNull();
+    expect(container.querySelector("h2")).toBeNull();
+});
 it("says which status has no requests when a filter is empty", async () => {
     renderWithClient(<MyRequests />);
     await screen.findByRole("link", { name: "2 × Computers/Laptops" });

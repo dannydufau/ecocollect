@@ -9,7 +9,7 @@ import { formatPostalCode } from "@/lib/postal-code";
 import { formatTimestamp, formatWindow, friendlyWindow } from "@/lib/time";
 import type { AvailableRequest } from "@/lib/types";
 import { useProfile } from "@/lib/use-profile";
-import { Button, EmptyState, MapPinIcon, QueryError, Spinner, clickableCard, identifier, pageTitle, stretchedLink, textLink } from "@/components/ui";
+import { Button, EmptyState, LoadingRegion, MapPinIcon, PackageIcon, QueryError, clickableCard, identifier, pageTitle, stretchedLink, textLink } from "@/components/ui";
 import PostalFilter from "./postal-filter";
 
 export default function AvailableRequests() {
@@ -33,11 +33,11 @@ export default function AvailableRequests() {
             {!empty && codes?.length === 0 && profile.data?.preferredPostalCodes.length === 0 && <p className="text-text-muted">
                 Save preferred postal codes in your <Link href="/profile" className={textLink}>profile</Link> to see nearby requests first.
             </p>}
-            {isPending && <Spinner label="Loading requests..." />}
+            {isPending && <LoadingRegion label="Loading requests..." />}
             {isError && <QueryError message="We could not load the requests. Please try again." onRetry={() => void refetch()} busy={isFetching} />}
             {empty && (codes?.length
-                ? <EmptyState title="No open requests in these areas." action={<Button variant="secondary" onClick={() => setCodes([])}>Show all areas</Button>} />
-                : <EmptyState title="No open requests right now.">
+                ? <EmptyState icon={<PackageIcon />} title="No open requests in these areas." action={<Button variant="secondary" onClick={() => setCodes([])}>Show all areas</Button>} />
+                : <EmptyState icon={<PackageIcon />} title="No open requests right now.">
                     New requests appear here on their own. You can set your <Link href="/profile" className={textLink}>preferred postal codes in Profile</Link>.
                 </EmptyState>)}
             {data && data.length > 0 && <>
@@ -48,7 +48,7 @@ export default function AvailableRequests() {
                                                         <Link href={`/volunteer/requests/${encodeURIComponent(request.requestId)}`} className={stretchedLink}>
                                 {request.quantity} × {request.category.name}
                             </Link>
-                            <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-neutral-100 px-3 py-1 text-text-muted ${identifier}`}><MapPinIcon className="size-4" />{formatPostalCode(request.postalCode)}</span>
+                            <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-surface px-3 py-1 text-text-muted ${identifier}`}><MapPinIcon className="size-4" />{formatPostalCode(request.postalCode)}</span>
                         </div>
                         <p className="mt-1 text-text-muted">{request.estimatedWeightKg.toFixed(2)} kg{request.hasPhoto && " · Photo"}</p>
                         <ul className="mt-1">

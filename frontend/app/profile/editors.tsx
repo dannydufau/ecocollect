@@ -117,7 +117,7 @@ export function CodesEditor(props: EditorProps) {
             }}
             read={profile.preferredPostalCodes.length > 0
                 ? <ul className="flex flex-wrap gap-2">{profile.preferredPostalCodes.map((code) => (
-                    <li key={code} className={`rounded-full bg-neutral-100 px-3.5 py-1.5 ${identifier}`}>{formatPostalCode(code)}</li>
+                    <li key={code} className={`rounded-full bg-surface px-3.5 py-1.5 ${identifier}`}>{formatPostalCode(code)}</li>
                 ))}</ul>
                 : <p>You have no saved codes. You will not get new-request notifications and the list shows every area.</p>}
             fields={<div className="space-y-3">

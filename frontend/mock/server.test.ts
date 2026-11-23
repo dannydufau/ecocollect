@@ -6,6 +6,7 @@ import type { Server } from "node:http";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { startServer } from "./server.mjs";
 import { store } from "./store.mjs";
+import { fixtureAccounts, fixtureRequests } from "./fixtures.mjs";
 
 const routeFile = `
 export function register(route, store, { notify, emitPublic }) {
@@ -44,6 +45,31 @@ afterEach(async () => {
   await new Promise((resolve) => (server ? server.close(resolve) : resolve(null)));
   server = undefined;
   for (const dir of dirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
+});
+
+it("serves the same resident list across restarts with a fixed clock", async () => {
+  vi.stubEnv("MOCK_NOW", "2026-11-22T18:00:00Z");
+  async function readFixtureList() {
+    const mock = await startServer({ port: 0 });
+    try {
+      const url = `http://localhost:${(mock.address() as AddressInfo).port}/api/requests?view=mine`;
+      const response = await fetch(url, { headers: { authorization: `Bearer ${fixtureAccounts.resident}` } });
+      expect(response.status).toBe(200);
+      return await response.text();
+    } finally {
+      await new Promise<void>(resolve => mock.close(() => resolve()));
+    }
+  }
+  try {
+    const first = await readFixtureList();
+    expect(JSON.parse(first)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ requestId: fixtureRequests.Expired, status: "Expired" }),
+    ]));
+    expect(JSON.parse(first)).toHaveLength(7);
+    expect(await readFixtureList()).toBe(first);
+  } finally {
+    vi.unstubAllEnvs();
+  }
 });
 
 describe("mock server", () => {

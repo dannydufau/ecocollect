@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Button } from "./button";
 import { AlertIcon, CheckIcon, InfoIcon, WarningIcon } from "./icons";
 
 type Variant = "error" | "success" | "warning" | "info";
 
 // Pale fill, a thin border, an icon and a short bold lead, so the kind is not told by color alone
+// The success variant is also how the app says something worked (created, saved, accepted, delivered): place it directly
+// above the section it is about and keep it there. No toast and no auto-dismiss.
 const styles: Record<Variant, { box: string; lead: string; Icon: typeof AlertIcon }> = {
     error: { box: "border-danger bg-danger-50 text-danger-800", lead: "Error.", Icon: AlertIcon },
     success: { box: "border-accent-2-500 bg-accent-2-100 text-accent-2-800", lead: "Done.", Icon: CheckIcon },
@@ -14,23 +16,17 @@ const styles: Record<Variant, { box: string; lead: string; Icon: typeof AlertIco
     info: { box: "border-neutral-400 bg-info-tint text-text-muted", lead: "Note.", Icon: InfoIcon },
 };
 
-export function Alert({ variant, children, error, scrollIntoView = false, onDismiss }: {
+export function Alert({ variant, children, error, onDismiss }: {
     variant: Variant;
     children?: ReactNode;
     error?: Error | { message?: string } | string;
-    scrollIntoView?: boolean;
     onDismiss?: () => void;
 }) {
-    const ref = useRef<HTMLDivElement>(null);
     const message = typeof error === "string" ? error : error?.message;
     const { box, lead, Icon } = styles[variant];
 
-    useEffect(() => {
-        if (scrollIntoView) ref.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    }, [scrollIntoView, children, message]);
-
     return (
-        <div ref={ref} className={`fade-in flex items-start gap-2.5 rounded-2xl border px-4 py-3 text-small leading-snug ${box}`}>
+        <div className={`fade-in flex items-start gap-2.5 rounded-2xl border px-4 py-3 text-small leading-snug ${box}`}>
             <Icon className="mt-px size-5 flex-none" />
             {/* The live region leaves out the Dismiss button, so it is not read with the message */}
             <div role={variant === "error" ? "alert" : "status"} className="min-w-0 flex-1 self-center">
