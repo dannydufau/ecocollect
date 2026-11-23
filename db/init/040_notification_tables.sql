@@ -35,6 +35,40 @@ CREATE TABLE IF NOT EXISTS notifications.notification (
     CONSTRAINT notification_ck2 CHECK (pushed_at IS NULL OR pushed_at >= created_at)
 );
 
+-- REQUEST_EVENT (physical model): one row per request event received: which request, which step,
+-- which user action. Several notifications can point at the same event.
+CREATE TABLE IF NOT EXISTS notifications.request_event (
+    pickup_request_id UUID NOT NULL,
+    request_seq BIGINT NOT NULL,
+    transition_id UUID NOT NULL,
+    CONSTRAINT request_event_pk PRIMARY KEY (pickup_request_id, request_seq),
+    -- request_event_fk1 (pickup_request_id) -> requests.pickup_request: add when the
+    -- Request Service's tables are merged (db/init/010_request_tables.sql).
+    CONSTRAINT request_event_ck1 CHECK (request_seq > 0)
+);
+
+-- REQUEST_UPDATE_EVENT (physical model): why a request was edited or reopened.
+CREATE TABLE IF NOT EXISTS notifications.request_update_event (
+    pickup_request_id UUID NOT NULL,
+    request_seq BIGINT NOT NULL,
+    reason VARCHAR(10) NOT NULL,
+    CONSTRAINT request_update_event_pk PRIMARY KEY (pickup_request_id, request_seq),
+    CONSTRAINT request_update_event_fk1 FOREIGN KEY (pickup_request_id, request_seq)
+        REFERENCES notifications.request_event (pickup_request_id, request_seq),
+    CONSTRAINT request_update_event_ck1 CHECK (reason IN ('edited', 'reopened'))
+);
+
+-- REQUEST_CHANGED_FIELD (physical model): one row per field an edit changed.
+CREATE TABLE IF NOT EXISTS notifications.request_changed_field (
+    pickup_request_id UUID NOT NULL,
+    request_seq BIGINT NOT NULL,
+    field_name VARCHAR(20) NOT NULL,
+    CONSTRAINT request_changed_field_pk PRIMARY KEY (pickup_request_id, request_seq, field_name),
+    CONSTRAINT request_changed_field_fk1 FOREIGN KEY (pickup_request_id, request_seq)
+        REFERENCES notifications.request_update_event (pickup_request_id, request_seq),
+    CONSTRAINT request_changed_field_ck1 CHECK (field_name IN ('category', 'quantity', 'notes', 'windows', 'photo'))
+);
+
 -- REQUEST_NOTIFICATION (physical model): a notification about a request, and who receives it.
 CREATE TABLE IF NOT EXISTS notifications.request_notification (
     notification_id UUID NOT NULL,
@@ -45,12 +79,24 @@ CREATE TABLE IF NOT EXISTS notifications.request_notification (
     CONSTRAINT request_notification_fk1 FOREIGN KEY (notification_id)
         REFERENCES notifications.notification (notification_id),
     CONSTRAINT request_notification_fk2 FOREIGN KEY (account_id)
-        REFERENCES users.account (account_id)
-    -- request_notification_fk3 (pickup_request_id, request_seq) -> request_event: add when the
-    -- Request Service's tables are in db/init.
+        REFERENCES users.account (account_id),
+    CONSTRAINT request_notification_fk3 FOREIGN KEY (pickup_request_id, request_seq)
+        REFERENCES notifications.request_event (pickup_request_id, request_seq)
 );
 
 -- The notification list (N3) reads one account's notifications.
 CREATE INDEX IF NOT EXISTS request_notification_account_idx
     ON notifications.request_notification (account_id);
 
+-- AWARD_NOTIFICATION (physical model): a notification about an EcoPoints award. The recipient is
+-- found through the award, so it isn't stored here.
+CREATE TABLE IF NOT EXISTS notifications.award_notification (
+    notification_id UUID NOT NULL,
+    ecopoints_award_id UUID NOT NULL,
+    CONSTRAINT award_notification_pk PRIMARY KEY (notification_id),
+    CONSTRAINT award_notification_uq1 UNIQUE (ecopoints_award_id),
+    CONSTRAINT award_notification_fk1 FOREIGN KEY (notification_id)
+        REFERENCES notifications.notification (notification_id)
+    -- award_notification_fk2 (ecopoints_award_id) -> rewards.ecopoints_award: add when the
+    -- Reward Service's tables are merged (db/init/012_reward_tables.sql).
+);

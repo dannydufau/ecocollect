@@ -80,7 +80,8 @@ function deliverRequestEvent(handler, { leavesOpen }) {
     const requestId = request.requestId;
     // A new request is at step 1; v2 and later events carry requestSeq.
     const requestSeq = request.requestSeq ?? 1;
-
+    // The user action behind the event; a v1 RequestCreated has none, so the event stands for itself.
+    const transitionId = request.transitionId ?? envelope.eventId;
     const { saved, expired, stale } = await notifications.saveRequestNotifications(
       deliveries.map(({ uid, notification }) => ({
         notificationId: notification.notificationId,
@@ -88,7 +89,7 @@ function deliverRequestEvent(handler, { leavesOpen }) {
         createdAt: notification.createdAt,
         accountId: uid,
       })),
-      { pickupRequestId: requestId, requestSeq, leavesOpen },
+      { pickupRequestId: requestId, requestSeq, transitionId, leavesOpen },
     );
     if (stale) {
       console.log(`[notification] ${envelope.type} ${requestId} seq ${requestSeq} is late: saved expired, not sent`);

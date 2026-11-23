@@ -8,23 +8,31 @@ function createNotificationStore(pool) {
   /*
    * Saves one request event's notifications and applies the expiry rules, in one transaction.
    *   rows:  [{ notificationId, type, createdAt, accountId }]
-   *   event: { pickupRequestId, requestSeq, leavesOpen }
+   *   event: { pickupRequestId, requestSeq, transitionId, leavesOpen }
    * Returns { saved, expired, stale }:
    *   saved:   ids that were new (a redelivered event saves nothing again)
    *   expired: [{ notificationId, accountId }] that this event made stale
    *   stale:   true if a later step of this request was already seen, saved already expired
    */
-  async function saveRequestNotifications(rows, { pickupRequestId, requestSeq, leavesOpen }) {
+  async function saveRequestNotifications(rows, { pickupRequestId, requestSeq, transitionId, leavesOpen }) {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
 
       // An event older than one already seen for this request is late.
       const latest = await client.query(
-        'SELECT max(request_seq) AS seq FROM notifications.request_notification WHERE pickup_request_id = $1',
+        'SELECT max(request_seq) AS seq FROM notifications.request_event WHERE pickup_request_id = $1',
         [pickupRequestId],
       );
       const stale = latest.rows[0].seq !== null && requestSeq < Number(latest.rows[0].seq);
+
+      // The event itself, once: the request, its step and the user action. Its notifications point at it.
+      await client.query(
+        `INSERT INTO notifications.request_event (pickup_request_id, request_seq, transition_id)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (pickup_request_id, request_seq) DO NOTHING`,
+        [pickupRequestId, requestSeq, transitionId],
+      );
 
       const saved = new Set();
       for (const row of rows) {
@@ -93,7 +101,7 @@ function createNotificationStore(pool) {
        LIMIT $3`,
       [uid, before, limit],
     );
-    // Award notifications join here too once award_notification exists (UNION ALL, same columns).
+    // Award notifications join here too once they're saved (UNION ALL, same columns).
     const unread = await pool.query(
       `SELECT count(*)::int AS n
        FROM notifications.request_notification rn
@@ -131,4 +139,3 @@ function createNotificationStore(pool) {
 }
 
 module.exports = { createNotificationStore };
-

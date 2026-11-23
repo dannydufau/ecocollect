@@ -132,10 +132,11 @@ async function addAccounts(db, uids) {
 // Removes what the test wrote: notifications and subscriptions first, then the accounts they point at.
 async function removeAccounts(db, uids) {
   const { rows } = await db.query(
-    'DELETE FROM notifications.request_notification WHERE account_id = ANY($1) RETURNING notification_id',
+    'DELETE FROM notifications.request_notification WHERE account_id = ANY($1) RETURNING notification_id, pickup_request_id',
     [uids],
   );
   await db.query('DELETE FROM notifications.notification WHERE notification_id = ANY($1)', [rows.map((r) => r.notification_id)]);
+  await db.query('DELETE FROM notifications.request_event WHERE pickup_request_id = ANY($1)', [rows.map((r) => r.pickup_request_id)]);
   await db.query('DELETE FROM notifications.push_subscription WHERE account_id = ANY($1)', [uids]);
   await db.query('DELETE FROM users.account WHERE account_id = ANY($1)', [uids]);
 }
