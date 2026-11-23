@@ -448,3 +448,27 @@ FROM volunteer v
 JOIN account a ON a.account_id = v.account_id
 LEFT JOIN volunteer_preferred_postal_code p ON p.account_id = v.account_id
 ORDER BY v.account_id, p.postal_code;
+
+-- 10. SELECT queries combining JOINs, aggregates, filtering or grouping
+
+-- C1. EcoPoints earned per account and role, highest first.
+--    Rationale: residents and volunteers earn EcoPoints on delivery (and volunteers on
+--               late resident cancellations); this totals them per person and role (FR18).
+--    Citation:  FR18, FR23
+--    Concepts:  multi-table INNER JOIN, COUNT, SUM, GROUP BY, UNION ALL, ORDER BY
+SELECT ta.account_id, 'resident' AS earned_as, COUNT(*) AS awards, SUM(e.points) AS points
+FROM ecopoints_award e
+JOIN resident_award ra ON ra.ecopoints_award_id = e.ecopoints_award_id
+JOIN assignment a ON a.assignment_id = e.assignment_id
+JOIN pickup_window w ON w.pickup_window_id = a.pickup_window_id
+JOIN pickup_request pr ON pr.pickup_request_id = w.pickup_request_id
+JOIN terms_acceptance ta ON ta.terms_acceptance_id = pr.terms_acceptance_id
+GROUP BY ta.account_id
+UNION ALL
+SELECT ta.account_id, 'volunteer' AS earned_as, COUNT(*) AS awards, SUM(e.points) AS points
+FROM ecopoints_award e
+JOIN volunteer_award va ON va.ecopoints_award_id = e.ecopoints_award_id
+JOIN assignment a ON a.assignment_id = e.assignment_id
+JOIN terms_acceptance ta ON ta.terms_acceptance_id = a.terms_acceptance_id
+GROUP BY ta.account_id
+ORDER BY points DESC, account_id;
