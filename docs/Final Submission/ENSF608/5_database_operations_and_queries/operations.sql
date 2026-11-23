@@ -479,7 +479,7 @@ ORDER BY points DESC, account_id;
 --    Rationale: the "mark all as read" action in the notification list (FR19).
 --    Citation:  FR19 · App (#103): notification-store.js markAllRead (l.120), same UPDATE
 --    Concepts:  stored procedure, IN parameter, UPDATE ... FROM (multi-table update), CALL
---    Mandate:   Lecture 12 §3: data changes encapsulated in stored procedures, called with
+--    Mandate:   Lecture 12 - 3: data changes encapsulated in stored procedures, called with
 --               CALL. Postgres form: $$ body instead of DELIMITER, LANGUAGE plpgsql.
 DROP PROCEDURE IF EXISTS mark_all_read(VARCHAR);
 
@@ -512,5 +512,53 @@ FROM request_notification rn
 JOIN notification n ON n.notification_id = rn.notification_id
 WHERE rn.account_id = 'resident1'
 ORDER BY n.created_at DESC;
+
+ROLLBACK;
+
+-- P2. mark_read: mark one notification read, only if it belongs to the account.
+--    Rationale: tapping a notification marks it read (FR19); a user must not be able to
+--               change someone else's notification, and the caller needs to know which
+--               happened (the app answers 404 when nothing matched).
+--    Citation:  FR19 · App (#103): notification-store.js markRead (l.108), same UPDATE,
+--               "return rowCount > 0"
+--    Concepts:  stored procedure, IN and OUT parameters, UPDATE ... FROM, FOUND, CALL
+--    Mandate:   Lecture 12 - 2.2: typed IN/OUT parameters; result returned through OUT.
+--               Postgres form: OUT value set with :=, CALL passes NULL for the OUT slot.
+DROP PROCEDURE IF EXISTS mark_read(VARCHAR, UUID, BOOLEAN);
+
+CREATE PROCEDURE mark_read(
+    IN  p_account_id      VARCHAR(50),
+    IN  p_notification_id UUID,
+    OUT p_found           BOOLEAN
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    UPDATE notification n
+    SET is_read = TRUE
+    FROM request_notification rn
+    WHERE n.notification_id = rn.notification_id
+      AND rn.account_id = p_account_id
+      AND n.notification_id = p_notification_id;
+    p_found := FOUND;   -- TRUE if the UPDATE changed a row
+END;
+$$;
+
+-- Demo (rolled back):
+BEGIN;
+
+-- a) resident1 reads their own unread notification -> found = t
+CALL mark_read('resident1', '0000000a-0000-4000-8000-000000000008', NULL);
+
+-- b) resident1 tries resident2's notification -> found = f, nothing changes
+CALL mark_read('resident1', '0000000a-0000-4000-8000-000000000002', NULL);
+
+-- c) Show both notifications.
+SELECT rn.account_id, n.type, n.is_read
+FROM request_notification rn
+JOIN notification n ON n.notification_id = rn.notification_id
+WHERE n.notification_id IN ('0000000a-0000-4000-8000-000000000008',
+                            '0000000a-0000-4000-8000-000000000002')
+ORDER BY rn.account_id;
 
 ROLLBACK;
