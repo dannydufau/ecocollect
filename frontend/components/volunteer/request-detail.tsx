@@ -14,7 +14,7 @@ import CancelAssignment from "./cancel-assignment";
 import RecordDelivery from "./record-delivery";
 
 const cardStyle = `${card} min-w-0 space-y-3`;
-const cardTitle = "text-[22px]";
+const cardTitle = "text-title";
 
 const actions = [
     { action: "accept", Control: AcceptRequest },

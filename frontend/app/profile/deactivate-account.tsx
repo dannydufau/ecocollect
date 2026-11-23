@@ -22,7 +22,7 @@ export function DeactivateAccount() {
 
     return (
         <section className={`${panel} mt-6 min-w-0 space-y-3 border-danger-border bg-transparent`} aria-labelledby="deactivate-account">
-            <h2 id="deactivate-account" className="flex items-center gap-2 text-[22px] text-danger"><WarningIcon className="size-5" />Deactivate account</h2>
+            <h2 id="deactivate-account" className="flex items-center gap-2 text-danger"><WarningIcon className="size-5" />Deactivate account</h2>
             <p>You will be signed out and you can&apos;t sign in again. Your history is kept.</p>
             <div><Button variant="danger-outline" onClick={() => { deactivate.reset(); setOpen(true); }}>Deactivate account</Button></div>
             <ConfirmDialog open={open} title="Deactivate your account?" danger

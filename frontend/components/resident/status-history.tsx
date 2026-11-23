@@ -12,12 +12,12 @@ export default function StatusHistory({ statusHistory = [], rescheduledFrom, res
 
     return <>
         {(rescheduledFrom || rescheduledAs) && <section aria-labelledby="rescheduling-heading" className={cardStyle}>
-            <h2 id="rescheduling-heading" className="text-[22px]">Rescheduling</h2>
+            <h2 id="rescheduling-heading">Rescheduling</h2>
             {rescheduledAs && <Link href={`/resident/requests/${encodeURIComponent(rescheduledAs.requestId)}`} className={textLink}>View the new request</Link>}
             {rescheduledFrom && <Link href={`/resident/requests/${encodeURIComponent(rescheduledFrom.requestId)}`} className={textLink}>Rescheduled from an earlier request</Link>}
         </section>}
         {history.length > 0 && <section aria-labelledby="status-history-heading" className={cardStyle}>
-            <h2 id="status-history-heading" className="text-[22px]">History</h2>
+            <h2 id="status-history-heading">History</h2>
             <ol className="ml-1.5 space-y-5 border-l-2 border-border">
                 {history.map((entry, index) => <li key={`${entry.changedAt}-${index}`}
                     className="relative min-w-0 space-y-2 pl-5 before:absolute before:-left-[7px] before:top-2 before:size-3 before:rounded-full before:bg-accent-700">

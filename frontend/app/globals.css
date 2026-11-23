@@ -112,7 +112,7 @@ h1 {
 /* In the base layer so a size class on a heading still wins over these defaults */
 @layer base {
   h2 {
-    font-size: 1.25rem;
+    font-size: var(--text-title);
     font-weight: 700;
     line-height: 1.3;
   }

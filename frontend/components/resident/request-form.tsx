@@ -122,7 +122,7 @@ export default function RequestForm({ initialValues, createdAt, single = false, 
                             ? (category.standardWeightKg * Number(item.quantity)).toFixed(2) : null;
                         const update = (patch: Partial<typeof item>) => updateValues({ ...values, items: values.items.map((row, rowIndex) => rowIndex === index ? { ...row, ...patch } : row) });
                         return <fieldset key={keys[index]} className={`${card} min-w-0 space-y-3`}>
-                            <legend className="float-left mb-3 text-xl font-bold">Item {index + 1}</legend>
+                            <legend className="float-left mb-3 text-title font-bold">Item {index + 1}</legend>
                             <div className="clear-both space-y-3">
                                 <div className="grid min-w-0 gap-3 sm:grid-cols-[2fr_1fr] sm:items-start">
                                     <div className="min-w-0">

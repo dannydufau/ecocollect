@@ -13,7 +13,6 @@ import { AddressEditor, CodesEditor, PublicNameEditor } from "./editors";
 import type { Notice } from "./notice";
 import { SecondRole } from "./second-role";
 
-const cardTitle = "text-[22px]";
 const cardStyle = `${card} min-w-0 space-y-3`;
 
 type Card = "name" | "address" | "codes";
@@ -57,7 +56,7 @@ export default function ProfilePage() {
                             ? "We could not find your profile."
                             : "We could not load this page. Check your connection and try again."} onRetry={() => refetch()} busy={isFetching} />}
             {profile && <section className={section("name")} aria-labelledby="account-heading">
-                <h2 id="account-heading" className={cardTitle}>Account</h2>
+                <h2 id="account-heading">Account</h2>
                 <dl className="grid gap-x-4 gap-y-3 sm:grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
                     <Row name="Username"><span className="font-mono">{profile.accountId}</span></Row>
                     <Row name="Email">{profile.email}</Row>
@@ -76,15 +75,15 @@ export default function ProfilePage() {
                 <PublicNameEditor profile={profile} {...editor("name")} />
             </section>}
             {profile?.roles.includes("resident") && profile.address && <section className={section("address")} aria-labelledby="address-heading">
-                <h2 id="address-heading" className={cardTitle}>Address</h2>
+                <h2 id="address-heading">Address</h2>
                 <AddressEditor profile={profile} {...editor("address")} />
             </section>}
             {profile?.roles.includes("volunteer") && <section className={section("codes")} aria-labelledby="codes-heading">
-                <h2 id="codes-heading" className={cardTitle}>Preferred postal codes</h2>
+                <h2 id="codes-heading">Preferred postal codes</h2>
                 <CodesEditor profile={profile} {...editor("codes")} />
             </section>}
             {profile && <section className={cardStyle} aria-labelledby="notifications-heading">
-                <h2 id="notifications-heading" className={`${cardTitle} flex items-center gap-2`}><BellIcon className="size-5" />Notifications</h2>
+                <h2 id="notifications-heading" className="flex items-center gap-2"><BellIcon className="size-5" />Notifications</h2>
                 <p>Get a device notification when something changes on your requests.</p>
                 <EnableNotifications />
             </section>}

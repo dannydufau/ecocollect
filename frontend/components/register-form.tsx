@@ -12,7 +12,7 @@ import {
 // A card with its title inside, like the prototype. The legend floats so it sits in the card and not on its border.
 function Group({ title, children }: { title: string; children: ReactNode }) {
     return <fieldset className={`${card} min-w-0`}>
-        <legend className="float-left mb-3 text-xl font-bold">{title}</legend>
+        <legend className="float-left mb-3 text-title font-bold">{title}</legend>
         <div className="clear-both flex flex-col gap-4">{children}</div>
     </fieldset>;
 }

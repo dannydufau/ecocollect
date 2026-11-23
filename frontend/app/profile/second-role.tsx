@@ -83,7 +83,7 @@ export function SecondRole({ profile, onDone }: { profile: Profile; onDone: (not
     if (!open) {
         return (
             <section className={`${panel} min-w-0 space-y-3 border-border bg-accent-2-200`} aria-labelledby="second-role">
-                <h2 id="second-role" className="text-[22px]">Add a role</h2>
+                <h2 id="second-role">Add a role</h2>
                 <p>{role === "volunteer" ? "You can also pick up items near you and deliver them to a facility." : "You can also request pickups for your own e-waste."}</p>
                 <div><Button onClick={start}>{name}</Button></div>
             </section>
@@ -92,7 +92,7 @@ export function SecondRole({ profile, onDone }: { profile: Profile; onDone: (not
 
     return (
         <form onSubmit={submit} noValidate aria-labelledby="second-role" className={`${panel} min-w-0 space-y-4 border-border bg-accent-2-200`}>
-            <h2 id="second-role" className="text-[22px]">{name}</h2>
+            <h2 id="second-role">{name}</h2>
             {role === "resident" && <AddressFields street={street} postalCode={postalCode} errors={errors} onStreet={setStreet} onPostalCode={setPostalCode} />}
             {role === "volunteer" && <div className="space-y-3">
                 <p className="font-semibold">Preferred postal codes (optional, up to 3)</p>
