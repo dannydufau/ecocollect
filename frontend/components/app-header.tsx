@@ -6,7 +6,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import LogoutButton from "@/components/logout-button";
 import NotificationBell from "@/components/notification-bell";
-import { ChevronRightIcon, LeafIcon, MapPinIcon, PackageIcon, PlusIcon, RoleBadge, TruckIcon, linkButton, textLink } from "@/components/ui";
+import { ChevronRightIcon, LeafIcon, MapPinIcon, PackageIcon, PlusIcon, RoleBadge, TruckIcon, linkButton, pageWidth, textLink } from "@/components/ui";
 import { useAuth } from "@/lib/auth-context";
 import type { Role } from "@/lib/auth";
 
@@ -35,7 +35,7 @@ const activeText: Record<Role, string> = { resident: "aria-[current=page]:text-r
 function Bar({ home = "/login", children }: { home?: string; children?: ReactNode }) {
     return (
         <header className="sticky top-0 z-20 border-b border-divider bg-bg">
-            <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 sm:px-8">
+            <div className={`${pageWidth} flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 sm:px-8`}>
                 <Link href={home} className="inline-flex min-h-11 items-center gap-2 font-[family-name:var(--font-heading)] text-xl">
                     <Image src="/ecocollect-mark.png" alt="" width={31} height={32} />
                     EcoCollect

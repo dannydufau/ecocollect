@@ -1,6 +1,7 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { useAuth } from "@/lib/auth-context";
+import { pageWidth } from "@/components/ui";
 import AppHeader from "./app-header";
 
 const router = { replace: vi.fn(), push: vi.fn() };
@@ -28,6 +29,12 @@ afterEach(() => {
     cleanup();
     vi.clearAllMocks();
     pathname = "/resident";
+});
+
+it("keeps the header bar in the same width as the pages", () => {
+    signedIn(["resident"]);
+    render(<AppHeader />);
+    expect(screen.getByRole("banner").firstElementChild).toHaveClass(...pageWidth.split(" "), "px-4", "sm:px-8");
 });
 
 it("shows the resident links", () => {
