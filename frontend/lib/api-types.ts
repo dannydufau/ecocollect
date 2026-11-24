@@ -720,8 +720,8 @@ export interface components {
             category: components["schemas"]["Category"];
             quantity: number;
             estimatedWeightKg: components["schemas"]["Decimal"];
-            /** @constant */
-            status: "Open";
+            /** @description Open when created; an Idempotency-Key replay shows the current status. */
+            status: components["schemas"]["RequestStatus"];
             createdAt: components["schemas"]["Timestamp"];
             /** @description The start of the last active window. */
             expiresAt: components["schemas"]["Timestamp"];
@@ -1800,7 +1800,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description 1 to 200 characters; an empty or longer key returns `400` (`details.fields`, e.g. `{ "Idempotency-Key": "must be 1 to 200 characters" }`). A repeat with the same key within 24 hours returns the first `201` (NFR06). */
+                /** @description 1 to 200 characters; an empty or longer key returns `400` (`details.fields`, e.g. `{ "Idempotency-Key": "must be 1 to 200 characters" }`). A repeat with the same key within 24 hours returns `201` with the requests the first call created, as they are now (NFR06). */
                 "Idempotency-Key"?: string;
             };
             path?: never;
@@ -2064,6 +2064,7 @@ export interface operations {
                     "application/json": components["schemas"]["RequestDetail"];
                 };
             };
+            400: components["responses"]["ValidationError"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
