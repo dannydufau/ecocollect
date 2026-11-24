@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, screen, within } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { api, ApiError } from "@/lib/api";
+import { queryKeys } from "@/lib/query-keys";
 import { formatTimestamp } from "@/lib/time";
 import type { RequestDetail } from "@/lib/types";
 import { renderWithClient } from "@/test/utils";
@@ -244,4 +246,15 @@ it("puts Accept and Record delivery before Cancel assignment, and never cancel f
     const group = screen.getByRole("region", { name: "Request actions" });
     expect(within(group).getAllByRole("button").map(button => button.textContent)).toEqual(["Accept request", "Record delivery", "Cancel assignment"]);
     expect(group).toHaveClass("flex-col", "sm:flex-row", "[&>button]:w-full");
+});
+
+it("announces a status change that arrives from a refresh", async () => {
+    vi.mocked(api.getWithMeta).mockResolvedValue({ data: open, serverDate: new Date("2026-11-16T18:00:00Z") });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={client}><VolunteerRequestDetail requestId="r1" /></QueryClientProvider>);
+    await screen.findByRole("heading", { level: 1 });
+    const top = panel();
+    expect(within(top).getByRole("status")).toBeEmptyDOMElement();
+    act(() => { client.setQueryData(queryKeys.request("r1"), { data: active, serverDate: new Date("2026-11-16T18:05:00Z") }); });
+    await waitFor(() => expect(within(top).getByRole("status")).toHaveTextContent("Status updated: Assigned."));
 });
