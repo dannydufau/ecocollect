@@ -10,6 +10,11 @@ vi.mock("next/navigation", () => ({ useRouter: () => router, usePathname: () => 
 vi.mock("@/lib/auth-context", () => ({ useAuth: vi.fn() }));
 vi.mock("@/components/notification-bell", () => ({ default: () => <span data-slot="bell" /> }));
 
+// jsdom has no showModal or close, so these only set and remove the open attribute
+const showModal = vi.fn(function (this: HTMLDialogElement) { this.setAttribute("open", ""); });
+HTMLDialogElement.prototype.showModal = showModal;
+HTMLDialogElement.prototype.close = function () { this.removeAttribute("open"); };
+
 const setActiveRole = vi.fn();
 
 function signedIn(roles: string[], activeRole: string | null = roles.length === 1 ? roles[0] : null) {
@@ -165,26 +170,51 @@ it("uses a bottom bar with three short links and a More menu below 960px", () =>
     expect(within(menu).getByRole("button", { name: "Log out" })).toBeInTheDocument();
 });
 
+const escape = (menu: HTMLElement) => fireEvent(menu, new Event("cancel", { cancelable: true }));
+
+it("opens More as a modal dialog with a Close button", () => {
+    signedIn(["resident"]);
+    render(<AppHeader />);
+    const { more, menu } = openMore();
+    expect(menu.tagName).toBe("DIALOG");
+    expect(showModal).toHaveBeenCalledTimes(1);
+    expect(menu).toHaveAttribute("open");
+    expect(menu).toHaveAccessibleName("More");
+    expect(more).toHaveAttribute("aria-haspopup", "dialog");
+    expect(within(menu).getByRole("button", { name: "Close" })).toBeInTheDocument();
+});
+
 it("closes More on Escape and gives focus back to the More button", () => {
     signedIn(["resident"]);
     render(<AppHeader />);
     const { more, menu } = openMore();
     within(menu).getByRole("link", { name: "Profile" }).focus();
-    fireEvent.keyDown(document, { key: "Escape" });
+    escape(menu);
     expect(more).toHaveAttribute("aria-expanded", "false");
+    expect(menu).not.toHaveAttribute("open");
     expect(within(mobile()).queryByRole("link", { name: "Profile" })).not.toBeInTheDocument();
     expect(more).toHaveFocus();
 });
 
-it("closes More on a click outside it and leaves focus where the click put it", () => {
+it("closes More with the Close button and gives focus back to the More button", () => {
     signedIn(["resident"]);
     render(<AppHeader />);
     const { more, menu } = openMore();
-    fireEvent.pointerDown(within(menu).getByRole("link", { name: "Profile" }));
-    expect(more).toHaveAttribute("aria-expanded", "true");
-    fireEvent.pointerDown(document.body);
+    fireEvent.click(within(menu).getByRole("button", { name: "Close" }));
     expect(more).toHaveAttribute("aria-expanded", "false");
-    expect(more).not.toHaveFocus();
+    expect(menu).not.toHaveAttribute("open");
+    expect(more).toHaveFocus();
+});
+
+it("closes More when the backdrop is tapped, but not when the sheet itself is", () => {
+    signedIn(["resident"]);
+    render(<AppHeader />);
+    const { more, menu } = openMore();
+    fireEvent.click(within(menu).getByRole("heading", { name: "More" }));
+    expect(more).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(menu);
+    expect(more).toHaveAttribute("aria-expanded", "false");
+    expect(more).toHaveFocus();
 });
 
 it("shows the volunteer short links and puts the switcher in More", () => {
@@ -198,6 +228,7 @@ it("shows the volunteer short links and puts the switcher in More", () => {
     expect(setActiveRole).toHaveBeenCalledWith("resident");
     expect(router.push).toHaveBeenCalledWith("/resident");
     expect(within(nav).getByRole("button", { name: "More" })).toHaveAttribute("aria-expanded", "false");
+    expect(within(nav).getByRole("button", { name: "More" })).toHaveFocus();
 });
 
 it("closes More when a link is chosen and when the page changes", () => {
@@ -206,6 +237,7 @@ it("closes More when a link is chosen and when the page changes", () => {
     const { more, menu } = openMore();
     fireEvent.click(within(menu).getByRole("link", { name: "Profile" }));
     expect(more).toHaveAttribute("aria-expanded", "false");
+    expect(more).toHaveFocus();
 
     fireEvent.click(more);
     pathname = "/ecopoints";
@@ -256,13 +288,20 @@ it("has the bell slot and the logout button for a signed-in user", () => {
     expect(screen.getByRole("button", { name: "Log out" })).toBeInTheDocument();
 });
 
-it("the More menu rises in, still opens and closes, and gives focus back", () => {
+it("the More sheet is a bottom sheet with its own slide and backdrop styles, and room for the home indicator", () => {
+    signedIn(["resident"]);
+    render(<AppHeader />);
+    const { menu } = openMore();
+    expect(menu).toHaveClass("more-sheet");
+    expect(menu.firstElementChild).toHaveClass("pb-[max(1rem,env(safe-area-inset-bottom))]");
+});
+
+it("opens and closes More again after it was closed", () => {
     signedIn(["resident"]);
     render(<AppHeader />);
     const { more, menu } = openMore();
-    expect(menu).toHaveClass("sheet-in");
-    expect(menu).not.toHaveAttribute("hidden");
-    fireEvent.keyDown(document, { key: "Escape" });
-    expect(menu).toHaveAttribute("hidden");
-    expect(more).toHaveFocus();
+    escape(menu);
+    fireEvent.click(more);
+    expect(menu).toHaveAttribute("open");
+    expect(showModal).toHaveBeenCalledTimes(2);
 });
