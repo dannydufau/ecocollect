@@ -227,3 +227,21 @@ it("shows the facility and the delivery time at the top of a Delivered request",
     expect(panel()).toHaveTextContent("Facility Sample depot");
     expect(panel()).toHaveTextContent(`Delivered ${formatTimestamp("2026-11-20T20:00:00Z")}`);
 });
+
+it.each([
+    ["Open", open, ["Accept request"]],
+    ["Assigned", active, ["Cancel assignment"]],
+    ["Collected", collected, ["Record delivery"]],
+    ["Delivered", delivered, []],
+] as const)("shows the buttons of a %s request as the server lists them", async (_state, detail, expected) => {
+    await show(detail);
+    const group = screen.queryByRole("region", { name: "Request actions" });
+    expect(group ? within(group).getAllByRole("button").map(button => button.textContent) : []).toEqual(expected);
+});
+
+it("puts Accept and Record delivery before Cancel assignment, and never cancel first", async () => {
+    await show({ ...collected, allowedActions: ["cancel_assignment", "record_delivery", "accept"] });
+    const group = screen.getByRole("region", { name: "Request actions" });
+    expect(within(group).getAllByRole("button").map(button => button.textContent)).toEqual(["Accept request", "Record delivery", "Cancel assignment"]);
+    expect(group).toHaveClass("flex-col", "sm:flex-row", "[&>button]:w-full");
+});

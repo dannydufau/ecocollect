@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Alert, LoadingRegion, QueryError, RequestPhoto, WindowList, card, identifier, pageTitle, textLink } from "@/components/ui";
+import { Alert, LoadingRegion, QueryError, RequestPhoto, WindowList, actionGroup, card, identifier, pageTitle, textLink } from "@/components/ui";
 import { NextStepPanel } from "@/components/ui/next-step-panel";
 import { isAuthError } from "@/lib/api";
 import { formatPostalCode } from "@/lib/postal-code";
@@ -16,10 +16,11 @@ import RecordDelivery from "./record-delivery";
 const cardStyle = `${card} min-w-0 space-y-3`;
 const cardTitle = "text-title";
 
+// The main task first and cancelling last, so the main one stays in view on a phone
 const actions = [
     { action: "accept", Control: AcceptRequest },
-    { action: "cancel_assignment", Control: CancelAssignment },
     { action: "record_delivery", Control: RecordDelivery },
+    { action: "cancel_assignment", Control: CancelAssignment },
 ] as const;
 
 function Windows({ windows }: { windows: PickupWindow[] }) {
@@ -96,7 +97,7 @@ export default function VolunteerRequestDetail({ requestId }: { requestId: strin
                 {notice && <Alert variant="success">{notice}</Alert>}
                 {request.viewer === "owner" && <Alert variant="info">This is your own request. You can accept it like any other volunteer.</Alert>}
             </>}
-            actions={buttons.length > 0 && <section aria-label="Request actions" className="flex flex-wrap gap-3">
+            actions={buttons.length > 0 && <section aria-label="Request actions" className={actionGroup}>
                 {buttons.map(({ action, Control }) => <Control key={action} request={request} onDone={setNotice} />)}
             </section>}
         />

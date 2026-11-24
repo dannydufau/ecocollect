@@ -17,6 +17,8 @@ export const badge = "inline-flex items-center gap-1 whitespace-nowrap rounded-f
 // A link that looks like the primary Button, and a plain text link (accent-700 has enough contrast on the page color)
 export const linkButton = `inline-flex items-center justify-center ${buttonClass()}`;
 export const secondaryLinkButton = `inline-flex items-center justify-center ${buttonClass("secondary")}`;
+// The buttons of a request page, in order. Full width and stacked below 640 px, side by side from there.
+export const actionGroup = "flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start [&>a]:w-full [&>button]:w-full sm:[&>a]:w-auto sm:[&>button]:w-auto";
 // Postal codes and @handles
 export const identifier = "text-small font-semibold tabular-nums tracking-wide";
 export const textLink = "inline-flex min-h-11 items-center text-accent-700 underline underline-offset-4";
