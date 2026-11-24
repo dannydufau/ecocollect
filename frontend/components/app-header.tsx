@@ -6,7 +6,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import LogoutButton from "@/components/logout-button";
 import NotificationBell from "@/components/notification-bell";
-import { ChevronRightIcon, LeafIcon, MapPinIcon, PackageIcon, PlusIcon, RoleBadge, TruckIcon, linkButton, pageWidth, textLink } from "@/components/ui";
+import { Button, ChevronRightIcon, LeafIcon, MapPinIcon, PackageIcon, PlusIcon, RoleBadge, TruckIcon, linkButton, pageWidth, textLink } from "@/components/ui";
 import { useAuth } from "@/lib/auth-context";
 import type { Role } from "@/lib/auth";
 
@@ -46,35 +46,50 @@ function Bar({ home = "/login", children }: { home?: string; children?: ReactNod
     );
 }
 
+// The More menu on a phone: a modal bottom sheet. The native dialog holds focus inside, closes on Escape and dims the page.
+function MoreSheet({ id, open, onClose, children }: { id: string; open: boolean; onClose: () => void; children: ReactNode }) {
+    const ref = useRef<HTMLDialogElement>(null);
+    const titleId = `${id}-title`;
+
+    // Closing through state, not through the dialog, lets the slide-out run
+    useEffect(() => {
+        const dialog = ref.current;
+        if (!dialog) return;
+        if (open && !dialog.open) dialog.showModal();
+        if (!open && dialog.open) dialog.close();
+    }, [open]);
+
+    return (
+        <dialog ref={ref} id={id} aria-labelledby={titleId} className="more-sheet"
+            onCancel={event => { event.preventDefault(); onClose(); }}
+            // A tap on the backdrop lands on the dialog itself, not on the content inside it
+            onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
+            <div className="flex flex-col items-start gap-2 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+                <div className="flex w-full items-center justify-between gap-3">
+                    <h2 id={titleId} className="text-title">More</h2>
+                    <Button variant="secondary" onClick={onClose}>Close</Button>
+                </div>
+                {children}
+            </div>
+        </dialog>
+    );
+}
+
 export default function AppHeader() {
     const { user, roles, activeRole, loading, setActiveRole } = useAuth();
     const pathname = usePathname();
     const router = useRouter();
     const moreId = useId();
     const moreButton = useRef<HTMLButtonElement>(null);
-    const moreMenu = useRef<HTMLDivElement>(null);
     // The menu remembers the page it was opened on, so going to another page closes it
     const [moreOpenOn, setMoreOpenOn] = useState<string | null>(null);
     const moreOpen = moreOpenOn === pathname;
 
+    // Whichever way it closes (Escape, Close, the backdrop, a link, another page), focus goes back to the More button
+    const wasOpen = useRef(false);
     useEffect(() => {
-        if (!moreOpen) return;
-        const onKey = (event: KeyboardEvent) => {
-            if (event.key !== "Escape") return;
-            setMoreOpenOn(null);
-            moreButton.current?.focus();
-        };
-        // A click outside only closes it. Focus stays on whatever the person clicked.
-        const onPointer = (event: PointerEvent) => {
-            const target = event.target as Node;
-            if (!moreMenu.current?.contains(target) && !moreButton.current?.contains(target)) setMoreOpenOn(null);
-        };
-        document.addEventListener("keydown", onKey);
-        document.addEventListener("pointerdown", onPointer);
-        return () => {
-            document.removeEventListener("keydown", onKey);
-            document.removeEventListener("pointerdown", onPointer);
-        };
+        if (wasOpen.current && !moreOpen) moreButton.current?.focus();
+        wasOpen.current = moreOpen;
     }, [moreOpen]);
 
     if (loading || pathname === "/login" || pathname === "/register" || pathname === "/demo" || pathname.startsWith("/demo/")) {
@@ -153,15 +168,14 @@ export default function AppHeader() {
                 </div>
             </Bar>
             <nav aria-label="Mobile" className="fixed inset-x-0 bottom-0 z-10 border-t border-divider bg-bg pb-[env(safe-area-inset-bottom)] min-[960px]:hidden">
-                <div id={moreId} ref={moreMenu} hidden={!moreOpen}
-                    className="sheet-in absolute inset-x-0 bottom-full flex flex-col items-start gap-2 border-t border-divider bg-bg p-4">
+                <MoreSheet id={moreId} open={moreOpen} onClose={() => setMoreOpenOn(null)}>
                     {switcher}
                     {navLinks([...middle.slice(3), stats, profile], topLink)}
                     <LogoutButton />
-                </div>
+                </MoreSheet>
                 <div className="mx-auto grid max-w-3xl grid-cols-4">
                     {navLinks(middle.slice(0, 3), `${bottomLink} ${activeText[activeRole ?? "resident"]}`, true)}
-                    <button ref={moreButton} type="button" aria-expanded={moreOpen} aria-controls={moreId}
+                    <button ref={moreButton} type="button" aria-haspopup="dialog" aria-expanded={moreOpen} aria-controls={moreId}
                         onClick={() => setMoreOpenOn(moreOpen ? null : pathname)} className={bottomLink}>
                         <ChevronRightIcon className={`size-6 ${moreOpen ? "rotate-90" : "-rotate-90"}`} />
                         More
