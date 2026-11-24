@@ -1,4 +1,6 @@
-FROM node:22-alpine
+# The services run their .ts files directly, which needs Node 22.18 or newer
+# (package.json engines). A plain node:22 tag could reuse an older cached 22.x.
+FROM node:22.18-alpine
 
 WORKDIR /app
 ENV NODE_ENV=production
@@ -11,4 +13,4 @@ COPY src ./src
 
 # The node image ships a non-root user; no reason to run as root.
 USER node
-CMD ["node", "src/api/server.js"]
+# No CMD: every service built from this image sets its own command in docker-compose.yml.

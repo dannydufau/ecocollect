@@ -4,7 +4,7 @@ Local credentials for development. Nothing in this folder except this README is 
 
 ## firebase-admin.json
 
-Firebase Admin SDK key, used by the request service and the seed script.
+Firebase Admin SDK key, used by the User Service and the seed script. Compose mounts it only into User.
 
 1. Firebase console → Project settings → Service accounts → **Generate new private key**
    https://console.firebase.google.com/project/ecocollect-uofc/settings/serviceaccounts/adminsdk
