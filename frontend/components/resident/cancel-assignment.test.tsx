@@ -35,10 +35,10 @@ function mount(node = <CancelAssignment request={detail()} onNotice={onNotice} /
     return render(<QueryClientProvider client={client}>{node}</QueryClientProvider>);
 }
 function open() {
-    fireEvent.click(screen.getByRole("button", { name: "Cancel volunteer" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel assignment" }));
     return screen.getByRole("dialog");
 }
-const confirm = (dialog: HTMLElement) => fireEvent.click(within(dialog).getByRole("button", { name: "Cancel volunteer" }));
+const confirm = (dialog: HTMLElement) => fireEvent.click(within(dialog).getByRole("button", { name: "Cancel assignment" }));
 
 beforeEach(() => {
     onNotice.mockReset();
@@ -90,7 +90,7 @@ it("warns about points only when the cancel is close to the pickup", () => {
 it("sends nothing when dismissed", () => {
     mount();
     const dialog = open();
-    fireEvent.click(within(dialog).getByRole("button", { name: "Keep volunteer" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Keep assignment" }));
     expect(dialog).not.toHaveAttribute("open");
     expect(api.post).not.toHaveBeenCalled();
 });
@@ -104,10 +104,10 @@ it("keeps the window_ended sentence on the page and refreshes the request", asyn
     });
     mount(<ResidentRequestDetail requestId="r/1" />);
     const invalidate = vi.spyOn(client, "invalidateQueries");
-    await screen.findByRole("button", { name: "Cancel volunteer" });
+    await screen.findByRole("button", { name: "Cancel assignment" });
     confirm(open());
     const sentence = "The pickup window has ended. Confirm the collection or report a missed pickup.";
-    await waitFor(() => expect(screen.queryByRole("button", { name: "Cancel volunteer" })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Cancel assignment" })).not.toBeInTheDocument());
     expect(screen.getAllByRole("alert").some(alert => alert.textContent?.includes(sentence))).toBe(true);
     expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.request("r/1") });
 });
