@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Alert, LoadingRegion, QueryError, RequestPhoto, StatusBadge, card, identifier, pageTitle, textLink } from "@/components/ui";
+import { Alert, LoadingRegion, QueryError, RequestPhoto, WindowList, card, identifier, pageTitle, textLink } from "@/components/ui";
+import { NextStepPanel } from "@/components/ui/next-step-panel";
 import { isAuthError } from "@/lib/api";
 import { formatPostalCode } from "@/lib/postal-code";
-import { nextStepText } from "@/lib/status-text";
 import { formatTimestamp, formatWindow, friendlyWindow } from "@/lib/time";
-import type { PickupWindow } from "@/lib/types";
+import type { PickupWindow, RequestDetail } from "@/lib/types";
 import { useRequestDetail } from "@/lib/use-request";
 import AcceptRequest from "./accept-request";
 import CancelAssignment from "./cancel-assignment";
@@ -29,6 +29,39 @@ function Windows({ windows }: { windows: PickupWindow[] }) {
             <span className="text-[13px] text-text-muted">{formatWindow(window)}</span>
         </li>)}
     </ul>;
+}
+
+// What a volunteer most wants to know about the request, at the top of the page
+function VolunteerStatusFacts({ request }: { request: RequestDetail }) {
+    const { status, assignment, delivery, resident, expiresAt, windows, estimatedWeightKg, postalCode, address } = request;
+    if (status === "Open") {
+        return <div className="space-y-2 text-small">
+            <p><strong className="font-semibold">Estimated weight</strong> <span className="tabular-nums">{estimatedWeightKg.toFixed(2)} kg</span></p>
+            <p><strong className="font-semibold">Postal code</strong> <span className={identifier}>{formatPostalCode(postalCode)}</span></p>
+            <div className="space-y-1">
+                <p className="font-semibold">Pickup windows offered</p>
+                <WindowList windows={windows} />
+            </div>
+            <p><strong className="font-semibold">Open until</strong> <time dateTime={expiresAt}>{formatTimestamp(expiresAt)}</time></p>
+        </div>;
+    }
+    if ((status === "Assigned" || status === "Collected") && assignment) {
+        return <div className="space-y-1 text-small">
+            {resident && <p className="break-words"><strong className="font-semibold">Resident</strong>{" "}
+                <Link href={`/profiles/${encodeURIComponent(resident.accountId)}`} className={textLink}>{resident.publicName}</Link>
+            </p>}
+            {status === "Assigned" && <p><strong className="font-semibold">Selected window</strong> {friendlyWindow(assignment.window)}</p>}
+            {status === "Assigned" && address && <p className="text-text-muted">The pickup address is shown below.</p>}
+            {status === "Collected" && assignment.collectedAt && <p><strong className="font-semibold">Collected</strong> <time dateTime={assignment.collectedAt}>{formatTimestamp(assignment.collectedAt)}</time></p>}
+        </div>;
+    }
+    if (status === "Delivered" && delivery) {
+        return <div className="space-y-1 text-small">
+            <p className="break-words"><strong className="font-semibold">Facility</strong> {delivery.facility.name}</p>
+            <p><strong className="font-semibold">Delivered</strong> <time dateTime={delivery.deliveredAt}>{formatTimestamp(delivery.deliveredAt)}</time></p>
+        </div>;
+    }
+    return null;
 }
 
 export default function VolunteerRequestDetail({ requestId }: { requestId: string }) {
@@ -53,41 +86,35 @@ export default function VolunteerRequestDetail({ requestId }: { requestId: strin
     const buttons = actions.filter(({ action }) => request.allowedActions.includes(action));
     const assignment = request.assignment;
 
-    const side = Boolean(assignment || request.resident || request.photoUrl);
+    const side = Boolean(assignment || request.photoUrl);
 
     return <>
         {back}
-        <section aria-labelledby="request-title" className={`${card} min-w-0 space-y-4`}>
-            <header className="min-w-0 space-y-2">
-                <div className="flex flex-wrap items-center gap-3">
-                    <h1 id="request-title" className={`break-words ${pageTitle}`}>{request.quantity} × {request.category.name}</h1>
-                    <StatusBadge status={request.status} />
-                </div>
-                <p className="text-[17px]"><span className="font-semibold">What happens next:</span> {nextStepText(request.status, "volunteer")}</p>
-            </header>
-            {notice && <Alert variant="success">{notice}</Alert>}
-            {request.viewer === "owner" && <Alert variant="info">This is your own request. You can accept it like any other volunteer.</Alert>}
-            {request.allowedActions.includes("record_delivery") && <Alert variant="info">Your action is needed: record the delivery.</Alert>}
-            {buttons.length > 0 && <section aria-label="Request actions" className="flex flex-wrap gap-3">
+        <NextStepPanel title={`${request.quantity} × ${request.category.name}`} status={request.status} viewer="volunteer"
+            facts={<VolunteerStatusFacts request={request} />}
+            notices={<>
+                {notice && <Alert variant="success">{notice}</Alert>}
+                {request.viewer === "owner" && <Alert variant="info">This is your own request. You can accept it like any other volunteer.</Alert>}
+            </>}
+            actions={buttons.length > 0 && <section aria-label="Request actions" className="flex flex-wrap gap-3">
                 {buttons.map(({ action, Control }) => <Control key={action} request={request} onDone={setNotice} />)}
             </section>}
-        </section>
+        />
 
         <div className={`grid min-w-0 items-start gap-6 ${side ? "lg:grid-cols-[minmax(0,1fr)_340px]" : ""}`}>
             <div className="min-w-0 space-y-6">
-                <section aria-labelledby="details-heading" className={cardStyle}>
+                {request.status !== "Open" && <section aria-labelledby="details-heading" className={cardStyle}>
                     <h2 id="details-heading" className={cardTitle}>Details</h2>
                     <dl className="grid gap-x-4 gap-y-3 sm:grid-cols-[repeat(auto-fit,minmax(160px,1fr))]">
                         <div><dt className="text-[13px] text-text-muted">Estimated weight</dt><dd className="tabular-nums">{request.estimatedWeightKg.toFixed(2)} kg</dd></div>
                         <div><dt className="text-[13px] text-text-muted">Postal code</dt><dd className={identifier}>{formatPostalCode(request.postalCode)}</dd></div>
-                        {request.status === "Open" && <div><dt className="text-[13px] text-text-muted">Open until</dt><dd>{formatTimestamp(request.expiresAt)}</dd></div>}
                     </dl>
                     <div className="space-y-2 border-t border-border pt-3">
                         <h3>Pickup windows</h3>
                         <Windows windows={request.windows} />
                         <p className="text-[13px] text-text-muted">Times are Calgary time.</p>
                     </div>
-                </section>
+                </section>}
 
                 {(request.address || request.notes) && <section aria-labelledby="address-heading" className={`${cardStyle} border-l-4 border-l-accent-2-700`}>
                     <h2 id="address-heading" className={cardTitle}>Pickup address and notes</h2>
@@ -117,11 +144,6 @@ export default function VolunteerRequestDetail({ requestId }: { requestId: strin
                     <Windows windows={[assignment.window]} />
                     {assignment.collectedAt && <p>Collected {formatTimestamp(assignment.collectedAt)}</p>}
                     {assignment.status === "Active" && <p className="text-text-muted">Waiting for the resident to confirm collection.</p>}
-                </section>}
-
-                {request.resident && <section aria-labelledby="resident-heading" className={cardStyle}>
-                    <h2 id="resident-heading" className={cardTitle}>Resident</h2>
-                    <Link href={`/profiles/${encodeURIComponent(request.resident.accountId)}`} className={`break-words ${textLink}`}>{request.resident.publicName}</Link>
                 </section>}
 
                 {request.photoUrl && <section aria-labelledby="photo-heading" className={cardStyle}>
