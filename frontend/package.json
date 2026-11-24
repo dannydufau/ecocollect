@@ -12,7 +12,8 @@
     "mock": "node mock/server.mjs",
     "e2e:app": "node scripts/e2e-app.mjs",
     "size": "node scripts/route-js.mjs",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "e2e:shots": "node scripts/e2e-shots.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.104.5",
