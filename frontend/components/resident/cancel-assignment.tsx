@@ -54,8 +54,8 @@ export default function CancelAssignment({ request, onNotice }: { request: Reque
 
     if (request.viewer !== "owner" || !request.allowedActions.includes("cancel_assignment")) return null;
     return <>
-        <Button variant="danger-outline" onClick={start}>Cancel volunteer</Button>
-        <ConfirmDialog open={open} title="Cancel the volunteer's assignment?" confirmLabel={action.isPending ? "Cancelling..." : "Cancel volunteer"} cancelLabel="Keep volunteer"
+        <Button variant="danger-outline" onClick={start}>Cancel assignment</Button>
+        <ConfirmDialog open={open} title="Cancel the volunteer's assignment?" confirmLabel={action.isPending ? "Cancelling..." : "Cancel assignment"} cancelLabel="Keep assignment"
             danger size="lg" busy={action.isPending} error={windowError || action.message || undefined}
             onConfirm={confirm} onCancel={() => { if (!sending.current) setOpen(false); }}>
             <div className="space-y-3">
