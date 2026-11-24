@@ -22,12 +22,20 @@ function signedIn(roles: string[], activeRole: string | null = roles.length === 
 }
 
 // Both navs are in the page, CSS shows one of them, so each check looks inside the nav it is about
+const banner = () => screen.getByRole("banner");
 const main = () => screen.getByRole("navigation", { name: "Main" });
 const mobile = () => screen.getByRole("navigation", { name: "Mobile" });
 function openMore() {
     const more = within(mobile()).getByRole("button", { name: "More" });
     fireEvent.click(more);
     return { more, menu: document.getElementById(more.getAttribute("aria-controls")!)! };
+}
+
+const accountButton = () => within(screen.getByRole("banner")).getByRole("button", { name: "Account" });
+function openAccount() {
+    const button = accountButton();
+    fireEvent.click(button);
+    return { button, menu: document.getElementById(button.getAttribute("aria-controls")!)! };
 }
 
 afterEach(() => {
@@ -79,8 +87,8 @@ it("shows only the shared links and the switcher before a both-roles account pic
     render(<AppHeader />);
     const nav = screen.getByRole("navigation", { name: "Main" });
     expect(within(nav).getAllByRole("link").map((link) => link.textContent)).toEqual(["EcoPoints"]);
-    expect(screen.getByRole("link", { name: "Profile" })).toHaveAttribute("href", "/profile");
-    expect(screen.getByRole("group", { name: "Active role" })).toBeInTheDocument();
+    expect(within(openAccount().menu).getByRole("link", { name: "Profile" })).toHaveAttribute("href", "/profile");
+    expect(screen.getAllByRole("group", { name: "Active role" })).not.toHaveLength(0);
 });
 
 it.each([
@@ -103,11 +111,36 @@ it("sends the brand link to /choose-role before a role is picked and to /login w
     expect(screen.getByRole("link", { name: "EcoCollect" })).toHaveAttribute("href", "/login");
 });
 
-it("shows the active role tag for a both-roles account only on a phone", () => {
+it("shows the switcher from 960 px and a badge that switches role on a phone, for a both-roles account", () => {
     signedIn(["resident", "volunteer"], "volunteer");
     render(<AppHeader />);
-    expect(screen.getByText("Volunteer", { selector: "span" })).toHaveClass("min-[960px]:hidden");
-    expect(screen.getByRole("group", { name: "Active role" }).parentElement!.parentElement).toHaveClass("hidden", "min-[960px]:block");
+    const badge = screen.getByRole("button", { name: "Volunteer. Switch to Resident view" });
+    expect(badge).toHaveClass("min-[960px]:hidden");
+    expect(badge.querySelector("svg[aria-hidden=true]")).not.toBeNull();
+    expect(within(banner()).getByRole("group", { name: "Active role" }).parentElement).toHaveClass("hidden", "min-[960px]:block");
+});
+
+it("switches to the other role with one tap on the phone badge and lands on its home page", () => {
+    signedIn(["resident", "volunteer"], "volunteer");
+    render(<AppHeader />);
+    fireEvent.click(screen.getByRole("button", { name: "Volunteer. Switch to Resident view" }));
+    expect(setActiveRole).toHaveBeenCalledWith("resident");
+    expect(router.push).toHaveBeenCalledWith("/resident");
+});
+
+it("does not make the badge of a one-role account a button", () => {
+    signedIn(["resident"]);
+    render(<AppHeader />);
+    expect(screen.queryByRole("button", { name: /Switch to/ })).not.toBeInTheDocument();
+});
+
+it("has no Acting as label, and keeps the labelled group with pressed buttons", () => {
+    signedIn(["resident", "volunteer"], "resident");
+    render(<AppHeader />);
+    expect(screen.queryByText("Acting as")).not.toBeInTheDocument();
+    const group = within(banner()).getByRole("group", { name: "Active role" });
+    expect(within(group).getByRole("button", { name: "Resident" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(group).getByRole("button", { name: "Volunteer" })).toHaveAttribute("aria-pressed", "false");
 });
 
 it("keeps the one-role tag at every width", () => {
@@ -250,15 +283,85 @@ it("switches between the top nav and the bottom bar with CSS at 960px", () => {
     render(<AppHeader />);
     expect(main()).toHaveClass("hidden", "min-[960px]:flex");
     expect(mobile()).toHaveClass("min-[960px]:hidden");
-    expect(screen.getByRole("button", { name: "Log out" }).parentElement).toHaveClass("hidden", "min-[960px]:flex");
+    expect(accountButton().parentElement!.parentElement).toHaveClass("hidden", "min-[960px]:block");
 });
 
-it("shows Community stats to signed-in users on the wide header", () => {
+it("puts Community stats, Profile and Log out in the Account menu on the wide header", () => {
     signedIn(["volunteer"]);
     render(<AppHeader />);
-    const stats = screen.getByRole("link", { name: "Community stats" });
-    expect(stats).toHaveAttribute("href", "/stats");
-    expect(stats.parentElement).toHaveClass("min-[960px]:flex");
+    const { menu } = openAccount();
+    expect(within(menu).getByRole("link", { name: "Community stats" })).toHaveAttribute("href", "/stats");
+    expect(within(menu).getByRole("link", { name: "Profile" })).toHaveAttribute("href", "/profile");
+    expect(within(menu).getByRole("button", { name: "Log out" })).toBeInTheDocument();
+    expect(within(main()).queryByRole("link", { name: "Profile" })).not.toBeInTheDocument();
+});
+
+it("closes the Account menu on Escape and gives focus back to its button", () => {
+    signedIn(["resident"]);
+    render(<AppHeader />);
+    const { button, menu } = openAccount();
+    expect(button).toHaveAttribute("aria-expanded", "true");
+    within(menu).getByRole("link", { name: "Profile" }).focus();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(button).toHaveAttribute("aria-expanded", "false");
+    expect(menu).toHaveAttribute("hidden");
+    expect(button).toHaveFocus();
+});
+
+it("closes the Account menu on a click outside and leaves focus where the click put it", () => {
+    signedIn(["resident"]);
+    render(<AppHeader />);
+    const { button, menu } = openAccount();
+    fireEvent.pointerDown(within(menu).getByRole("link", { name: "Profile" }));
+    expect(button).toHaveAttribute("aria-expanded", "true");
+    fireEvent.pointerDown(document.body);
+    expect(button).toHaveAttribute("aria-expanded", "false");
+    expect(button).not.toHaveFocus();
+});
+
+it("closes the Account menu when a link is chosen and when the page changes", () => {
+    signedIn(["resident"]);
+    const { rerender } = render(<AppHeader />);
+    const { button, menu } = openAccount();
+    fireEvent.click(within(menu).getByRole("link", { name: "Community stats" }));
+    expect(button).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(button);
+    expect(button).toHaveAttribute("aria-expanded", "true");
+    pathname = "/ecopoints";
+    rerender(<AppHeader />);
+    expect(button).toHaveAttribute("aria-expanded", "false");
+});
+
+it("marks the current page inside the Account menu", () => {
+    pathname = "/profile";
+    signedIn(["resident"]);
+    render(<AppHeader />);
+    const { menu } = openAccount();
+    expect(within(menu).getByRole("link", { name: "Profile" })).toHaveAttribute("aria-current", "page");
+    expect(within(menu).getByRole("link", { name: "Community stats" })).not.toHaveAttribute("aria-current");
+});
+
+it("keeps the wide header in one row, in the order brand, links, switcher, bell, Account", () => {
+    signedIn(["resident", "volunteer"], "resident");
+    render(<AppHeader />);
+    expect(banner().firstElementChild).toHaveClass("min-[960px]:flex-nowrap");
+    expect(main()).not.toHaveClass("flex-wrap");
+    const order = [
+        screen.getByRole("link", { name: "EcoCollect" }), within(main()).getByRole("link", { name: "My requests" }),
+        within(banner()).getByRole("group", { name: "Active role" }), document.querySelector('[data-slot="bell"]')!, accountButton(),
+    ];
+    order.slice(1).forEach((element, index) => {
+        expect(order[index].compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+});
+
+it("gives the main links, the role switcher and the Account button the same hover and pressed states", () => {
+    signedIn(["resident", "volunteer"], "resident");
+    render(<AppHeader />);
+    const states = ["soft-transition", "hover:bg-accent-100", "active:bg-accent-200"];
+    expect(within(main()).getByRole("link", { name: "My requests" })).toHaveClass(...states, "aria-[current=page]:bg-accent-200", "aria-[current=page]:font-bold");
+    expect(accountButton()).toHaveClass(...states);
+    expect(within(within(banner()).getByRole("group", { name: "Active role" })).getByRole("button", { name: "Volunteer" })).toHaveClass(...states);
 });
 
 it("marks the current bottom link with aria-current, the role colour and a bar", () => {
@@ -285,7 +388,7 @@ it("has the bell slot and the logout button for a signed-in user", () => {
     signedIn(["resident"]);
     render(<AppHeader />);
     expect(document.querySelector('[data-slot="bell"]')).not.toBeNull();
-    expect(screen.getByRole("button", { name: "Log out" })).toBeInTheDocument();
+    expect(within(openAccount().menu).getByRole("button", { name: "Log out" })).toBeInTheDocument();
 });
 
 it("the More sheet is a bottom sheet with its own slide and backdrop styles, and room for the home indicator", () => {
