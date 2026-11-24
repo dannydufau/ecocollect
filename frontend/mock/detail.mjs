@@ -1,7 +1,7 @@
-import calgary from "../../backend/src/api/requests/calgary.js";
+import { windowStart } from "./calgary.mjs";
 import { now } from "./store.mjs";
 
-export const { windowStart } = calgary;
+export { windowStart };
 const HOUR = 60 * 60 * 1000;
 
 export function requestSummary(store, request) {
