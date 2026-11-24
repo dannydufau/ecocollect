@@ -27,7 +27,7 @@ function Windows({ windows }: { windows: PickupWindow[] }) {
     return <ul className="space-y-1">
         {windows.map((window, index) => <li key={`${window.date}-${window.startHour}-${index}`}>
             <strong>{friendlyWindow(window)}</strong><br />
-            <span className="text-[13px] text-text-muted">{formatWindow(window)}</span>
+            <span className="text-caption text-text-muted">{formatWindow(window)}</span>
         </li>)}
     </ul>;
 }
@@ -107,13 +107,13 @@ export default function VolunteerRequestDetail({ requestId }: { requestId: strin
                 {request.status !== "Open" && <section aria-labelledby="details-heading" className={cardStyle}>
                     <h2 id="details-heading" className={cardTitle}>Details</h2>
                     <dl className="grid gap-x-4 gap-y-3 sm:grid-cols-[repeat(auto-fit,minmax(160px,1fr))]">
-                        <div><dt className="text-[13px] text-text-muted">Estimated weight</dt><dd className="tabular-nums">{request.estimatedWeightKg.toFixed(2)} kg</dd></div>
-                        <div><dt className="text-[13px] text-text-muted">Postal code</dt><dd className={identifier}>{formatPostalCode(request.postalCode)}</dd></div>
+                        <div><dt className="text-caption text-text-muted">Estimated weight</dt><dd className="tabular-nums">{request.estimatedWeightKg.toFixed(2)} kg</dd></div>
+                        <div><dt className="text-caption text-text-muted">Postal code</dt><dd className={identifier}>{formatPostalCode(request.postalCode)}</dd></div>
                     </dl>
                     <div className="space-y-2 border-t border-border pt-3">
                         <h3>Pickup windows</h3>
                         <Windows windows={request.windows} />
-                        <p className="text-[13px] text-text-muted">Times are Calgary time.</p>
+                        <p className="text-caption text-text-muted">Times are Calgary time.</p>
                     </div>
                 </section>}
 
