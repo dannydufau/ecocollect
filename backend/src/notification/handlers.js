@@ -25,10 +25,12 @@ function signal(type, requestId) {
  */
 function requestCreated(envelope) {
   const data = (envelope && envelope.data) || {};
-  const { requestId, residentUid } = data;
+  // v2 moved the request fields into data.request; v1 had them directly in data.
+  const request = data.request ?? data;
+  const { requestId, residentUid } = request;
 
   // Without a requestId the frontend can't refetch anything; throw so the
-  // subscriber logs it and nacks the message.
+  // subscriber logs it and rejects it, so RabbitMQ retries it.
   if (typeof requestId !== 'string' || requestId === '') {
     throw new Error('RequestCreated without a requestId');
   }

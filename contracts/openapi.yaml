@@ -603,7 +603,7 @@ paths:
             minLength: 1
             maxLength: 200
           description: >-
-            1 to 200 characters; an empty or longer key returns `400` (`details.fields`, e.g. `{ "Idempotency-Key": "must be 1 to 200 characters" }`). A repeat with the same key within 24 hours returns the first `201` (NFR06).
+            1 to 200 characters; an empty or longer key returns `400` (`details.fields`, e.g. `{ "Idempotency-Key": "must be 1 to 200 characters" }`). A repeat with the same key within 24 hours returns `201` with the requests the first call created, as they are now (NFR06).
       requestBody:
         required: true
         content:
@@ -913,6 +913,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RequestDetail'
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -1821,6 +1823,7 @@ components:
             (the original `createdAt` when editing). Times are decided in Calgary time with the database clock.
         notes:
           type: string
+          maxLength: 500
         termsDocumentId:
           description: Use the current terms UUID returned by U5. Check before database casts; malformed, unknown or outdated IDs return 409 terms_outdated.
           type: string
@@ -1848,7 +1851,9 @@ components:
         estimatedWeightKg:
           $ref: ./schemas/common.yaml#/Decimal
         status:
-          const: Open
+          allOf:
+            - $ref: ./schemas/common.yaml#/RequestStatus
+          description: Open when created; an Idempotency-Key replay shows the current status.
         createdAt:
           $ref: ./schemas/common.yaml#/Timestamp
         expiresAt:
@@ -2238,6 +2243,7 @@ components:
           type:
             - string
             - 'null'
+          maxLength: 500
         windows:
           type: array
           minItems: 1
@@ -2259,6 +2265,7 @@ components:
       properties:
         reason:
           type: string
+          maxLength: 500
     AcceptRequest:
       type: object
       additionalProperties: false
@@ -2287,6 +2294,7 @@ components:
           description: Only when the caller is both the owner and the assigned volunteer.
         reason:
           type: string
+          maxLength: 500
         windows:
           type: array
           minItems: 1
@@ -2301,6 +2309,7 @@ components:
       properties:
         reason:
           type: string
+          maxLength: 500
         reschedule:
           type: object
           description: Creates a new Open request linked to the missed one, in the same transaction.

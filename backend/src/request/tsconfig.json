@@ -1,0 +1,24 @@
+{
+  // Type-checking only (npm run typecheck). Node runs the .ts files directly
+  // by stripping the types, so nothing is ever compiled to .js.
+  "compilerOptions": {
+    "target": "es2023",
+    "lib": ["es2023"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "types": ["node"],
+    "noEmit": true,
+
+    // Rules that keep the code runnable by Node's type stripping:
+    "allowImportingTsExtensions": true, // import './x.ts', as Node requires
+    "erasableSyntaxOnly": true,         // no enum, namespace, parameter properties
+    "verbatimModuleSyntax": true,       // type-only imports must say `import type`
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,   // rows[0] is possibly undefined
+    "allowJs": true,                    // import the shared CommonJS outbox.js
+    "checkJs": false,                   // ...without type-checking other people's JS
+    "skipLibCheck": true
+  },
+  "include": ["**/*.ts", "../../test/request/**/*.ts"]
+}
