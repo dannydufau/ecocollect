@@ -135,12 +135,12 @@ export function ResidentRequestView({ request, onPhotoError, actionRenderers, no
                 <h2 id="summary-heading" className={cardTitle}>Summary</h2>
                 <div className="divide-y divide-border">
                     <dl className={`${part} grid gap-x-4 gap-y-3 sm:grid-cols-[repeat(auto-fit,minmax(180px,1fr))]`}>
-                        <div><dt className="text-[13px] text-text-muted">Estimated weight</dt><dd className="tabular-nums">{request.estimatedWeightKg.toFixed(2)} kg</dd></div>
-                        <div><dt className="text-[13px] text-text-muted">Created</dt><dd>{formatTimestamp(request.createdAt)}</dd></div>                    </dl>
+                        <div><dt className="text-caption text-text-muted">Estimated weight</dt><dd className="tabular-nums">{request.estimatedWeightKg.toFixed(2)} kg</dd></div>
+                        <div><dt className="text-caption text-text-muted">Created</dt><dd>{formatTimestamp(request.createdAt)}</dd></div>                    </dl>
                     <div className={`${part} space-y-2`}>
                         <h3>Pickup windows</h3>
                         <WindowList windows={request.windows} />
-                        <p className="text-[13px] text-text-muted">Windows and times are Calgary time.</p>
+                        <p className="text-caption text-text-muted">Windows and times are Calgary time.</p>
                     </div>
                     {(request.address || request.notes) && <div className={`${part} space-y-2`}>
                         <h3>Pickup address and notes</h3>

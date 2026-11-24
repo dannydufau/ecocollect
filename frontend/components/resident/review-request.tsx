@@ -38,7 +38,7 @@ export default function ReviewRequest({ values, busy, accepted, onBack, onConfir
                     {found && <span>Estimated weight: <strong>{(found.standardWeightKg * Number(item.quantity)).toFixed(2)} kg</strong></span>}
                     {item.photo && item.photoPreviewUrl && (
                         // eslint-disable-next-line @next/next/no-img-element -- this preview is a local object URL
-                        <img src={item.photoPreviewUrl} alt="Photo of item" className="mt-2 size-16 rounded-lg border border-border object-cover" />
+                        <img src={item.photoPreviewUrl} alt="Photo of item" className="mt-2 size-16 rounded-xl border border-border object-cover" />
                     )}
                 </li>;
             })}</ul>
