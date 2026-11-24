@@ -78,6 +78,19 @@ Run a single viewport or route using Playwright's filters:
 npm run e2e -- --project=chromium-375 --grep registration
 ```
 
+### Screenshots for pull requests
+
+```bash
+npm run e2e:shots                      # every screen, at 375 and 1280 px
+npm run e2e:shots -- --only request    # only the screens with "request" in their name
+```
+
+It takes a picture of every route, every request status as the resident and as the volunteer, the empty account's pages, the long-data account's profile and lists, the demo page and a 404, and saves them as `e2e/shots/<screen name>/<width>.png`. The folder is not tracked by git. The pictures are for pull requests, not for the repo. To add a screen, add it to `e2e/shot-targets.ts`.
+
+## Frontend pull requests
+
+Before you open one, run `npm test`, `npm run lint`, `npx tsc --noEmit` and `npm run e2e`. Attach before and after images of the screens you changed (`npm run e2e:shots -- --only <screen>` makes them).
+
 ## Contracts
 
 The API and event contracts live at the repo root: `contracts/openapi.yaml` (every endpoint and body) and `contracts/README.md` (the rules behind them). `npm run types` reads `contracts/openapi.yaml`.
@@ -93,6 +106,7 @@ The API and event contracts live at the repo root: `contracts/openapi.yaml` (eve
 | `npm run lint` | ESLint |
 | `npm run mock` | Mock API |
 | `npm run e2e` | Chromium route checks and axe scans |
+| `npm run e2e:shots` | Screenshots of every screen for pull requests (`-- --only <name>` for a subset) |
 | `npm run e2e:app` | Builds the signed-in test mode and serves it on port 3100 (see below) |
 | `npm run types` | Regenerates `lib/api-types.ts` from `../contracts/openapi.yaml`. Don't edit that file by hand. |
 
