@@ -2,6 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { api, ApiError } from "@/lib/api";
+import { queryKeys } from "@/lib/query-keys";
 import { nextStepText } from "@/lib/status-text";
 import { friendlyWindow, formatTimestamp, formatWindow } from "@/lib/time";
 import type { RequestDetail } from "@/lib/types";
@@ -304,4 +305,38 @@ it("shows the unavailable page and no details to anyone who is not the owner", (
     expect(screen.getByRole("heading", { name: "This request is no longer available." })).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Summary" })).not.toBeInTheDocument();
     expect(screen.queryByText("101 Example Street SW")).not.toBeInTheDocument();
+});
+
+function renderWithOwnClient(ui: React.ReactElement) {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+    return client;
+}
+const assigned = () => response(detail({ status: "Assigned", assignment, allowedActions: ["cancel", "cancel_assignment", "confirm_collected"] }));
+
+it("announces a status change that arrives from a refresh, and fades the badge in", async () => {
+    const client = renderWithOwnClient(<ResidentRequestDetail requestId="r1" />);
+    const top = await screen.findByRole("region", { name: "Request status" });
+    expect(within(top).getByRole("status")).toBeEmptyDOMElement();
+    act(() => { client.setQueryData(queryKeys.request("r1"), assigned()); });
+    await waitFor(() => expect(within(top).getByRole("status")).toHaveTextContent("Status updated: Assigned."));
+    expect(within(top).getByText("Assigned", { selector: "span" }).parentElement).toHaveClass("fade-in");
+});
+
+it("announces nothing when a refresh brings the same status", async () => {
+    const client = renderWithOwnClient(<ResidentRequestDetail requestId="r1" />);
+    const top = await screen.findByRole("region", { name: "Request status" });
+    act(() => { client.setQueryData(queryKeys.request("r1"), response()); });
+    await waitFor(() => expect(client.getQueryState(queryKeys.request("r1"))?.dataUpdateCount).toBeGreaterThan(1));
+    expect(within(top).getByRole("status")).toBeEmptyDOMElement();
+});
+
+it("stays quiet while the page shows the person's own notice", async () => {
+    const client = renderWithOwnClient(<ResidentRequestDetail requestId="r1" rescheduled />);
+    const top = await screen.findByRole("region", { name: "Request status" });
+    act(() => { client.setQueryData(queryKeys.request("r1"), assigned()); });
+    // The new status is on the page, and it was not announced
+    await waitFor(() => expect(within(top).getByText("Assigned", { selector: "span" })).toBeInTheDocument());
+    expect(within(top).getAllByRole("status").map(node => node.textContent).join("")).not.toContain("Status updated");
+    expect(within(top).getByText("Assigned", { selector: "span" }).parentElement).not.toHaveClass("fade-in");
 });

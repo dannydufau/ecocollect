@@ -97,7 +97,7 @@ export function ResidentRequestView({ request, onPhotoError, actionRenderers, no
 
     return <>
         <Link href="/resident" className={textLink}>Back to my requests</Link>
-        <NextStepPanel title={`${request.quantity} × ${request.category.name}`} status={request.status} viewer="resident"
+        <NextStepPanel title={`${request.quantity} × ${request.category.name}`} status={request.status} viewer="resident" quiet={Boolean(notice)}
             facts={<ResidentStatusFacts request={request} />}
             notices={<>
                 {notice && <Alert variant={notice.kind}>{notice.text}</Alert>}

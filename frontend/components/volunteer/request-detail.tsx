@@ -91,7 +91,7 @@ export default function VolunteerRequestDetail({ requestId }: { requestId: strin
 
     return <>
         {back}
-        <NextStepPanel title={`${request.quantity} × ${request.category.name}`} status={request.status} viewer="volunteer"
+        <NextStepPanel title={`${request.quantity} × ${request.category.name}`} status={request.status} viewer="volunteer" quiet={Boolean(notice)}
             facts={<VolunteerStatusFacts request={request} />}
             notices={<>
                 {notice && <Alert variant="success">{notice}</Alert>}
