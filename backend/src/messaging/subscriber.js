@@ -6,9 +6,9 @@
  * queue: a second would split the events between them.
  */
 
-const amqp = require('amqplib');
 const { events, DELIVERY_LIMIT } = require('./topology');
 const { declareConsumerQueue } = require('./declare');
+const { openConnection } = require('./connection');
 
 const DEFAULT_RETRY_MS = 5000;
 const DEFAULT_PREFETCH = 1; // one message at a time keeps each request's events in order
@@ -31,7 +31,7 @@ function startSubscriber({
   queue: queueDef,
   url = process.env.RABBITMQ_URL,
   handlers = {},
-  connect: openConnection = amqp.connect,
+  connect: connectFn,
   log = console,
   retryMs = DEFAULT_RETRY_MS,
   prefetch = DEFAULT_PREFETCH,
@@ -56,18 +56,21 @@ function startSubscriber({
   async function connect() {
     let attempt; // the AMQP connection this call opened
     try {
-      attempt = await openConnection(url);
+      attempt = await openConnection(url, {
+        name: 'subscriber',
+        connect: connectFn,
+        log,
+        onClose: () => {
+          if (current === attempt) current = null;
+          scheduleReconnect('connection closed');
+        },
+      });
       if (stopped) {
         // stop() was called while we were connecting.
         await attempt.close().catch(() => {});
         return;
       }
       current = attempt;
-      attempt.on('error', (err) => log.error('[subscriber] connection error:', err.message));
-      attempt.on('close', () => {
-        if (current === attempt) current = null;
-        scheduleReconnect('connection closed');
-      });
 
       const ch = await attempt.createChannel();
       /*
