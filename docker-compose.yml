@@ -130,6 +130,20 @@ services:
       timeout: 3s
       retries: 10
 
+  cleanup:                          # Cleanup Service (contract 14): expiry jobs and the daily notification cleanup, no HTTP
+    build:
+      context: ./backend
+    command: ["node", "src/cleanup/index.js"]
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${CLEANUP_DATABASE_URL:-}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-ecocollect}:${RABBITMQ_PASSWORD:?copy .env.example to .env first}@rabbitmq:5672
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
   frontend:
     build:
       context: ./frontend
