@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Loads the Reward Service tables and login into the Compose Postgres (contract 2.1).
 #
 #   backend/scripts/reward/load-db.sh          # shared database "ecocollect", nothing dropped
