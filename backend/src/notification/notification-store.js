@@ -122,25 +122,14 @@ function createNotificationStore(pool) {
 
   // Marks one of the account's notifications read; false if it isn't theirs or doesn't exist.
   async function markRead(uid, notificationId) {
-    const { rowCount } = await pool.query(
-      `UPDATE notifications.notification n SET is_read = true
-       FROM notifications.request_notification rn
-       WHERE n.notification_id = rn.notification_id
-         AND rn.account_id = $1 AND n.notification_id = $2`,
-      [uid, notificationId],
-    );
-    return rowCount > 0;
+    // Procedure in db/notification/010_notification_read.sql; NULL fills its OUT parameter.
+    const { rows } = await pool.query('CALL notifications.mark_read($1, $2, NULL)', [uid, notificationId]);
+    return rows[0].p_found;
   }
 
   // Marks all of the account's notifications read.
   async function markAllRead(uid) {
-    await pool.query(
-      `UPDATE notifications.notification n SET is_read = true
-       FROM notifications.request_notification rn
-       WHERE n.notification_id = rn.notification_id
-         AND rn.account_id = $1 AND NOT n.is_read`,
-      [uid],
-    );
+    await pool.query('CALL notifications.mark_all_read($1)', [uid]);
   }
 
   return { saveRequestNotifications, listForAccount, markRead, markAllRead };

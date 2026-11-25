@@ -19,6 +19,7 @@
    ```
 
    and set up the User Service login as in [backend/scripts/user/README.md](./backend/scripts/user/README.md), then put the same password in `USER_DATABASE_URL` in `.env`.
+   Then load the Notification Service's procedures: `backend/scripts/notification/load-db.sh`.
 
 4. Start it:
 

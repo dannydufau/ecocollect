@@ -17,6 +17,7 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."                  # repo root, where docker-compose.yml lives
 
 docker compose up -d --wait rabbitmq postgres
+backend/scripts/notification/load-db.sh   # the notification procedures the tests call
 
 # Use the same user, password and database as Compose, from the repo's .env.
 if [ -f .env ]; then set -a; . ./.env; set +a; fi
