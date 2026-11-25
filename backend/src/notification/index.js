@@ -2,9 +2,9 @@
 
 /*
  * Notification service entry point: wires the pieces together.
- *   RabbitMQ (notification.events) -> subscriber -> 
- *   handlers -> hub -> SSE tabs (GET /api/events)
- *                   -> push sender (Web Push)
+ *   RabbitMQ (notification.events) -> subscriber -> handlers -> store (Postgres)
+ *     -> hub -> SSE tabs (GET /api/events)
+ *     -> push sender (Web Push)
  */
 
 const express = require('express');
@@ -52,7 +52,7 @@ const pushSender = createWebPushSender({ vapid, subscriptions });
 // Stored notifications (notifications.notification + request_notification).
 const notifications = createNotificationStore(pool);
 
-// HTTP: the SSE endpoint
+// HTTP: SSE (N1), push subscriptions (N6, N7) and the notification list (N3-N5)
 
 const app = express();
 app.use(createEventsRouter(hub));
@@ -61,7 +61,7 @@ app.use(createNotificationsRouter({ notifications, hub }));
 
 /*
  * Compose sets PORT=80 (Caddy proxies to "notification" without a port).
- * Locally, default to 3002 so it doesn't clash with the API server on 3001.
+ * Locally, default to 3002 (request is 3003, user 3004).
  */
 const port = Number(process.env.PORT || 3002);
 const server = app.listen(port, () => console.log(`Notification service listening on port ${port}`));
