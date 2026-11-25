@@ -42,8 +42,8 @@ CREATE TABLE IF NOT EXISTS notifications.request_event (
     request_seq BIGINT NOT NULL,
     transition_id UUID NOT NULL,
     CONSTRAINT request_event_pk PRIMARY KEY (pickup_request_id, request_seq),
-    -- request_event_fk1 (pickup_request_id) -> requests.pickup_request: add when the
-    -- Request Service's tables are merged (db/init/010_request_tables.sql).
+    -- request_event_fk1 (pickup_request_id) -> requests.pickup_request: left off for now,
+    -- because the integration test publishes events for requests it doesn't create.
     CONSTRAINT request_event_ck1 CHECK (request_seq > 0)
 );
 

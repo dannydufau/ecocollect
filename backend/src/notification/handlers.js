@@ -15,8 +15,8 @@ const SIGNAL = Object.freeze({
 
 /*
  * Per notification type: its title, the page its url opens,
- * whether it also goes by Web Push, and the body the stored list shows
- * until the request's details can be joined (the request tables aren't in db/init yet).
+ * whether it also goes by Web Push, and the generic body the stored list shows
+ * (the list doesn't join the request's details yet).
  */
 const NOTIFICATION_TYPES = Object.freeze({
   REQUEST_CREATED: {
@@ -45,7 +45,7 @@ const NOTIFICATION_TYPES = Object.freeze({
   },
 });
 
-/* 
+/*
  * The only shape a signal may have: type + requestId. Built from scratch,
  * never by copying event data, so nothing else (e.g. a street address) can
  * leak to the browser even if the event carries it.
@@ -62,7 +62,7 @@ function describe(request) {
 }
 
 /*
- * One notification, in the shape of the SSE notification messagee.
+ * One notification, in the shape of the SSE notification message.
  * The id comes from the event and recipient, so a redelivered event gives the same id.
  */
 function notification(envelope, uid, type, request) {

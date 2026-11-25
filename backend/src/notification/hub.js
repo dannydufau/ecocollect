@@ -72,3 +72,4 @@ function createHub() {
 }
 
 module.exports = { createHub, frame };
+
