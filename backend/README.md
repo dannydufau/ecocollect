@@ -6,7 +6,7 @@ Run `node src/user/index.ts` from `backend/` with Node 22.18 or newer. It listen
 
 Add endpoint files to `src/user/routes/`. Each file exports `register(app)` and registers its routes on the Express app. Files are loaded in filename order before the shared 404 and error handlers. Protected handlers use the gateway's verified user headers; public handlers do not read them. `http/errors.ts` provides `HttpError` and `validationFailed(fields)`.
 
-Session creation, logout and internal `/verify` run in the User Service. Caddy sends both sessions and verification to `user`. Only User mounts the Firebase key; the legacy request backend keeps its pickup alias and `/health` endpoint without Firebase access.
+Session creation, logout and internal `/verify` run in the User Service. Caddy sends both sessions and verification to `user`. Only User mounts the Firebase key.
 
 The layout follows the Request Service on branch `102-request-service`. Database setup and endpoints are separate User Service tickets. `npm test` includes the User Service tests.
 
@@ -15,6 +15,16 @@ The layout follows the Request Service on branch `102-request-service`. Database
 The [User database setup](scripts/user/README.md) creates the account and terms tables, service login and outbox. It also explains the local and Compose connection settings and the database tests.
 
 `db/terms.ts` exports `getCurrentTerms(client)` for registration and role activation. It selects the document with the latest `published_at` that is not in the future, using its ID to break ties, and returns only `termsDocumentId`, `content` and UTC `publishedAt`. The public route uses the same lookup and reads no identity headers. An empty terms table returns a JSON 500 error. Run `node --test test/user-terms.test.js` from `backend/`; set `TEST_DATABASE_URL` to a loaded scratch database to include the newest-document database test.
+
+### Demo sessions
+
+Set `DEMO_MODE=true` only on a dedicated demo User Service with a separate database, RabbitMQ vhost, and Firebase project or Auth emulator. The production Caddy site does not expose `POST /api/demo/session`. The endpoint allows five attempts per client IP per minute, per User Service process. For the demo gateway, set `DEMO_PROXY_IP` to the address of its single directly connected proxy, which must replace or append the actual peer in `X-Forwarded-For`. Without this setting the service uses the socket address.
+
+In the demo Compose profile, put Caddy and the demo User Service on the same dedicated network. Set that network's `ipam.config` subnet to an unused range, then set the Caddy service's `networks.<demo-network>.ipv4_address` to an unused address in that subnet. Pass the same address as `DEMO_PROXY_IP` to the demo User Service. This keeps the trusted peer stable across container recreation and gives each visitor their own rate-limit bucket.
+
+### Shared-schema profile tests
+
+Load `db/init/*.sql` in filename order into a fresh scratch PostgreSQL database. Set `PROFILE_EDIT_TEST_DATABASE_URL` to the database's admin connection string so the tests can create fixtures and switch to `ecocollect_user` for endpoint calls. From `backend/`, run the relevant test with `node --test test/user-profile-update.test.js` for profile edits or `node --test test/user-profile-delete.test.js` for deactivation. The database-backed cases are skipped without that URL.
 
 ## Auth module (`src/user/auth/`)
 
@@ -29,17 +39,66 @@ This checks Firebase users for the gateway. The CommonJS implementation stays in
 `POST /api/session` is routed without `forward_auth` (there is no session yet). `/verify` is internal and must not be exposed publicly.
 A `500` means Firebase or our setup failed (network, bad config), not that the token was bad. A body that isn't valid JSON gets a `400`.
 
-## Request service (`src/api/requests/`, `src/messaging/`)
+## Request Service (`src/request/`)
 
-Creates and lists pickup requests, following [contracts/](../contracts/). It trusts the `X-User-Id` and `X-User-Roles` headers, which only the gateway can set.
+Pickup requests from creation to delivery, following [contracts/](../contracts/) (Q1 to Q15). Caddy sends every request path to `request` after `/verify`, and the service trusts the `X-User-Id` and `X-User-Roles` headers that only the gateway can set. Each route checks its body or query, then makes one call to a SQL function, and that function does the checks, the write and the event in one transaction.
 
-| Route | What it does |
+| Route | Who | What it does |
+|---|---|---|
+| `GET /api/categories` | any signed-in user | Q1. The e-waste categories. |
+| `GET /api/facilities` | volunteer | Q2. The drop-off facilities. |
+| `POST /api/uploads` | resident (item photo) / volunteer (delivery photo) | Q3. Signs an ImageKit upload. |
+| `POST /api/requests` | resident | Q4. One request per item, in one transaction. |
+| `GET /api/requests?view=mine\|available\|volunteer` | resident / volunteer | Q5 to Q7. The resident's requests, the open requests, the volunteer's history. |
+| `GET /api/requests/:id` | any signed-in user | Q8. The detail; the database decides what the caller may see. |
+| `PATCH /api/requests/:id` | owner | Q9. Edit an Open request. |
+| `POST /api/requests/:id/cancel` | owner | Q10. Cancel. |
+| `POST /api/requests/:id/assignment` | volunteer | Q11. Accept. |
+| `POST /api/requests/:id/assignment/cancel` | owner or assigned volunteer | Q12. Cancel the assignment. |
+| `POST /api/requests/:id/assignment/collected` | owner | Q13. Confirm the collection. |
+| `POST /api/requests/:id/assignment/missed` | owner | Q14. Report a missed pickup. |
+| `POST /api/requests/:id/assignment/delivery` | assigned volunteer | Q15. Record the delivery. |
+
+`GET /health` returns `{ "status": "ok" }` without gateway headers. Errors use the contract's `{ "error": { "code", "message" } }` shape.
+
+- **Database.** The Compose database `ecocollect`, which every service uses (contract 2.1). The course tables this service writes are in schema `requests` (`db/init/010_request_tables.sql`, categories and facilities in `011_request_seed.sql`); the User tables it reads are in `users`. Postgres creates them on a new volume. `scripts/request/load-db.sh` adds the rest: every file in `db/request/` in name order (operational tables, functions, login), loaded onto `ecocollect` without dropping anything. On an older volume it also adds the `010` and `011` tables. Rerun it after pulling new SQL files. Its last file, `099_request_login.sql`, creates the service's own login, `ecocollect_request` (contract 2.1 and 8): full rights on schema `requests`, `INSERT` only on `users.terms_acceptance`, read-only on everything else. `load-db.sh` turns the login on with `REQUEST_DB_PASSWORD` from `.env`, and stops before changing anything if it isn't set.
+- **Events out.** The SQL functions write events to `requests.outbox`. The publisher in the same process sends them to the `ecocollect.events` exchange, oldest first, and marks each one only after the broker confirms. A route nudges it after a write; otherwise it looks every second. If RabbitMQ is down, the events wait in the database.
+- **Events in.** The `CleanupRequest` consumer reads `request.cleanup-events` and expires the request if it is still due (`RequestExpired`). A message that keeps failing ends up in `request.cleanup-events.dlq`.
+- **Photos.** ImageKit signs uploads and photo URLs. The private key goes to this service only.
+
+Run it from `backend/`, after `load-db.sh` (port 3003, or `PORT`):
+
+```bash
+DATABASE_URL=postgres://ecocollect_request:<REQUEST_DB_PASSWORD>@localhost:5432/ecocollect \
+  node --env-file=../.env src/request/index.ts
+```
+
+| Variable | Notes |
 |---|---|
-| `POST /api/requests` | Resident only. One request per item, all in one transaction, with the address taken from the resident's profile. Each request also writes a `RequestCreated` row to the `outbox` table. `201`, or `400` with `{ "error": "..." }`. |
-| `GET /api/requests?view=mine` | Resident only. Their own requests, newest first. Optional `status`. |
-| `GET /api/requests?view=available` | Volunteer only. Open requests with a window still ahead, never the street. Optional `postalCodes`. |
+| `DATABASE_URL` | The `ecocollect_request` login on the database `ecocollect`. Compose takes it from `REQUEST_DATABASE_URL` in `.env`. |
+| `REQUEST_DB_PASSWORD` | Read by `load-db.sh` (from `.env`) to set the login's password. Use the same password in `REQUEST_DATABASE_URL`. |
+| `RABBITMQ_URL` | The broker. |
+| `IMAGEKIT_PRIVATE_KEY`, `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_URL_ENDPOINT` | From the ImageKit dashboard. It won't start without them. |
+| `IMAGEKIT_ROOT_FOLDER` | Upload folders start with this: `/ecocollect`, or `/ecocollect-demo` in the demo stack. |
+| `DEMO_MODE` | `true` only in the demo stack: the resident also gets the new-request notification for their own request (contract 17.5). |
 
-The outbox publisher runs in the same process. Every second it sends unsent outbox rows to the `ecocollect.events` topic exchange (routing key `request.created`, persistent) and waits for the broker's confirm before marking a row as sent. If RabbitMQ is down it logs the error and tries again, and the events just wait in the database. It creates the exchange itself if it's missing.
+Tests: `npm run typecheck` and `npm run test:request`. The database tests need `REQUEST_TEST_DATABASE_URL` pointing at a database built by `load-db.sh --test` (`ecocollect_request_test`: every `db/init` file, `db/request/`, then the test accounts and requests in `test/request/seed.sql`); without it they are skipped. Use the service login (`ecocollect_request`) in that URL, so the tests run with the service's real grants, and set `REQUEST_TEST_ADMIN_DATABASE_URL` to the same database with the admin login: the tests move requests into the past by changing rows the service itself may not change. Without the admin URL, the tests use `REQUEST_TEST_DATABASE_URL` for that too, which then has to be the admin login.
+
+From `backend/`, with `docker compose up -d postgres` running:
+
+```bash
+# Rebuild the test database. Do this before every run: some tests change seed rows for good (Q11 accept).
+scripts/request/load-db.sh --test
+
+# Load .env into this shell (use a fresh terminal: these exports override .env later).
+set -a && . ../.env && set +a
+
+REQUEST_TEST_DATABASE_URL="postgres://ecocollect_request:${REQUEST_DB_PASSWORD}@127.0.0.1:5432/ecocollect_request_test" \
+REQUEST_TEST_ADMIN_DATABASE_URL="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@127.0.0.1:5432/ecocollect_request_test" \
+  npm run test:request
+```
+
+Use `127.0.0.1`, not `localhost`: if another Postgres runs on your machine (Homebrew, for example), `localhost` can reach it instead of the Compose one, and every test fails with `role "ecocollect" does not exist`.
 
 ## Reward Service (`src/reward/`)
 
@@ -78,19 +137,17 @@ TEST_DATABASE_URL=postgres://ecocollect:change_me@localhost:5432/ecocollect_rewa
 ```bash
 cd backend
 npm install
-npm start
 ```
 
-Save the Firebase admin key as `secrets/firebase-admin.json` in the repo root (keep it out of git), or point `GOOGLE_APPLICATION_CREDENTIALS` at it. Needs Node 22 or newer.
+Every service is started with its own entry point, for example `node src/user/index.ts` or `node src/request/index.ts`; each section above lists its variables. Compose builds one image from this folder and gives each service its own `command`. Needs Node 22.18 or newer.
+
+Save the Firebase admin key as `secrets/firebase-admin.json` in the repo root (keep it out of git), or point `GOOGLE_APPLICATION_CREDENTIALS` at it.
 
 | Variable | Notes |
 |---|---|
 | `GOOGLE_APPLICATION_CREDENTIALS` | Path to the Firebase service-account key. Defaults to `secrets/firebase-admin.json`. Never commit it. |
 | `FIREBASE_AUTH_EMULATOR_HOST` | Set (e.g. `127.0.0.1:9099`) to use the Auth emulator instead of the key. |
-| `DATABASE_URL` | Postgres connection string. `.env.example` has a working local one, and the tables come from `db/init`. |
-| `RABBITMQ_URL` | For example `amqp://ecocollect:change_me@localhost:5672`. Also in `.env.example`. |
-| `PORT` | Defaults to `3001`. |
-| `NODE_ENV` | Set to `production` when deployed. Otherwise Express puts stack traces in error responses (e.g. a body that is too large). `npm start` does not set it. |
+| `NODE_ENV` | Set to `production` when deployed. Otherwise Express puts stack traces in error responses (e.g. a body that is too large). |
 
 After pulling the quorum-queue change (#104), reset the broker once. RabbitMQ can't change an existing queue's type, so old queues make the services fail with `PRECONDITION_FAILED`:
 
@@ -106,13 +163,13 @@ This deletes only the RabbitMQ volume, so the Postgres demo data survives.
 npm test
 ```
 
-Firebase is faked in the tests, so they need no credentials or network. The database tests are skipped unless `TEST_DATABASE_URL` points at a Postgres with the schema loaded:
+Firebase is faked in the tests, so they need no credentials or network. The shared outbox tests are skipped unless `TEST_DATABASE_URL` points at a Postgres with `db/init/001_schema.sql` loaded:
 
 ```bash
 TEST_DATABASE_URL=postgres://ecocollect:change_me@localhost:5432/ecocollect npm test
 ```
 
-Use a scratch database for that, not the demo one: the outbox tests mark every unsent event as sent. They add their own users with random postal codes and remove them afterwards.
+Use a scratch database for that, not the demo one: the outbox tests mark every unsent event as sent. They remove the events they add.
 
 ## Public profiles
 

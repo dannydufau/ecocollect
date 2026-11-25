@@ -16,6 +16,35 @@ export function isCalgaryPostalCode(code: unknown): code is string {
   return typeof code === 'string' && code.length === 6 && /^T[0-9][A-Z][0-9][A-Z][0-9]$/.test(code);
 }
 
+export function validateProfileAddress(address: unknown, fields: Map<string, string>): void {
+  if (!isObject(address)) fields.set('address', 'Enter a street and postal code.');
+  else {
+    const { street, postalCode, city } = address;
+    for (const key of Object.keys(address)) {
+      if (!['street', 'postalCode', 'city'].includes(key)) fields.set(`address.${key}`, 'This field is not allowed.');
+    }
+    if (typeof street !== 'string' || !street.trim() || [...street].length > 255) {
+      fields.set('address.street', 'Enter a street of 1 to 255 characters.');
+    }
+    if (!isCalgaryPostalCode(postalCode)) fields.set('address.postalCode', 'Enter a six-character Calgary postal code.');
+    if (Object.hasOwn(address, 'city') && city !== 'Calgary') fields.set('address.city', 'The city must be Calgary.');
+  }
+}
+
+export function validatePreferredPostalCodes(codes: unknown, fields: Map<string, string>): void {
+  if (!Array.isArray(codes)) fields.set('preferredPostalCodes', 'Send a list of postal codes.');
+  else {
+    if (codes.length > 3) fields.set('preferredPostalCodes', 'Choose at most 3 postal codes.');
+    const seen = new Set<string>();
+    for (const [index, code] of codes.entries()) {
+      const key = `preferredPostalCodes[${index}]`;
+      if (!isCalgaryPostalCode(code)) fields.set(key, 'Enter a six-character Calgary postal code.');
+      else if (seen.has(code)) fields.set(key, 'This postal code is already selected.');
+      else seen.add(code);
+    }
+  }
+}
+
 function isDate(value: unknown): value is string {
   if (typeof value !== 'string' || value.length !== 10 || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const [year, month, day] = value.split('-').map(Number);

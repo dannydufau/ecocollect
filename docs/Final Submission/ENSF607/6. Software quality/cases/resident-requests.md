@@ -1,0 +1,37 @@
+| Case ID | Scenario | Setup and steps | Expected result | Verification |
+| --- | --- | --- | --- | --- |
+| FR06-P | Create one pickup request per selected category | Create a resident fixture and submit two distinct known categories with different quantities and one common pickup window. | Each category creates a separate Open request with the shared pickup details. Its estimated weight equals the category's standard weight multiplied by quantity. | Automated — `backend/test/store.test.js`, “one request per item, with the weight worked out from the category”. |
+| FR06-N | Reject a repeated category in one submission | On the integrated scratch stack, obtain current terms and send an authenticated Q4 `POST /api/requests` with two items using the same category, one valid future window, and the current terms ID. Check the resident's request list afterwards. | `400 validation_failed` identifies `items[1].categoryId`. Neither item creates a request. | Manual — integrated Request Service. |
+| FR07-P | Schedule valid future Calgary pickup windows | On the integrated scratch stack, use a resident with a known Calgary profile address. Create a request with two non-overlapping one-hour windows on separate days in the next week, then open its details. | Both windows are stored and displayed in Calgary local time. The request uses the address from the resident profile. | Manual — integrated Request Service and resident frontend. |
+| FR07-N | Reject a pickup window that already started | Pass a pickup window that started earlier on the same Calgary day to the request validator, with the reference time fixed by the test. | Validation rejects the window because its start time is in the past. | Automated — `backend/test/validate.test.js`, “windows must start in the future, by Calgary time”. |
+| FR08-P | Correct a pickup request before confirming | On the integrated scratch frontend, create a resident draft, open the review page, return to the form, correct the quantity, and review again. Acknowledge the current terms and confirm. | The review displays the correction. Only the final confirmation creates the request, using the corrected quantity. | Manual — resident review and confirmation flow. |
+| FR08-N | Block confirmation without terms acknowledgement | On the integrated scratch frontend, enter an otherwise valid resident draft and open the review page. Leave the terms acknowledgement unchecked and attempt to submit. Check the resident's request list afterwards. | The frontend prevents submission and no request is created. | Manual on `main`. The `frontend` branch has “requires current terms acceptance and sends nothing when the form is submitted without it” in `frontend/components/resident/new-request-form.test.tsx`. That test was not run for this report. |
+| FR09-P | Filter the resident's own requests by status | Create test requests owned by the resident in different states. List the resident's requests with an Open status filter. | Only that resident's matching Open requests are returned. | Automated — `backend/test/store.test.js`, “mine: can be filtered by status”. |
+| FR09-N | Exclude another resident's request | Seed requests for two residents and list requests as the first resident using the mine view. | The other resident's request is absent. The caller's requests are returned newest first in the list response shape. | Automated — `backend/test/store.test.js`, “mine: newest first, only the caller's, in the contract's shape”. |
+| FR10-P | Edit quantity and windows on an Open request | On the integrated scratch stack, use the owner of a non-overdue Open request. Send Q9 `PATCH /api/requests/:id` with a new quantity and valid replacement windows. Fetch the request details. | `200`. The weight reflects the new quantity, only the replacement windows are active, expiry is recalculated, and the existing pickup address is preserved. | Manual — integrated Request Service. |
+| FR10-N | Reject an edit to an Assigned request | On the integrated scratch stack, assign a volunteer to an Open request. As its resident owner, submit Q9 with a different quantity and fetch the details again. | `409 not_open`. The request remains Assigned and its quantity is unchanged. | Manual — integrated Request Service. |
+| FR11-P | Cancel an Open pickup request | On the integrated scratch stack, use the owner of a non-overdue Open request with no assignment. Send Q10 `POST /api/requests/:id/cancel` and reload the detail and resident list. | `200`. The request is Cancelled in both views and no volunteer assignment is affected. | Manual — integrated Request Service. |
+| FR11-N | Reject cancellation after the selected window ends | On the integrated scratch stack, use the owner of an Assigned request with an unfinished assignment whose selected window has ended. Submit Q10, then fetch the request details. | `409 window_ended`. The request remains Assigned, the assignment is unchanged, and the resident can confirm collection or report a missed pickup. | Manual — integrated Request Service. |
+
+## Verification results
+
+From `backend/`, with `TEST_DATABASE_URL` pointing to scratch PostgreSQL:
+
+```bash
+node --test --test-concurrency=1 test/requests.test.js test/store.test.js test/validate.test.js
+```
+
+The three suites returned 45 passed, 0 failed, and 0 skipped, including all four named automated cases. This run used the legacy Request implementation at `dec936b`. Verification of the replacement Request Service and the eight manual cases is pending.
+
+### Update references after the Request Service merge
+
+[PR #296](https://github.com/dannydufau/ecocollect/pull/296) removes the three legacy suites used above. When it merges into `main`, replace the four automated references and record a new test run. Keep any scenario without an equivalent test as a manual check until it has coverage.
+
+| Case | Replacement check |
+| --- | --- |
+| FR06-P | Start with `backend/test/request/requests.test.ts` (Q4). Verify the case covers two distinct categories, one request per category, and computed weights before citing it. Under the new expiry rule, `expiresAt` is the start of the latest active window. |
+| FR07-N | Check the Q4 tests for an already-started Calgary window. The new validation lives in `req_validate_windows`. Add an explicit test or document the integrated API check if the merged Q4 tests do not cover that input. |
+| FR09-P | Use `backend/test/request/list-mine.test.ts`, “200 in the contract shape, newest first; status filters on the current status”, and rerun it against the scratch Request database. |
+| FR09-N | Confirm whether the merged suite explicitly verifies that another resident's request is excluded. If it does not, run the same two-resident scenario manually against Q5 or add a dedicated test. |
+
+After the frontend tests land on `main`, verify and run the terms-acknowledgement test for FR08-N. Also check the window-picker and cancellation-dialog suites for coverage of FR07-P and FR11. Keep the integrated manual checks where UI tests cover only part of the case.

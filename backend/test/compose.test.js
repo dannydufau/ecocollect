@@ -25,16 +25,6 @@ test('every upstream in the Caddyfile is a service or an alias in Compose', () =
   }
 });
 
-test('the legacy request backend keeps pickup and its own health check without Firebase', () => {
-  const backend = compose.services.backend;
-  assert.strictEqual(backend.build.context, './backend');
-  assert.deepStrictEqual(backend.networks.default.aliases, ['pickup']);
-  assert.strictEqual(String(backend.environment.PORT), '80');
-  assert.ok(backend.healthcheck.test.join(' ').includes('/health'));
-  assert.strictEqual(backend.environment.GOOGLE_APPLICATION_CREDENTIALS, undefined);
-  assert.strictEqual(backend.secrets, undefined);
-});
-
 test('the notification service is the backend image started with its own entry point, on the port Caddy uses', () => {
   const notification = compose.services.notification;
   assert.strictEqual(notification.build.context, './backend');
@@ -59,9 +49,11 @@ test('the frontend is reachable as "frontend" on the port Caddy uses', () => {
   assert.strictEqual(port, '3000');
 });
 
-test('the backend finds Postgres and RabbitMQ by service name, and waits for them', () => {
-  const { environment, depends_on: dependsOn } = compose.services.backend;
-  assert.match(environment.DATABASE_URL, /@postgres:5432\//);
+test('the Request Service finds Postgres (as its own login) and RabbitMQ by service name, and waits for them', () => {
+  const { environment, depends_on: dependsOn } = compose.services.request;
+  assert.strictEqual(environment.DATABASE_URL, '${REQUEST_DATABASE_URL:-}');
+  const example = read('.env.example').match(/^REQUEST_DATABASE_URL=(.*)$/m)[1];
+  assert.match(example, /^postgres:\/\/ecocollect_request:[^@]+@postgres:5432\/ecocollect$/);
   assert.match(environment.RABBITMQ_URL, /@rabbitmq:5672$/);
   for (const dependency of ['postgres', 'rabbitmq']) {
     assert.strictEqual(dependsOn[dependency].condition, 'service_healthy');
@@ -81,7 +73,7 @@ test('nothing is published beyond this machine, and only Caddy publishes the app
       assert.match(port, /^127\.0\.0\.1:/, `${name} publishes ${port} on every network interface`);
     }
   }
-  for (const name of ['backend', 'notification', 'frontend']) {
+  for (const name of ['user', 'request', 'notification', 'frontend']) {
     assert.strictEqual(compose.services[name].ports, undefined, `${name} should only be reached through Caddy`);
   }
   assert.ok(compose.services.caddy.ports.some((p) => p.endsWith(':443')), 'Caddy serves https');
