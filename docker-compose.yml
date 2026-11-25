@@ -36,31 +36,6 @@ services:
       timeout: 5s
       retries: 10
 
-  backend:                          # legacy request service (see backend/README.md)
-    build:
-      context: ./backend
-    restart: unless-stopped
-    environment:
-      PORT: "80"                    # legacy pickup alias listens on port 80
-      DATABASE_URL: postgres://${POSTGRES_USER:-ecocollect}:${POSTGRES_PASSWORD:?copy .env.example to .env first}@postgres:5432/${POSTGRES_DB:-ecocollect}
-      RABBITMQ_URL: amqp://${RABBITMQ_USER:-ecocollect}:${RABBITMQ_PASSWORD:?copy .env.example to .env first}@rabbitmq:5672
-    sysctls:
-      net.ipv4.ip_unprivileged_port_start: 0   # the container runs as a normal user, which may then use port 80
-    networks:
-      default:
-        aliases:
-          - pickup
-    depends_on:
-      postgres:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    healthcheck:                    # the legacy request service has its own health endpoint
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:80/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-
   user:
     build:
       context: ./backend
@@ -97,6 +72,60 @@ services:
         condition: service_healthy
     healthcheck:                    # /api/events answers 401 without X-User-Id, so a 401 means it is up
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:80/api/events').then((r) => process.exit(r.status === 401 ? 0 : 1), () => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  request:                          # Request Service (#102), TypeScript run directly by Node (no build step)
+    build:
+      context: ./backend            # same image as the backend, started with a different entry point
+    command: ["node", "src/request/index.ts"]
+    restart: unless-stopped
+    environment:
+      PORT: "80"                    # Caddy proxies to request without a port, which means 80
+      # The one database every service uses, "ecocollect" (contract 2.1): its tables come
+      # from db/init, its functions and login from backend/scripts/request/load-db.sh.
+      # Connects as its own login, ecocollect_request (contract 2.1), not the admin.
+      DATABASE_URL: ${REQUEST_DATABASE_URL:-}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-ecocollect}:${RABBITMQ_PASSWORD:?copy .env.example to .env first}@rabbitmq:5672
+      # ImageKit (contract 2.4): this is the only service that gets the private key.
+      # Required, like the Firebase config: the service refuses to start without them.
+      IMAGEKIT_PRIVATE_KEY: ${IMAGEKIT_PRIVATE_KEY:?add the ImageKit keys to .env, see .env.example}
+      IMAGEKIT_PUBLIC_KEY: ${IMAGEKIT_PUBLIC_KEY:?add the ImageKit keys to .env, see .env.example}
+      IMAGEKIT_URL_ENDPOINT: ${IMAGEKIT_URL_ENDPOINT:?add the ImageKit keys to .env, see .env.example}
+      IMAGEKIT_ROOT_FOLDER: ${IMAGEKIT_ROOT_FOLDER:-/ecocollect}   # upload folders start with this (6.2)
+      DEMO_MODE: ${DEMO_MODE:-false}                              # true only in the demo stack (17.5)
+    sysctls:
+      net.ipv4.ip_unprivileged_port_start: 0   # the container runs as a normal user, which may then use port 80
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:                    # /health needs no gateway headers; unhealthy until load-db.sh has run
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:80/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  reward:                           # EcoPoints: E5 and E6 in, E11 and E12 out, R1 to R3
+    build:
+      context: ./backend
+    command: ["node", "src/reward/index.js"]
+    restart: unless-stopped
+    environment:
+      PORT: "80"
+      DATABASE_URL: ${REWARD_DATABASE_URL:-}   # built by backend/scripts/reward/load-db.sh
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-ecocollect}:${RABBITMQ_PASSWORD:?copy .env.example to .env first}@rabbitmq:5672
+    sysctls:
+      net.ipv4.ip_unprivileged_port_start: 0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:80/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -138,8 +167,8 @@ services:
       - caddy_data:/data            # keeps Caddy's local certificate authority, so you trust it in the browser only once
       - caddy_config:/config
     depends_on:
-      backend:
-        condition: service_healthy
+      request:                      # started, not healthy: without load-db.sh only request calls fail, not the whole site
+        condition: service_started
       user:
         condition: service_healthy
       frontend:
