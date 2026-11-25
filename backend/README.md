@@ -100,6 +100,38 @@ REQUEST_TEST_ADMIN_DATABASE_URL="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD
 
 Use `127.0.0.1`, not `localhost`: if another Postgres runs on your machine (Homebrew, for example), `localhost` can reach it instead of the Compose one, and every test fails with `role "ecocollect" does not exist`.
 
+## Reward Service (`src/reward/`)
+
+Awards EcoPoints when a request is delivered (`RequestAssignmentDelivered`) or the resident cancels late (`RequestAssignmentCancelledResident`), and publishes `reward.points.delivery` or `reward.points.cancellation` through `rewards.outbox`. Follows [contracts/](../contracts/) sections 5.3, 9 and 15.
+
+| Route | Login | What it does |
+|---|---|---|
+| `GET /api/ecopoints` | yes | The caller's total, split into resident and volunteer points, and every award newest first. Reads `X-User-Id`. |
+| `GET /api/public/stats` | no | Community totals: deliveries, items, estimated weight and points awarded, also grouped by waste type. |
+| `GET /api/public/profiles/:accountId/stats` | no | The account's total EcoPoints. An unknown account returns `0`. |
+
+Each award is one `ecopoints_award` row plus one `resident_award` or `volunteer_award` row, in schema `rewards` (`db/init/012_reward_tables.sql`). The account is not stored on the award; it is found through the assignment's terms acceptance in `requests` and `users` (contract section 8). `db/reward/` holds `outbox`, `processed_events` and the `ecocollect_reward` login, so a repeated event is skipped.
+
+Load the Reward objects into the shared `ecocollect` database. Nothing is dropped, so run it again after every pull:
+
+```bash
+docker compose up -d postgres
+backend/scripts/reward/load-db.sh
+docker compose up -d reward
+```
+
+The script reads `REWARD_DB_PASSWORD` from `.env`; use the same password in `REWARD_DATABASE_URL`.
+
+Without Compose, run `node src/reward/index.js` from `backend/` with `DATABASE_URL` and `RABBITMQ_URL` set. `PORT` defaults to `3005`.
+
+To run the store tests, build the test database from the repo root, then run the tests from `backend/`:
+
+```bash
+backend/scripts/reward/load-db.sh --test
+cd backend
+TEST_DATABASE_URL=postgres://ecocollect:change_me@localhost:5432/ecocollect_reward_test node --test test/reward-store.test.js
+```
+
 ## Run it
 
 ```bash
