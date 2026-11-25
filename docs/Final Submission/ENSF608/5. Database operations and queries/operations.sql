@@ -1,20 +1,23 @@
 -- ENSF 608 Section 5: Database Operations and Queries
 -- Runs on the physical model in "../4. Physical model/" (tables.sql, transactions.sql, seed.sql).
 -- Sections follow the category table in the 608 project description.
--- Citations: FRxx = ENSF607/1. Functional Requirements; App: <file>:<line> <function>, files under
---   backend/src/ (store.js = api/requests/, accounts.ts and profile.ts = user/, notification-store.js
---   and subscriptions.js = notification/ on branch 103-notification-sse-push, marked #103).
+-- Citations: FRxx = ENSF607/1. Functional Requirements; Contract = contracts/README.md.
+--   App: <file>:<line> <function> for code on main (db/request/*.sql = Request Service,
+--   accounts.ts and profile.ts = backend/src/user/). Notification Service code is not on main
+--   yet (#103), so it is cited by function name only (notification-store.js, subscriptions.js).
 
 SET search_path TO ecocollect608, public;
+SET client_min_messages = warning;  -- hide "does not exist, skipping" from DROP PROCEDURE IF EXISTS
 
 
 -- 0. Helper view used by other queries
 --    View: each request's owner and current status.
 --    Rationale: status is stored as history (status_change); current = latest row.
 --               Defined once so later queries can select from it like a table.
---    Citation:  supports FR09, FR12
+--    Citation:  supports FR09, FR12 · App: 022_request_helpers.sql:46 req_current_status (same idea)
 --    Concepts:  view, 3-table join, correlated subquery, MAX
---    Used by:   F3 (filters to Open requests for a volunteer's codes),
+--    Used by:   F2 (a resident's requests that are Open or Assigned),
+--               F3 (filters to Open requests for a volunteer's codes),
 --               A2 (weight stats of Open requests),
 --               J2 (shows each of a resident's requests with its current status)
 CREATE OR REPLACE VIEW request_current_status AS
@@ -83,7 +86,7 @@ ROLLBACK;
 --    Rationale: when a user turns on push in a browser, its endpoint and keys are stored
 --               so pushes can be sent there; the same browser subscribing again updates
 --               its row instead of failing.
---    Citation:  FR19 · App: subscriptions.js:9 add (#103, same statement)
+--    Citation:  FR19 · App: subscriptions.js add (#103, same statement)
 --    Concepts:  INSERT ... VALUES, ON CONFLICT DO UPDATE (upsert), EXCLUDED
 BEGIN;
 
@@ -130,7 +133,7 @@ ROLLBACK;
 -- U2. Replace an Open request's pickup windows (resident edit).
 --    Rationale: residents may replace active windows while Open; old windows are kept
 --               as history (is_active = FALSE), not deleted.
---    Citation:  FR10, FR07
+--    Citation:  FR10, FR07 · App: 037_request_edit.sql:118 req_edit
 --    Concepts:  transaction, row lock (FOR UPDATE), UPDATE, INSERT ... SELECT,
 --               business-rule check (CALL), ROLLBACK keeps the seed unchanged
 --    Uses:      check_business_rules() (transactions.sql); request ...0001 from seed.sql
@@ -207,34 +210,42 @@ ORDER BY postal_code;
 
 ROLLBACK;
 
--- D2. Delete expired push subscriptions.
---    Rationale: a browser subscription past its expiration time can't receive pushes;
---               removing it keeps the Notification Service from sending to dead endpoints.
---    Citation:  FR19 · App: subscriptions.js:39 remove (#103; variant: by expiry, not one endpoint)
---    Concepts:  DELETE ... WHERE, IS NOT NULL, AND, comparison with now()
+-- D2. Daily cleanup: delete expired notifications (children first, then the parent).
+--    Rationale: expired notifications no longer describe the request's state; the daily
+--               cleanup removes them. Each notification has a source row in
+--               request_notification or award_notification that references it, so those
+--               rows are deleted before the notification itself (foreign-key order).
+--    Citation:  FR19 · Contract: E14 NotificationCleanupRequested (daily at 03:00 Calgary),
+--               13.2 "Expired notifications are deleted on NotificationCleanupRequested"
+--    Concepts:  DELETE ... WHERE ... IN (subquery), foreign-key order, transaction, CALL
+--    Uses:      check_business_rules() (transactions.sql)
 BEGIN;
 
--- a) Setup: the seed has no expired subscription, so add one.
-INSERT INTO push_subscription (endpoint, account_id, p256dh, auth, expiration_time, user_agent, updated_at)
-VALUES ('https://push.example.test/resident2-old-phone', 'resident2',
-        'BExampleP256dhKeyResident2Phone', 'exampleAuthSecret2',
-        now() - INTERVAL '1 day', 'Chrome on Android', now() - INTERVAL '40 days');
+-- a) Before: notifications by state.
+SELECT is_expired, COUNT(*) AS notifications
+FROM notification
+GROUP BY is_expired
+ORDER BY is_expired;
 
--- b) Before: which subscriptions are expired.
-SELECT account_id, endpoint,
-       expiration_time IS NOT NULL AND expiration_time < now() AS expired
-FROM push_subscription
-ORDER BY account_id;
+-- b) Children first: source rows of expired notifications.
+DELETE FROM request_notification
+WHERE notification_id IN (SELECT notification_id FROM notification WHERE is_expired);
 
--- c) Delete every expired subscription.
-DELETE FROM push_subscription
-WHERE expiration_time IS NOT NULL
-  AND expiration_time < now();
+DELETE FROM award_notification     -- award notifications never expire (13.2): deletes 0 rows
+WHERE notification_id IN (SELECT notification_id FROM notification WHERE is_expired);
 
--- d) After.
-SELECT account_id, endpoint
-FROM push_subscription
-ORDER BY account_id;
+-- c) Then the parents.
+DELETE FROM notification
+WHERE is_expired;
+
+-- d) Multi-row rules (every notification still has exactly one source row).
+CALL check_business_rules();
+
+-- e) After.
+SELECT is_expired, COUNT(*) AS notifications
+FROM notification
+GROUP BY is_expired
+ORDER BY is_expired;
 
 ROLLBACK;
 
@@ -243,28 +254,32 @@ ROLLBACK;
 -- F1. A volunteer's preferred postal codes.
 --    Rationale: shown on the volunteer's profile; these codes decide which new requests
 --               they're notified about and their default discovery filter.
---    Citation:  FR04, FR12 · App: profile.ts:18 loadProfile (preferred codes subquery)
+--    Citation:  FR04, FR12 · App: profile.ts:12 loadProfile (preferred codes subquery)
 --    Concepts:  SELECT, WHERE
 SELECT postal_code
 FROM volunteer_preferred_postal_code
 WHERE account_id = 'volunteer1'
 ORDER BY postal_code;
 
--- F2. Facilities in a volunteer's areas that need no special drop-off steps.
---    Rationale: when choosing where to deliver, a volunteer may prefer a nearby
---               facility with a simple drop-off.
---    Citation:  FR17
---    Concepts:  WHERE, LIKE (prefix pattern), OR, AND, IS NULL, parentheses
-SELECT name, street, postal_code
-FROM recycling_facility
-WHERE (postal_code LIKE 'T2N%' OR postal_code LIKE 'T2T%')
-  AND special_instructions IS NULL
-ORDER BY name;
+-- F2. A resident's requests that can still be cancelled (Open or Assigned).
+--    Rationale: residents may cancel only while a request is Open or Assigned; the
+--               cancel button is offered on these (FR11).
+--    Citation:  FR11 · Contract: Q10 (409 not_cancellable unless Open or Assigned)
+--               · App: 034_request_cancel.sql:25 req_check_cancel
+--    Concepts:  WHERE, AND, OR, parentheses
+--    Uses:      view request_current_status (op 0) for the current status
+-- (ids shown as their last 4 characters, see op 0)
+SELECT RIGHT(pickup_request_id::text, 4) AS request, category_id, status
+FROM request_current_status
+WHERE resident_id = 'resident2'
+  AND (status = 'Open' OR status = 'Assigned')
+ORDER BY request;
 
 -- F3. Open requests in a volunteer's preferred postal codes.
 --    Rationale: the volunteer's default discovery list shows only Open requests in
 --               their preferred codes (FR12).
---    Citation:  FR12 · App: store.js:135 listAvailable ("pickup_postal_code = ANY($1)")
+--    Citation:  FR12 · App: 029_request_list_available.sql:25 req_list_available
+--               ("p.pickup_postal_code = ANY (p_postal_codes)")
 --    Concepts:  WHERE, AND, IN (with a list from a subquery)
 --    Uses:      view request_current_status (op 0) for the current status
 -- (ids shown as their last 4 characters, see op 0)
@@ -294,7 +309,7 @@ ORDER BY pickup_date, start_hour, request;
 -- O1. Item categories for the request form, by waste type then name.
 --    Rationale: residents pick a category when creating a request; its standard weight
 --               drives the system's weight estimate.
---    Citation:  FR06 · App: store.js:21 loadCategories
+--    Citation:  FR06 · App: 025_request_lists.sql:12 req_list_categories
 --    Concepts:  ORDER BY on two columns, AS (column alias)
 SELECT name AS category, waste_type, standard_weight_kg
 FROM item_category
@@ -303,7 +318,7 @@ ORDER BY waste_type, name;
 -- O2. Newest notifications for an account, first page.
 --    Rationale: the in-app notification list shows the newest first, a page at a time;
 --               expired notifications are hidden (FR19).
---    Citation:  FR19 · App: notification-store.js:84 listForAccount (#103;
+--    Citation:  FR19 · App: notification-store.js listForAccount (#103;
 --               "ORDER BY n.created_at DESC ... LIMIT $3")
 --    Concepts:  ORDER BY ... DESC, LIMIT, WHERE, AND NOT, join
 -- (ids shown as their last 4 characters, see op 0)
@@ -346,7 +361,7 @@ WHERE rcs.status = 'Open';
 -- A3. Unread notification count for an account (the badge on the bell icon).
 --    Rationale: users see how many unread, still-relevant notifications they have;
 --               expired ones don't count (FR19).
---    Citation:  FR19 · App: notification-store.js:97 listForAccount (#103;
+--    Citation:  FR19 · App: notification-store.js listForAccount (#103;
 --               "SELECT count(*) ... AND NOT n.is_expired AND NOT n.is_read")
 --    Concepts:  COUNT, WHERE, AND NOT, join
 SELECT COUNT(*) AS unread
@@ -390,7 +405,7 @@ ORDER BY requests DESC, category;
 -- J1. Facilities that accept a category (where a volunteer can deliver phones).
 --    Rationale: a volunteer must deliver to an eligible facility, one that accepts
 --               the request's category (FR17).
---    Citation:  FR17
+--    Citation:  FR17 · App: 025_request_lists.sql:37 req_list_facilities
 --    Concepts:  INNER JOIN across 3 tables (junction table), WHERE, ORDER BY
 SELECT c.name AS category, f.name AS facility, f.street, f.postal_code,
        f.special_instructions
@@ -402,7 +417,7 @@ ORDER BY f.name;
 
 -- J2. A resident's pickup requests with category, weight and current status.
 --    Rationale: the resident's "My requests" list (FR09), newest first.
---    Citation:  FR09 · App: store.js:120 listMine (same operation, Oct 28 schema)
+--    Citation:  FR09 · App: 028_request_list_mine.sql:13 req_list_mine
 --    Concepts:  INNER JOIN (view + 2 tables), WHERE, ORDER BY ... DESC
 --    Uses:      view request_current_status (op 0) for the owner and current status
 -- (ids shown as their last 4 characters, see op 0)
@@ -441,7 +456,7 @@ ORDER BY volunteer, w.pickup_date, w.start_hour;
 --    Rationale: volunteers view their assigned, collected and delivered pickups (FR21);
 --               only delivered assignments have a delivery record, but every
 --               assignment must still appear.
---    Citation:  FR21, FR17
+--    Citation:  FR21, FR17 · App: 039_request_volunteer_history.sql:19 req_volunteer_history
 --    Concepts:  LEFT JOIN (keeps rows without a match, NULL columns), INNER JOIN,
 --               WHERE, ORDER BY ... DESC
 -- (ids shown as their last 4 characters, see op 0)
@@ -497,7 +512,7 @@ ORDER BY points DESC, account_id;
 
 -- P1. mark_all_read: mark all of an account's notifications as read.
 --    Rationale: the "mark all as read" action in the notification list (FR19).
---    Citation:  FR19 · App: notification-store.js:120 markAllRead (#103, same UPDATE)
+--    Citation:  FR19 · App: notification-store.js markAllRead (#103, same UPDATE)
 --    Concepts:  stored procedure, IN parameter, UPDATE ... FROM (multi-table update), CALL
 --    Mandate:   Lecture 12 - 3: data changes encapsulated in stored procedures, called with
 --               CALL. Postgres syntax noted inline.
@@ -539,7 +554,7 @@ ROLLBACK;
 --    Rationale: tapping a notification marks it read (FR19); a user must not be able to
 --               change someone else's notification, and the caller needs to know which
 --               happened (the app answers 404 when nothing matched).
---    Citation:  FR19 · App: notification-store.js:108 markRead (#103, same UPDATE;
+--    Citation:  FR19 · App: notification-store.js markRead (#103, same UPDATE;
 --               "return rowCount > 0")
 --    Concepts:  stored procedure, IN and OUT parameters, SELECT ... INTO, COUNT,
 --               UPDATE ... FROM, CALL
