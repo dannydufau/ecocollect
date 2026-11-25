@@ -1,7 +1,9 @@
 'use strict';
 
 /*
- * Connection hub: uid -> Set of open SSE responses (one per tab). In memory only.
+ * Connection hub, an Observer: tabs attach (add) and detach (remove), and send() notifies
+ * every open tab of one user, so callers never track connections themselves.
+ * uid -> Set of open SSE responses (one per tab). In memory only.
  * A response is anything with write() and writableEnded, so tests can use fakes.
  */
 
