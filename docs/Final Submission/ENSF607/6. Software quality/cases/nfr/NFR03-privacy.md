@@ -10,7 +10,17 @@ From [Non-functional requirements](../../../2.%20Non-functional%20requirements/R
 
 ## Strategy
 
-The criteria come from the requirement's wording and are named with the security sub-characteristic of ISO/IEC 25010:2011 [1] that privacy falls under, confidentiality. Existing tests are cited first; the remaining gaps are ranked by risk (impact × likelihood).
+The criteria come from the requirement's wording and are named with the security sub-characteristic of ISO/IEC 25010:2011 [1] that privacy falls under, confidentiality.
+
+Existing tests are cited first. Following ISO/IEC/IEEE 29119 [2], the remaining gaps are ranked by risk, impact × likelihood, on this scale:
+
+| Level | Impact | Likelihood |
+| --- | --- | --- |
+| High | Exposes personal data, changes points or money, or breaks a whole service | Untested, and complex, concurrent or driven by outside input |
+| Medium | Shows non-identifying data to the wrong person, or blocks one action | Untested but simple |
+| Low | Cosmetic | Related behaviour is already tested |
+
+High-risk gaps in the event, notification and messaging paths get scripted cases; other gaps are listed with their rating as not yet scripted.
 
 **Scope:** this file scripts the event and notification path (C5), which the Notification Service owns: NFR03-P1 and NFR03-P2. Every other claim is listed with the evidence that exists, or as not yet scripted with its risk.
 
@@ -70,6 +80,8 @@ Supporting evidence for C5 (not scripted here):
 ## References
 
 [1] ISO/IEC 25010:2011, *Systems and software engineering — Systems and software Quality Requirements and Evaluation (SQuaRE) — System and software quality models*.
+
+[2] ISO/IEC/IEEE 29119, *Software and systems engineering — Software testing* (Part 1: General concepts, 2022).
 
 ## Results
 
