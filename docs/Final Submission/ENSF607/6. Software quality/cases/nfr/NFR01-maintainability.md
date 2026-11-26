@@ -88,11 +88,11 @@ The criteria come from the requirement's two sentences. Each is grouped under th
 
 ### NFR01-P4: External services are reached through one place each (C4, basic flow)
 
-**Preconditions:** a checkout of `main` that includes #103 (messaging facade); `npm ci` run in `backend/`.
+**Preconditions:** a checkout of `main`; `npm ci` run in `backend/`.
 
 | # | Action | Expected result |
 | --- | --- | --- |
-| 1 | Find the files that import `amqplib` (RabbitMQ) | Only `backend/src/messaging/connection.js`, plus the known exception below |
+| 1 | Find the files that import `amqplib` (RabbitMQ) | Only files in `backend/src/messaging/`, plus the known exception below |
 | 2 | Find the files that import `firebase-admin` (Firebase) | Only files in `backend/src/user/` |
 | 3 | Find the files that import `@imagekit/nodejs` (ImageKit) | Only files in `backend/src/request/` |
 
