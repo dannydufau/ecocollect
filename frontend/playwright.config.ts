@@ -8,6 +8,7 @@ export default defineConfig({
     testMatch: "**/*.pw.ts",
     testIgnore: process.platform === "win32" && browserName === "chromium" ? [] : ["**/screenshot-comparison.pw.ts"],
     workers: 2,
+    snapshotPathTemplate: "{testDir}/__screenshots__/{projectName}/{arg}{ext}",
     // Reduced motion, so axe never scans an alert while it is still fading in (that read as low contrast)
     use: { baseURL: appUrl, browserName, reducedMotion: "reduce" },
     projects: [320, 375, 768, 1280].map(width => ({

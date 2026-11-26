@@ -91,6 +91,20 @@ npm run e2e:shots -- --only request    # only the screens with "request" in thei
 
 It takes a picture of every route, every request status as the resident and as the volunteer, the empty account's pages, the long-data account's profile and lists, and a 404, and saves them as `e2e/shots/<screen name>/<width>.png`. The folder is not tracked by git. The demo capture uses a separate run with demo mode enabled and checks the “Try EcoCollect” heading before capturing. To add a screen, add it to `e2e/shot-targets.ts`.
 
+### Screenshot comparison
+
+The Chromium suite compares reference images at 375 and 1280 px from `e2e/__screenshots__/`. It uses mock accounts, a fixed clock, reduced motion, and waits for the page fonts. Run just these comparisons with:
+
+```bash
+npx playwright test screenshot-comparison
+```
+
+Use the repository's Playwright Chromium version. The screenshot tests run on Windows to match the reference images. Other operating systems still run the regular browser checks. If a PR intentionally changes a screen, review the image diff, regenerate the affected references, and explain the change in the PR:
+
+```bash
+npx playwright test screenshot-comparison --update-snapshots
+```
+
 ## Frontend pull requests
 
 Before you open one, run `npm test`, `npm run lint`, `npx tsc --noEmit` and `npm run e2e`. Attach before and after images of the screens you changed (`npm run e2e:shots -- --only <screen>` makes them).
