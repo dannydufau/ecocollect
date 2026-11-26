@@ -432,3 +432,16 @@ test('the next page includes a notification saved at the same time as the last o
     const { rows } = await store.listForAccount(uid, { before: first.created_at.toISOString(), limit: 30 });
     assert.deepEqual(new Set(rows.map((r) => r.notification_id)), saved);
   }));
+
+test('a later step expires older notifications from other actions, not from the same one', { skip }, () =>
+  withStore(async ({ save }) => {
+    const action = randomUUID();
+    const first = await save(2, action, 'ASSIGNMENT_CANCELLED_BY_VOLUNTEER_RESIDENT');
+    const sameAction = await save(3, action, 'REQUEST_UPDATED_RESIDENT'); // e.g. the reopen that follows
+    assert.deepEqual(sameAction.expired, []);
+    const nextAction = await save(4, randomUUID(), 'REQUEST_CANCELLED_RESIDENT');
+    assert.deepEqual(
+      new Set(nextAction.expired.map((e) => e.notificationId)),
+      new Set([...first.saved, ...sameAction.saved]),
+    );
+  }));

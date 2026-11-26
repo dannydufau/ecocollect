@@ -64,7 +64,8 @@ function createNotificationStore(pool) {
       let expired = [];
       if (!stale && saved.size > 0) {
         /*
-         * Each recipient's older notifications about this request.
+         * Each recipient's older notifications about this request from other user actions
+         * (one action can send several events, and those notifications stay together).
          * When the request leaves Open, every volunteer's NEW_MATCHING_REQUEST about it.
          * Only lower request_seq, so a late event can never expire a newer one.
          */
@@ -72,13 +73,14 @@ function createNotificationStore(pool) {
         const result = await client.query(
           `UPDATE notifications.notification n SET is_expired = true
            FROM notifications.request_notification rn
+           JOIN notifications.request_event ev USING (pickup_request_id, request_seq)
            WHERE n.notification_id = rn.notification_id
              AND rn.pickup_request_id = $1
              AND rn.request_seq < $2
              AND NOT n.is_expired
-             AND (rn.account_id = ANY($3) OR ($4 AND n.type = 'NEW_MATCHING_REQUEST'))
+             AND ((rn.account_id = ANY($3) AND ev.transition_id <> $5) OR ($4 AND n.type = 'NEW_MATCHING_REQUEST'))
            RETURNING n.notification_id, rn.account_id`,
-          [pickupRequestId, requestSeq, recipients, leavesOpen],
+          [pickupRequestId, requestSeq, recipients, leavesOpen, transitionId],
         );
         expired = result.rows.map((r) => ({ notificationId: r.notification_id, accountId: r.account_id }));
       }
