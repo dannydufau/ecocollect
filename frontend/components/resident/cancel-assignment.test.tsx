@@ -15,13 +15,14 @@ HTMLDialogElement.prototype.showModal = function () { this.setAttribute("open", 
 HTMLDialogElement.prototype.close = function () { this.removeAttribute("open"); };
 
 const window = { windowId: "w1", date: "2026-11-20", startHour: 14 };
+const volunteer = { accountId: "danny", publicName: "Danny" };
 const detail = (outsideCancellationWindow = false, patch: Partial<RequestDetail> = {}): RequestDetail => ({
     requestId: "r/1", viewer: "owner", status: "Assigned", allowedActions: ["cancel_assignment"],
     category: { categoryId: "laptops", name: "Computers/Laptops", wasteType: "Computers" },
     quantity: 1, estimatedWeightKg: 2.5, postalCode: "T2P1J9",
     createdAt: new Date().toISOString(), expiresAt: "2026-11-20T18:00:00Z", windows: [window],
     assignment: {
-        assignmentId: "a1", volunteer: { accountId: "danny", publicName: "Danny" }, window, status: "Active",
+        assignmentId: "a1", volunteer, window, status: "Active",
         acceptedAt: "2026-11-15T18:00:00Z", collectedAt: null, endedAt: null, endReason: null, outsideCancellationWindow,
     },
     delivery: null, refreshAt: null, ...patch,
@@ -85,6 +86,14 @@ it("warns about points only when the cancel is close to the pickup", () => {
     cleanup();
     mount();
     expect(within(open()).queryByText(/will receive EcoPoints/)).not.toBeInTheDocument();
+});
+
+it("does not promise points when the resident is their own volunteer (FR18)", () => {
+    mount(<CancelAssignment request={detail(true, { resident: volunteer })} onNotice={onNotice} />);
+    expect(within(open()).queryByText(/will receive EcoPoints/)).not.toBeInTheDocument();
+    cleanup();
+    mount(<CancelAssignment request={detail(true, { resident: { accountId: "jas", publicName: "Jas" } })} onNotice={onNotice} />);
+    expect(within(open()).getByText(/will receive EcoPoints/)).toBeInTheDocument();
 });
 
 it("sends nothing when dismissed", () => {

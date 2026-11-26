@@ -6,7 +6,7 @@ import { api, ApiError, friendlyError } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import type { CancelAssignment as CancelBody, PickupWindow, RequestDetail } from "@/lib/types";
 import { useRequestAction } from "@/lib/use-request";
-import type { Notice } from "./cancel-request";
+import { volunteerEarnsCancellationPoints, type Notice } from "./cancel-request";
 import { validate } from "./request-form";
 import { WindowsPicker } from "./windows-picker";
 
@@ -66,7 +66,7 @@ export default function CancelAssignment({ request, onNotice }: { request: Reque
             onConfirm={confirm} onCancel={() => { if (!action.isPending) setOpen(false); }}>
             <div className="space-y-3">
                 <p>Your request stays active. It goes back to Open if it still has future pickup windows. You can offer new windows below.</p>
-                {request.assignment?.outsideCancellationWindow && <Alert variant="warning">The pickup is less than 24 hours away. The volunteer will receive EcoPoints for this cancellation.</Alert>}
+                {volunteerEarnsCancellationPoints(request) && <Alert variant="warning">The pickup is less than 24 hours away. The volunteer will receive EcoPoints for this cancellation.</Alert>}
                 <Field label="Reason" optional error={action.error instanceof ApiError ? action.error.fields.reason : undefined} hint={`${reason.length} / 500 characters`}>
                     {control => <textarea {...control} maxLength={500} value={reason} onChange={event => setReason(event.target.value)} disabled={action.isPending}
                         rows={3} className={textarea} />}
