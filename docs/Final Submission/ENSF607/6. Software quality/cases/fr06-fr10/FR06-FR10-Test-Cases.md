@@ -15,11 +15,9 @@
 
 **Evidence for TC001:**
 
-Browser screenshot from the local app with a mock API.
+The request list shows both new category requests.
 
 ![TC001 browser result](evidence/tc001-browser.png)
-
-Request Service test output from scratch PostgreSQL.
 
 ![TC001 automated test result](evidence/tc001-test-output.png)
 
@@ -37,8 +35,6 @@ Request Service test output from scratch PostgreSQL.
 </table>
 
 **Evidence for TC002:**
-
-Request Service test output from scratch PostgreSQL.
 
 ![TC002 automated test result](evidence/tc002-test-output.png)
 
@@ -59,11 +55,9 @@ Request Service test output from scratch PostgreSQL.
 
 **Evidence for TC003:**
 
-Browser screenshot from the local app with a mock API.
+The review shows two Calgary pickup windows and the pickup address.
 
 ![TC003 browser result](evidence/tc003-browser.png)
-
-Request Service test output from scratch PostgreSQL.
 
 ![TC003 automated test result](evidence/tc003-test-output.png)
 
@@ -81,8 +75,6 @@ Request Service test output from scratch PostgreSQL.
 </table>
 
 **Evidence for TC004:**
-
-Request Service test output from scratch PostgreSQL.
 
 ![TC004 automated test result](evidence/tc004-test-output.png)
 
@@ -103,11 +95,9 @@ Request Service test output from scratch PostgreSQL.
 
 **Evidence for TC005:**
 
-Browser screenshot from the local app with a mock API.
+The review shows the corrected quantity of three laptops.
 
 ![TC005 browser result](evidence/tc005-browser.png)
-
-Vitest output from the frontend test.
 
 ![TC005 automated test result](evidence/tc005-test-output.png)
 
@@ -125,11 +115,9 @@ Vitest output from the frontend test.
 
 **Evidence for TC006:**
 
-Browser screenshot from the local app with a mock API.
+Confirm and send stays disabled while the terms checkbox is unchecked.
 
 ![TC006 browser result](evidence/tc006-browser.png)
-
-Vitest output from the frontend test.
 
 ![TC006 automated test result](evidence/tc006-test-output.png)
 
@@ -149,11 +137,9 @@ Vitest output from the frontend test.
 
 **Evidence for TC007:**
 
-Browser screenshot from the local app with a mock API.
+The Open filter shows only Open requests.
 
 ![TC007 browser result](evidence/tc007-browser.png)
-
-Request Service test output from scratch PostgreSQL.
 
 ![TC007 automated test result](evidence/tc007-test-output.png)
 
@@ -170,8 +156,6 @@ Request Service test output from scratch PostgreSQL.
 </table>
 
 **Evidence for TC008:**
-
-Request Service test output from scratch PostgreSQL.
 
 ![TC008 automated test result](evidence/tc008-test-output.png)
 
@@ -192,11 +176,9 @@ Request Service test output from scratch PostgreSQL.
 
 **Evidence for TC009:**
 
-Browser screenshot from the local app with a mock API.
+The request details show the saved quantity and recalculated weight.
 
 ![TC009 browser result](evidence/tc009-browser.png)
-
-Request Service test output from scratch PostgreSQL.
 
 ![TC009 automated test result](evidence/tc009-test-output.png)
 
@@ -215,10 +197,8 @@ Request Service test output from scratch PostgreSQL.
 
 **Evidence for TC010:**
 
-Browser screenshot from the local app with a mock API.
+The Expired request details have no edit action.
 
 ![TC010 browser result](evidence/tc010-browser.png)
-
-Request Service test output from scratch PostgreSQL.
 
 ![TC010 automated test result](evidence/tc010-test-output.png)
