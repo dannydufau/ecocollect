@@ -14,8 +14,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
 
 // Error body: { error: { code, message } }.
-function fail(res, status, code, message) {
-  return res.status(status).json({ error: { code, message } });
+function fail(res, status, code, message, details) {
+  return res.status(status).json({ error: { code, message, ...(details && { details }) } });
 }
 
 // A stored row in the Notification shape; title, body and url are built here.
@@ -43,11 +43,13 @@ function createNotificationsRouter({ notifications, hub }) {
   router.get('/api/notifications', async (req, res) => {
     const { before, limit } = req.query;
     if (before !== undefined && !(typeof before === 'string' && TIMESTAMP.test(before))) {
-      return fail(res, 400, 'invalid_before', 'before must be a UTC timestamp like 2026-10-28T16:15:00Z');
+      return fail(res, 400, 'invalid_before', 'before must be a UTC timestamp like 2026-10-28T16:15:00Z',
+        { fields: { before: 'must be a UTC timestamp like 2026-10-28T16:15:00Z' } });
     }
     const n = limit === undefined ? 30 : Number(limit);
     if (!Number.isInteger(n) || n < 1 || n > 100) {
-      return fail(res, 400, 'invalid_limit', 'limit must be a whole number from 1 to 100');
+      return fail(res, 400, 'invalid_limit', 'limit must be a whole number from 1 to 100',
+        { fields: { limit: 'must be a whole number from 1 to 100' } });
     }
     try {
       const { rows, unreadCount } = await notifications.listForAccount(req.user.uid, { before: before ?? null, limit: n });

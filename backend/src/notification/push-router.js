@@ -9,8 +9,8 @@ const express = require('express');
 const { gatewayUser } = require('../api/requests/user');
 
 // Error body: { error: { code, message } }, the same as the other routes.
-function fail(res, status, code, message) {
-  return res.status(status).json({ error: { code, message } });
+function fail(res, status, code, message, details) {
+  return res.status(status).json({ error: { code, message, ...(details && { details }) } });
 }
 
 // Only real push services: otherwise a user could make us POST to any address, internal ones included.
@@ -33,12 +33,13 @@ function createPushRouter({ subscriptions }) {
   // Body: subscription.toJSON(), { endpoint, expirationTime, keys: { p256dh, auth } }.
   router.post('/api/push/subscriptions', async (req, res) => {
     if (!allowedEndpoint(req.body?.endpoint)) {
-      return fail(res, 400, 'invalid_subscription', 'endpoint must be a push service https URL');
+      return fail(res, 400, 'invalid_subscription', 'endpoint must be a push service https URL',
+        { fields: { endpoint: 'must be a push service https URL' } });
     }
     try {
       await subscriptions.add(req.user.uid, req.body ?? {}, req.get('User-Agent') ?? null);
     } catch (err) {
-      if (err.status === 400) return fail(res, 400, 'invalid_subscription', err.message);
+      if (err.status === 400) return fail(res, 400, 'invalid_subscription', err.message, { fields: { keys: err.message } });
       // 23503: foreign key violation, the uid has no row in users.account.
       if (err.code === '23503') return fail(res, 400, 'unknown_account', 'No account for this user');
       console.error(`[push] saving a subscription failed: ${err.message}`);
