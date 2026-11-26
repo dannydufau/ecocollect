@@ -1,5 +1,5 @@
-const amqp = require('amqplib');
 const { exchange } = require('./topology');
+const { openConnection } = require('./connection');
 
 const CONFIRM_TIMEOUT_MS = 5000;
 
@@ -81,10 +81,7 @@ function startOutboxPublisher({ pool, url, intervalMs = 1000, table = 'outbox', 
   async function tick() {
     try {
       if (!channel) {
-        connection = await amqp.connect(url);
-        // Without a listener an 'error' event would crash the whole server.
-        connection.on('error', (err) => console.error('RabbitMQ connection:', err.message));
-        connection.on('close', () => (channel = undefined));
+        connection = await openConnection(url, { name: 'outbox', onClose: () => (channel = undefined) });
         if (stopped) return drop();
         channel = await connection.createConfirmChannel();
         await channel.assertExchange(exchange.name, exchange.type, { durable: exchange.durable });

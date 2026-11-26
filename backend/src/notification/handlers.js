@@ -1,27 +1,83 @@
 'use strict';
 
-// Event handlers for the notification service: turn a domain event into the
-// SSE signals to send, as plain data. No hub, no broker, no I/O here; the
-// caller delivers the result. That keeps these pure and easy to test.
+const { notificationUuid } = require('./ids');
+
+/*
+ * Event handlers for the notification service: turn a domain event into deliveries,
+ * one per recipient: the SSE signal, the notification, and whether to also push it.
+ * Plain data, no I/O; the caller delivers them.
+ */
 
 const SIGNAL = Object.freeze({
   REQUEST_CREATED: 'REQUEST_CREATED',
   NEW_MATCHING_REQUEST: 'NEW_MATCHING_REQUEST',
 });
 
-// The only shape a signal may have: type + requestId. Built from scratch,
-// never by copying event data, so nothing else (e.g. a street address) can
-// leak to the browser even if the event carries it.
+// Per notification type: its title, the page its url opens, and whether it also goes by Web Push.
+const NOTIFICATION_TYPES = Object.freeze({
+  REQUEST_CREATED: {
+    title: 'Request posted', path: '/resident/requests/', push: false,
+  },
+  NEW_MATCHING_REQUEST: {
+    title: 'New pickup near you', path: '/volunteer/requests/', push: true,
+  },
+  REQUEST_ASSIGNED_RESIDENT: {
+    title: 'Pickup accepted', path: '/resident/requests/', push: true,
+  },
+  REQUEST_ASSIGNED_VOLUNTEER: {
+    title: 'You accepted a pickup', path: '/volunteer/requests/', push: false,
+  },
+  REQUEST_CANCELLED_RESIDENT: {
+    title: 'Request cancelled', path: '/resident/requests/', push: false,
+  },
+  REQUEST_EXPIRED_RESIDENT: {
+    title: 'Request expired', path: '/resident/requests/', push: true,
+  },
+});
+
+/*
+ * The only shape a signal may have: type + requestId. Built from scratch,
+ * never by copying event data, so nothing else (e.g. a street address) can
+ * leak to the browser even if the event carries it.
+ */
 function signal(type, requestId) {
   return { type, requestId };
 }
 
+// The text of a request notification: only quantity, category and postal code, never an address.
+function describe(request) {
+  const { quantity, categoryName, postalCode } = request;
+  if (!quantity || !categoryName || !postalCode) return 'Pickup request';
+  return `${quantity} * ${categoryName} in ${postalCode}`;
+}
+
+/*
+ * One notification, in the shape of the SSE notification message.
+ * The id comes from the event and recipient, so a redelivered event gives the same id.
+ */
+function notification(envelope, uid, type, request) {
+  const { title, path, push } = NOTIFICATION_TYPES[type];
+  return {
+    notification: {
+      notificationId: notificationUuid(envelope.eventId, uid, type),
+      type,
+      requestId: request.requestId,
+      awardId: null,
+      title,
+      body: describe(request),
+      url: `${path}${request.requestId}`,
+      createdAt: envelope.occurredAt,
+    },
+    push,
+  };
+}
+
 /**
- * RequestCreated → one signal to the resident who made the request, and one
+ * RequestCreated: a delivery to the resident who made the request, and one
  * to each matched volunteer.
  *
- * @param {object} envelope  { type: 'RequestCreated', data: { requestId, residentUid, matchedVolunteerUids } }
- * @returns {Array<{ uid: string, signal: { type: string, requestId: string } }>}
+ * @param {object} envelope  { eventId, type: 'RequestCreated', occurredAt, data }
+ * @returns {Array<{ uid: string, signal: object, notification: object, push: boolean }>}
  */
 function requestCreated(envelope) {
   const data = (envelope && envelope.data) || {};
@@ -34,21 +90,105 @@ function requestCreated(envelope) {
   if (typeof requestId !== 'string' || requestId === '') {
     throw new Error('RequestCreated without a requestId');
   }
+  // The notification id is built from it.
+  if (typeof envelope.eventId !== 'string' || envelope.eventId === '') {
+    throw new Error('RequestCreated without an eventId');
+  }
 
   const out = [];
 
   if (residentUid) {
-    out.push({ uid: residentUid, signal: signal(SIGNAL.REQUEST_CREATED, requestId) });
+    out.push({
+      uid: residentUid,
+      signal: signal(SIGNAL.REQUEST_CREATED, requestId),
+      ...notification(envelope, residentUid, SIGNAL.REQUEST_CREATED, request),
+    });
   }
 
-  // Tolerate a missing list, and send each volunteer one signal even if the
-  // event lists them twice.  NOTE: Set keeps only first occurrence - no dup signals
+  // Tolerates a missing list; the Set gives each volunteer one delivery even if listed twice.
   const volunteers = new Set(Array.isArray(data.matchedVolunteerUids) ? data.matchedVolunteerUids : []);
   for (const uid of volunteers) {
-    if (uid) out.push({ uid, signal: signal(SIGNAL.NEW_MATCHING_REQUEST, requestId) });
+    if (!uid) continue;
+    out.push({
+      uid,
+      signal: signal(SIGNAL.NEW_MATCHING_REQUEST, requestId),
+      ...notification(envelope, uid, SIGNAL.NEW_MATCHING_REQUEST, request),
+    });
   }
 
   return out;
 }
 
-module.exports = { requestCreated, SIGNAL };
+/*
+ * The request snapshot that every later request event carries in data.request.
+ * Throws without the ids, step or action the notifications are built from, so the
+ * subscriber retries the event and, if it never gets better, dead-letters it.
+ */
+function snapshotOf(envelope, eventName) {
+  const request = envelope?.data?.request;
+  if (typeof request?.requestId !== 'string' || request.requestId === '') {
+    throw new Error(`${eventName} without a requestId`);
+  }
+  if (typeof envelope.eventId !== 'string' || envelope.eventId === '') {
+    throw new Error(`${eventName} without an eventId`);
+  }
+  if (!Number.isInteger(request.requestSeq) || request.requestSeq < 1) {
+    throw new Error(`${eventName} without a requestSeq`);
+  }
+  if (typeof request.transitionId !== 'string' || request.transitionId === '') {
+    throw new Error(`${eventName} without a transitionId`);
+  }
+  return request;
+}
+
+// One delivery with no Oct 28 signal (the frontend's signal only knows the two creation types).
+function delivery(envelope, uid, type, request) {
+  return { uid, signal: null, ...notification(envelope, uid, type, request) };
+}
+
+// RequestAssigned (E3): the resident hears a volunteer accepted (push); the volunteer gets a record.
+function requestAssigned(envelope) {
+  const request = snapshotOf(envelope, 'RequestAssigned');
+  const out = [delivery(envelope, request.residentUid, 'REQUEST_ASSIGNED_RESIDENT', request)];
+  const volunteerUid = envelope.data.assignment?.volunteerUid;
+  if (volunteerUid) out.push(delivery(envelope, volunteerUid, 'REQUEST_ASSIGNED_VOLUNTEER', request));
+  return out;
+}
+
+// RequestCancelled (E9): the resident cancelled, so they get a record and no push.
+function requestCancelled(envelope) {
+  const request = snapshotOf(envelope, 'RequestCancelled');
+  return [delivery(envelope, request.residentUid, 'REQUEST_CANCELLED_RESIDENT', request)];
+}
+
+// RequestExpired (E10): nobody acted, so the resident is pushed.
+function requestExpired(envelope) {
+  const request = snapshotOf(envelope, 'RequestExpired');
+  return [delivery(envelope, request.residentUid, 'REQUEST_EXPIRED_RESIDENT', request)];
+}
+
+/*
+ * What to push silently over phone notifications this event made stale (contract 13.2): the
+ * same tag replaces them. One per account, and none for an account this event already pushes.
+ * An account with its own notification from this event sees that; other volunteers are told
+ * the pickup is gone.
+ */
+function replacements(request, deliveries, expired) {
+  const pushedNow = new Set(deliveries.filter((d) => d.push).map((d) => d.uid));
+  const byUid = new Map();
+  for (const { accountId, notificationId, replace } of expired) {
+    if (!replace || pushedNow.has(accountId)) continue;
+    const own = deliveries.find((d) => d.uid === accountId)?.notification;
+    byUid.set(accountId, own ?? {
+      notificationId,
+      requestId: request.requestId,
+      awardId: null,
+      title: 'This pickup is no longer available',
+      body: describe(request),
+      url: `${NOTIFICATION_TYPES.NEW_MATCHING_REQUEST.path}${request.requestId}`,
+    });
+  }
+  return [...byUid].map(([uid, notification]) => ({ uid, notification }));
+}
+
+module.exports = { requestCreated, requestAssigned, requestCancelled, requestExpired, replacements, describe, SIGNAL, NOTIFICATION_TYPES };

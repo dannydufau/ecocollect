@@ -210,7 +210,7 @@ Request detail (Q8 and the responses of Q9–Q15):
 |---|---|---|---|---|---|---|
 | N1 | `GET /api/events` | Session cookie (`EventSource`, `withCredentials: true`) | – | `200 text/event-stream` (13.3) | 401 | One stream per tab. The hub stores `userId`, roles and the connection |
 | N2 | `GET /api/public/events?profile=<accountId>` or `?stats` | none | exactly one of the two | `200 text/event-stream` (13.5) | 400 | Public pages only. No user data on the stream |
-| N3 | `GET /api/notifications?before=&limit=` | Bearer | `before` (ISO time), `limit` (default 30, max 100) | `200 { unreadCount, notifications: [{ notificationId, type, requestId, awardId, title, body, url, isRead, createdAt }] }` newest first | 401 | Expired notifications are never returned |
+| N3 | `GET /api/notifications?before=&limit=` | Bearer | `before` (ISO time), `limit` (default 30, max 100) | `200 { unreadCount, notifications: [{ notificationId, type, requestId, awardId, title, body, url, isRead, createdAt }] }` newest first | 400, 401 | Expired notifications are never returned |
 | N4 | `PATCH /api/notifications/:id/read` | Bearer | – | `204` | 401, 404 | Sends `notification-read` to the user's other connections |
 | N5 | `POST /api/notifications/read-all` | Bearer | – | `204` | 401 | One `notification-read` message with `all: true` |
 | N6 | `POST /api/push/subscriptions` | Bearer | `{ endpoint, keys: { p256dh, auth }, expirationTime? }` | `201` | 400, 401 | User agent from the `User-Agent` header. Same endpoint again = update (`Updated_At`) |
