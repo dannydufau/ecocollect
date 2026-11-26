@@ -1660,8 +1660,8 @@ components:
       contentType: application/json
       description: |
         Sent with Web Push, encrypted with the subscription's keys, only for the notification types
-        that push (README 13.1). The service worker shows it unless an EcoCollect tab is focused, and
-        opens `url` on click. A `404` or `410` from the push service means the subscription is gone:
+        that push (README 13.1). The service worker always shows it, quietly while an EcoCollect tab is
+        focused (README 16.6), and opens `url` on click. A `404` or `410` from the push service means the subscription is gone:
         delete it. No street address, notes or photo, ever.
       payload:
         $ref: '#/components/schemas/PushPayload'

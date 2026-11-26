@@ -12,9 +12,13 @@
 
 # testing
 /coverage
+/playwright-report/
+/test-results/
+/e2e/shots/
 
 # next.js
 /.next/
+/.next-e2e/
 /out/
 
 # production
@@ -40,3 +44,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# left behind if a mock test run is stopped halfway
+mock/tmp-routes-*

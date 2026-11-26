@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
-import { signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { Suspense, useEffect, useState, type FormEvent } from "react";
+import Link from "next/link";
+import { redirect, useRouter, useSearchParams } from "next/navigation";
 import { FirebaseError } from "firebase/app";
-import { auth } from "@/lib/firebase";
-import { getRoles, homeFor } from "@/lib/auth";
 import { useAuth } from "@/lib/auth-context";
+import { isDemo } from "@/lib/demo";
+import { Alert, Button, Field, PasswordInput, card, input, pageTitle, textLink } from "@/components/ui";
 
 function errorMessage(err: unknown): string {
   if (err instanceof FirebaseError) {
@@ -20,42 +20,52 @@ function errorMessage(err: unknown): string {
         return "Too many attempts. Wait a moment and try again.";
       case "auth/network-request-failed":
         return "Network error. Check your connection.";
+      case "auth/user-disabled":
+        return "This account has been deactivated.";
     }
   }
   return "Something went wrong. Please try again.";
 }
 
+// Reading the search params needs its own Suspense boundary or the build fails
+function ExpiredNotice() {
+  const expired = useSearchParams().get("expired") === "1";
+  return expired ? <Alert variant="info">Please sign in again.</Alert> : null;
+}
+
 export default function LoginPage() {
+  if (isDemo) redirect("/demo");
   const router = useRouter();
-  const { user, roles, loading } = useAuth();
+  const { user, roles, loading, signIn, signOut } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!loading && !submitting && user && roles.length > 0) {
-      router.replace(homeFor(roles));
+      router.replace("/choose-role");
     }
   }, [loading, submitting, user, roles, router]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    const nextErrors: { email?: string; password?: string } = {};
+    if (!email.trim()) nextErrors.email = "Enter your email.";
+    if (!password) nextErrors.password = "Enter your password.";
+    setFieldErrors(nextErrors);
+    if (nextErrors.email || nextErrors.password) return;
     setSubmitting(true);
     try {
-      const credential = await signInWithEmailAndPassword(
-        auth,
-        email,
-        password,
-      );
-      const userRoles = await getRoles(credential.user);
+      const userRoles = await signIn(email.trim(), password);
       if (userRoles.length === 0) {
-        await signOut(auth);
+        await signOut();
         setError("This account has no role assigned.");
         return;
       }
-      router.replace(homeFor(userRoles));
+      router.replace("/choose-role");
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -64,44 +74,31 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-6 p-8">
-      <h1 className="text-2xl font-semibold">EcoCollect login</h1>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <label className="flex flex-col gap-1">
-          Email
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            autoComplete="email"
-            className="rounded border px-3 py-2"
-          />
-        </label>
-        <label className="flex flex-col gap-1">
-          Password
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            autoComplete="current-password"
-            className="rounded border px-3 py-2"
-          />
-        </label>
-        {error && (
-          <p role="alert" className="text-sm text-red-600">
-            {error}
-          </p>
-        )}
-        <button
-          type="submit"
-          disabled={submitting}
-          className="rounded bg-green-700 px-4 py-2 text-white disabled:opacity-50"
-        >
-          {submitting ? "Signing in..." : "Sign in"}
-        </button>
+    <main className="flex w-full min-w-0 flex-1 flex-col items-center justify-center gap-4 p-4 sm:p-8">
+      <form onSubmit={handleSubmit} noValidate className={`${card} flex w-full max-w-[440px] min-w-0 flex-col gap-4`}>
+        <h1 className={pageTitle}>Sign in to EcoCollect</h1>
+        <p className="text-text-muted">Calgary’s community e-waste courier.</p>
+        <Suspense fallback={null}>
+          <ExpiredNotice />
+        </Suspense>
+        <Field label="Email" error={fieldErrors.email}>
+          {(control) => (
+            <input {...control} type="email" value={email} onChange={(e) => { setEmail(e.target.value); setFieldErrors(prev => ({ ...prev, email: undefined })); }}
+              required autoComplete="email" className={input} />
+          )}
+        </Field>
+        <Field label="Password" error={fieldErrors.password}>
+          {(control) => (
+            <PasswordInput {...control} value={password} onChange={(e) => { setPassword(e.target.value); setFieldErrors(prev => ({ ...prev, password: undefined })); }}
+              required autoComplete="current-password" />
+          )}
+        </Field>
+        <Link href="/forgot-password" className={`${textLink} self-start`}>Forgot password?</Link>
+        {error && <Alert variant="error">{error}</Alert>}
+        <Button type="submit" busy={submitting} busyLabel="Signing in..." className="w-full">Sign in</Button>
+        <Link href="/register" className={`${textLink} self-start`}>Create an account</Link>
       </form>
+      <Link href="/stats" className={`${textLink} text-sm`}>Community stats</Link>
     </main>
   );
 }

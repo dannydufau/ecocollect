@@ -535,10 +535,10 @@ paths:
               example:
                 error:
                   code: validation_failed
-                  message: Choose an existing category.
+                  message: Some fields are invalid.
                   details:
                     fields:
-                      categoryId: Unknown category.
+                      categoryId: unknown category
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -652,7 +652,19 @@ paths:
                     createdAt: '2026-11-20T16:15:00Z'
                     expiresAt: '2026-11-22T20:00:00Z'
         '400':
-          $ref: '#/components/responses/ValidationError'
+          description: One entry per field in `error.details.fields`, for example a photo that failed the check or a window that has started.
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/Error
+              example:
+                error:
+                  code: validation_failed
+                  message: Some fields are invalid.
+                  details:
+                    fields:
+                      'items[1].photo.fileId': photo check failed
+                      'windows[0]': must start in the future
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -857,7 +869,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/RequestDetail'
         '400':
-          $ref: '#/components/responses/ValidationError'
+          description: One entry per field in `error.details.fields`. The item's fields are named at the top (`categoryId`, `quantity`, `photo.fileId`); a photo that failed the check is `photo.fileId`.
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/Error
+              example:
+                error:
+                  code: validation_failed
+                  message: Some fields are invalid.
+                  details:
+                    fields:
+                      photo.fileId: photo check failed
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -1012,7 +1035,9 @@ paths:
       x-readme-id: Q12
       description: |
         A volunteer can cancel any time before collection (FR14). A resident only until the selected window ends
-        (FR11). The request then reopens, or expires if it is past `expiresAt`.
+        (FR11). The request then reopens, or expires if it is past `expiresAt`. When a volunteer's cancel
+        expires the request, the answer is `404 request_unavailable`: the cancel was saved, but the volunteer
+        can no longer see the request (README Q12, 16.13).
       security:
         - bearerAuth: []
       requestBody:
@@ -1209,7 +1234,19 @@ paths:
               schema:
                 $ref: '#/components/schemas/RequestDetail'
         '400':
-          $ref: '#/components/responses/ValidationError'
+          description: 'One entry per field in `error.details.fields`: a facility that does not accept the category (FR17), or an evidence photo that failed the check (README 6.5).'
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/common.yaml#/Error
+              example:
+                error:
+                  code: validation_failed
+                  message: Some fields are invalid.
+                  details:
+                    fields:
+                      facilityId: does not accept this category
+                      evidencePhoto.fileId: photo check failed
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

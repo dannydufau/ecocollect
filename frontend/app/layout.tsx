@@ -1,30 +1,36 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { body, heading } from "./fonts";
 import "./globals.css";
 import Providers from "./providers";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+import AppHeader from "@/components/app-header";
+import DemoBanner from "@/components/demo-banner";
 
 export const metadata: Metadata = {
-  title: "EcoCollect",
+  title: { default: "EcoCollect", template: "%s · EcoCollect" },
   description: "E-waste pickup requests",
 };
+
+export const viewport: Viewport = { themeColor: "#f5ead8" };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${heading.variable} ${body.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col"><Providers>{children}</Providers></body>
+      <body className="min-h-full flex flex-col">
+        <Providers>
+          <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-20 focus:inline-flex focus:min-h-11 focus:items-center focus:rounded-full focus:bg-text focus:px-4 focus:text-bg">
+            Skip to main content
+          </a>
+          <DemoBanner />
+          <AppHeader />
+          {/* The pages keep their own width and padding. Bottom padding keeps the phone bottom bar from covering the end of the page. */}
+          <div id="main-content" tabIndex={-1} className="flex w-full flex-1 flex-col pb-20 min-[960px]:pb-0">
+            {children}
+          </div>
+        </Providers>
+      </body>
     </html>
   );
 }

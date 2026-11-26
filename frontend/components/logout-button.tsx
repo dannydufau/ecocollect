@@ -1,19 +1,19 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { logout } from "@/lib/auth";
+import { Button } from "@/components/ui";
+import { useAuth } from "@/lib/auth-context";
 
 export default function LogoutButton() {
     const router = useRouter();
+    const { signOut } = useAuth();
 
     async function handleClick() {
-        await logout();
+        await signOut();
         router.replace("/login");
     }
 
     return (
-        <button onClick={handleClick} className="rounded border px-3 py-1 text-sm">
-            Log out
-        </button>
+        <Button variant="secondary" onClick={handleClick}>Log out</Button>
     );
 }

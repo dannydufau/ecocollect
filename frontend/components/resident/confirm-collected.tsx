@@ -1,0 +1,37 @@
+"use client";
+
+import { Button } from "@/components/ui";
+import { api, friendlyError } from "@/lib/api";
+import { queryKeys } from "@/lib/query-keys";
+import type { RequestDetail } from "@/lib/types";
+import { useRequestAction } from "@/lib/use-request";
+import type { Notice } from "./cancel-request";
+
+// No dialog here, so every result goes to the page notice
+export default function ConfirmCollected({ request, onNotice }: { request: RequestDetail; onNotice: (notice: Notice | null) => void }) {
+    const action = useRequestAction(request.requestId,
+        async () => {
+            try {
+                const result = await api.post(`/api/requests/${encodeURIComponent(request.requestId)}/assignment/collected`);
+                onNotice({ kind: "success", text: "Collection confirmed." });
+                return result;
+            } catch (error) {
+                onNotice({ kind: "error", text: friendlyError(error) });
+                throw error;
+            }
+        },
+        [queryKeys.myRequests]);
+
+    function confirm() {
+        if (action.isPending) return;
+        onNotice(null);
+        action.run(undefined);
+    }
+
+    if (request.viewer !== "owner" || !request.allowedActions.includes("confirm_collected")) return null;
+    // The sentence takes its own line above the action row, so all the buttons stay in line
+    return <>
+        <p className="order-first w-full">Confirm only after the volunteer has taken your items.</p>
+        <Button onClick={confirm} busy={action.isPending} busyLabel="Confirming...">Confirm collected</Button>
+    </>;
+}

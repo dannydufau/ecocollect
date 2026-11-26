@@ -1,16 +1,13 @@
-import CreateRequestForm from "@/components/create-request-form";
-import LogoutButton from "@/components/logout-button";
-import MyRequests from "@/components/my-requests";
+import { Suspense } from "react";
+import MyRequests from "@/components/resident/my-requests";
+import { pageWidth } from "@/components/ui";
 
 export default function ResidentPage() {
     return (
-        <main className="flex flex-col gap-8 p-8">
-            <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-semibold">Resident view</h1>
-                <LogoutButton />
-            </div>
-            <CreateRequestForm />
-            <MyRequests />
+        <main className={`${pageWidth} flex flex-col gap-6 p-4 sm:p-8`}>
+            <Suspense>
+                <MyRequests />
+            </Suspense>
         </main>
     );
 }
