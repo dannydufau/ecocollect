@@ -18,6 +18,7 @@ function fakeStore() {
   const row = {
     notification_id: ID, type: 'NEW_MATCHING_REQUEST', created_at: new Date('2026-11-20T16:15:00Z'),
     is_read: false, pickup_request_id: REQUEST_ID, account: 'uid_v1',
+    quantity: 2, category_name: 'Computers/Laptops', postal_code: 'T2P1J9',
   };
   return {
     row,
@@ -65,7 +66,7 @@ test('N3 lists the caller\'s notifications in the contract shape, with the unrea
       requestId: REQUEST_ID,
       awardId: null,
       title: 'New pickup near you',
-      body: 'A pickup request matches your area',
+      body: '2 * Computers/Laptops in T2P1J9',
       url: `/volunteer/requests/${REQUEST_ID}`,
       isRead: false,
       createdAt: '2026-11-20T16:15:00.000Z',

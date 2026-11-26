@@ -8,7 +8,7 @@
 const express = require('express');
 
 const { gatewayUser } = require('../api/requests/user');
-const { NOTIFICATION_TYPES } = require('./handlers');
+const { describe, NOTIFICATION_TYPES } = require('./handlers');
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
@@ -27,7 +27,8 @@ function present(row) {
     requestId: row.pickup_request_id,
     awardId: null,
     title: t?.title ?? 'Notification',
-    body: t?.listBody ?? 'Open EcoCollect for details',
+    // Same text as the live message. A request can only change while Open, which expires these.
+    body: describe({ quantity: row.quantity, categoryName: row.category_name, postalCode: row.postal_code }),
     url: t ? `${t.path}${row.pickup_request_id}` : '/',
     isRead: row.is_read,
     // Keep the milliseconds: the client sends this back as `before`, and a page must end exactly here.

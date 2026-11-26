@@ -99,9 +99,12 @@ function createNotificationStore(pool) {
    */
   async function listForAccount(uid, { before = null, limit = 30 } = {}) {
     const { rows } = await pool.query(
-      `SELECT n.notification_id, n.type, n.created_at, n.is_read, rn.pickup_request_id
+      `SELECT n.notification_id, n.type, n.created_at, n.is_read, rn.pickup_request_id,
+              r.quantity, c.name AS category_name, r.pickup_postal_code AS postal_code
        FROM notifications.request_notification rn
        JOIN notifications.notification n ON n.notification_id = rn.notification_id
+       JOIN requests.pickup_request r ON r.pickup_request_id = rn.pickup_request_id
+       JOIN requests.item_category c ON c.category_id = r.category_id
        WHERE rn.account_id = $1
          AND NOT n.is_expired
          AND ($2::timestamptz IS NULL OR n.created_at < $2)

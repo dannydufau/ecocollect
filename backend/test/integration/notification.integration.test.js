@@ -337,6 +337,7 @@ test('a RequestCreated reaches the resident and matched volunteers as signals, n
     assert.equal(list.unreadCount, 1);
     assert.equal(list.notifications[0].notificationId, toVolunteer.id);
     assert.equal(list.notifications[0].url, `/volunteer/requests/${requestId}`);
+    assert.equal(list.notifications[0].body, toVolunteer.data.body); // the same text after a refresh
     const read = await fetch(`${service.notificationsUrl}/${toVolunteer.id}/read`, { ...asVolunteer, method: 'PATCH' });
     assert.equal(read.status, 204);
     assert.equal((await (await fetch(service.notificationsUrl, asVolunteer)).json()).unreadCount, 0);

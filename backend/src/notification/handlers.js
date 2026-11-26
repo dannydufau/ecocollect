@@ -13,35 +13,25 @@ const SIGNAL = Object.freeze({
   NEW_MATCHING_REQUEST: 'NEW_MATCHING_REQUEST',
 });
 
-/*
- * Per notification type: its title, the page its url opens,
- * whether it also goes by Web Push, and the generic body the stored list shows
- * (the list doesn't join the request's details yet).
- */
+// Per notification type: its title, the page its url opens, and whether it also goes by Web Push.
 const NOTIFICATION_TYPES = Object.freeze({
   REQUEST_CREATED: {
     title: 'Request posted', path: '/resident/requests/', push: false,
-    listBody: 'Your pickup request is posted',
   },
   NEW_MATCHING_REQUEST: {
     title: 'New pickup near you', path: '/volunteer/requests/', push: true,
-    listBody: 'A pickup request matches your area',
   },
   REQUEST_ASSIGNED_RESIDENT: {
     title: 'Pickup accepted', path: '/resident/requests/', push: true,
-    listBody: 'A volunteer accepted your pickup request',
   },
   REQUEST_ASSIGNED_VOLUNTEER: {
     title: 'You accepted a pickup', path: '/volunteer/requests/', push: false,
-    listBody: 'You accepted a pickup request',
   },
   REQUEST_CANCELLED_RESIDENT: {
     title: 'Request cancelled', path: '/resident/requests/', push: false,
-    listBody: 'Your pickup request was cancelled',
   },
   REQUEST_EXPIRED_RESIDENT: {
     title: 'Request expired', path: '/resident/requests/', push: true,
-    listBody: 'Your pickup request expired',
   },
 });
 
@@ -177,4 +167,4 @@ function requestExpired(envelope) {
   return [delivery(envelope, request.residentUid, 'REQUEST_EXPIRED_RESIDENT', request)];
 }
 
-module.exports = { requestCreated, requestAssigned, requestCancelled, requestExpired, SIGNAL, NOTIFICATION_TYPES };
+module.exports = { requestCreated, requestAssigned, requestCancelled, requestExpired, describe, SIGNAL, NOTIFICATION_TYPES };
