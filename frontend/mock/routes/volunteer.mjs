@@ -1,15 +1,11 @@
 // Q2, Q6, Q7, Q11, Q12 (volunteer side) and Q15. Q8 is buildDetail in detail.mjs.
 import { randomUUID } from "node:crypto";
-import { currentUser, now, sendError, store } from "../store.mjs";
+import { currentUser, now, send, sendError, store } from "../store.mjs";
 import { buildDetail, requestSummary, windowStart } from "../detail.mjs";
 import { textFor } from "../notification-text.mjs";
 
 const HISTORY = ["Volunteer_Cancelled", "Resident_Cancelled", "Missed_Pickup"];
 const ASSIGNMENT_STATUSES = ["Active", "Collected", "Delivered", ...HISTORY];
-
-function send(res, status, body) {
-  res.writeHead(status, { "Content-Type": "application/json" }).end(JSON.stringify(body));
-}
 
 function authenticate(req, res, role) {
   const user = currentUser(req);

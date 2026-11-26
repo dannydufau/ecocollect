@@ -1,16 +1,12 @@
 // Mock of the User Service: U1, U2, U4, U6, U7, U8, U9, U10 and R3 (contract 5.1 and 5.4), plus N2 (the public stream).
 import { randomUUID } from "node:crypto";
-import { currentUser, now, sendError, store as sharedStore } from "../store.mjs";
+import { currentUser, now, send, sendError, store as sharedStore } from "../store.mjs";
 
 const DAY = 24 * 60 * 60 * 1000;
 const USERNAME = /^[a-z0-9_-]{3,50}$/;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const POSTAL_CODE = /^T[0-9][A-Z][0-9][A-Z][0-9]$/;
 const PING_MS = 25_000;
-
-function send(res, status, body) {
-  res.writeHead(status, { "Content-Type": "application/json" }).end(JSON.stringify(body));
-}
 
 // The demo accounts only have a uid, a public name, roles and a postal code. The profile needs more.
 function fillProfiles(store) {

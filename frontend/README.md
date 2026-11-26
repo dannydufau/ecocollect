@@ -61,11 +61,13 @@ Never set `NEXT_PUBLIC_E2E` or `E2E_BUILD_CONFIRM` for a deployed build. The bui
 
 ## Browser tests
 
-From `frontend/`, install Chromium after installing the npm dependencies, then run the suite:
+From `frontend/`, install the browser engines you want to test. Chromium is the default:
 
 ```bash
-npx playwright install chromium
+npx playwright install chromium firefox webkit
 npm run e2e
+E2E_BROWSER=firefox npm run e2e
+E2E_BROWSER=webkit npm run e2e
 ```
 
 Playwright starts its own mock API on port 3101 and signed-in test build on port 3100. Keep those ports free. The mock and browser share a fixed date, and the suite uses synthetic accounts without Firebase credentials. Route smoke tests run at 320, 375, 768 and 1280 px. Axe scans run at 375 and 1280 px and fail on serious or critical violations. The browser runs with reduced motion on, so a scan never catches an alert halfway through its fade-in (that read as low contrast and failed some runs). A test that checks an animation turns it back on with `test.use({ reducedMotion: "no-preference" })`.
@@ -87,7 +89,7 @@ npm run e2e:shots                      # every screen, at 375 and 1280 px
 npm run e2e:shots -- --only request    # only the screens with "request" in their name
 ```
 
-It takes a picture of every route, every request status as the resident and as the volunteer, the empty account's pages, the long-data account's profile and lists, the demo page and a 404, and saves them as `e2e/shots/<screen name>/<width>.png`. The folder is not tracked by git. The pictures are for pull requests, not for the repo. To add a screen, add it to `e2e/shot-targets.ts`.
+It takes a picture of every route, every request status as the resident and as the volunteer, the empty account's pages, the long-data account's profile and lists, and a 404, and saves them as `e2e/shots/<screen name>/<width>.png`. The folder is not tracked by git. The screenshot server disables demo mode, so its demo target currently captures the 404 page. To add a screen, add it to `e2e/shot-targets.ts`.
 
 ## Frontend pull requests
 
@@ -107,9 +109,9 @@ The API and event contracts live at the repo root: `contracts/openapi.yaml` (eve
 | `npm test` | Unit and component tests (Vitest) |
 | `npm run lint` | ESLint |
 | `npm run mock` | Mock API |
-| `npm run e2e` | Chromium route checks and axe scans |
+| `npm run e2e` | Browser journeys, route checks, visual assertions and axe scans |
 | `npm run e2e:shots` | Screenshots of every screen for pull requests (`-- --only <name>` for a subset) |
-| `npm run e2e:app` | Builds the signed-in test mode and serves it on port 3100 (see below) |
+| `npm run e2e:app` | Builds the signed-in test mode and serves it on port 3100 (see Signed-in test mode) |
 | `npm run types` | Regenerates `lib/api-types.ts` from `../contracts/openapi.yaml`. Don't edit that file by hand. |
 
 ## Where things are
@@ -123,7 +125,7 @@ Times are shown in Calgary time (`lib/time.ts`). Postal codes are sent as `T2P1J
 
 ## Baseline
 
-`baseline-js.json` records the untouched `frontend` branch at `84abc8b` using Next.js 16.4.3 with Turbopack. The size check reads the build's route diagnostics and sums each route's distinct first-load chunks in raw and gzip bytes. To compare with the recorded build, use the same placeholder Firebase configuration in a shell where the other `NEXT_PUBLIC_*` settings are unset. Next.js embeds these values in the browser bundle.
+`baseline-js.json` records the 19 route budgets established during remediation with Next.js 16.4.6 and Turbopack. The size check reads the build's route diagnostics and sums each route's distinct first-load chunks in raw and gzip bytes. To compare with the recorded build, use the same placeholder Firebase configuration in a shell where the other `NEXT_PUBLIC_*` settings are unset. Next.js embeds these values in the browser bundle.
 
 ```sh
 export NEXT_PUBLIC_FIREBASE_API_KEY=demo-local-key
@@ -150,4 +152,4 @@ Chrome DevTools Lighthouse 13.5.0 performance runs used the earlier production b
 
 FE-092 (#402) added the authenticated browser setup. The signed-in Lighthouse runs still need to be recorded. Real-account sign-in to first content still needs a DevTools Performance recording with a working Firebase account.
 
-`npm audit` reported 12 findings (4 high and 8 moderate). The high findings include Firebase, its Firestore packages, and gRPC. The Next.js build also reported that the installed version has a known vulnerability and recommended upgrading. Dependency versions are unchanged in this baseline.
+The [remediation tracker](../frontend-audit-2026-11-25/5-implementation-tracker.md) records the dependency audit and lab measurements for the remediation build.

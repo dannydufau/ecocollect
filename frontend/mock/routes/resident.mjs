@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { currentUser, now, sendError } from "../store.mjs";
+import { currentUser, now, send, sendError } from "../store.mjs";
 import { buildDetail, requestSummary, windowStart } from "../detail.mjs";
 import { registerResidentActions } from "../resident-actions.mjs";
 import { volunteerList } from "./volunteer.mjs";
@@ -8,10 +8,6 @@ import { fixtureAccounts, fixtureRequests, longUsername } from "../fixtures.mjs"
 const DAY = 24 * 60 * 60 * 1000;
 const HOUR = 60 * 60 * 1000;
 const STATUSES = ["Open", "Assigned", "Collected", "Delivered", "Cancelled", "Expired", "Missed"];
-
-function send(res, status, body) {
-  res.writeHead(status, { "Content-Type": "application/json" }).end(JSON.stringify(body));
-}
 
 function authenticate(req, res, role) {
   const user = currentUser(req);

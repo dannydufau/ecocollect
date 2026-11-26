@@ -20,7 +20,7 @@ export const normalizeUsername = (value: string) => value.trim().toLowerCase();
 // README Conventions: the frontend uppercases and removes spaces, the services only accept that form
 export const normalizePostalCode = (value: string) => value.replace(/\s+/g, "").toUpperCase();
 
-// The oldest birth date that is 18 or older on `today` (both YYYY-MM-DD). Used for the date picker's max.
+// Latest eligible birth date for the date picker's maximum.
 export function eighteenYearsAgo(today: string): string {
     // 29 February has no match 18 years back unless that year is a leap year too. Someone born on 28 February is 18 that day.
     const monthDay = today.endsWith("-02-29") ? "-02-28" : today.slice(4);

@@ -1,14 +1,10 @@
 // N1, N3, N4 and N5 (contracts README section 13), plus notify() for the other mock files.
 import { randomUUID } from "node:crypto";
-import { currentUser, now, sendError, store } from "../store.mjs";
+import { currentUser, now, send, sendError, store } from "../store.mjs";
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
 const PING_MS = 25_000;
-
-function send(res, status, body) {
-  res.writeHead(status, { "Content-Type": "application/json" }).end(JSON.stringify(body));
-}
 
 function authenticate(req, res) {
   const user = currentUser(req);

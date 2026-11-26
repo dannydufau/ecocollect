@@ -52,7 +52,7 @@ test.describe("remediation browser regressions", () => {
         await expect(page.getByLabel(/Notes/)).toHaveValue("Side gate");
     });
 
-    test("NAV-06: resident list filter persists across Back and reload", async ({ page }) => {
+    test("NAV-06: resident list filter persists after reload", async ({ page }) => {
         test.skip(width(page) !== 1280, "Filter URL state is viewport-independent.");
         await openPage(page, "/resident", resident);
         await page.getByRole("button", { name: "Assigned", exact: true }).click();

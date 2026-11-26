@@ -1,14 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { currentUser, now, sendError } from "../store.mjs";
+import { currentUser, now, send, sendError } from "../store.mjs";
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const PLACEHOLDER = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="420" viewBox="0 0 640 420">
 <rect width="640" height="420" fill="#ebddc5"/><text x="320" y="215" font-family="sans-serif" font-size="28" text-anchor="middle" fill="#201e1d">Mock photo</text></svg>`;
 const EXTENSIONS = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
-
-function send(res, status, body) {
-  res.writeHead(status, { "Content-Type": "application/json" }).end(JSON.stringify(body));
-}
 
 function authenticate(req, res) {
   const user = currentUser(req);

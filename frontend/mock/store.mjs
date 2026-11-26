@@ -54,10 +54,14 @@ export function now() {
 }
 
 // The contract error format: { error: { code, message, details: { fields } } }
+export function send(res, status, body) {
+  res.writeHead(status, { "Content-Type": "application/json" }).end(JSON.stringify(body));
+}
+
 export function sendError(res, status, code, message, fields) {
   const error = { code, message };
   if (fields) error.details = { fields };
-  res.writeHead(status, { "Content-Type": "application/json" }).end(JSON.stringify({ error }));
+  send(res, status, { error });
 }
 
 // Any token is accepted. It is only read, never checked, because this is a mock.

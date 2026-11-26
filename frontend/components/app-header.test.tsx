@@ -92,9 +92,9 @@ it("shows My requests, Available, shared links and the switcher before a both-ro
 });
 
 it.each([
-    ["resident", "resident", "/resident"],
-    ["volunteer", "volunteer", "/volunteer"],
-])("sends the brand link of a %s tab to its home", (role, active, home) => {
+    ["resident", "/resident"],
+    ["volunteer", "/volunteer"],
+])("sends the brand link of a %s tab to its home", (active, home) => {
     signedIn(["resident", "volunteer"], active);
     render(<AppHeader />);
     expect(screen.getByRole("link", { name: "EcoCollect" })).toHaveAttribute("href", home);
