@@ -1,7 +1,11 @@
 node_modules
 .next
+.next-e2e
+test-results
+*.tsbuildinfo
 .env*
-mock
+mock/*
+!mock/fixtures.mjs
 README.md
 AGENTS.md
 Dockerfile
