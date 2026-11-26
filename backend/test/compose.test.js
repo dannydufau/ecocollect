@@ -38,7 +38,7 @@ test('the notification service gets the broker and Postgres, but no Firebase key
   const { environment, depends_on: dependsOn, secrets } = compose.services.notification;
   assert.match(environment.RABBITMQ_URL, /@rabbitmq:5672$/);
   assert.strictEqual(dependsOn.rabbitmq.condition, 'service_healthy');
-  assert.match(environment.DATABASE_URL, /@postgres:5432\//);
+  assert.strictEqual(environment.DATABASE_URL, '${NOTIFICATION_DATABASE_URL:-}');   // its own login, not the admin
   assert.strictEqual(dependsOn.postgres.condition, 'service_healthy');
   assert.strictEqual(environment.GOOGLE_APPLICATION_CREDENTIALS, undefined);
   assert.strictEqual(secrets, undefined);

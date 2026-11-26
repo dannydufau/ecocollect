@@ -64,7 +64,9 @@ services:
     environment:
       PORT: "80"                    # Caddy proxies to notification without a port, which means 80
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-ecocollect}:${RABBITMQ_PASSWORD:?copy .env.example to .env first}@rabbitmq:5672
-      DATABASE_URL: postgres://${POSTGRES_USER:-ecocollect}:${POSTGRES_PASSWORD:?copy .env.example to .env first}@postgres:5432/${POSTGRES_DB:-ecocollect}   # stored notifications and push subscriptions; no Firebase key
+      # Stored notifications and push subscriptions. Connects as its own login, ecocollect_notification
+      # (contract 2.1), set up by backend/scripts/notification/load-db.sh. No Firebase key.
+      DATABASE_URL: ${NOTIFICATION_DATABASE_URL:-}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:?run npx web-push generate-vapid-keys, see .env.example}   # Web Push keys
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:?run npx web-push generate-vapid-keys, see .env.example}
       VAPID_SUBJECT: ${VAPID_SUBJECT:?add a mailto contact, see .env.example}                         # contact for push services
@@ -192,3 +194,4 @@ volumes:
 secrets:
   firebase-admin.json:              # mounted in the user service at /run/secrets/firebase-admin.json
     file: ./secrets/firebase-admin.json
+    
