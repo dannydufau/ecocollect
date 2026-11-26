@@ -151,5 +151,3 @@ Chrome DevTools Lighthouse 13.5.0 performance runs used the earlier production b
 | `/resident`, `/volunteer`, a request detail, and `/ecopoints` | Mobile and desktop | Pending | Pending | Pending |
 
 FE-092 (#402) added the authenticated browser setup. The signed-in Lighthouse runs still need to be recorded. Real-account sign-in to first content still needs a DevTools Performance recording with a working Firebase account.
-
-The [remediation tracker](../frontend-audit-2026-11-25/5-implementation-tracker.md) records the dependency audit and lab measurements for the remediation build.
