@@ -1,5 +1,6 @@
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { readableFieldError } from "@/lib/field-messages";
 import { saveReturnTo } from "@/lib/return-to";
 
 // The error body the contract promises: { error: { code, message, details: { fields } } }
@@ -22,7 +23,7 @@ export class ApiError extends Error {
         const fields = error?.details?.fields;
         if (fields && typeof fields === "object") {
             for (const [name, text] of Object.entries(fields)) {
-                if (typeof text === "string") this.fields[name] = text;
+                if (typeof text === "string") this.fields[name] = readableFieldError(name, text);
             }
         }
     }

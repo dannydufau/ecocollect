@@ -42,10 +42,11 @@ it("turns a 409 error body into an ApiError with the code and message", async ()
     expect(err).toMatchObject({ status: 409, code: "window_ended", message: "The window has ended." });
 });
 
-it("exposes the per-field messages of a 400", async () => {
-    reply(400, { error: { code: "validation_error", message: "Check the fields.", details: { fields: { quantity: "must be a positive integer" } } } });
+it("exposes the per-field messages of a 400 as sentences", async () => {
+    reply(400, { error: { code: "validation_failed", message: "Some fields are invalid.", details: { fields: {
+        "items[0].quantity": "must be at least 1", "address.street": "Enter a street." } } } });
     const err = await caught(api.post("/api/requests", {}));
-    expect(err.fields.quantity).toBe("must be a positive integer");
+    expect(err.fields).toEqual({ "items[0].quantity": "Please enter a whole number, 1 or more.", "address.street": "Enter a street." });
 });
 
 it("falls back to the code unknown when the body is not our error format", async () => {
