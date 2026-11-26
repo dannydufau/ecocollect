@@ -76,7 +76,7 @@ it("does not expose history or linked request IDs to a non-owner", () => {
 it("loads the requested ID through the shared detail hook and shows the owner fields", async () => {
     renderWithClient(<ResidentRequestDetail requestId="r/1" />);
     expect(await screen.findByRole("heading", { name: "2 × Computers/Laptops" })).toBeInTheDocument();
-    expect(api.getWithMeta).toHaveBeenCalledWith("/api/requests/r%2F1");
+    expect(api.getWithMeta).toHaveBeenCalledWith("/api/requests/r%2F1", { signal: expect.any(AbortSignal) });
     expect(screen.getByText("5.00 kg")).toBeInTheDocument();
         expect(screen.getByText("101 Example Street SW")).toBeInTheDocument();
     expect(screen.getByText("Calgary, T2P 1J9")).toBeInTheDocument();

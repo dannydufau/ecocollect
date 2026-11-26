@@ -1,14 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { currentUser, now, sendError } from "../store.mjs";
+import { currentUser, now, send, sendError } from "../store.mjs";
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const PLACEHOLDER = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="420" viewBox="0 0 640 420">
 <rect width="640" height="420" fill="#ebddc5"/><text x="320" y="215" font-family="sans-serif" font-size="28" text-anchor="middle" fill="#201e1d">Mock photo</text></svg>`;
 const EXTENSIONS = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
-
-function send(res, status, body) {
-  res.writeHead(status, { "Content-Type": "application/json" }).end(JSON.stringify(body));
-}
 
 function authenticate(req, res) {
   const user = currentUser(req);
@@ -28,7 +24,7 @@ function validate(body) {
   if (!["item_photo", "delivery_evidence"].includes(body.purpose)) fields.purpose = "Choose item_photo or delivery_evidence.";
   if (body.purpose === "delivery_evidence" && (typeof body.requestId !== "string" || !body.requestId)) fields.requestId = "Choose a request.";
   if (typeof body.fileName !== "string" || !body.fileName.trim()) fields.fileName = "Enter a file name.";
-  if (!EXTENSIONS[body.contentType]) fields.contentType = "Use a JPEG, PNG or WebP image.";
+  if (typeof body.contentType !== "string" || !Object.hasOwn(EXTENSIONS, body.contentType)) fields.contentType = "Use a JPEG, PNG or WebP image.";
   if (!Number.isInteger(body.sizeBytes) || body.sizeBytes < 1 || body.sizeBytes > MAX_BYTES) fields.sizeBytes = "The photo must be 10 MB or smaller.";
   return Object.keys(fields).length ? fields : null;
 }
@@ -38,7 +34,7 @@ export function register(route, store) {
     const user = authenticate(req, res);
     if (!user) return;
     const fields = validate(body);
-    if (fields) return sendError(res, 400, "validation_error", "Check the highlighted fields.", fields);
+    if (fields) return sendError(res, 400, "validation_failed", "Check the highlighted fields.", fields);
 
     const evidence = body.purpose === "delivery_evidence";
     if (!user.roles.includes(evidence ? "volunteer" : "resident")) {

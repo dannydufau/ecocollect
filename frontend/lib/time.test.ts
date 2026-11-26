@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { calgaryHour, calgaryInstant, calgaryToday, formatDate, formatWindow, friendlyWindow, isValidWindow } from "./time";
-import { nextStepText } from "./status-text";
+import { calgaryHour, calgaryInstant, calgaryToday, formatDate, formatHour, formatWindow, friendlyWindow, isValidWindow } from "./time";
 
 afterEach(() => { vi.useRealTimers(); });
 
@@ -38,10 +37,8 @@ describe("window formatting", () => {
         expect(formatDate("not a date")).toBe("not a date");
     });
 
-    it("gives the resident the assigned status message", () => {
-        expect(nextStepText("Assigned", "resident")).toBe(
-            "A volunteer will collect your items in the selected window.",
-        );
+    it("pads single-digit hours", () => {
+        expect(formatHour(7)).toBe("07:00");
     });
 });
 

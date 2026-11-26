@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { api, ApiError, friendlyError } from "./api";
+import { api, ApiError, ApiTimeoutError, friendlyError, REQUEST_TIMEOUT_MS } from "./api";
 
 const mocks = vi.hoisted(() => ({
     auth: { authStateReady: () => Promise.resolve(), currentUser: null as { getIdToken: () => Promise<string> } | null },
@@ -102,13 +102,16 @@ it("friendlyError does not blame the user when the call never reached the server
     expect(friendlyError(new TypeError("Failed to fetch"))).toMatch(/could not reach the server/);
 });
 
-it("signs out and goes to the login page when a protected call gets a 401", async () => {
+it("signs out, saves the current page for returnTo, and goes to the login page when a protected call gets a 401", async () => {
+    vi.stubGlobal("location", { pathname: "/resident/requests/r1", search: "?tab=x", assign });
     mocks.auth.currentUser = { getIdToken: () => Promise.resolve("token") };
     reply(401, { error: { code: "unauthorized", message: "Please log in again." } });
     const err = await caught(api.get("/api/requests?view=mine"));
     expect(err.status).toBe(401);
+    expect(sessionStorage.getItem("returnTo")).toBe("/resident/requests/r1?tab=x");
     expect(mocks.signOut).toHaveBeenCalledOnce();
     expect(assign).toHaveBeenCalledWith("/login?expired=1");
+    sessionStorage.clear();
 });
 
 it("signs out only once when two protected calls get a 401 together", async () => {
@@ -141,4 +144,17 @@ it("does not redirect again when the visitor is already on the login page", asyn
     reply(401, { error: { code: "unauthorized", message: "Please log in again." } });
     await caught(api.get("/api/requests?view=mine"));
     expect(assign).not.toHaveBeenCalled();
+});
+
+it("aborts a hung request after REQUEST_TIMEOUT_MS with ApiTimeoutError", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("fetch", vi.fn((_url: string, init?: RequestInit) => new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(init.signal!.reason));
+    })));
+    const pending = api.get("/api/requests?view=mine").catch(err => err);
+    await vi.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS);
+    const err = await pending;
+    expect(err).toBeInstanceOf(ApiTimeoutError);
+    expect(friendlyError(err)).toBe("The request took too long. Check your connection and try again.");
+    vi.useRealTimers();
 });

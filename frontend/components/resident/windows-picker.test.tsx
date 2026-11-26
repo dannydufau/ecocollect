@@ -185,4 +185,19 @@ describe("WindowsPicker", () => {
         fireEvent.click(screen.getByRole("button", { name: "Add window" }));
         expect(screen.getAllByRole("button", { name: /Remove window/ })).toHaveLength(2);
     });
+
+    it("reports incomplete rows and marks the missing field when showIncomplete is set", () => {
+        const onIncompleteChange = vi.fn();
+        render(<WindowsPicker value={[]} onChange={vi.fn()} showIncomplete onIncompleteChange={onIncompleteChange} />);
+        // Completely empty row is not incomplete
+        expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+        fireEvent.change(screen.getByLabelText("Date 1"), { target: { value: "2026-12-01" } });
+        expect(onIncompleteChange).toHaveBeenLastCalledWith(true);
+        expect(screen.getByRole("alert")).toHaveTextContent("Choose both a date and an hour, or remove this window.");
+        expect(screen.getByLabelText("Date 1")).toHaveAttribute("aria-invalid", "false");
+        expect(screen.getByLabelText("Start hour 1")).toHaveAttribute("aria-invalid", "true");
+        fireEvent.change(screen.getByLabelText("Start hour 1"), { target: { value: "9" } });
+        expect(onIncompleteChange).toHaveBeenLastCalledWith(false);
+        expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
 });

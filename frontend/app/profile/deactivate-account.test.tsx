@@ -88,3 +88,15 @@ it("does not send twice when confirmed again while busy", async () => {
     expect(api.delete).toHaveBeenCalledTimes(1);
     await act(async () => finish());
 });
+
+it("sends only once on a synchronous double click before re-render", async () => {
+    let finish = () => {};
+    vi.mocked(api.delete).mockReturnValue(new Promise((resolve) => { finish = () => resolve(undefined); }));
+    const dialog = openDialog();
+    const button = within(dialog).getByRole("button", { name: "Deactivate account" });
+    fireEvent.click(button);
+    fireEvent.click(button);
+    await waitFor(() => expect(api.delete).toHaveBeenCalled());
+    expect(api.delete).toHaveBeenCalledTimes(1);
+    await act(async () => finish());
+});

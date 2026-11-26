@@ -7,6 +7,9 @@ import type { AvailableRequest } from "@/lib/types";
 import { renderWithClient } from "@/test/utils";
 import AvailableRequests from "./available-requests";
 
+let searchParams = new URLSearchParams();
+const replace = vi.fn();
+vi.mock("next/navigation", () => ({ useSearchParams: () => searchParams, useRouter: () => ({ replace }) }));
 vi.mock("@/lib/api", () => ({ api: { get: vi.fn() } }));
 
 const row = (overrides: Partial<AvailableRequest> = {}): AvailableRequest => ({
@@ -26,6 +29,8 @@ function serve(list: unknown) {
 }
 
 beforeEach(() => {
+    searchParams = new URLSearchParams();
+    replace.mockReset();
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-11-20T18:00:00Z"));
     vi.mocked(api.get).mockReset();

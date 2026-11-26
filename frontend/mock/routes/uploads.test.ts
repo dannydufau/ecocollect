@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { beforeEach, expect, it } from "vitest";
+import { mockResponse } from "@/test/mock-response";
 import { seed, store } from "../store.mjs";
 import { register } from "./uploads.mjs";
 
@@ -7,11 +8,7 @@ type Handler = (req: IncomingMessage, res: ServerResponse, context: { body?: unk
 let handlers: Map<string, Handler>;
 
 function call(path: string, user: string | null, body?: unknown) {
-    const response = {
-        status: 0, text: "",
-        writeHead(status: number) { this.status = status; return this; },
-        end(text: string) { this.text = text; return this; },
-    };
+    const response = mockResponse();
     const headers = user ? { authorization: `Bearer ${user}` } : {};
     handlers.get(path)!({ headers } as IncomingMessage, response as unknown as ServerResponse, { body });
     return { status: response.status, body: JSON.parse(response.text) };
@@ -25,10 +22,10 @@ beforeEach(() => {
     register((_method: string, path: string, handler: Handler) => handlers.set(path, handler), store);
 });
 
-it("rejects a GIF with a contentType field error", () => {
-    const result = call("/api/uploads", "demo-resident-1", { ...photo, contentType: "image/gif" });
+it.each(["image/gif", "constructor", "toString"])("rejects unsupported contentType %j", (contentType) => {
+    const result = call("/api/uploads", "demo-resident-1", { ...photo, contentType });
     expect(result.status).toBe(400);
-    expect(result.body.error.code).toBe("validation_error");
+    expect(result.body.error.code).toBe("validation_failed");
     expect(result.body.error.details.fields).toHaveProperty("contentType");
 });
 

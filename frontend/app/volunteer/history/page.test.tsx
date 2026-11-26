@@ -6,6 +6,9 @@ import type { VolunteerAssignment } from "@/lib/types";
 import { renderWithClient } from "@/test/utils";
 import VolunteerHistoryPage from "./page";
 
+let searchParams = new URLSearchParams();
+const replace = vi.fn();
+vi.mock("next/navigation", () => ({ useSearchParams: () => searchParams, useRouter: () => ({ replace }) }));
 vi.mock("@/lib/api", () => ({ api: { get: vi.fn() } }));
 
 const assignment = (status: VolunteerAssignment["assignment"]["status"], id: string): VolunteerAssignment["assignment"] => ({
@@ -22,7 +25,11 @@ const missed: VolunteerAssignment = {
 };
 const collected: VolunteerAssignment = { ...delivered, requestId: "r3", status: "Collected", assignment: assignment("Collected", "a3") };
 
-beforeEach(() => { vi.mocked(api.get).mockResolvedValue([delivered, missed, collected]); });
+beforeEach(() => {
+    searchParams = new URLSearchParams();
+    replace.mockReset();
+    vi.mocked(api.get).mockResolvedValue([delivered, missed, collected]);
+});
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
 
 it("shows a delivered row with its category, status words and a link", async () => {
@@ -34,6 +41,13 @@ it("shows a delivered row with its category, status words and a link", async () 
     expect(row).toHaveTextContent(`Accepted ${formatTimestamp("2026-11-15T18:00:00Z")}`);
     expect(row).toHaveTextContent("Fri, Nov 20, 11:00 to 12:00");
     expect(api.get).toHaveBeenCalledWith("/api/requests?view=volunteer");
+});
+
+it("shows and focuses Assignment cancelled banner and strips ?cancelled=1 from URL", async () => {
+    searchParams = new URLSearchParams("cancelled=1");
+    renderWithClient(<VolunteerHistoryPage />);
+    expect(await screen.findByText("Assignment cancelled.")).toBeInTheDocument();
+    expect(replace).toHaveBeenCalledWith("/volunteer/history", { scroll: false });
 });
 
 it("shows a missed row with null request fields as status, window and end time, without a link", async () => {

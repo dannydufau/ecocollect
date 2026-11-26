@@ -20,7 +20,7 @@ export const normalizeUsername = (value: string) => value.trim().toLowerCase();
 // README Conventions: the frontend uppercases and removes spaces, the services only accept that form
 export const normalizePostalCode = (value: string) => value.replace(/\s+/g, "").toUpperCase();
 
-// The oldest birth date that is 18 or older on `today` (both YYYY-MM-DD). Used for the date picker's max.
+// Latest eligible birth date for the date picker's maximum.
 export function eighteenYearsAgo(today: string): string {
     // 29 February has no match 18 years back unless that year is a leap year too. Someone born on 28 February is 18 that day.
     const monthDay = today.endsWith("-02-29") ? "-02-28" : today.slice(4);
@@ -28,15 +28,20 @@ export function eighteenYearsAgo(today: string): string {
 }
 
 function isRealDate(value: string): boolean {
-    return /^\d{4}-\d{2}-\d{2}$/.test(value) && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+    const date = new Date(`${value}T00:00:00Z`);
+    return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
 // Returns the messages by field. The keys are the ones the server uses in details.fields, so both can share the form.
 export function validateAccount(values: AccountValues, today: string): Record<string, string> {
     const errors: Record<string, string> = {};
     if (!values.firstName.trim()) errors.firstName = "Enter your first name.";
+    else if (values.firstName.trim().length > 80) errors.firstName = "Use 80 characters or fewer.";
     if (!values.lastName.trim()) errors.lastName = "Enter your last name.";
+    else if (values.lastName.trim().length > 80) errors.lastName = "Use 80 characters or fewer.";
     if (!values.publicName.trim()) errors.publicName = "Enter a public name.";
+    else if (values.publicName.trim().length > 80) errors.publicName = "Use 80 characters or fewer.";
 
     if (!isRealDate(values.dateOfBirth)) errors.dateOfBirth = "Enter your date of birth.";
     else if (values.dateOfBirth > today) errors.dateOfBirth = "Birth date can't be in the future.";
@@ -45,6 +50,7 @@ export function validateAccount(values: AccountValues, today: string): Record<st
     if (!USERNAME.test(normalizeUsername(values.username))) errors.username = "Use 3 to 50 characters: a to z, 0 to 9, _ and -.";
     if (!EMAIL.test(values.email.trim())) errors.email = "Enter a valid email.";
     if (!values.password) errors.password = "Choose a password.";
+    else if (values.password.length < 6) errors.password = "Use at least 6 characters.";
 
     if (!values.role) errors.role = "Choose how you want to use EcoCollect.";
     if (values.role === "resident") Object.assign(errors, validateAddress(values.street, values.postalCode));
@@ -56,6 +62,7 @@ export function validateAccount(values: AccountValues, today: string): Record<st
 export function validateAddress(street: string, postalCode: string): Record<string, string> {
     const errors: Record<string, string> = {};
     if (!street.trim()) errors["address.street"] = "Enter your street address.";
+    else if (street.trim().length > 255) errors["address.street"] = "Use 255 characters or fewer.";
     if (!POSTAL_CODE.test(normalizePostalCode(postalCode))) errors["address.postalCode"] = "Enter a Calgary postal code, for example T2P 1J9.";
     return errors;
 }

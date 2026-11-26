@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { mockResponse } from "@/test/mock-response";
 import { seed, store } from "../store.mjs";
 import { notify, register } from "./notifications.mjs";
 
@@ -13,11 +14,7 @@ function call(method: string, path: string, user: string | null = "demo-resident
     const url = new URL(path, "http://localhost");
     const headers: Record<string, string> = {};
     if (user) headers.authorization = `Bearer ${user}`;
-    const response = {
-        status: 0, text: "",
-        writeHead(status: number) { this.status = status; return this; },
-        end(text?: string) { this.text = text ?? ""; return this; },
-    };
+    const response = mockResponse();
     const item = /^\/api\/notifications\/([^/]+)\/read$/.exec(url.pathname);
     const route = item ? "/api/notifications/:id/read" : url.pathname;
     handlers.get(`${method} ${route}`)!({ headers } as IncomingMessage, response as unknown as ServerResponse,
@@ -181,7 +178,7 @@ describe("GET /api/notifications", () => {
     it.each(["limit=0", "limit=101", "limit=abc", "limit=2.5", "before=yesterday"])("rejects %s", (query) => {
         const result = call("GET", `/api/notifications?${query}`);
         expect(result.status).toBe(400);
-        expect(result.body.error.code).toBe("validation_error");
+        expect(result.body.error.code).toBe("validation_failed");
     });
 
     it("answers 401 without a login", () => {

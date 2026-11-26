@@ -43,7 +43,7 @@ it("shows a preview, uploads the file and calls onUploaded", async () => {
     await userEvent.upload(input, file);
     expect(screen.getByRole("img", { name: "Photo of the items" })).toHaveAttribute("src", "blob:1");
     expect(screen.getByText("Uploading...")).toBeInTheDocument();
-    expect(uploadPhoto).toHaveBeenCalledWith(file, { purpose: "item_photo", requestId: undefined });
+    expect(uploadPhoto).toHaveBeenCalledWith(file, { purpose: "item_photo", requestId: undefined, signal: expect.any(AbortSignal) });
 
     upload.resolve("f1");
     expect(await screen.findByText("Uploaded")).toBeInTheDocument();
@@ -210,4 +210,23 @@ it("can be reached with the keyboard", async () => {
     const { input } = setup();
     await userEvent.tab();
     expect(input).toHaveFocus();
+});
+
+it("reports upload busy state and lets the user cancel a hung upload", async () => {
+    const upload = deferred();
+    const onBusyChange = vi.fn();
+    let passedSignal: AbortSignal | undefined;
+    vi.mocked(uploadPhoto).mockImplementation((_file, opts) => {
+        passedSignal = opts.signal;
+        return upload.promise;
+    });
+    render(<PhotoPicker purpose="item_photo" onUploaded={vi.fn()} onClear={vi.fn()} onBusyChange={onBusyChange} />);
+    await userEvent.upload(screen.getByLabelText("Photo"), photo());
+    expect(onBusyChange).toHaveBeenLastCalledWith(true);
+    expect(screen.getByRole("button", { name: "Cancel upload" })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Cancel upload" }));
+    expect(passedSignal?.aborted).toBe(true);
+    expect(onBusyChange).toHaveBeenLastCalledWith(false);
+    expect(screen.queryByText("Uploading...")).not.toBeInTheDocument();
 });

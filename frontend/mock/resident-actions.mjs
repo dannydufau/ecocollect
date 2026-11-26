@@ -32,11 +32,12 @@ export function registerResidentActions(route, store, { authenticate, send, vali
     if (!body || typeof body !== "object" || Array.isArray(body)) return { body: "Send an object." };
     for (const key of Object.keys(body)) if (!allowed.includes(key)) fields[key] = "This field is not allowed.";
     if (body.reason !== undefined && typeof body.reason !== "string") fields.reason = "Enter text.";
+    else if (typeof body.reason === "string" && body.reason.length > 500) fields.reason = "Must be 500 characters or fewer.";
     return fields;
   }
   function invalid(res, fields) {
     if (!Object.keys(fields).length) return false;
-    sendError(res, 400, "validation_error", "Check the request fields.", fields);
+    sendError(res, 400, "validation_failed", "Check the request fields.", fields);
     return true;
   }
   function windowErrors(request, windows, timestamp, createdAt = Date.parse(request.createdAt)) {
@@ -136,8 +137,8 @@ export function registerResidentActions(route, store, { authenticate, send, vali
     if (invalid(res, fields)) return;
     const owner = request.residentUid === user.uid;
     const volunteer = assignment?.volunteerId === user.uid;
-    if (body.as !== undefined && !["resident", "volunteer"].includes(body.as)) return sendError(res, 400, "validation_error", "Choose a role.", { as: "Choose resident or volunteer." });
-    if (owner && volunteer && body.as === undefined) return sendError(res, 400, "validation_error", "Choose a role.", { as: "Choose resident or volunteer." });
+    if (body.as !== undefined && !["resident", "volunteer"].includes(body.as)) return sendError(res, 400, "validation_failed", "Choose a role.", { as: "Choose resident or volunteer." });
+    if (owner && volunteer && body.as === undefined) return sendError(res, 400, "validation_failed", "Choose a role.", { as: "Choose resident or volunteer." });
     const as = body.as ?? "resident";
     if (as !== "resident") return sendError(res, 403, "forbidden", "Use the resident role for this action.");
     if (!assignment) return sendError(res, 409, "no_active_assignment", "There is no active assignment.");

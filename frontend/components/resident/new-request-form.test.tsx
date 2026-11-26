@@ -52,7 +52,7 @@ beforeEach(() => {
     vi.spyOn(apiModule.api, "get").mockImplementation(async path => (path === "/api/categories" ? categories : path === "/api/profile" ? { address: { street: "123 Main Street", postalCode: "T2P1J9" } } : { termsDocumentId: termsId, content: `Terms ${termsId}`, publishedAt: "2026-11-01T18:00:00Z" }) as never);
     vi.spyOn(apiModule, "apiFetch").mockResolvedValue({ requests: [{ requestId: "r1" }] });
 });
-afterEach(() => { cleanup(); client?.clear(); vi.restoreAllMocks(); vi.useRealTimers(); });
+afterEach(() => { cleanup(); client?.clear(); sessionStorage.clear(); window.history.replaceState({}, "", "/"); vi.restoreAllMocks(); vi.useRealTimers(); });
 
 it("requires current terms acceptance and sends nothing when the form is submitted without it", async () => {
     mount(); await fill(); fireEvent.click(screen.getByRole("button", { name: "Review" }));
@@ -145,7 +145,7 @@ it("shows indexed window and notes field errors", async () => {
     vi.mocked(apiModule.apiFetch).mockRejectedValueOnce(failure(400, "validation_error", { "windows[0].date": "Choose another day.", notes: "Shorten the notes." }));
     mount(); await fill(); await accept(); fireEvent.click(button());
     await screen.findByText("Choose another day.");
-    expect(screen.getByLabelText("Notes (optional)")).toHaveAccessibleDescription("Shorten the notes.");
+    expect(screen.getByLabelText("Notes (optional)")).toHaveAccessibleDescription(/Shorten the notes\./);
 });
 it("reloads outdated terms and requires acceptance again before retrying", async () => {
     vi.mocked(apiModule.apiFetch).mockRejectedValueOnce(failure(409, "terms_outdated"));
@@ -312,4 +312,26 @@ it("fades step 2 in and still moves focus to its heading", async () => {
     const heading = await screen.findByRole("heading", { name: "Review your request" });
     expect(heading.closest(".fade-in")).not.toBeNull();
     expect(heading).toHaveFocus();
+});
+it("pushes #review on Review and returns to the filled form on browser Back", async () => {
+    mount(); await fill();
+    fireEvent.change(screen.getByLabelText("Notes (optional)"), { target: { value: "Side door" } });
+    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+    expect(window.location.hash).toBe("#review");
+    expect(await screen.findByRole("heading", { name: "Review your request" })).toBeInTheDocument();
+    window.history.replaceState({}, "", "/");
+    fireEvent(window, new PopStateEvent("popstate"));
+    expect(screen.getByLabelText("Notes (optional)")).toHaveValue("Side door");
+    expect(screen.getByLabelText("Quantity")).toHaveValue(2);
+});
+it("saves a draft in sessionStorage, restores it on remount, and clears it after submit", async () => {
+    const view = mount(); await fill();
+    fireEvent.change(screen.getByLabelText("Notes (optional)"), { target: { value: "Ring bell" } });
+    view.unmount();
+    mount();
+    expect(await screen.findByLabelText("Notes (optional)")).toHaveValue("Ring bell");
+    await accept();
+    fireEvent.click(button());
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/resident?created=1"));
+    expect(sessionStorage.length).toBe(0);
 });

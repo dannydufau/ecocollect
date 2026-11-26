@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { mockResponse } from "@/test/mock-response";
 import { seed, store } from "../store.mjs";
 import { windowStart } from "../detail.mjs";
 import { register as registerResident } from "./resident.mjs";
@@ -17,11 +18,7 @@ let handler: (req: IncomingMessage, res: ServerResponse) => void;
 const HOUR = 60 * 60 * 1000;
 
 function read(user = "demo-volunteer-1") {
-    const response = {
-        status: 0, text: "",
-        writeHead(status: number) { this.status = status; return this; },
-        end(text: string) { this.text = text; return this; },
-    };
+    const response = mockResponse();
     handler({ headers: user ? { authorization: `Bearer ${user}` } : {} } as IncomingMessage, response as unknown as ServerResponse);
     return { status: response.status, body: JSON.parse(response.text) };
 }

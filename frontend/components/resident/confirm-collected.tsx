@@ -1,6 +1,5 @@
 "use client";
 
-import { useRef } from "react";
 import { Button } from "@/components/ui";
 import { api, friendlyError } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
@@ -10,7 +9,6 @@ import type { Notice } from "./cancel-request";
 
 // No dialog here, so every result goes to the page notice
 export default function ConfirmCollected({ request, onNotice }: { request: RequestDetail; onNotice: (notice: Notice | null) => void }) {
-    const sending = useRef(false);
     const action = useRequestAction(request.requestId,
         async () => {
             try {
@@ -25,10 +23,9 @@ export default function ConfirmCollected({ request, onNotice }: { request: Reque
         [queryKeys.myRequests]);
 
     function confirm() {
-        if (sending.current || action.isPending) return;
-        sending.current = true;
+        if (action.isPending) return;
         onNotice(null);
-        action.run(undefined, { onSettled: () => { sending.current = false; } });
+        action.run(undefined);
     }
 
     if (request.viewer !== "owner" || !request.allowedActions.includes("confirm_collected")) return null;

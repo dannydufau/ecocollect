@@ -1,28 +1,30 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, type ReactNode } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import type { Role } from "@/lib/auth";
 import { roleOf, takeReturnTo } from "@/lib/return-to";
-import { ChevronRightIcon, PackageIcon, PageLoading, RoleBadge, TruckIcon, card, pageTitle } from "@/components/ui";
+import { Alert, ChevronRightIcon, PackageIcon, PageLoading, QueryError, RoleBadge, TruckIcon, card, pageTitle } from "@/components/ui";
 
 const labels: Record<Role, { text: string; icon: ReactNode }> = {
     resident: { text: "Request e-waste pickups", icon: <PackageIcon className="size-7 text-accent-700" /> },
     volunteer: { text: "Pick up items and deliver them", icon: <TruckIcon className="size-7 text-accent-2-800" /> },
 };
 
-export default function ChooseRolePage() {
-    const { user, roles, loading, setActiveRole, signOut } = useAuth();
+function ChooseRoleContent() {
+    const { user, roles, loading, rolesError, setActiveRole, signOut, retryRoles } = useAuth();
     const router = useRouter();
+    const need = useSearchParams().get("need");
+    const needRole: Role | null = need === "resident" || need === "volunteer" ? need : null;
     const ready = !loading && user !== null && roles.length > 0;
 
     useEffect(() => {
-        if (loading || ready) return;
+        if (loading || ready || rolesError) return;
         // An account with no roles can't use the app. Signing out makes user null and this runs again.
         if (user) void signOut();
         else router.replace("/login");
-    }, [loading, ready, user, signOut, router]);
+    }, [loading, ready, rolesError, user, signOut, router]);
 
     function choose(role: Role) {
         const path = takeReturnTo();
@@ -37,6 +39,17 @@ export default function ChooseRolePage() {
         router.push(`/${role}`);
     }
 
+    if (rolesError && user) {
+        return (
+            <main className="flex w-full min-w-0 flex-1 flex-col items-center justify-center p-4 sm:p-8">
+                <div className="flex w-full max-w-sm flex-col gap-4">
+                    <h1 className={pageTitle}>Continue as</h1>
+                    <QueryError message="We could not load your account roles. Check your connection and try again." onRetry={() => void retryRoles()} />
+                </div>
+            </main>
+        );
+    }
+
     if (!ready) {
         return <PageLoading />;
     }
@@ -45,6 +58,7 @@ export default function ChooseRolePage() {
         <main className="flex w-full min-w-0 flex-1 flex-col items-center justify-center p-4 sm:p-8">
             <div className="flex w-full max-w-sm flex-col gap-4">
                 <h1 className={pageTitle}>Continue as</h1>
+                {needRole && <Alert variant="info">That page is for {needRole}s. Choose how you want to continue.</Alert>}
                 {user.email && <p className="break-words text-text-muted">Signed in as {user.email}</p>}
                 {roles.map((role) => (
                     <button key={role} type="button" onClick={() => choose(role)}
@@ -59,5 +73,13 @@ export default function ChooseRolePage() {
                 ))}
             </div>
         </main>
+    );
+}
+
+export default function ChooseRolePage() {
+    return (
+        <Suspense fallback={<PageLoading />}>
+            <ChooseRoleContent />
+        </Suspense>
     );
 }

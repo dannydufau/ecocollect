@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { isAuthError } from "@/lib/api";
 import { fetchMyRequests } from "@/lib/my-requests";
@@ -14,11 +14,41 @@ import { Alert, Button, CalendarIcon, CameraIcon, ClockIcon, EmptyState, FilterT
 const statuses: RequestStatus[] = ["Open", "Assigned", "Collected", "Delivered", "Cancelled", "Expired", "Missed"];
 const detail = "inline-flex items-center gap-1.5";
 
+function readStatus(value: string | null): RequestStatus | undefined {
+    return statuses.find(s => s === value);
+}
+
 export default function MyRequests() {
-    const [created, duplicate] = useSearchParams().getAll("created");
-    const count = Number(created);
-    const [status, setStatus] = useState<RequestStatus>();
-    const [dismissed, setDismissed] = useState(false);
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const [created, duplicate] = searchParams.getAll("created");
+    const initialCount = Number(created);
+    const validCreated = duplicate === undefined && initialCount > 0 && Number.isSafeInteger(initialCount) && String(initialCount) === created ? initialCount : null;
+    const [createdBanner, setCreatedBanner] = useState<number | null>(validCreated);
+    const paramKey = searchParams.toString();
+    const urlStatus = readStatus(searchParams.get("status"));
+    const [pendingStatus, setPendingStatus] = useState<{ from: string; value: RequestStatus | undefined } | null>(null);
+    const status = pendingStatus && pendingStatus.from === paramKey ? pendingStatus.value : urlStatus;
+
+    // Strip ?created=N once read so reloading the page does not repeat the creation banner.
+    useEffect(() => {
+        if (!searchParams.has("created")) return;
+        const next = new URLSearchParams(searchParams.toString());
+        next.delete("created");
+        const query = next.toString();
+        router.replace(query ? `/resident?${query}` : "/resident", { scroll: false });
+    }, [router, searchParams]);
+
+    function setStatus(next: RequestStatus | undefined) {
+        setPendingStatus({ from: paramKey, value: next });
+        const params = new URLSearchParams(paramKey);
+        params.delete("created");
+        if (next) params.set("status", next);
+        else params.delete("status");
+        const query = params.toString();
+        router.replace(query ? `/resident?${query}` : "/resident", { scroll: false });
+    }
+
     const { data, isPending, isError, isPlaceholderData, error, refetch, isFetching } = useQuery({
         queryKey: [...queryKeys.myRequests, status ?? "All"],
         queryFn: () => fetchMyRequests(status),
@@ -31,8 +61,8 @@ export default function MyRequests() {
                 <h1 id="my-requests-heading" className={pageTitle}>My requests</h1>
                 <Link href="/resident/requests/new" className={linkButton}>New request</Link>
             </div>
-            {!dismissed && duplicate === undefined && count > 0 && Number.isSafeInteger(count) && String(count) === created && <Alert variant="success" onDismiss={() => setDismissed(true)}>
-                {count === 1 ? "Your request was created." : `${count} requests were created.`}
+            {createdBanner !== null && <Alert variant="success" onDismiss={() => setCreatedBanner(null)}>
+                {createdBanner === 1 ? "Your request was created." : `${createdBanner} requests were created.`}
             </Alert>}
             <FilterTabs label="Filter requests by status" options={["All", ...statuses]} value={status ?? "All"}
                 onChange={option => setStatus(option === "All" ? undefined : option)} />

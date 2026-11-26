@@ -1,16 +1,12 @@
 // Mock of the User Service: U1, U2, U4, U6, U7, U8, U9, U10 and R3 (contract 5.1 and 5.4), plus N2 (the public stream).
 import { randomUUID } from "node:crypto";
-import { currentUser, now, sendError, store as sharedStore } from "../store.mjs";
+import { currentUser, now, send, sendError, store as sharedStore } from "../store.mjs";
 
 const DAY = 24 * 60 * 60 * 1000;
 const USERNAME = /^[a-z0-9_-]{3,50}$/;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const POSTAL_CODE = /^T[0-9][A-Z][0-9][A-Z][0-9]$/;
 const PING_MS = 25_000;
-
-function send(res, status, body) {
-  res.writeHead(status, { "Content-Type": "application/json" }).end(JSON.stringify(body));
-}
 
 // The demo accounts only have a uid, a public name, roles and a postal code. The profile needs more.
 function fillProfiles(store) {
@@ -134,7 +130,7 @@ export function register(route, store) {
     const profile = url.searchParams.get("profile");
     const stats = url.searchParams.has("stats");
     if (Boolean(profile) === stats) {
-      return sendError(res, 400, "validation_error", "Check the query.", { profile: "Use exactly one of profile or stats." });
+      return sendError(res, 400, "validation_failed", "Check the query.", { profile: "Use exactly one of profile or stats." });
     }
     res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache, no-transform", Connection: "keep-alive" });
     res.write("event: ready\ndata: {}\n\n");
@@ -149,7 +145,7 @@ export function register(route, store) {
 
   route("POST", "/api/session", (req, res, { body }) => {
     if (typeof body?.idToken !== "string" || !body.idToken) {
-      return sendError(res, 400, "validation_error", "Send the ID token.", { idToken: "This is required." });
+      return sendError(res, 400, "validation_failed", "Send the ID token.", { idToken: "This is required." });
     }
     // The mock cannot check a token, so only a deactivated account is turned away. A Firebase user the mock does not know still gets a cookie.
     const user = currentUser({ headers: { authorization: `Bearer ${body.idToken}` } });
@@ -181,7 +177,7 @@ export function register(route, store) {
 
   route("POST", "/api/accounts", (req, res, { body }) => {
     const fields = checkNewAccount(body);
-    if (Object.keys(fields).length) return sendError(res, 400, "validation_error", "Check the registration details.", fields);
+    if (Object.keys(fields).length) return sendError(res, 400, "validation_failed", "Check the registration details.", fields);
     if (body.termsDocumentId !== store.terms.at(-1)?.termsDocumentId) {
       return sendError(res, 409, "terms_outdated", "The terms have changed. Please read and accept them again.");
     }
@@ -210,12 +206,12 @@ export function register(route, store) {
     const account = signedIn(req, res);
     if (!account) return;
     const fields = {};
-    if (!body || typeof body !== "object" || Array.isArray(body)) return sendError(res, 400, "validation_error", "Send the profile fields.", { body: "Send an object." });
+    if (!body || typeof body !== "object" || Array.isArray(body)) return sendError(res, 400, "validation_failed", "Send the profile fields.", { body: "Send an object." });
     for (const key of Object.keys(body)) if (!["publicName", "address", "preferredPostalCodes"].includes(key)) fields[key] = "This field can't be changed.";
     if (body.publicName !== undefined && !isText(body.publicName)) fields.publicName = "Enter a public name.";
     if (body.address !== undefined) checkAddress(body.address, fields);
     if (body.preferredPostalCodes !== undefined) checkCodes(body.preferredPostalCodes, fields);
-    if (Object.keys(fields).length) return sendError(res, 400, "validation_error", "Check the profile fields.", fields);
+    if (Object.keys(fields).length) return sendError(res, 400, "validation_failed", "Check the profile fields.", fields);
 
     if (body.address !== undefined && !account.roles.includes("resident")) return sendError(res, 403, "role_required", "Only residents have an address.");
     if (body.preferredPostalCodes !== undefined && !account.roles.includes("volunteer")) return sendError(res, 403, "role_required", "Only volunteers have preferred postal codes.");
@@ -235,12 +231,12 @@ export function register(route, store) {
     const account = signedIn(req, res);
     if (!account) return;
     const fields = {};
-    if (!body || typeof body !== "object" || Array.isArray(body)) return sendError(res, 400, "validation_error", "Send the role details.", { body: "Send an object." });
+    if (!body || typeof body !== "object" || Array.isArray(body)) return sendError(res, 400, "validation_failed", "Send the role details.", { body: "Send an object." });
     if (!["resident", "volunteer"].includes(body.role)) fields.role = "Choose resident or volunteer.";
     if (!isText(body.termsDocumentId)) fields.termsDocumentId = "This is required.";
     if (body.role === "resident") checkAddress(body.address, fields);
     if (body.preferredPostalCodes !== undefined) checkCodes(body.preferredPostalCodes, fields);
-    if (Object.keys(fields).length) return sendError(res, 400, "validation_error", "Check the role details.", fields);
+    if (Object.keys(fields).length) return sendError(res, 400, "validation_failed", "Check the role details.", fields);
 
     if (account.roles.includes(body.role)) return sendError(res, 409, "role_already_active", "You already have this role.");
     if (body.termsDocumentId !== store.terms.at(-1)?.termsDocumentId) {

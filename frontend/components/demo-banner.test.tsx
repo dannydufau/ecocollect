@@ -23,12 +23,12 @@ it("renders nothing without the demo flag", async () => {
 it("shows the demo banner in a demo build", async () => {
     await banner("true");
     expect(screen.getByText(/Everyone shares this demo data. It resets every night./)).toBeInTheDocument();
-    expect(screen.getByRole("note")).toBeInTheDocument();
+    expect(screen.getByRole("complementary", { name: "Demo mode" })).toBeInTheDocument();
 });
 
 it("has a hidden info icon inside the header width", async () => {
     await banner("true");
-    const note = screen.getByRole("note");
+    const note = screen.getByRole("complementary", { name: "Demo mode" });
     expect(note.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
     expect(note.querySelector("p")).toHaveClass(...pageWidth.split(" "));
 });

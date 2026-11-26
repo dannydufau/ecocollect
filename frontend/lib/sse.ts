@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { startSession } from "@/lib/auth";
 import { useAuth } from "@/lib/auth-context";
 import { keysFor } from "@/lib/invalidate";
 import { queryKeys } from "@/lib/query-keys";
@@ -30,8 +31,10 @@ export function useEventStream() {
     const { user, roles, signOut, refreshRoles } = useAuth();
     const queryClient = useQueryClient();
     const [opened, setOpened] = useState(0);
+    const [delayed, setDelayed] = useState(false);
     // How long to wait before opening the stream again after the browser gave up on it
     const retryDelay = useRef(RETRY_FIRST);
+    const failures = useRef(0);
     const uid = user && roles.length > 0 ? user.uid : null;
     const roleList = roles.join(",");
 
@@ -93,14 +96,19 @@ export function useEventStream() {
         source.onopen = () => {
             stopTimer();
             retryDelay.current = RETRY_FIRST;
+            failures.current = 0;
+            setDelayed(false);
             queryClient.invalidateQueries();
         };
         // The browser reconnects by itself, meanwhile the bell is kept fresh by asking every 30 s
         source.onerror = () => {
+            failures.current += 1;
+            if (failures.current >= 2) setDelayed(true);
             timer ??= setInterval(() => invalidate(queryKeys.notifications), 30_000);
-            // After a non-200 answer (a 502 while the service restarts) the browser gives up for good (issue #59),
-            // so open a new stream later, waiting a bit longer each time
+            // After a non-200 answer (a 502 while the service restarts, or a 401 when the initial session call failed)
+            // the browser gives up for good (issue #59), so refresh the session cookie and open a new stream later
             if (source.readyState === EventSource.CLOSED && retry === undefined) {
+                void startSession().catch(() => {});
                 retry = setTimeout(() => setOpened((count) => count + 1), retryDelay.current);
                 retryDelay.current = Math.min(retryDelay.current * 2, RETRY_MAX);
             }
@@ -114,5 +122,5 @@ export function useEventStream() {
     }, [uid, roleList, opened, queryClient]);
 
     const reopen = useCallback(() => setOpened((count) => count + 1), []);
-    return { reopen };
+    return { reopen, delayed: Boolean(uid) && delayed };
 }

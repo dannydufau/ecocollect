@@ -22,7 +22,13 @@ export async function subscribe(vapidKey: string): Promise<NotificationPermissio
     const applicationServerKey = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
     const subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey });
     const { endpoint, keys, expirationTime } = subscription.toJSON();
-    await api.post("/api/push/subscriptions", { endpoint, keys: { p256dh: keys?.p256dh, auth: keys?.auth }, expirationTime });
+    try {
+        await api.post("/api/push/subscriptions", { endpoint, keys: { p256dh: keys?.p256dh, auth: keys?.auth }, expirationTime });
+    } catch (err) {
+        // Don't leave a browser subscription behind if the server rejected it, or the UI will falsely show "On".
+        await subscription.unsubscribe().catch(() => {});
+        throw err;
+    }
     return permission;
 }
 

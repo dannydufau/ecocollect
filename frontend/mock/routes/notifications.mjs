@@ -1,14 +1,10 @@
 // N1, N3, N4 and N5 (contracts README section 13), plus notify() for the other mock files.
 import { randomUUID } from "node:crypto";
-import { currentUser, now, sendError, store } from "../store.mjs";
+import { currentUser, now, send, sendError, store } from "../store.mjs";
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
 const PING_MS = 25_000;
-
-function send(res, status, body) {
-  res.writeHead(status, { "Content-Type": "application/json" }).end(JSON.stringify(body));
-}
 
 function authenticate(req, res) {
   const user = currentUser(req);
@@ -117,7 +113,7 @@ export function register(route) {
     const limitText = url.searchParams.get("limit");
     const limit = limitText === null ? 30 : Number(limitText);
     if (!Number.isInteger(limit) || limit < 1 || limit > 100) fields.limit = "Use a whole number from 1 to 100.";
-    if (Object.keys(fields).length) return sendError(res, 400, "validation_error", "Check the query.", fields);
+    if (Object.keys(fields).length) return sendError(res, 400, "validation_failed", "Check the query.", fields);
 
     const mine = store.notifications.filter((item) => item.userId === user.uid);
     const page = mine

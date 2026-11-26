@@ -5,13 +5,12 @@ const KEY = "returnTo";
 // Only our own pages, so a stored value can never send the user to another site
 function allowed(path: string): boolean {
     if (path.includes("//") || path.includes("\\")) return false;
-    return path.startsWith("/resident/") || path.startsWith("/volunteer/")
-        || /^\/(ecopoints|notifications|profile)([/?]|$)/.test(path);
+    return /^\/(resident|volunteer|ecopoints|notifications|profile)([/?]|$)/.test(path);
 }
 
 export function roleOf(path: string): Role | null {
-    if (path.startsWith("/resident/")) return "resident";
-    if (path.startsWith("/volunteer/")) return "volunteer";
+    if (/^\/resident([/?]|$)/.test(path)) return "resident";
+    if (/^\/volunteer([/?]|$)/.test(path)) return "volunteer";
     return null;
 }
 

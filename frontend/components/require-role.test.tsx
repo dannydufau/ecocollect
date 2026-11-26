@@ -30,10 +30,10 @@ it("shows Loading while the auth state loads", () => {
     expect(router.replace).not.toHaveBeenCalled();
 });
 
-it("sends a resident-only user away from a volunteer page to /choose-role", () => {
+it("sends a resident-only user away from a volunteer page to /choose-role with a reason", () => {
     signedIn(["resident"]);
     render(<RequireRole role="volunteer">page</RequireRole>);
-    expect(router.replace).toHaveBeenCalledWith("/choose-role");
+    expect(router.replace).toHaveBeenCalledWith("/choose-role?need=volunteer");
     expect(screen.queryByText("page")).not.toBeInTheDocument();
 });
 

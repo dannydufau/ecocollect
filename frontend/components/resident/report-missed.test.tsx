@@ -115,3 +115,13 @@ it("uses the wide dialog and the picker has no card of its own", () => {
     fireEvent.click(within(dialog).getByLabelText(/new request with new pickup windows/));
     expect(within(dialog).getByRole("group", { name: "Pickup windows" })).not.toHaveClass("bg-surface-elevated");
 });
+
+it("disables Confirm and shows an error when a second reschedule window is half-filled", async () => {
+    const dialog = open();
+    await fillReschedule(dialog);
+    expect(confirmButton(dialog)).toBeEnabled();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add window" }));
+    fireEvent.change(within(dialog).getByLabelText("Date 2"), { target: { value: tomorrow } });
+    expect(confirmButton(dialog)).toBeDisabled();
+    expect(within(dialog).getByRole("alert")).toHaveTextContent("Choose both a date and an hour, or remove this window.");
+});

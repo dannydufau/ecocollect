@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Button, EmptyState, FilterTabs, LoadingRegion, QueryError, StatusBadge, TruckIcon, card, clickableCard, identifier, linkButton, pageTitle, pageWidth, stretchedLink } from "@/components/ui";
+import { Alert, Button, EmptyState, FilterTabs, LoadingRegion, QueryError, StatusBadge, TruckIcon, card, clickableCard, identifier, linkButton, pageTitle, pageWidth, stretchedLink } from "@/components/ui";
 import { api } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { formatPostalCode } from "@/lib/postal-code";
@@ -18,8 +19,43 @@ const labels = {
 } as const satisfies Record<AssignmentStatus, string>;
 const filters = ["All", ...Object.values(labels)];
 
-export default function VolunteerHistoryPage() {
-    const [filter, setFilter] = useState("All");
+function readFilter(status: string | null): string {
+    return status && status in labels ? labels[status as AssignmentStatus] : "All";
+}
+
+function VolunteerHistoryContent() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const paramKey = searchParams.toString();
+    const urlFilter = readFilter(searchParams.get("status"));
+    const [pendingFilter, setPendingFilter] = useState<{ from: string; value: string } | null>(null);
+    const filter = pendingFilter && pendingFilter.from === paramKey ? pendingFilter.value : urlFilter;
+    const [cancelledBanner, setCancelledBanner] = useState(() => searchParams.get("cancelled") === "1");
+    const bannerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (cancelledBanner) bannerRef.current?.focus();
+    }, [cancelledBanner]);
+
+    useEffect(() => {
+        if (!searchParams.has("cancelled")) return;
+        const next = new URLSearchParams(searchParams.toString());
+        next.delete("cancelled");
+        const query = next.toString();
+        router.replace(query ? `/volunteer/history?${query}` : "/volunteer/history", { scroll: false });
+    }, [router, searchParams]);
+
+    function setFilter(next: string) {
+        setPendingFilter({ from: paramKey, value: next });
+        const key = (Object.keys(labels) as AssignmentStatus[]).find(status => labels[status] === next);
+        const params = new URLSearchParams(paramKey);
+        params.delete("cancelled");
+        if (key) params.set("status", key);
+        else params.delete("status");
+        const query = params.toString();
+        router.replace(query ? `/volunteer/history?${query}` : "/volunteer/history", { scroll: false });
+    }
+
     const assignmentStatus = (Object.keys(labels) as AssignmentStatus[]).find(status => labels[status] === filter);
     const { data, isPending, isError, isPlaceholderData, refetch, isFetching } = useQuery({
         queryKey: [...queryKeys.volunteerRequests, filter],
@@ -34,6 +70,9 @@ export default function VolunteerHistoryPage() {
         <main className={`${pageWidth} p-4 sm:p-8`}>
             <div className="space-y-6">
                 <h1 className={pageTitle}>My assignments</h1>
+                {cancelledBanner && <div ref={bannerRef} tabIndex={-1} className="outline-none">
+                    <Alert variant="success" onDismiss={() => setCancelledBanner(false)}>Assignment cancelled.</Alert>
+                </div>}
                 <FilterTabs label="Assignment status" options={filters} value={filter} onChange={setFilter} />
                 {isPending && <LoadingRegion label="Loading your assignments..." />}
                 {isError && <QueryError message="We could not load your assignments. Please try again." onRetry={() => void refetch()} busy={isFetching} />}
@@ -47,7 +86,7 @@ export default function VolunteerHistoryPage() {
                     {rows.map(row => {
                         const waiting = row.assignment.status === "Collected";
                         return <li key={row.assignment.assignmentId} className={`${row.category ? clickableCard : `${card} border-dashed`} ${waiting ? "border-l-4 border-l-accent" : ""} min-w-0 space-y-1`}>
-                            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3">
+                            <div className="flex flex-wrap items-start justify-between gap-2">
                                 {row.category
                                     ? <Link href={`/volunteer/requests/${encodeURIComponent(row.requestId)}`} className={stretchedLink}>{row.quantity} × {row.category.name}</Link>
                                     : <p className="min-w-0 break-words text-lg font-semibold text-text-muted">Request no longer available to you</p>}
@@ -64,5 +103,13 @@ export default function VolunteerHistoryPage() {
                 </ul>}
             </div>
         </main>
+    );
+}
+
+export default function VolunteerHistoryPage() {
+    return (
+        <Suspense>
+            <VolunteerHistoryContent />
+        </Suspense>
     );
 }

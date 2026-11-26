@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { mockResponse } from "@/test/mock-response";
 import { seed, store } from "../store.mjs";
 import { fixtureRequests } from "../fixtures.mjs";
 import { buildDetail, windowStart } from "../detail.mjs";
@@ -30,11 +31,7 @@ function call(method: string, path: string, user = "demo-resident-1", body?: unk
     const headers: Record<string, string> = {};
     if (user) headers.authorization = `Bearer ${user}`;
     if (key) headers["idempotency-key"] = key;
-    const response = {
-        status: 0, text: "",
-        writeHead(status: number) { this.status = status; return this; },
-        end(text: string) { this.text = text; return this; },
-    };
+    const response = mockResponse();
     const detailRoute = /^\/api\/requests\/([^/]+)$/.exec(url.pathname);
     const route = detailRoute ? "/api/requests/:id" : url.pathname;
     handlers.get(`${method} ${route}`)!(

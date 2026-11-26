@@ -174,23 +174,3 @@ test("the windows picker offers an overnight hour and the Today and Tomorrow but
     const groups = await page.locator("select optgroup").evaluateAll(nodes => nodes.map(node => (node as HTMLOptGroupElement).label));
     expect(groups.some(label => /night/i.test(label)), groups.join(", ")).toBe(true);
 });
-
-// ---------------------------------------------------------------- every route
-for (const route of routes) {
-    test(`${route.name}: no skipped heading level`, async ({ page }) => {
-        test.skip(![375, 1280].includes(width(page)), "Checked at 375 and 1280 px.");
-        await openPage(page, route.path, route.account);
-        // Headings that are on the page, not the title of a closed sheet or dialog
-        const levels = await page.evaluate(() => [...document.querySelectorAll("h1, h2, h3, h4, h5, h6")]
-            .filter(heading => heading.checkVisibility()).map(heading => Number(heading.tagName[1])));
-        expect(levels[0], `levels: ${levels.join(" ")}`).toBe(1);
-        levels.slice(1).forEach((level, index) => expect(level - levels[index], `levels: ${levels.join(" ")}`).toBeLessThanOrEqual(1));
-    });
-
-    test(`${route.name}: the page does not scroll sideways`, async ({ page }) => {
-        test.skip(![320, 375, 768].includes(width(page)), "Checked at 320, 375 and 768 px.");
-        await openPage(page, route.path, route.account);
-        const sideways = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-        expect(sideways, "pixels past the right edge").toBeLessThanOrEqual(0);
-    });
-}

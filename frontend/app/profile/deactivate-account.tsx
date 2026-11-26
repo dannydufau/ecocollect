@@ -2,16 +2,16 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation } from "@tanstack/react-query";
 import { Button, ConfirmDialog, WarningIcon, panel } from "@/components/ui";
 import { api, friendlyError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { useLockedMutation } from "@/lib/use-locked-mutation";
 
 export function DeactivateAccount() {
     const { signOut } = useAuth();
     const router = useRouter();
     const [open, setOpen] = useState(false);
-    const deactivate = useMutation({
+    const deactivate = useLockedMutation({
         mutationFn: async () => {
             await api.delete("/api/profile");
             // The server has already ended the session and disabled the login, so its calls would only fail (README 7.4)

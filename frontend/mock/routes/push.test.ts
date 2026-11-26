@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { beforeEach, expect, it } from "vitest";
+import { mockResponse } from "@/test/mock-response";
 import { seed, store } from "../store.mjs";
 import { register } from "./push.mjs";
 
@@ -8,11 +9,7 @@ const stored = () => (store as unknown as { pushSubscriptions: { uid: string; en
 let handlers: Map<string, Handler>;
 
 function call(method: string, body: unknown, user: string | null = "demo-resident-1") {
-    const response = {
-        status: 0, text: "",
-        writeHead(status: number) { this.status = status; return this; },
-        end(text?: string) { this.text = text ?? ""; return this; },
-    };
+    const response = mockResponse();
     const headers = user ? { authorization: `Bearer ${user}` } : {};
     handlers.get(method)!({ headers } as IncomingMessage, response as unknown as ServerResponse, { body });
     return { status: response.status, body: response.text ? JSON.parse(response.text) : null };

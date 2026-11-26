@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useEventStream } from "./sse";
 
 vi.mock("@/lib/auth-context", () => ({ useAuth: vi.fn() }));
+vi.mock("@/lib/auth", () => ({ startSession: vi.fn().mockResolvedValue(undefined) }));
 
 // A fake EventSource that remembers how it was opened and lets the test send events
 class FakeSource {

@@ -143,6 +143,31 @@ a, button, input, select, textarea, [tabindex] {
   scroll-margin-top: 5rem;
 }
 
+/* Below 960 px the fixed bottom nav bar covers the bottom of the viewport */
+@media (max-width: 959px) {
+  html {
+    scroll-padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+  }
+
+  a, button, input, select, textarea, [tabindex] {
+    scroll-margin-bottom: calc(5rem + env(safe-area-inset-bottom));
+  }
+}
+
+/* Keep selected filters, active nav items and filled buttons distinct in forced-colours mode */
+@media (forced-colors: active) {
+  [aria-pressed="true"],
+  [aria-current="page"] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+
+  button,
+  a[class*="bg-"] {
+    border: 1px solid ButtonText;
+  }
+}
+
 html {
   scrollbar-gutter: stable;
 }

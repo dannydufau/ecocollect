@@ -15,7 +15,7 @@ export function AddressFields({ street, postalCode, errors, onStreet, onPostalCo
     return (
         <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Street" error={errors["address.street"] ?? errors.address}>
-                {(control) => <input {...control} type="text" autoComplete="street-address" value={street} className={input}
+                {(control) => <input {...control} type="text" autoComplete="street-address" maxLength={255} value={street} className={input}
                     onChange={(event) => onStreet(event.target.value)} />}
             </Field>
             <Field label="Postal code" hint="Calgary postal codes only, for example T2P 1J9" error={errors["address.postalCode"]}>

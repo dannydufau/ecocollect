@@ -1,15 +1,11 @@
 // Q2, Q6, Q7, Q11, Q12 (volunteer side) and Q15. Q8 is buildDetail in detail.mjs.
 import { randomUUID } from "node:crypto";
-import { currentUser, now, sendError, store } from "../store.mjs";
+import { currentUser, now, send, sendError, store } from "../store.mjs";
 import { buildDetail, requestSummary, windowStart } from "../detail.mjs";
 import { textFor } from "../notification-text.mjs";
 
 const HISTORY = ["Volunteer_Cancelled", "Resident_Cancelled", "Missed_Pickup"];
 const ASSIGNMENT_STATUSES = ["Active", "Collected", "Delivered", ...HISTORY];
-
-function send(res, status, body) {
-  res.writeHead(status, { "Content-Type": "application/json" }).end(JSON.stringify(body));
-}
 
 function authenticate(req, res, role) {
   const user = currentUser(req);
@@ -63,9 +59,9 @@ export function volunteerList(req, res, { url }) {
   if (params.get("view") === "available") {
     const codes = params.get("postalCodes")?.split(",").map((code) => code.trim()).filter(Boolean) ?? [];
     if (params.has("status") || params.has("assignmentStatus")) {
-      return sendError(res, 400, "validation_error", "These filters are not allowed here.", { [params.has("status") ? "status" : "assignmentStatus"]: "Not allowed with view=available." });
+      return sendError(res, 400, "validation_failed", "These filters are not allowed here.", { [params.has("status") ? "status" : "assignmentStatus"]: "Not allowed with view=available." });
     }
-    if (codes.length > 10) return sendError(res, 400, "validation_error", "Choose at most 10 postal codes.", { postalCodes: "Choose at most 10 postal codes." });
+    if (codes.length > 10) return sendError(res, 400, "validation_failed", "Choose at most 10 postal codes.", { postalCodes: "Choose at most 10 postal codes." });
     const rows = store.requests
       .filter((request) => request.status === "Open" && Date.parse(request.expiresAt) > time && (!codes.length || codes.includes(request.postalCode)))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
@@ -79,7 +75,7 @@ export function volunteerList(req, res, { url }) {
 
   const filters = params.get("assignmentStatus")?.split(",");
   if (filters?.some((value) => !ASSIGNMENT_STATUSES.includes(value)) || params.has("status") || params.has("postalCodes")) {
-    return sendError(res, 400, "validation_error", "Choose a valid assignment status.", { assignmentStatus: "Invalid filter." });
+    return sendError(res, 400, "validation_failed", "Choose a valid assignment status.", { assignmentStatus: "Invalid filter." });
   }
   const rows = store.assignments
     .filter((assignment) => assignment.volunteerId === user.uid && (!filters || filters.includes(assignmentStatus(assignment))))
@@ -123,7 +119,7 @@ export function cancelAsVolunteer(req, res, { params, body = {} }, notify = () =
   const fields = isObject(body) ? extraFields(body, ["as", "reason"]) : { body: "Send an object." };
   if (isObject(body) && body.reason !== undefined && typeof body.reason !== "string") fields.reason = "Enter text.";
   if (Object.keys(fields).length) {
-    sendError(res, 400, "validation_error", "Check the request fields.", fields);
+    sendError(res, 400, "validation_failed", "Check the request fields.", fields);
     return true;
   }
   const assignment = store.assignments.find((item) => item.requestId === request.requestId && !item.endedAt);
@@ -188,7 +184,7 @@ export function register(route, _store, { notify = () => {} } = {}) {
       if (typeof body.windowId !== "string" || !body.windowId) fields.windowId = "Choose a window.";
       if (typeof body.termsDocumentId !== "string" || !body.termsDocumentId) fields.termsDocumentId = "Accept the terms.";
     }
-    if (Object.keys(fields).length) return sendError(res, 400, "validation_error", "Check the request fields.", fields);
+    if (Object.keys(fields).length) return sendError(res, 400, "validation_failed", "Check the request fields.", fields);
     const timestamp = now().toISOString();
     const time = Date.parse(timestamp);
     if (request.status === "Assigned") return sendError(res, 409, "already_assigned", "Another volunteer accepted this request first.");
@@ -200,7 +196,7 @@ export function register(route, _store, { notify = () => {} } = {}) {
       return sendError(res, 409, "expired", "This request has expired.");
     }
     const window = futureWindows(request, time).find((item) => item.windowId === body.windowId);
-    if (!window) return sendError(res, 400, "validation_error", "Choose one of the request's future windows.", { windowId: "Choose one of the request's future windows." });
+    if (!window) return sendError(res, 400, "validation_failed", "Choose one of the request's future windows.", { windowId: "Choose one of the request's future windows." });
     if (body.termsDocumentId !== store.terms.at(-1).termsDocumentId) return sendError(res, 409, "terms_outdated", "The terms have changed. Please read and accept them again.");
 
     const assignment = {
@@ -230,7 +226,7 @@ export function register(route, _store, { notify = () => {} } = {}) {
       const photo = body.evidencePhoto;
       if (!isObject(photo) || typeof photo.fileId !== "string" || !photo.fileId.trim()) fields["evidencePhoto.fileId"] = "Add a delivery photo.";
     }
-    if (Object.keys(fields).length) return sendError(res, 400, "validation_error", "Check the request fields.", fields);
+    if (Object.keys(fields).length) return sendError(res, 400, "validation_failed", "Check the request fields.", fields);
     const assignment = store.assignments
       .filter((item) => item.requestId === request.requestId && item.volunteerId === user.uid)
       .find((item) => !item.endedAt || item.endReason === "Delivered");

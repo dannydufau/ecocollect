@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -12,11 +13,26 @@ import { useProfile } from "@/lib/use-profile";
 import { Button, EmptyState, LoadingRegion, MapPinIcon, PackageIcon, QueryError, clickableCard, identifier, pageTitle, stretchedLink, textLink } from "@/components/ui";
 import PostalFilter from "./postal-filter";
 
+function readPostalCodes(searchParams: URLSearchParams): string[] | null {
+    if (!searchParams.has("postalCodes")) return null;
+    const raw = searchParams.get("postalCodes") ?? "";
+    return raw ? raw.split(",").map(code => code.trim()).filter(Boolean) : [];
+}
+
 export default function AvailableRequests() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
     const profile = useProfile();
-    // Null until the profile has loaded or failed, then the preferred codes are taken once (README 16.9)
-    const [codes, setCodes] = useState<string[] | null>(null);
-    if (codes === null && (profile.data || profile.isError)) setCodes(profile.data?.preferredPostalCodes ?? []);
+    // Null until URL params or profile has loaded/failed, then the preferred codes are taken once (README 16.9)
+    const [codes, setCodesState] = useState<string[] | null>(() => readPostalCodes(searchParams));
+    if (codes === null && (profile.data || profile.isError)) setCodesState(profile.data?.preferredPostalCodes ?? []);
+
+    function setCodes(next: string[]) {
+        setCodesState(next);
+        const params = new URLSearchParams(searchParams.toString());
+        params.set("postalCodes", next.join(","));
+        router.replace(`/volunteer?${params.toString()}`, { scroll: false });
+    }
     const { data, isPending, isError, isPlaceholderData, refetch, isFetching } = useQuery({
         queryKey: [...queryKeys.availableRequests, codes],
         queryFn: () => api.get<AvailableRequest[]>(`/api/requests?view=available${codes?.length ? `&postalCodes=${encodeURIComponent(codes.join(","))}` : ""}`),
@@ -26,14 +42,16 @@ export default function AvailableRequests() {
     });
     const empty = !isPlaceholderData && data?.length === 0;
 
+    const waiting = codes === null || isPending;
+
     return (
         <section aria-labelledby="available-heading" className="min-w-0 space-y-4">
             <h1 id="available-heading" className={pageTitle}>Available requests</h1>
-            {codes && <PostalFilter codes={codes} onChange={setCodes} showAll={!empty} />}
-            {!empty && codes?.length === 0 && profile.data?.preferredPostalCodes.length === 0 && <p className="text-text-muted">
+            {!waiting && codes && <PostalFilter codes={codes} onChange={setCodes} showAll={!empty} />}
+            {!waiting && !empty && codes?.length === 0 && profile.data?.preferredPostalCodes.length === 0 && <p className="text-text-muted">
                 Save preferred postal codes in your <Link href="/profile" className={textLink}>profile</Link> to see nearby requests first.
             </p>}
-            {isPending && <LoadingRegion label="Loading requests..." />}
+            {waiting && <LoadingRegion label="Loading requests..." />}
             {isError && <QueryError message="We could not load the requests. Please try again." onRetry={() => void refetch()} busy={isFetching} />}
             {empty && (codes?.length
                 ? <EmptyState icon={<PackageIcon />} title="No open requests in these areas." action={<Button variant="secondary" onClick={() => setCodes([])}>Show all areas</Button>} />

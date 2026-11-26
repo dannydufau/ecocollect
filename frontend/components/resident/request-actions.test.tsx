@@ -14,7 +14,6 @@ const renderers = Object.fromEntries(
 ) as ResidentActionRenderers;
 
 function shown(allowedActions: RequestDetail["allowedActions"]) {
-    cleanup();
     render(<RequestActions request={{ allowedActions } as RequestDetail} renderers={renderers} />);
     return screen.queryAllByRole("button").map(button => button.textContent);
 }
@@ -24,13 +23,12 @@ it.each([
     ["Open", ["cancel", "edit"], ["Edit request", "Cancel request"]],
     ["Assigned, before the window ends", ["cancel", "cancel_assignment", "confirm_collected"], ["Confirm collected", "Cancel assignment", "Cancel request"]],
     ["Assigned, after the window ends", ["report_missed", "confirm_collected"], ["Confirm collected", "Report missed pickup"]],
-    ["Collected", [], []],
-    ["Delivered", [], []],
-    ["Cancelled", [], []],
-    ["Expired", [], []],
-    ["Missed", [], []],
 ] as const)("puts the main task first and the cancel buttons last for a request that is %s", (_state, allowed, expected) => {
     expect(shown([...allowed])).toEqual(expected);
+});
+
+it("shows no buttons when the server allows no actions", () => {
+    expect(shown([])).toEqual([]);
 });
 
 it("never puts a cancel button first when a main task is shown", () => {

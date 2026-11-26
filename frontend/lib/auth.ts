@@ -36,15 +36,29 @@ export async function startSession(): Promise<void> {
     await api.post("/api/session", { idToken });
 }
 
-// README 3.5: tell the server to forget this browser's push subscription before the login goes away.
-// Logging out must work even if this fails, so errors only get a warning.
-export async function removePushSubscription(): Promise<void> {
+// README 3.5: tell the server to forget this browser's push subscription before the login goes away,
+// and always unsubscribe the browser so the next sign-in doesn't see a stale "On" state or receive another account's pushes.
+export async function removePushSubscription({ skipServer = false } = {}): Promise<void> {
+    let subscription: PushSubscription | null | undefined;
     try {
         const registration = await navigator.serviceWorker?.getRegistration();
-        const subscription = await registration?.pushManager.getSubscription();
-        if (subscription) await api.delete("/api/push/subscriptions", { endpoint: subscription.endpoint });
+        subscription = await registration?.pushManager.getSubscription();
     } catch (err) {
-        console.warn("Could not remove the push subscription", err);
+        console.warn("Could not read the push subscription", err);
+        return;
+    }
+    if (!subscription) return;
+    if (!skipServer) {
+        try {
+            await api.delete("/api/push/subscriptions", { endpoint: subscription.endpoint });
+        } catch (err) {
+            console.warn("Could not remove the push subscription", err);
+        }
+    }
+    try {
+        await subscription.unsubscribe?.();
+    } catch (err) {
+        console.warn("Could not unsubscribe browser push", err);
     }
 }
 

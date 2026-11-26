@@ -23,7 +23,7 @@ export default function RequireRole({ role, children }: { role: Role; children: 
             return;
         }
         if (!allowed) {
-            router.replace(roles.length === 0 ? "/login" : "/choose-role");
+            router.replace(roles.length === 0 ? "/login" : `/choose-role?need=${role}`);
             return;
         }
         // Opening this role's page picks the role, but only on arrival so the header's role switch is not undone

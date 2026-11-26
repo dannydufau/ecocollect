@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { ApiError } from "@/lib/api";
-import { uploadPhoto } from "./upload-photo";
+import { UPLOAD_TIMEOUT_MS, uploadPhoto } from "./upload-photo";
 
 const mocks = vi.hoisted(() => ({
     auth: { authStateReady: () => Promise.resolve(), currentUser: null },
@@ -54,7 +54,8 @@ it("sends token, file and every field to ImageKit and returns the fileId", async
     expect(form.get("token")).toBe("jwt");
     expect(form.get("file")).toBeInstanceOf(Blob);
     expect((form.get("file") as File).name).toBe("abc.jpg");
-    for (const name of Object.keys(ticket.fields)) expect(form.has(name)).toBe(true);
+    const fields = Object.fromEntries([...form].filter(([name]) => name !== "file" && name !== "token"));
+    expect(fields).toEqual(Object.fromEntries(Object.entries(ticket.fields).map(([name, value]) => [name, String(value)])));
 });
 
 it("does not call ImageKit when Q3 answers 403", async () => {
@@ -64,26 +65,12 @@ it("does not call ImageKit when Q3 answers 403", async () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
 });
 
-it("fails with a plain message when ImageKit answers 400", async () => {
+it("shows a retry message and preserves the ImageKit error response", async () => {
     fetchMock.mockResolvedValueOnce(json(201, ticket)).mockResolvedValueOnce(json(400, { message: "invalid payload" }));
 
-    await expect(uploadPhoto(photo, { purpose: "item_photo" })).rejects.toThrow("The photo could not be uploaded, try again");
-});
-
-it("sends the fields unchanged", async () => {
-    fetchMock.mockResolvedValueOnce(json(201, ticket)).mockResolvedValueOnce(json(200, { fileId: "f1" }));
-
-    await uploadPhoto(photo, { purpose: "item_photo" });
-
-    const entries = Object.fromEntries([...(fetchMock.mock.calls[1][1].body as FormData)].filter(([name]) => name !== "file" && name !== "token"));
-    expect(entries).toEqual(Object.fromEntries(Object.entries(ticket.fields).map(([name, value]) => [name, String(value)])));
-});
-
-it("keeps the status and answer of ImageKit as the cause", async () => {
-    fetchMock.mockResolvedValueOnce(json(201, ticket)).mockResolvedValueOnce(json(400, { message: "invalid payload" }));
-
-    const error = await uploadPhoto(photo, { purpose: "item_photo" }).catch(e => e);
-    expect(error.cause).toEqual({ status: 400, answer: { message: "invalid payload" } });
+    const upload = uploadPhoto(photo, { purpose: "item_photo" });
+    await expect(upload).rejects.toThrow("The photo could not be uploaded, try again");
+    await expect(upload).rejects.toHaveProperty("cause", { status: 400, answer: { message: "invalid payload" } });
 });
 
 it("fails when ImageKit answers 200 without a fileId", async () => {
@@ -99,4 +86,29 @@ it("fails and keeps the cause when the upload has a network error", async () => 
     const error = await uploadPhoto(photo, { purpose: "item_photo" }).catch(e => e);
     expect(error.message).toBe("The photo could not be uploaded, try again");
     expect(error.cause).toBe(network);
+});
+
+it("times out a hung ImageKit upload after UPLOAD_TIMEOUT_MS", async () => {
+    vi.useFakeTimers();
+    fetchMock.mockResolvedValueOnce(json(201, ticket)).mockImplementationOnce((_url: string, init?: RequestInit) => new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(init.signal!.reason));
+    }));
+    const pending = uploadPhoto(photo, { purpose: "item_photo" }).catch(e => e);
+    await vi.advanceTimersByTimeAsync(UPLOAD_TIMEOUT_MS);
+    const error = await pending;
+    expect(error.message).toBe("The upload took too long. Check your connection and try again.");
+    vi.useRealTimers();
+});
+
+it("cancels an in-flight upload when the caller signal aborts", async () => {
+    const controller = new AbortController();
+    fetchMock.mockResolvedValueOnce(json(201, ticket)).mockImplementationOnce((_url: string, init?: RequestInit) => new Promise((_resolve, reject) => {
+        if (init?.signal?.aborted) return reject(new DOMException("Aborted", "AbortError"));
+        init?.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+    }));
+    const pending = uploadPhoto(photo, { purpose: "item_photo", signal: controller.signal }).catch(e => e);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    controller.abort();
+    const error = await pending;
+    expect(error.name).toBe("AbortError");
 });

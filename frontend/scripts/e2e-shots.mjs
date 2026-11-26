@@ -12,8 +12,13 @@ if (at !== -1 && !only) {
 if (at !== -1) args.splice(at, 2);
 
 const playwright = createRequire(import.meta.url).resolve("@playwright/test/cli");
-const result = spawnSync(process.execPath, [playwright, "test", "--config=playwright.shots.config.ts", ...args], {
-    env: { ...process.env, SHOTS_ONLY: only },
-    stdio: "inherit",
-});
-process.exit(result.status ?? 1);
+const includeDemo = "demo".includes(only.toLowerCase());
+const modes = includeDemo ? (only.toLowerCase() === "demo" ? ["demo"] : ["normal", "demo"]) : ["normal"];
+for (const mode of modes) {
+    const options = includeDemo && mode === "normal" ? ["--pass-with-no-tests"] : [];
+    const result = spawnSync(process.execPath, [playwright, "test", "--config=playwright.shots.config.ts", ...options, ...args], {
+        env: { ...process.env, SHOTS_ONLY: only, SHOTS_DEMO: String(mode === "demo") },
+        stdio: "inherit",
+    });
+    if (result.status !== 0) process.exit(result.status ?? 1);
+}

@@ -9,6 +9,7 @@ import { api, ApiError } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import type { EditRequest, PickupWindow } from "@/lib/types";
 import { useRequestAction, useRequestDetail } from "@/lib/use-request";
+import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
 
 // Windows are the same when they have the same dates and hours, in any order
 const slots = (windows: PickupWindow[]) => windows.map(window => `${window.date}:${window.startHour}`).sort().join();
@@ -18,6 +19,8 @@ export default function EditRequestPage() {
     const router = useRouter();
     const { data, isPending, isError, unavailable, refetch, isFetching } = useRequestDetail(id);
     const [unchanged, setUnchanged] = useState(false);
+    const [dirty, setDirty] = useState(false);
+    useUnsavedWarning(dirty);
     const action = useRequestAction<EditRequest>(id,
         body => api.patch(`/api/requests/${encodeURIComponent(id)}`, body),
         [queryKeys.myRequests, queryKeys.availableRequests]);
@@ -35,7 +38,7 @@ export default function EditRequestPage() {
         if (item.photo !== undefined) body.photo = item.photo;
         setUnchanged(!Object.keys(body).length);
         if (!Object.keys(body).length) return;
-        action.run(body, { onSuccess: () => router.push(back) });
+        action.run(body, { onSuccess: () => { setDirty(false); router.replace(back); } });
     }
 
     const editable = data && data.viewer === "owner" && data.allowedActions.includes("edit");
@@ -58,7 +61,7 @@ export default function EditRequestPage() {
                         windows: data.windows.map(({ date, startHour }) => ({ date, startHour })),
                         notes: data.notes ?? "",
                     }}
-                    onEdit={() => setUnchanged(false)} onValid={save}>
+                    onEdit={() => { setUnchanged(false); setDirty(true); }} onValid={save}>
                     {unchanged && <Alert variant="info">Nothing changed, so there is nothing to save.</Alert>}
                 </RequestForm>}
             </div>

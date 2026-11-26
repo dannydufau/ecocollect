@@ -151,9 +151,12 @@ export default function AppHeader() {
     if (!user) {
         return (
             <Bar>
-                <div className="ml-auto flex flex-wrap items-center gap-4">
-                    <Link href="/stats" className={textLink}>Community stats</Link>
-                    <Link href="/login" className={linkButton}>Sign in</Link>
+                <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-4">
+                    <Link href="/stats" aria-label="Community stats" className={`${textLink} whitespace-nowrap text-small sm:text-base`}>
+                        <span className="sm:hidden">Stats</span>
+                        <span className="hidden sm:inline">Community stats</span>
+                    </Link>
+                    <Link href="/login" className={`${linkButton} whitespace-nowrap px-3 text-small sm:px-5 sm:text-base`}>Sign in</Link>
                 </div>
             </Bar>
         );
@@ -162,12 +165,15 @@ export default function AppHeader() {
         return <Bar home="/choose-role"><div className="ml-auto"><LogoutButton /></div></Bar>;
     }
 
-    const middle = [...(activeRole ? roleLinks[activeRole] : []), ecoPoints];
+    const both = roles.includes("resident") && roles.includes("volunteer");
+    const middle = [
+        ...(activeRole ? roleLinks[activeRole] : both ? [roleLinks.resident[0], roleLinks.volunteer[0]] : []),
+        ecoPoints,
+    ];
     // Only the longest matching link is the current page, so /resident/requests/new does not also mark /resident
     const current = [...middle, profile, stats]
         .filter((link) => pathname === link.href || pathname.startsWith(`${link.href}/`))
         .sort((a, b) => b.href.length - a.href.length)[0];
-    const both = roles.includes("resident") && roles.includes("volunteer");
 
     const home = activeRole ? `/${activeRole}` : "/choose-role";
 

@@ -59,10 +59,9 @@ const text: [string, string][] = [
   ["accent-2-900", "accent-2-200"], ["accent-900", "accent-200"], ["text", "neutral-300"],
 ];
 
-// Borders and the focus ring only need 3:1
+// The focus ring uses accent-700 on the same backgrounds, checked at 4.5:1 above.
 const lines: [string, string][] = [
   ["border-strong", "bg"], ["border-strong", "surface-elevated"],
-  ["accent-700", "bg"], ["accent-700", "surface-elevated"],
 ];
 
 it.each(text)("%s text on %s is at least 4.5:1", (fg, bg) => {

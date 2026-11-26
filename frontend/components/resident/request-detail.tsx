@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { Alert, LoadingRegion, QueryError, RequestPhoto, WindowList, card, pageTitle, secondaryLinkButton, textLink } from "@/components/ui";
+import { useEffect, useRef, useState } from "react";
+import { Alert, LoadingRegion, QueryError, RequestPhoto, WindowList, card, linkButton, pageTitle, secondaryLinkButton, textLink } from "@/components/ui";
 import { NextStepPanel } from "@/components/ui/next-step-panel";
 import { isAuthError } from "@/lib/api";
 import { formatPostalCode } from "@/lib/postal-code";
@@ -93,19 +93,28 @@ export function ResidentRequestView({ request, onPhotoError, actionRenderers, no
     actionRenderers?: ResidentActionRenderers;
     notice?: Notice | null;
 }) {
+    const noticeRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        if (notice) noticeRef.current?.focus();
+    }, [notice]);
+
     if (request.viewer !== "owner") return <UnavailableRequest />;
+
+    const terminal = (request.status === "Missed" || request.status === "Expired" || request.status === "Cancelled") && !request.rescheduledAs;
 
     return <>
         <Link href="/resident" className={textLink}>Back to my requests</Link>
         <NextStepPanel title={`${request.quantity} × ${request.category.name}`} status={request.status} viewer="resident" quiet={Boolean(notice)}
             facts={<ResidentStatusFacts request={request} />}
             notices={<>
-                {notice && <Alert variant={notice.kind}>{notice.text}</Alert>}
+                {notice && <div ref={noticeRef} tabIndex={-1} className="outline-none"><Alert variant={notice.kind}>{notice.text}</Alert></div>}
                 {request.allowedActions.includes("report_missed") && <Alert variant="warning">
                     Your action is needed: confirm the collection or report a missed pickup.
                 </Alert>}
             </>}
-            actions={<RequestActions request={request} renderers={actionRenderers} />}
+            actions={terminal
+                ? <Link href="/resident/requests/new" className={linkButton}>Create a new request</Link>
+                : <RequestActions request={request} renderers={actionRenderers} />}
         />
 
         {/* The page order is the phone order. On wide screens the grid puts the summary first on the left. */}

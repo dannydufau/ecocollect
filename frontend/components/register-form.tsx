@@ -5,6 +5,7 @@ import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } fr
 import { AddressFields, PostalCodeList } from "@/components/address-fields";
 import { Button, ChoiceCard, Field, FieldError, PasswordInput, card, input, textLink } from "@/components/ui";
 import { calgaryToday } from "@/lib/time";
+import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
 import {
     eighteenYearsAgo, normalizeUsername, validateAccount, type AccountValues,
 } from "@/lib/validate-account";
@@ -39,6 +40,9 @@ export default function RegisterForm({ onValid, fieldErrors = {}, busy = false, 
     const [tried, setTried] = useState(false);
     const [failedSubmits, setFailedSubmits] = useState(0);
     const formRef = useRef<HTMLFormElement>(null);
+    const dirty = Boolean(values.username || values.email || values.password || values.firstName || values.lastName
+        || values.publicName || values.dateOfBirth || values.role || values.street || values.postalCode || values.preferredPostalCodes.length);
+    useUnsavedWarning(dirty && !busy);
     const today = calgaryToday();
     // Errors only show after the first submit, then follow the values as the user types
     const errors = { ...(tried ? validateAccount(values, today) : {}), ...fieldErrors };
@@ -63,9 +67,9 @@ export default function RegisterForm({ onValid, fieldErrors = {}, busy = false, 
     }
 
     // A small helper for the plain text inputs, they only differ in label, type and autocomplete
-    function text(name: "firstName" | "lastName" | "publicName" | "username" | "email", label: string, autoComplete: string, extra: { hint?: string; type?: string } = {}) {
+    function text(name: "firstName" | "lastName" | "publicName" | "username" | "email", label: string, autoComplete: string, extra: { hint?: string; type?: string; maxLength?: number } = {}) {
         return <Field label={label} hint={extra.hint} error={errors[name]}>
-            {control => <input {...control} type={extra.type ?? "text"} autoComplete={autoComplete} value={values[name]} className={input}
+            {control => <input {...control} type={extra.type ?? "text"} autoComplete={autoComplete} maxLength={extra.maxLength} value={values[name]} className={input}
                 onChange={event => change({ [name]: event.target.value })}
                 onBlur={name === "username" && normalizeUsername(values.username) !== values.username ? () => change({ username: normalizeUsername(values.username) }) : undefined} />}
         </Field>;
@@ -93,18 +97,18 @@ export default function RegisterForm({ onValid, fieldErrors = {}, busy = false, 
 
                 <Group title="About you">
                     <div className="grid gap-4 sm:grid-cols-2">
-                        {text("firstName", "First name", "given-name")}
-                        {text("lastName", "Last name", "family-name")}
+                        {text("firstName", "First name", "given-name", { maxLength: 80 })}
+                        {text("lastName", "Last name", "family-name", { maxLength: 80 })}
                     </div>
                     <Field label="Date of birth" hint="You must be 18 or older." error={errors.dateOfBirth}>
                         {control => <input {...control} type="date" autoComplete="bday" max={eighteenYearsAgo(today)} value={values.dateOfBirth} className={input}
                             onChange={event => change({ dateOfBirth: event.target.value })} />}
                     </Field>
-                    {text("publicName", "Public name", "nickname", { hint: "Other people see this name." })}
+                    {text("publicName", "Public name", "nickname", { hint: "Other people see this name.", maxLength: 80 })}
                 </Group>
 
                 <Group title="Account">
-                    {text("username", "Username", "username", { hint: "3 to 50 characters: a to z, 0 to 9, _ and -. You can't change it later." })}
+                    {text("username", "Username", "username", { hint: "3 to 50 characters: a to z, 0 to 9, _ and -. You can't change it later.", maxLength: 50 })}
                     {text("email", "Email", "email", { type: "email" })}
                     <Field label="Password" hint="Use at least 6 characters." error={errors.password}>
                         {control => <PasswordInput {...control} autoComplete="new-password" value={values.password}

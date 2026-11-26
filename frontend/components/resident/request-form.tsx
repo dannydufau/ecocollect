@@ -56,7 +56,7 @@ function PickupAddress() {
     </p>;
 }
 
-export default function RequestForm({ initialValues, createdAt, single = false, currentPhoto, cancelHref, onValid, fieldErrors = {}, busy = false, submitDisabled = false, submitHint, submitLabel = "Review request", onEdit, children }: {
+export default function RequestForm({ initialValues, createdAt, single = false, currentPhoto, cancelHref, onValid, fieldErrors = {}, busy = false, submitDisabled = false, submitHint, submitLabel = "Review request", onEdit, onValuesChange, children }: {
     initialValues?: RequestValues;
     createdAt?: string;
     single?: boolean;
@@ -69,6 +69,7 @@ export default function RequestForm({ initialValues, createdAt, single = false, 
     submitHint?: string;
     submitLabel?: string;
     onEdit?: () => void;
+    onValuesChange?: (values: RequestValues) => void;
     children?: ReactNode;
 }) {
     const id = useId();
@@ -80,9 +81,24 @@ export default function RequestForm({ initialValues, createdAt, single = false, 
     const [keys, setKeys] = useState(() => values.items.map((_, index) => index));
     // Replacing keeps the saved photo until a new one is uploaded
     const [replacing, setReplacing] = useState(false);
+    const [uploadingKeys, setUploadingKeys] = useState<Set<number>>(() => new Set());
+    const [incompleteWindows, setIncompleteWindows] = useState(false);
     const [tried, setTried] = useState(false);
     const [failedSubmits, setFailedSubmits] = useState(0);
     const formRef = useRef<HTMLFormElement>(null);
+    const photoUploading = uploadingKeys.size > 0;
+    const effectiveDisabled = submitDisabled || photoUploading;
+    const effectiveHint = photoUploading ? "Wait for the photo to finish uploading." : submitHint;
+
+    function setItemUploading(itemKey: number, itemBusy: boolean) {
+        setUploadingKeys(current => {
+            if (itemBusy === current.has(itemKey)) return current;
+            const next = new Set(current);
+            if (itemBusy) next.add(itemKey);
+            else next.delete(itemKey);
+            return next;
+        });
+    }
     // Errors only show after the first submit, then follow the values as the user types
     const errors = { ...(tried ? validate(values, createdAt) : {}), ...fieldErrors };
     const windowErrors = [...new Set(Object.entries(errors).filter(([key]) => key === "windows" || key.startsWith("windows[") || key.startsWith("windows.")).map(([, message]) => message))];
@@ -96,13 +112,14 @@ export default function RequestForm({ initialValues, createdAt, single = false, 
     function updateValues(next: RequestValues) {
         setValues(next);
         onEdit?.();
+        onValuesChange?.(next);
     }
 
     function submit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
-        if (busy || submitDisabled) return;
+        if (busy || effectiveDisabled) return;
         setTried(true);
-        if (Object.keys(validate(values, createdAt)).length) setFailedSubmits(count => count + 1);
+        if (incompleteWindows || Object.keys(validate(values, createdAt)).length) setFailedSubmits(count => count + 1);
         else onValid?.(values);
     }
 
@@ -148,6 +165,7 @@ export default function RequestForm({ initialValues, createdAt, single = false, 
                                     </div>
                                 </div> : <div className="space-y-2">
                                     <PhotoPicker purpose="item_photo" optional onUploaded={(fileId, photoPreviewUrl) => update({ photo: { fileId }, photoPreviewUrl })}
+                                        onBusyChange={itemBusy => setItemUploading(keys[index], itemBusy)}
                                         onClear={() => { update({ photo: replacing ? undefined : currentPhoto ? null : undefined, photoPreviewUrl: undefined }); setReplacing(false); }} />
                                     {currentPhoto && <Button variant="secondary" onClick={() => { update({ photo: undefined, photoPreviewUrl: undefined }); setReplacing(false); }}>Keep current photo</Button>}
                                 </div>}
@@ -166,22 +184,24 @@ export default function RequestForm({ initialValues, createdAt, single = false, 
                             updateValues({ ...values, items: [...values.items, { categoryId: "", quantity: "1" }] });
                         }}>Add another item</Button></div>}
                 </fieldset>
-                <WindowsPicker value={values.windows} onChange={windows => updateValues({ ...values, windows })} createdAt={createdAt} />
+                <WindowsPicker value={values.windows} onChange={windows => updateValues({ ...values, windows })}
+                    createdAt={createdAt} showIncomplete={tried} onIncompleteChange={setIncompleteWindows} />
                 {windowErrors.length > 0 && <FieldError tabIndex={-1}>{windowErrors.join(" ")}</FieldError>}
                 <div>
                     <label htmlFor={`${id}-notes`} className="mb-1 block font-semibold">Notes <span className="font-normal text-text-muted">(optional)</span></label>
-                    <textarea id={`${id}-notes`} value={values.notes} onChange={event => updateValues({ ...values, notes: event.target.value })}
-                        aria-invalid={Boolean(errors.notes)} aria-describedby={errors.notes ? `${id}-notes-error` : undefined}
+                    <textarea id={`${id}-notes`} maxLength={500} value={values.notes} onChange={event => updateValues({ ...values, notes: event.target.value })}
+                        aria-invalid={Boolean(errors.notes)} aria-describedby={[`${id}-notes-count`, errors.notes ? `${id}-notes-error` : ""].filter(Boolean).join(" ")}
                         rows={3} placeholder="For example: Side door" className={`${textarea} min-w-0`} />
+                    <p id={`${id}-notes-count`} className="mt-1 text-caption tabular-nums text-text-muted">{values.notes.length} / 500 characters</p>
                     {errors.notes && <FieldError id={`${id}-notes-error`}>{errors.notes}</FieldError>}
                 </div>
                 {single ? <p>The pickup address comes from your profile and can&apos;t be changed here.</p>
                     : <PickupAddress />}
                 {children}
                 <div className="flex flex-wrap items-center gap-3">
-                    <Button type="submit" busy={busy} busyLabel="Sending..." disabled={submitDisabled} aria-describedby={submitHint ? `${id}-hint` : undefined} className="px-7">{submitLabel}</Button>
+                    <Button type="submit" busy={busy} busyLabel="Sending..." disabled={effectiveDisabled} aria-describedby={effectiveHint ? `${id}-hint` : undefined} className="px-7">{submitLabel}</Button>
                     {cancelHref && <Link href={cancelHref} className={secondaryLinkButton}>Cancel</Link>}
-                    {submitHint && <p id={`${id}-hint`} className="text-small text-text-muted">{submitHint}</p>}
+                    {effectiveHint && <p id={`${id}-hint`} role={photoUploading ? "status" : undefined} className="text-small text-text-muted">{effectiveHint}</p>}
                 </div>
             </fieldset>
         </form>

@@ -35,6 +35,12 @@ const collected: RequestDetail = {
     ...active, status: "Collected", assignment: { ...assignment, collectedAt: "2026-11-20T18:30:00Z" }, allowedActions: ["record_delivery"],
 };
 
+const delivered = {
+    ...collected, status: "Delivered", allowedActions: [],
+    assignment: { ...assignment, status: "Delivered", collectedAt: "2026-11-20T18:30:00Z", endedAt: "2026-11-20T20:00:00Z", endReason: "Delivered" },
+    delivery: { facility: { facilityId: "f1", name: "Sample depot" }, deliveredAt: "2026-11-20T20:00:00Z" },
+} satisfies RequestDetail;
+
 function show(detail: RequestDetail) {
     vi.mocked(api.getWithMeta).mockResolvedValue({ data: detail, serverDate: new Date("2026-11-16T18:00:00Z") });
     renderWithClient(<VolunteerRequestDetail requestId="r1" />);
@@ -46,21 +52,18 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 it("shows an Open request without address, notes or resident, and an Accept button", async () => {
     expect(await show(open)).toHaveTextContent("2 × Computers/Laptops");
-    expect(api.getWithMeta).toHaveBeenCalledWith("/api/requests/r1");
+    expect(api.getWithMeta).toHaveBeenCalledWith("/api/requests/r1", { signal: expect.any(AbortSignal) });
     expect(screen.getByText("5.00 kg")).toBeInTheDocument();
     expect(screen.getByText("T2P 1J9")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Photo of the items" })).toHaveAttribute("src", open.photoUrl);
     expect(screen.queryByRole("heading", { name: "Pickup address and notes" })).not.toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent("101 Example Street SW");
+    expect(document.body).not.toHaveTextContent("Side door");
     expect(screen.queryByText("Resident")).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Your pickup" })).not.toBeInTheDocument();
     const actions = screen.getByRole("region", { name: "Request actions" });
     expect(within(actions).getAllByRole("button").map(button => button.textContent)).toEqual(["Accept request"]);
     expect(within(actions).getByRole("button", { name: "Accept request" })).toBeEnabled();
-});
-
-it("shows when an Open request closes", async () => {
-    await show(open);
-    expect(screen.getByText("Open until").nextElementSibling).toHaveTextContent(formatTimestamp(open.expiresAt));
 });
 
 it("tells a volunteer who owns the request that it is their own", async () => {
@@ -84,7 +87,7 @@ it("shows the address, notes, resident and assignment for the assigned volunteer
     expect(screen.getByText("101 Example Street SW")).toBeInTheDocument();
     expect(screen.getByText("Side door")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Jas" })).toHaveAttribute("href", "/profiles/jas");
-    expect(screen.getByText("Waiting for the resident to confirm collection.")).toBeInTheDocument();
+    expect(screen.getByText("After you collect the items, the resident confirms the collection.")).toBeInTheDocument();
     const pickup = screen.getByRole("region", { name: "Your pickup" });
     expect(pickup).toHaveTextContent(`Accepted ${formatTimestamp(assignment.acceptedAt)}`);
     expect(screen.getByRole("button", { name: "Cancel assignment" })).toBeEnabled();
@@ -100,14 +103,16 @@ it("states the delivery step once and shows Record delivery when collected", asy
 });
 
 it("shows the delivery once it is recorded", async () => {
-    await show({ ...collected, status: "Delivered", allowedActions: [], assignment: { ...assignment, status: "Delivered", collectedAt: "2026-11-20T18:30:00Z", endedAt: "2026-11-20T20:00:00Z", endReason: "Delivered" },
-        delivery: { facility: { facilityId: "f1", name: "Sample depot" }, deliveredAt: "2026-11-20T20:00:00Z", evidencePhotoUrl: "https://images.example.test/proof.jpg" } });
+    await show({
+        ...delivered,
+        delivery: { ...delivered.delivery, evidencePhotoUrl: "https://images.example.test/proof.jpg" },
+    });
     const delivery = screen.getByRole("region", { name: "Delivery" });
     expect(delivery).toHaveTextContent("Sample depot");
     expect(delivery).toHaveTextContent(`Delivered ${formatTimestamp("2026-11-20T20:00:00Z")}`);
     expect(within(delivery).getByRole("img", { name: "Delivery photo" })).toHaveAttribute("src", "https://images.example.test/proof.jpg");
     expect(within(delivery).getByRole("link", { name: "See my EcoPoints" })).toHaveAttribute("href", "/ecopoints");
-    expect(screen.queryByText("Waiting for the resident to confirm collection.")).not.toBeInTheDocument();
+    expect(screen.queryByText("After you collect the items, the resident confirms the collection.")).not.toBeInTheDocument();
 });
 
 it("never shows an address the server left out", async () => {
@@ -146,12 +151,6 @@ it("keeps the status, next step and buttons in one top card", async () => {
     expect(within(top).getByRole("button", { name: "Record delivery" })).toBeInTheDocument();
 });
 
-it("shows no street address before accepting, even if the server sent none for an Open request", async () => {
-    await show(open);
-    expect(document.body).not.toHaveTextContent("101 Example Street SW");
-    expect(document.body).not.toHaveTextContent("Side door");
-});
-
 it("shows the address card with a moss border after accepting, with a formatted postal code", async () => {
     await show(active);
     const card = screen.getByRole("region", { name: "Pickup address and notes" });
@@ -165,12 +164,6 @@ it("does not repeat the category and quantity from the title in Details", async 
     expect(screen.queryByText("Category")).not.toBeInTheDocument();
     expect(screen.queryByText("Quantity")).not.toBeInTheDocument();
 });
-
-const delivered: RequestDetail = {
-    ...collected, status: "Delivered", allowedActions: [],
-    assignment: { ...assignment, status: "Delivered", collectedAt: "2026-11-20T18:30:00Z", endedAt: "2026-11-20T20:00:00Z", endReason: "Delivered" },
-    delivery: { facility: { facilityId: "f1", name: "Sample depot" }, deliveredAt: "2026-11-20T20:00:00Z" },
-};
 
 function panel() {
     return screen.getByRole("region", { name: "Request status" });
@@ -194,7 +187,9 @@ it("shows the weight, postal code, windows and closing time at the top of an Ope
     expect(top).toHaveTextContent("Estimated weight 5.00 kg");
     expect(top).toHaveTextContent("Postal code T2P 1J9");
     expect(within(top).getByText("Pickup windows offered")).toBeInTheDocument();
-    expect(within(top).getByText("Open until").nextElementSibling).toHaveTextContent(formatTimestamp(open.expiresAt));
+    const closingTime = screen.getByText("Open until").nextElementSibling;
+    expect(top.contains(closingTime)).toBe(true);
+    expect(closingTime).toHaveTextContent(formatTimestamp(open.expiresAt));
     expect(screen.queryByRole("region", { name: "Details" })).not.toBeInTheDocument();
 });
 
