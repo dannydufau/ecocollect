@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import TermsCheckbox from "@/components/terms-checkbox";
 import { AddressFields, PostalCodeList } from "@/components/address-fields";
 import { Alert, Button, panel } from "@/components/ui";
@@ -9,6 +9,7 @@ import { api, ApiError, friendlyError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { queryKeys } from "@/lib/query-keys";
 import type { ActivateRole, Profile } from "@/lib/types";
+import { useLockedMutation } from "@/lib/use-locked-mutation";
 import { normalizePostalCode, validateAddress, validateCodes } from "@/lib/validate-account";
 import type { Notice } from "./notice";
 
@@ -27,7 +28,7 @@ export function SecondRole({ profile, onDone }: { profile: Profile; onDone: (not
     const resident = profile.roles.includes("resident");
     const role = resident === profile.roles.includes("volunteer") ? null : resident ? "volunteer" : "resident";
 
-    const activate = useMutation({
+    const activate = useLockedMutation({
         mutationFn: async (body: ActivateRole) => {
             await api.post("/api/profile/roles", body);
             // The new role only works with a fresh token and session (README 3.3)

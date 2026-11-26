@@ -39,6 +39,7 @@ export default function LoginPage() {
   const { user, roles, loading, signIn, signOut } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -51,9 +52,14 @@ export default function LoginPage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    const nextErrors: { email?: string; password?: string } = {};
+    if (!email.trim()) nextErrors.email = "Enter your email.";
+    if (!password) nextErrors.password = "Enter your password.";
+    setFieldErrors(nextErrors);
+    if (nextErrors.email || nextErrors.password) return;
     setSubmitting(true);
     try {
-      const userRoles = await signIn(email, password);
+      const userRoles = await signIn(email.trim(), password);
       if (userRoles.length === 0) {
         await signOut();
         setError("This account has no role assigned.");
@@ -69,21 +75,21 @@ export default function LoginPage() {
 
   return (
     <main className="flex w-full min-w-0 flex-1 flex-col items-center justify-center gap-4 p-4 sm:p-8">
-      <form onSubmit={handleSubmit} className={`${card} flex w-full max-w-[440px] min-w-0 flex-col gap-4`}>
+      <form onSubmit={handleSubmit} noValidate className={`${card} flex w-full max-w-[440px] min-w-0 flex-col gap-4`}>
         <h1 className={pageTitle}>Sign in to EcoCollect</h1>
         <p className="text-text-muted">Calgary’s community e-waste courier.</p>
         <Suspense fallback={null}>
           <ExpiredNotice />
         </Suspense>
-        <Field label="Email">
+        <Field label="Email" error={fieldErrors.email}>
           {(control) => (
-            <input {...control} type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+            <input {...control} type="email" value={email} onChange={(e) => { setEmail(e.target.value); setFieldErrors(prev => ({ ...prev, email: undefined })); }}
               required autoComplete="email" className={input} />
           )}
         </Field>
-        <Field label="Password">
+        <Field label="Password" error={fieldErrors.password}>
           {(control) => (
-            <PasswordInput {...control} value={password} onChange={(e) => setPassword(e.target.value)}
+            <PasswordInput {...control} value={password} onChange={(e) => { setPassword(e.target.value); setFieldErrors(prev => ({ ...prev, password: undefined })); }}
               required autoComplete="current-password" />
           )}
         </Field>

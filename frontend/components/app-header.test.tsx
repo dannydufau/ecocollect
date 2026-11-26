@@ -81,12 +81,12 @@ it("lets a both-roles account switch to volunteer", () => {
     expect(router.push).toHaveBeenCalledWith("/volunteer");
 });
 
-it("shows only the shared links and the switcher before a both-roles account picks a role", () => {
+it("shows My requests, Available, shared links and the switcher before a both-roles account picks a role", () => {
     pathname = "/ecopoints";
     signedIn(["resident", "volunteer"], null);
     render(<AppHeader />);
     const nav = screen.getByRole("navigation", { name: "Main" });
-    expect(within(nav).getAllByRole("link").map((link) => link.textContent)).toEqual(["EcoPoints"]);
+    expect(within(nav).getAllByRole("link").map((link) => link.textContent)).toEqual(["My requests", "Available", "EcoPoints"]);
     expect(within(openAccount().menu).getByRole("link", { name: "Profile" })).toHaveAttribute("href", "/profile");
     expect(screen.getAllByRole("group", { name: "Active role" })).not.toHaveLength(0);
 });

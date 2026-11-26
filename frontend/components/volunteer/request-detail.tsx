@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Alert, LoadingRegion, QueryError, RequestPhoto, WindowList, actionGroup, card, identifier, pageTitle, textLink } from "@/components/ui";
 import { NextStepPanel } from "@/components/ui/next-step-panel";
 import { isAuthError } from "@/lib/api";
@@ -69,6 +69,10 @@ export default function VolunteerRequestDetail({ requestId }: { requestId: strin
     const { data: request, isPending, isError, unavailable, error, refetch, isFetching } = useRequestDetail(requestId);
     // What the last action did, shown above the buttons
     const [notice, setNotice] = useState("");
+    const noticeRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        if (notice) noticeRef.current?.focus();
+    }, [notice]);
     const back = <Link href="/volunteer" className={textLink}>Back to available requests</Link>;
 
     if (unavailable) return <section className="space-y-3">
@@ -94,7 +98,7 @@ export default function VolunteerRequestDetail({ requestId }: { requestId: strin
         <NextStepPanel title={`${request.quantity} × ${request.category.name}`} status={request.status} viewer="volunteer" quiet={Boolean(notice)}
             facts={<VolunteerStatusFacts request={request} />}
             notices={<>
-                {notice && <Alert variant="success">{notice}</Alert>}
+                {notice && <div ref={noticeRef} tabIndex={-1} className="outline-none"><Alert variant="success">{notice}</Alert></div>}
                 {request.viewer === "owner" && <Alert variant="info">This is your own request. You can accept it like any other volunteer.</Alert>}
             </>}
             actions={buttons.length > 0 && <section aria-label="Request actions" className={actionGroup}>
@@ -144,7 +148,7 @@ export default function VolunteerRequestDetail({ requestId }: { requestId: strin
                     <h3>Selected pickup window</h3>
                     <Windows windows={[assignment.window]} />
                     {assignment.collectedAt && <p>Collected {formatTimestamp(assignment.collectedAt)}</p>}
-                    {assignment.status === "Active" && <p className="text-text-muted">Waiting for the resident to confirm collection.</p>}
+                    {assignment.status === "Active" && <p className="text-text-muted">After you collect the items, the resident confirms the collection.</p>}
                 </section>}
 
                 {request.photoUrl && <section aria-labelledby="photo-heading" className={cardStyle}>

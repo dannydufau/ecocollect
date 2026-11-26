@@ -8,7 +8,7 @@ import type { RequestDetail } from "@/lib/types";
 import { pageWidth } from "@/components/ui";
 import EditRequestPage from "./page";
 
-const router = vi.hoisted(() => ({ push: vi.fn() }));
+const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
 vi.mock("next/navigation", () => ({ useParams: () => ({ id: "r1" }), useRouter: () => router }));
 vi.mock("@/lib/firebase", () => ({ auth: {} }));
 vi.mock("firebase/auth", () => ({ signOut: vi.fn() }));
@@ -44,6 +44,7 @@ const save = () => fireEvent.click(screen.getByRole("button", { name: "Save chan
 beforeEach(() => {
     current = detail();
     router.push.mockReset();
+    router.replace.mockReset();
     vi.spyOn(api, "getWithMeta").mockImplementation(async () => ({ data: current, serverDate: new Date() }) as never);
     vi.spyOn(api, "get").mockResolvedValue(categories);
     vi.spyOn(api, "patch").mockImplementation(async () => current as never);
@@ -72,7 +73,7 @@ it("sends only the quantity when only that changed, then goes back to the reques
     fireEvent.change(await mount(), { target: { value: "3" } });
     const invalidate = vi.spyOn(client, "invalidateQueries");
     save();
-    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/resident/requests/r1"));
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/resident/requests/r1"));
     expect(api.patch).toHaveBeenCalledExactlyOnceWith("/api/requests/r1", { quantity: 3 });
     for (const key of [queryKeys.request("r1"), queryKeys.myRequests, queryKeys.availableRequests]) expect(invalidate).toHaveBeenCalledWith({ queryKey: key });
 });

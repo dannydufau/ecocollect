@@ -38,7 +38,7 @@ export function register(route, store) {
     const user = authenticate(req, res);
     if (!user) return;
     const fields = validate(body);
-    if (fields) return sendError(res, 400, "validation_error", "Check the highlighted fields.", fields);
+    if (fields) return sendError(res, 400, "validation_failed", "Check the highlighted fields.", fields);
 
     const evidence = body.purpose === "delivery_evidence";
     if (!user.roles.includes(evidence ? "volunteer" : "resident")) {

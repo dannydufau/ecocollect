@@ -81,7 +81,8 @@ test.describe("motion", () => {
         expect(Number(await pressed('main [role="group"] button')), "a chip").toBeLessThan(1);
     });
 
-    test("a dialog opens in 200 ms and closes in 150 ms", async ({ page }) => {
+    test("a dialog opens in 200 ms and closes in 150 ms", async ({ page, browserName }) => {
+        test.skip(browserName !== "chromium", "Exit transition timing uses allow-discrete, which WebKit/Firefox skip by design.");
         await openPage(page, `/volunteer/requests/${fixtureRequests.Open}`, fixtureAccounts.volunteer);
         await page.getByRole("button", { name: "Accept request" }).click();
         const dialog = page.getByRole("dialog");
@@ -92,8 +93,8 @@ test.describe("motion", () => {
         expect(await duration(), "closing").toBe("0.15s");
     });
 
-    test("the More sheet opens and closes in 240 ms", async ({ page }) => {
-        test.skip(width(page) !== 375, "The More sheet is the phone menu.");
+    test("the More sheet opens and closes in 240 ms", async ({ page, browserName }) => {
+        test.skip(width(page) !== 375 || browserName !== "chromium", "The More sheet is the phone menu; allow-discrete timing is Chromium-only.");
         await openPage(page, "/resident", resident);
         await page.getByRole("navigation", { name: "Mobile" }).getByRole("button", { name: "More" }).click();
         const sheet = page.getByRole("dialog", { name: "More" });

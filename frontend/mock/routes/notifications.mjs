@@ -117,7 +117,7 @@ export function register(route) {
     const limitText = url.searchParams.get("limit");
     const limit = limitText === null ? 30 : Number(limitText);
     if (!Number.isInteger(limit) || limit < 1 || limit > 100) fields.limit = "Use a whole number from 1 to 100.";
-    if (Object.keys(fields).length) return sendError(res, 400, "validation_error", "Check the query.", fields);
+    if (Object.keys(fields).length) return sendError(res, 400, "validation_failed", "Check the query.", fields);
 
     const mine = store.notifications.filter((item) => item.userId === user.uid);
     const page = mine

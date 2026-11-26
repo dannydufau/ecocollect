@@ -18,11 +18,13 @@ function dateLabel(date: string): string {
     return formatWindow({ date, startHour: 0 }).split(", ").slice(0, 2).join(", ");
 }
 
-export function WindowsPicker({ value, onChange, createdAt, embedded = false }: {
+export function WindowsPicker({ value, onChange, createdAt, embedded = false, showIncomplete = false, onIncompleteChange }: {
     value: PickupWindow[];
     onChange: (windows: PickupWindow[]) => void;
     createdAt?: string;
     embedded?: boolean;
+    showIncomplete?: boolean;
+    onIncompleteChange?: (incomplete: boolean) => void;
 }) {
     const id = useId();
     const [draft, setDraft] = useState(() => ({ value, emitted: value, rows: rowsFrom(value) }));
@@ -43,7 +45,9 @@ export function WindowsPicker({ value, onChange, createdAt, embedded = false }: 
         const windows = rows
             .filter(row => row.date && row.startHour !== "")
             .map(row => ({ date: row.date, startHour: Number(row.startHour) }));
+        const incomplete = rows.some(row => Boolean(row.date) !== (row.startHour !== ""));
         setDraft({ value, emitted: windows, rows });
+        onIncompleteChange?.(incomplete);
         onChange(windows);
     }
 
@@ -57,7 +61,9 @@ export function WindowsPicker({ value, onChange, createdAt, embedded = false }: 
             <div className="clear-both flex flex-col gap-3">
                 <p className="text-small text-text-muted">Each window is one hour (Calgary time). Offer up to 3. They must start in the future and within 30 days.</p>
                 {draft.rows.map((row, index) => {
+                    const partial = Boolean(row.date) !== (row.startHour !== "");
                     let error = "";
+                    let incompleteOnly = false;
                     if (row.date && (row.date < today || row.date > maxDate)) {
                         error = `Choose a date from ${dateLabel(today)} to ${dateLabel(maxDate)}.`;
                     } else if (row.date === today && row.startHour !== "" && Number(row.startHour) <= currentHour) {
@@ -65,8 +71,13 @@ export function WindowsPicker({ value, onChange, createdAt, embedded = false }: 
                     } else if (row.date && row.startHour !== "" && draft.rows.some((other, otherIndex) =>
                         otherIndex !== index && other.date === row.date && other.startHour === row.startHour)) {
                         error = "Choose a different date or hour. This pickup window is already listed.";
+                    } else if (showIncomplete && partial) {
+                        error = "Choose both a date and an hour, or remove this window.";
+                        incompleteOnly = true;
                     }
                     const errorId = `${id}-${index}-error`;
+                    const dateInvalid = Boolean(error) && (!incompleteOnly || !row.date);
+                    const hourInvalid = Boolean(error) && (!incompleteOnly || row.startHour === "");
 
                     return (
                         <div key={index} className="min-w-0">
@@ -76,7 +87,7 @@ export function WindowsPicker({ value, onChange, createdAt, embedded = false }: 
                                     <input id={`${id}-${index}-date`} type="date" required
                                         value={row.date} min={today} max={maxDate}
                                         onChange={event => updateRow(index, { date: event.target.value })}
-                                        aria-invalid={Boolean(error)} aria-describedby={error ? errorId : undefined}
+                                        aria-invalid={dateInvalid} aria-describedby={error ? errorId : undefined}
                                         className={`${input} min-w-0`} />
                                     <div className="mt-2 flex flex-wrap gap-2">
                                         <Button variant="secondary" size="sm" disabled={today > maxDate || currentHour >= 23}
@@ -89,7 +100,7 @@ export function WindowsPicker({ value, onChange, createdAt, embedded = false }: 
                                     <label htmlFor={`${id}-${index}-hour`} className="mb-1 block font-semibold">Start hour {index + 1}</label>
                                     <select id={`${id}-${index}-hour`} required value={row.startHour}
                                         onChange={event => updateRow(index, { startHour: event.target.value })}
-                                        aria-invalid={Boolean(error)} aria-describedby={error ? errorId : undefined}
+                                        aria-invalid={hourInvalid} aria-describedby={error ? errorId : undefined}
                                         className={`${select} min-w-0`}>
                                         <option value="" disabled>Choose an hour</option>
                                         {hourGroups.map((label, groupIndex) => (

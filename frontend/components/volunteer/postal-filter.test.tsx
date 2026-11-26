@@ -5,6 +5,9 @@ import { api } from "@/lib/api";
 import { renderWithClient } from "@/test/utils";
 import AvailableRequests from "./available-requests";
 
+let searchParams = new URLSearchParams();
+const replace = vi.fn();
+vi.mock("next/navigation", () => ({ useSearchParams: () => searchParams, useRouter: () => ({ replace }) }));
 vi.mock("@/lib/api", () => ({ api: { get: vi.fn() } }));
 
 const list = "/api/requests?view=available";
@@ -23,6 +26,8 @@ async function shown(codes: string[]) {
 }
 
 beforeEach(() => {
+    searchParams = new URLSearchParams();
+    replace.mockReset();
     profile = { preferredPostalCodes: [] };
     vi.mocked(api.get).mockReset().mockImplementation(async (path: string) => {
         if (path !== "/api/profile") return [];

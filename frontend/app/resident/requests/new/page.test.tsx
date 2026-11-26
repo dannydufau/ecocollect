@@ -23,7 +23,7 @@ describe("new request access", () => {
         vi.mocked(useAuth).mockReturnValue({ user: { uid: "volunteer" } as NonNullable<ReturnType<typeof useAuth>["user"]>, roles: ["volunteer"], loading: false } as ReturnType<typeof useAuth>);
         render(<ResidentLayout><NewRequestPage /></ResidentLayout>);
         expect(screen.queryByText("Request form")).not.toBeInTheDocument();
-        expect(replace).toHaveBeenCalledWith("/choose-role");
+        expect(replace).toHaveBeenCalledWith("/choose-role?need=resident");
     });
     it("redirects signed-out users to login", () => {
         vi.mocked(useAuth).mockReturnValue({ user: null, roles: [], activeRole: null, loading: false } as Partial<ReturnType<typeof useAuth>> as ReturnType<typeof useAuth>);

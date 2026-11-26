@@ -12,7 +12,16 @@ it("saves an allowed page and gives it back once", () => {
     expect(takeReturnTo()).toBeNull();
 });
 
-it.each(["/stats", "/login", "/resident", "/ecopointsx", "//evil.com", "https://evil.com", "/resident//evil.com"])(
+it("saves exact resident and volunteer list pages and identifies their role", () => {
+    saveReturnTo("/resident");
+    expect(takeReturnTo()).toBe("/resident");
+    saveReturnTo("/volunteer?postalCodes=T2P1J9");
+    expect(takeReturnTo()).toBe("/volunteer?postalCodes=T2P1J9");
+    expect(roleOf("/resident")).toBe("resident");
+    expect(roleOf("/volunteer")).toBe("volunteer");
+});
+
+it.each(["/stats", "/login", "/ecopointsx", "//evil.com", "https://evil.com", "/resident//evil.com"])(
     "does not save %s", (path) => {
         saveReturnTo(path);
         expect(sessionStorage.getItem("returnTo")).toBeNull();

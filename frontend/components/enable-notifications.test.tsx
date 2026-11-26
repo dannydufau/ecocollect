@@ -117,12 +117,23 @@ it("shows an error when subscribing fails", async () => {
     expect(api.post).not.toHaveBeenCalled();
 });
 
-it("shows an error when saving the subscription fails", async () => {
-    fakeBrowser();
+it("offers Turn on again on revisit when saving the subscription to the server failed", async () => {
+    let current: unknown = null;
+    const unsubscribe = vi.fn(async () => { current = null; return true; });
+    const sub = { endpoint: json.endpoint, unsubscribe, toJSON: () => json };
+    vi.stubGlobal("Notification", { permission: "granted", requestPermission: vi.fn(async () => "granted") });
+    vi.stubGlobal("PushManager", class {});
+    const registration = { pushManager: { getSubscription: vi.fn(async () => current), subscribe: vi.fn(async () => (current = sub)) } };
+    Object.defineProperty(navigator, "serviceWorker", { configurable: true, value: { register: vi.fn(async () => registration), ready: Promise.resolve(registration), getRegistration: vi.fn(async () => registration) } });
+
     vi.mocked(api.post).mockRejectedValue(new Error("offline"));
     render(<EnableNotifications />);
-
     await userEvent.click(await screen.findByRole("button", { name: "Turn on device notifications" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("We could not turn on notifications. Please try again.");
-    expect(screen.getByRole("button", { name: "Turn on device notifications" })).toBeInTheDocument();
+    expect(unsubscribe).toHaveBeenCalledOnce();
+
+    cleanup();
+    render(<EnableNotifications />);
+    expect(await screen.findByRole("button", { name: "Turn on device notifications" })).toBeInTheDocument();
+    expect(screen.queryByText("On")).not.toBeInTheDocument();
 });

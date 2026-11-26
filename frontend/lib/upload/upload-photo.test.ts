@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { ApiError } from "@/lib/api";
-import { uploadPhoto } from "./upload-photo";
+import { UPLOAD_TIMEOUT_MS, uploadPhoto } from "./upload-photo";
 
 const mocks = vi.hoisted(() => ({
     auth: { authStateReady: () => Promise.resolve(), currentUser: null },
@@ -99,4 +99,29 @@ it("fails and keeps the cause when the upload has a network error", async () => 
     const error = await uploadPhoto(photo, { purpose: "item_photo" }).catch(e => e);
     expect(error.message).toBe("The photo could not be uploaded, try again");
     expect(error.cause).toBe(network);
+});
+
+it("times out a hung ImageKit upload after UPLOAD_TIMEOUT_MS", async () => {
+    vi.useFakeTimers();
+    fetchMock.mockResolvedValueOnce(json(201, ticket)).mockImplementationOnce((_url: string, init?: RequestInit) => new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(init.signal!.reason));
+    }));
+    const pending = uploadPhoto(photo, { purpose: "item_photo" }).catch(e => e);
+    await vi.advanceTimersByTimeAsync(UPLOAD_TIMEOUT_MS);
+    const error = await pending;
+    expect(error.message).toBe("The upload took too long. Check your connection and try again.");
+    vi.useRealTimers();
+});
+
+it("cancels an in-flight upload when the caller signal aborts", async () => {
+    const controller = new AbortController();
+    fetchMock.mockResolvedValueOnce(json(201, ticket)).mockImplementationOnce((_url: string, init?: RequestInit) => new Promise((_resolve, reject) => {
+        if (init?.signal?.aborted) return reject(new DOMException("Aborted", "AbortError"));
+        init?.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+    }));
+    const pending = uploadPhoto(photo, { purpose: "item_photo", signal: controller.signal }).catch(e => e);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    controller.abort();
+    const error = await pending;
+    expect(error.name).toBe("AbortError");
 });

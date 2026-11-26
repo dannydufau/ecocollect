@@ -2,8 +2,10 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
     return {
+        id: "/",
         name: "EcoCollect",
         short_name: "EcoCollect",
+        description: "Calgary community e-waste pickup and delivery.",
         start_url: "/",
         display: "standalone",
         background_color: "#f5ead8",

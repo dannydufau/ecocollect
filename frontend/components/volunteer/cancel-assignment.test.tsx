@@ -67,11 +67,17 @@ it("sends nothing when the dialog is dismissed", () => {
     expect(api.post).not.toHaveBeenCalled();
 });
 
-it("refreshes the request and the history, then goes to the history page", async () => {
+it("refreshes the request and the history, then goes to the history page with a cancelled flag", async () => {
     confirm(openDialog());
-    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/volunteer/history"));
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/volunteer/history?cancelled=1"));
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["request", "r1"] });
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["requests", "volunteer"] });
+});
+
+it("treats 404 request_unavailable after volunteer cancel as success (expired request)", async () => {
+    vi.mocked(api.post).mockRejectedValue(new ApiError(404, { error: { code: "request_unavailable", message: "gone" } }));
+    confirm(openDialog());
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/volunteer/history?cancelled=1"));
 });
 
 it("shows the message when the items were already collected", async () => {

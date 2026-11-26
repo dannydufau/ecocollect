@@ -6,7 +6,7 @@ import AppHeader from "@/components/app-header";
 import DemoBanner from "@/components/demo-banner";
 
 export const metadata: Metadata = {
-  title: "EcoCollect",
+  title: { default: "EcoCollect", template: "%s · EcoCollect" },
   description: "E-waste pickup requests",
 };
 

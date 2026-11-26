@@ -32,23 +32,31 @@ it("does nothing without a subscription", async () => {
 
 // jsdom has no Notification or service worker. The calls are written to `order` to check the sequence.
 function fakeBrowser(answer: string, order: string[]) {
-    const subscription = { toJSON: () => ({ endpoint: "https://push.example.test/abc", keys: { p256dh: "p", auth: "a" }, expirationTime: null }) };
+    const unsubscribe = vi.fn(async () => true);
+    const subscription = { unsubscribe, toJSON: () => ({ endpoint: "https://push.example.test/abc", keys: { p256dh: "p", auth: "a" }, expirationTime: null }) };
     const registration = { pushManager: { subscribe: vi.fn(async () => subscription) } };
     vi.stubGlobal("Notification", { requestPermission: vi.fn(async () => { order.push("permission"); return answer; }) });
     Object.defineProperty(navigator, "serviceWorker", { configurable: true, value: {
         register: vi.fn(async () => { order.push("register"); }),
         ready: Promise.resolve(registration),
     } });
-    return registration;
+    return { registration, unsubscribe };
 }
 
 it("asks for permission first, so the click is still fresh, then registers and subscribes", async () => {
     const order: string[] = [];
-    const registration = fakeBrowser("granted", order);
+    const { registration } = fakeBrowser("granted", order);
     expect(await subscribe("AQID")).toBe("granted");
     expect(order).toEqual(["permission", "register"]);
     expect(registration.pushManager.subscribe).toHaveBeenCalledWith({ userVisibleOnly: true, applicationServerKey: new Uint8Array([1, 2, 3]) });
     expect(api.post).toHaveBeenCalledWith("/api/push/subscriptions", { endpoint: "https://push.example.test/abc", keys: { p256dh: "p", auth: "a" }, expirationTime: null });
+});
+
+it("unsubscribes the browser if saving the subscription to the server fails", async () => {
+    const { unsubscribe } = fakeBrowser("granted", []);
+    vi.mocked(api.post).mockRejectedValue(new Error("server down"));
+    await expect(subscribe("AQID")).rejects.toThrow("server down");
+    expect(unsubscribe).toHaveBeenCalledOnce();
 });
 
 it("registers nothing and posts nothing when the permission is not granted", async () => {

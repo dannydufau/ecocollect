@@ -46,7 +46,7 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 it("shows an Open request without address, notes or resident, and an Accept button", async () => {
     expect(await show(open)).toHaveTextContent("2 × Computers/Laptops");
-    expect(api.getWithMeta).toHaveBeenCalledWith("/api/requests/r1");
+    expect(api.getWithMeta).toHaveBeenCalledWith("/api/requests/r1", { signal: expect.any(AbortSignal) });
     expect(screen.getByText("5.00 kg")).toBeInTheDocument();
     expect(screen.getByText("T2P 1J9")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Photo of the items" })).toHaveAttribute("src", open.photoUrl);
@@ -84,7 +84,7 @@ it("shows the address, notes, resident and assignment for the assigned volunteer
     expect(screen.getByText("101 Example Street SW")).toBeInTheDocument();
     expect(screen.getByText("Side door")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Jas" })).toHaveAttribute("href", "/profiles/jas");
-    expect(screen.getByText("Waiting for the resident to confirm collection.")).toBeInTheDocument();
+    expect(screen.getByText("After you collect the items, the resident confirms the collection.")).toBeInTheDocument();
     const pickup = screen.getByRole("region", { name: "Your pickup" });
     expect(pickup).toHaveTextContent(`Accepted ${formatTimestamp(assignment.acceptedAt)}`);
     expect(screen.getByRole("button", { name: "Cancel assignment" })).toBeEnabled();
@@ -107,7 +107,7 @@ it("shows the delivery once it is recorded", async () => {
     expect(delivery).toHaveTextContent(`Delivered ${formatTimestamp("2026-11-20T20:00:00Z")}`);
     expect(within(delivery).getByRole("img", { name: "Delivery photo" })).toHaveAttribute("src", "https://images.example.test/proof.jpg");
     expect(within(delivery).getByRole("link", { name: "See my EcoPoints" })).toHaveAttribute("href", "/ecopoints");
-    expect(screen.queryByText("Waiting for the resident to confirm collection.")).not.toBeInTheDocument();
+    expect(screen.queryByText("After you collect the items, the resident confirms the collection.")).not.toBeInTheDocument();
 });
 
 it("never shows an address the server left out", async () => {

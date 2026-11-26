@@ -134,7 +134,7 @@ export function register(route, store) {
     const profile = url.searchParams.get("profile");
     const stats = url.searchParams.has("stats");
     if (Boolean(profile) === stats) {
-      return sendError(res, 400, "validation_error", "Check the query.", { profile: "Use exactly one of profile or stats." });
+      return sendError(res, 400, "validation_failed", "Check the query.", { profile: "Use exactly one of profile or stats." });
     }
     res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache, no-transform", Connection: "keep-alive" });
     res.write("event: ready\ndata: {}\n\n");
@@ -149,7 +149,7 @@ export function register(route, store) {
 
   route("POST", "/api/session", (req, res, { body }) => {
     if (typeof body?.idToken !== "string" || !body.idToken) {
-      return sendError(res, 400, "validation_error", "Send the ID token.", { idToken: "This is required." });
+      return sendError(res, 400, "validation_failed", "Send the ID token.", { idToken: "This is required." });
     }
     // The mock cannot check a token, so only a deactivated account is turned away. A Firebase user the mock does not know still gets a cookie.
     const user = currentUser({ headers: { authorization: `Bearer ${body.idToken}` } });
@@ -181,7 +181,7 @@ export function register(route, store) {
 
   route("POST", "/api/accounts", (req, res, { body }) => {
     const fields = checkNewAccount(body);
-    if (Object.keys(fields).length) return sendError(res, 400, "validation_error", "Check the registration details.", fields);
+    if (Object.keys(fields).length) return sendError(res, 400, "validation_failed", "Check the registration details.", fields);
     if (body.termsDocumentId !== store.terms.at(-1)?.termsDocumentId) {
       return sendError(res, 409, "terms_outdated", "The terms have changed. Please read and accept them again.");
     }
@@ -210,12 +210,12 @@ export function register(route, store) {
     const account = signedIn(req, res);
     if (!account) return;
     const fields = {};
-    if (!body || typeof body !== "object" || Array.isArray(body)) return sendError(res, 400, "validation_error", "Send the profile fields.", { body: "Send an object." });
+    if (!body || typeof body !== "object" || Array.isArray(body)) return sendError(res, 400, "validation_failed", "Send the profile fields.", { body: "Send an object." });
     for (const key of Object.keys(body)) if (!["publicName", "address", "preferredPostalCodes"].includes(key)) fields[key] = "This field can't be changed.";
     if (body.publicName !== undefined && !isText(body.publicName)) fields.publicName = "Enter a public name.";
     if (body.address !== undefined) checkAddress(body.address, fields);
     if (body.preferredPostalCodes !== undefined) checkCodes(body.preferredPostalCodes, fields);
-    if (Object.keys(fields).length) return sendError(res, 400, "validation_error", "Check the profile fields.", fields);
+    if (Object.keys(fields).length) return sendError(res, 400, "validation_failed", "Check the profile fields.", fields);
 
     if (body.address !== undefined && !account.roles.includes("resident")) return sendError(res, 403, "role_required", "Only residents have an address.");
     if (body.preferredPostalCodes !== undefined && !account.roles.includes("volunteer")) return sendError(res, 403, "role_required", "Only volunteers have preferred postal codes.");
@@ -235,12 +235,12 @@ export function register(route, store) {
     const account = signedIn(req, res);
     if (!account) return;
     const fields = {};
-    if (!body || typeof body !== "object" || Array.isArray(body)) return sendError(res, 400, "validation_error", "Send the role details.", { body: "Send an object." });
+    if (!body || typeof body !== "object" || Array.isArray(body)) return sendError(res, 400, "validation_failed", "Send the role details.", { body: "Send an object." });
     if (!["resident", "volunteer"].includes(body.role)) fields.role = "Choose resident or volunteer.";
     if (!isText(body.termsDocumentId)) fields.termsDocumentId = "This is required.";
     if (body.role === "resident") checkAddress(body.address, fields);
     if (body.preferredPostalCodes !== undefined) checkCodes(body.preferredPostalCodes, fields);
-    if (Object.keys(fields).length) return sendError(res, 400, "validation_error", "Check the role details.", fields);
+    if (Object.keys(fields).length) return sendError(res, 400, "validation_failed", "Check the role details.", fields);
 
     if (account.roles.includes(body.role)) return sendError(res, 409, "role_already_active", "You already have this role.");
     if (body.termsDocumentId !== store.terms.at(-1)?.termsDocumentId) {

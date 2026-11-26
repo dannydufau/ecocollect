@@ -10,10 +10,12 @@ vi.mock("@/components/photo-picker", async () => {
     const { useState } = await import("react");
     let count = 0;
     return {
-        default: function PhotoPicker({ onUploaded, onClear }: { onUploaded: (fileId: string) => void; onClear: () => void }) {
+        default: function PhotoPicker({ onUploaded, onClear, onBusyChange }: { onUploaded: (fileId: string) => void; onClear: () => void; onBusyChange?: (busy: boolean) => void }) {
             const [shown, setShown] = useState("");
             return <div>
                 <button type="button" onClick={() => { const fileId = `f${++count}`; setShown(fileId); onUploaded(fileId); }}>Upload photo</button>
+                <button type="button" onClick={() => onBusyChange?.(true)}>Start upload</button>
+                <button type="button" onClick={() => onBusyChange?.(false)}>Finish upload</button>
                 <button type="button" onClick={() => { setShown(""); onClear(); }}>Clear photo</button>
                 {shown && <span>Preview {shown}</span>}
             </div>;
@@ -219,4 +221,33 @@ it("has no Keep current photo without a saved photo", async () => {
     renderWithClient(<RequestForm single initialValues={valid()} />);
     await screen.findByLabelText("Category");
     expect(screen.queryByRole("button", { name: "Keep current photo" })).not.toBeInTheDocument();
+});
+
+it("blocks submit and focuses the missing field when a pickup window is half-filled", async () => {
+    const onValid = vi.fn();
+    renderWithClient(<RequestForm initialValues={valid()} onValid={onValid} />);
+    await screen.findByLabelText("Category");
+    fireEvent.click(screen.getByRole("button", { name: "Add window" }));
+    fireEvent.change(screen.getByLabelText("Date 2"), { target: { value: valid().windows[0].date } });
+    fireEvent.click(screen.getByRole("button", { name: "Review request" }));
+    expect(onValid).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent("Choose both a date and an hour, or remove this window.");
+    expect(screen.getByLabelText("Start hour 2")).toHaveFocus();
+});
+
+it("disables submit with a clear message while a photo upload is in progress", async () => {
+    const onValid = vi.fn();
+    renderWithClient(<RequestForm initialValues={valid()} onValid={onValid} />);
+    await screen.findByLabelText("Category");
+    fireEvent.click(screen.getByRole("button", { name: "Start upload" }));
+    const submit = screen.getByRole("button", { name: "Review request" });
+    expect(submit).toBeDisabled();
+    expect(submit).toHaveAccessibleDescription("Wait for the photo to finish uploading.");
+    fireEvent.click(submit);
+    expect(onValid).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Finish upload" }));
+    expect(submit).toBeEnabled();
+    fireEvent.click(submit);
+    expect(onValid).toHaveBeenCalledTimes(1);
 });

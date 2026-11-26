@@ -6,7 +6,8 @@ import { renderWithClient } from "@/test/utils";
 import MyRequests from "./my-requests";
 
 let searchParams: URLSearchParams;
-vi.mock("next/navigation", () => ({ useSearchParams: () => searchParams }));
+const replace = vi.fn();
+vi.mock("next/navigation", () => ({ useSearchParams: () => searchParams, useRouter: () => ({ replace }) }));
 vi.mock("@/lib/api", () => ({ api: { get: vi.fn() }, isAuthError: () => false }));
 const request = (overrides: Partial<MyRequest> = {}): MyRequest => ({
     requestId: "r1", category: { categoryId: "laptops", name: "Computers/Laptops", wasteType: "Computers" },
@@ -34,6 +35,13 @@ it("renders the current contract fields and keeps server order", async () => {
     expect(within(rows[0]).getByText(/Has photo/)).toBeInTheDocument();
     expect(screen.getByText("Times are Calgary time.")).toBeInTheDocument();
     expect(within(rows[1]).queryByText(/Has photo/)).not.toBeInTheDocument();
+});
+it("reads initial status filter from URL, updates URL on change, and strips ?created after reading", async () => {
+    searchParams = new URLSearchParams("status=Assigned&created=2");
+    renderWithClient(<MyRequests />);
+    expect(await screen.findByText("2 requests were created.")).toBeInTheDocument();
+    expect(replace).toHaveBeenCalledWith("/resident?status=Assigned", { scroll: false });
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith("/api/requests?view=mine&status=Assigned"));
 });
 it("filters by Missed and returns to the unfiltered list with one active button", async () => {
     renderWithClient(<MyRequests />);

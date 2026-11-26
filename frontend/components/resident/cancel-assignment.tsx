@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Alert, Button, ConfirmDialog, Field, textarea } from "@/components/ui";
 import { api, ApiError, friendlyError } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
@@ -14,8 +14,9 @@ export default function CancelAssignment({ request, onNotice }: { request: Reque
     const [open, setOpen] = useState(false);
     const [reason, setReason] = useState("");
     const [windows, setWindows] = useState<PickupWindow[]>([]);
+    const [incompleteWindows, setIncompleteWindows] = useState(false);
+    const [triedWindows, setTriedWindows] = useState(false);
     const [windowError, setWindowError] = useState("");
-    const sending = useRef(false);
     const action = useRequestAction<CancelBody>(request.requestId,
         async body => {
             try {
@@ -33,22 +34,27 @@ export default function CancelAssignment({ request, onNotice }: { request: Reque
     function start() {
         setReason("");
         setWindows([]);
+        setIncompleteWindows(false);
+        setTriedWindows(false);
         setWindowError("");
         onNotice(null);
         setOpen(true);
     }
 
     function confirm() {
-        if (sending.current || action.isPending) return;
+        if (action.isPending) return;
+        if (incompleteWindows) {
+            setTriedWindows(true);
+            setWindowError("Choose both a date and an hour, or remove this window.");
+            return;
+        }
         // The request form's window rules, against the original creation time. The item is only there to fill the form.
         const error = windows.length ? validate({ items: [{ categoryId: "x", quantity: "1" }], windows, notes: "" }, request.createdAt).windows : undefined;
         setWindowError(error ?? "");
         if (error) return;
-        sending.current = true;
         const trimmed = reason.trim();
         action.run({ as: "resident", ...(trimmed ? { reason: trimmed } : {}), ...(windows.length ? { windows } : {}) }, {
             onSuccess: () => setOpen(false),
-            onSettled: () => { sending.current = false; },
         });
     }
 
@@ -57,16 +63,18 @@ export default function CancelAssignment({ request, onNotice }: { request: Reque
         <Button variant="danger-outline" onClick={start}>Cancel assignment</Button>
         <ConfirmDialog open={open} title="Cancel the volunteer's assignment?" confirmLabel={action.isPending ? "Cancelling..." : "Cancel assignment"} cancelLabel="Keep assignment"
             danger size="lg" busy={action.isPending} error={windowError || action.message || undefined}
-            onConfirm={confirm} onCancel={() => { if (!sending.current) setOpen(false); }}>
+            onConfirm={confirm} onCancel={() => { if (!action.isPending) setOpen(false); }}>
             <div className="space-y-3">
                 <p>Your request stays active. It goes back to Open if it still has future pickup windows. You can offer new windows below.</p>
                 {request.assignment?.outsideCancellationWindow && <Alert variant="warning">The pickup is less than 24 hours away. The volunteer will receive EcoPoints for this cancellation.</Alert>}
-                <Field label="Reason" optional>
-                    {control => <textarea {...control} value={reason} onChange={event => setReason(event.target.value)} disabled={action.isPending}
+                <Field label="Reason" optional error={action.error instanceof ApiError ? action.error.fields.reason : undefined} hint={`${reason.length} / 500 characters`}>
+                    {control => <textarea {...control} maxLength={500} value={reason} onChange={event => setReason(event.target.value)} disabled={action.isPending}
                         rows={3} className={textarea} />}
                 </Field>
                 <p className="text-small text-text-muted">Optional: offer new pickup windows. Leave them empty to keep the current ones.</p>
-                <WindowsPicker embedded value={windows} onChange={setWindows} createdAt={request.createdAt} />
+                <WindowsPicker embedded value={windows} onChange={next => { setWindows(next); setWindowError(""); }}
+                    createdAt={request.createdAt} showIncomplete={triedWindows}
+                    onIncompleteChange={incomplete => { setIncompleteWindows(incomplete); if (!incomplete) setWindowError(""); }} />
             </div>
         </ConfirmDialog>
     </>;

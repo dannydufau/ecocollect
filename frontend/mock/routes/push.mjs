@@ -25,7 +25,7 @@ export function register(route, store) {
     const user = authenticate(req, res);
     if (!user) return;
     const fields = validate(body);
-    if (fields) return sendError(res, 400, "validation_error", "Check the highlighted fields.", fields);
+    if (fields) return sendError(res, 400, "validation_failed", "Check the highlighted fields.", fields);
     const entry = { uid: user.uid, endpoint: body.endpoint, keys: { p256dh: body.keys.p256dh, auth: body.keys.auth }, expirationTime: body.expirationTime ?? null };
     const index = store.pushSubscriptions.findIndex((item) => item.uid === user.uid && item.endpoint === body.endpoint);
     if (index === -1) store.pushSubscriptions.push(entry);
@@ -37,7 +37,7 @@ export function register(route, store) {
     const user = authenticate(req, res);
     if (!user) return;
     if (typeof body?.endpoint !== "string" || !body.endpoint) {
-      return sendError(res, 400, "validation_error", "Check the highlighted fields.", { endpoint: "Send the endpoint." });
+      return sendError(res, 400, "validation_failed", "Check the highlighted fields.", { endpoint: "Send the endpoint." });
     }
     store.pushSubscriptions = store.pushSubscriptions.filter((item) => !(item.uid === user.uid && item.endpoint === body.endpoint));
     res.writeHead(204).end();

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { api, ApiError } from "./api";
+import { api, ApiError, ApiTimeoutError } from "./api";
 import { queryKeys } from "./query-keys";
 import type { RequestDetail } from "./types";
 import { useRequestAction, useRequestDetail } from "./use-request";
@@ -35,7 +35,7 @@ it("returns the detail and refreshes from the server clock rather than the devic
     const { result } = renderHook(() => useRequestDetail("r1"), { wrapper });
     await tick();
     expect(result.current.data?.requestId).toBe("r1");
-    expect(api.getWithMeta).toHaveBeenCalledWith("/api/requests/r1");
+    expect(api.getWithMeta).toHaveBeenCalledWith("/api/requests/r1", { signal: expect.any(AbortSignal) });
     await tick(59999);
     expect(invalidate).not.toHaveBeenCalled();
     await tick(1);
@@ -162,4 +162,30 @@ it("stays pending while sending and clears an earlier error on the next attempt"
     expect(result.current.message).toBeNull();
     await act(async () => finish({})); await tick();
     expect(result.current.isPending).toBe(false);
+});
+it("ignores a second synchronous run before React re-renders, and allows retry after failure", async () => {
+    let fail!: (error: unknown) => void;
+    const call = vi.fn()
+        .mockImplementationOnce(() => new Promise((_, reject) => { fail = reject; }))
+        .mockResolvedValueOnce({});
+    const { result } = renderHook(() => useRequestAction("r1", call), { wrapper });
+    act(() => {
+        result.current.run(undefined);
+        result.current.run(undefined);
+    });
+    await tick();
+    expect(call).toHaveBeenCalledTimes(1);
+    await act(async () => fail(new TypeError("Failed to fetch"))); await tick();
+    expect(result.current.isPending).toBe(false);
+    act(() => result.current.run(undefined)); await tick();
+    expect(call).toHaveBeenCalledTimes(2);
+});
+it("refreshes the request and lists and warns about unknown outcome when a write times out", async () => {
+    const call = vi.fn().mockRejectedValue(new ApiTimeoutError());
+    const invalidate = vi.spyOn(client, "invalidateQueries");
+    const { result } = renderHook(() => useRequestAction("r1", call, [queryKeys.myRequests]), { wrapper });
+    act(() => result.current.run(undefined)); await tick();
+    expect(result.current.message).toMatch(/refreshing the status/i);
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["request", "r1"] });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["requests", "mine"] });
 });

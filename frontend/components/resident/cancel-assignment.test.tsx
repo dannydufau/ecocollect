@@ -118,3 +118,12 @@ it("uses the wide dialog and the picker has no card of its own", () => {
     expect(dialog).toHaveClass("max-w-xl");
     expect(within(dialog).getByRole("group", { name: "Pickup windows" })).not.toHaveClass("bg-surface-elevated");
 });
+
+it("refuses a half-filled new pickup window instead of silently dropping it", () => {
+    mount();
+    const dialog = open();
+    fireEvent.change(within(dialog).getByLabelText("Date 1"), { target: { value: tomorrow } });
+    confirm(dialog);
+    expect(api.post).not.toHaveBeenCalled();
+    expect(within(dialog).getAllByRole("alert").some(alert => alert.textContent?.includes("Choose both a date and an hour"))).toBe(true);
+});

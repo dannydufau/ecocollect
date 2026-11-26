@@ -181,7 +181,7 @@ describe("GET /api/notifications", () => {
     it.each(["limit=0", "limit=101", "limit=abc", "limit=2.5", "before=yesterday"])("rejects %s", (query) => {
         const result = call("GET", `/api/notifications?${query}`);
         expect(result.status).toBe(400);
-        expect(result.body.error.code).toBe("validation_error");
+        expect(result.body.error.code).toBe("validation_failed");
     });
 
     it("answers 401 without a login", () => {

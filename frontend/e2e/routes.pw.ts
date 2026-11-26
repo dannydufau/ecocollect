@@ -11,6 +11,7 @@ for (const route of routes) {
             if (message.type() === "error") errors.push(message.text());
         });
         await openRoute(page, route);
+        await expect(page).toHaveTitle(route.title);
         expect(errors).toEqual([]);
     });
 

@@ -17,10 +17,20 @@ beforeEach(() => {
 });
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
-it("deletes the push subscription of this browser by its endpoint", async () => {
-    useRegistration(withSubscription({ endpoint: "https://push.example/abc" }));
+it("deletes the push subscription on the server and unsubscribes in the browser", async () => {
+    const unsubscribe = vi.fn().mockResolvedValue(true);
+    useRegistration(withSubscription({ endpoint: "https://push.example/abc", unsubscribe }));
     await removePushSubscription();
     expect(mocks.delete).toHaveBeenCalledWith("/api/push/subscriptions", { endpoint: "https://push.example/abc" });
+    expect(unsubscribe).toHaveBeenCalledOnce();
+});
+
+it("still unsubscribes the browser when skipServer is true (deactivation or expiry)", async () => {
+    const unsubscribe = vi.fn().mockResolvedValue(true);
+    useRegistration(withSubscription({ endpoint: "https://push.example/abc", unsubscribe }));
+    await removePushSubscription({ skipServer: true });
+    expect(mocks.delete).not.toHaveBeenCalled();
+    expect(unsubscribe).toHaveBeenCalledOnce();
 });
 
 it("does nothing when there is no service worker or no subscription", async () => {
@@ -33,9 +43,11 @@ it("does nothing when there is no service worker or no subscription", async () =
     expect(mocks.delete).not.toHaveBeenCalled();
 });
 
-it("only warns when the server call fails", async () => {
-    useRegistration(withSubscription({ endpoint: "https://push.example/abc" }));
+it("still unsubscribes the browser and only warns when the server call fails", async () => {
+    const unsubscribe = vi.fn().mockResolvedValue(true);
+    useRegistration(withSubscription({ endpoint: "https://push.example/abc", unsubscribe }));
     mocks.delete.mockRejectedValue(new Error("offline"));
     await expect(removePushSubscription()).resolves.toBeUndefined();
     expect(console.warn).toHaveBeenCalled();
+    expect(unsubscribe).toHaveBeenCalledOnce();
 });

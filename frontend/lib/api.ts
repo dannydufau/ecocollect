@@ -1,5 +1,6 @@
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { saveReturnTo } from "@/lib/return-to";
 
 // The error body the contract promises: { error: { code, message, details: { fields } } }
 type ErrorBody = { error?: { code?: unknown; message?: unknown; details?: { fields?: unknown } } };
@@ -59,8 +60,40 @@ const friendlyMessages: Record<string, string> = {
     email_taken: "An account with this email already exists.",
 };
 
+export const REQUEST_TIMEOUT_MS = 15_000;
+
+export class ApiTimeoutError extends Error {
+    constructor(message = "The request took too long. Check your connection and try again.") {
+        super(message);
+        this.name = "ApiTimeoutError";
+    }
+}
+
+export function withTimeout(ms: number, outer?: AbortSignal) {
+    const controller = new AbortController();
+    let didTimeout = false;
+    const onOuterAbort = () => controller.abort(outer?.reason);
+    if (outer) {
+        if (outer.aborted) controller.abort(outer.reason);
+        else outer.addEventListener("abort", onOuterAbort, { once: true });
+    }
+    const timer = setTimeout(() => {
+        didTimeout = true;
+        controller.abort(new ApiTimeoutError());
+    }, ms);
+    return {
+        signal: controller.signal,
+        timedOut: () => didTimeout,
+        cleanup: () => {
+            clearTimeout(timer);
+            outer?.removeEventListener("abort", onOuterAbort);
+        },
+    };
+}
+
 // A sentence for people. The code decides the wording; the server message is the fallback because it can name the problem.
 export function friendlyError(err: unknown): string {
+    if (err instanceof ApiTimeoutError) return err.message;
     if (!(err instanceof ApiError)) return "We could not reach the server. Check your connection and try again.";
     // Own property only: a code like "toString" must not pick up a function from Object.prototype.
     return Object.hasOwn(friendlyMessages, err.code) ? friendlyMessages[err.code] : err.message;
@@ -77,7 +110,13 @@ let endingSession: Promise<void> | undefined;
 // Several calls can fail with 401 at once. They all wait for the same sign-out, so it and the redirect happen once.
 function endExpiredSession(): Promise<void> {
     if (window.location.pathname.startsWith("/login")) return Promise.resolve();
+    saveReturnTo(window.location.pathname + (window.location.search ?? ""));
     endingSession ??= (async () => {
+        try {
+            const reg = await navigator.serviceWorker?.getRegistration();
+            const sub = await reg?.pushManager?.getSubscription();
+            await sub?.unsubscribe?.();
+        } catch {}
         await signOut(auth).catch(() => {});
         // A full page load on purpose: this file has no router, and it also drops everything cached for the old session.
         // eslint-disable-next-line @next/next/no-location-assign-relative-destination
@@ -97,9 +136,18 @@ async function request<T>(path: string, init: RequestInit): Promise<{ data: T; r
         headers.set("Content-Type", "application/json");
     }
 
-    const res = await fetch(path, { ...init, headers });
-
-    const text = await res.text();
+    const timeout = withTimeout(REQUEST_TIMEOUT_MS, init.signal ?? undefined);
+    let res: Response;
+    let text: string;
+    try {
+        res = await fetch(path, { ...init, headers, signal: timeout.signal });
+        text = await res.text();
+    } catch (err) {
+        if (timeout.timedOut()) throw new ApiTimeoutError();
+        throw err;
+    } finally {
+        timeout.cleanup();
+    }
     let data: unknown = undefined;
     if (text) {
         try {
@@ -122,14 +170,14 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
 }
 
 // post, patch and delete only differ in the method name
-const withBody = (method: string) => <T>(path: string, body?: unknown) =>
-    apiFetch<T>(path, { method, body: body === undefined ? undefined : JSON.stringify(body) });
+const withBody = (method: string) => <T>(path: string, body?: unknown, options?: { signal?: AbortSignal }) =>
+    apiFetch<T>(path, { method, body: body === undefined ? undefined : JSON.stringify(body), signal: options?.signal });
 
 export const api = {
-    get: <T>(path: string) => apiFetch<T>(path),
+    get: <T>(path: string, options?: { signal?: AbortSignal }) => apiFetch<T>(path, options?.signal ? { signal: options.signal } : {}),
     // The request page times its refresh by the server clock (16.12), because the device clock can be wrong.
-    getWithMeta: async <T>(path: string) => {
-        const { data, res } = await request<T>(path, {});
+    getWithMeta: async <T>(path: string, options?: { signal?: AbortSignal }) => {
+        const { data, res } = await request<T>(path, options?.signal ? { signal: options.signal } : {});
         const date = new Date(res.headers.get("Date") ?? "");
         return { data, serverDate: Number.isNaN(date.getTime()) ? new Date() : date };
     },

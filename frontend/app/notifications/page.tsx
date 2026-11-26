@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { Alert, BellIcon, Button, EmptyState, LeafIcon, LoadingRegion, MapPinIcon, QueryError, TruckIcon, pageTitle, pageWidth } from "@/components/ui";
 import { api, isAuthError } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { formatTimestamp } from "@/lib/time";
 import type { Notification } from "@/lib/types";
+import { useLockedMutation } from "@/lib/use-locked-mutation";
 import { useNotifications } from "@/lib/use-notifications";
 
 const PAGE_SIZE = 30;
@@ -28,14 +29,14 @@ export default function NotificationsPage() {
     const [lastSize, setLastSize] = useState<number | null>(null);
     const invalidate = () => queryClient.invalidateQueries({ queryKey: queryKeys.notifications });
 
-    const more = useMutation({
+    const more = useLockedMutation({
         mutationFn: (before: string) => api.get<{ notifications: Notification[] }>(`/api/notifications?before=${encodeURIComponent(before)}`),
         onSuccess: page => {
             setOlder(current => [...current, ...page.notifications]);
             setLastSize(page.notifications.length);
         },
     });
-    const readAll = useMutation({
+    const readAll = useLockedMutation({
         mutationFn: () => api.post("/api/notifications/read-all"),
         onSuccess: () => setOlder(current => current.map(item => ({ ...item, isRead: true }))),
         onSettled: invalidate,

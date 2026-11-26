@@ -5,7 +5,8 @@ import RequireRole from "@/components/require-role";
 import ChooseRolePage from "./page";
 
 const router = { replace: vi.fn(), push: vi.fn() };
-vi.mock("next/navigation", () => ({ useRouter: () => router }));
+let searchParams = new URLSearchParams();
+vi.mock("next/navigation", () => ({ useRouter: () => router, useSearchParams: () => searchParams }));
 vi.mock("@/lib/auth-context", () => ({ useAuth: vi.fn() }));
 
 const setActiveRole = vi.fn();
@@ -23,6 +24,26 @@ afterEach(() => {
     vi.clearAllMocks();
     vi.restoreAllMocks();
     sessionStorage.clear();
+    searchParams = new URLSearchParams();
+});
+
+it("explains the redirect when sent from a wrong-role page", () => {
+    searchParams = new URLSearchParams("need=volunteer");
+    signedIn(["resident"]);
+    render(<ChooseRolePage />);
+    expect(screen.getByRole("status")).toHaveTextContent("That page is for volunteers. Choose how you want to continue.");
+});
+
+it("shows Retry instead of signing out when role lookup fails", () => {
+    const retryRoles = vi.fn();
+    vi.mocked(useAuth).mockReturnValue({
+        user: { uid: "u1" }, roles: [], activeRole: null, loading: false, rolesError: true, setActiveRole, signOut, retryRoles,
+    } as never);
+    render(<ChooseRolePage />);
+    expect(signOut).not.toHaveBeenCalled();
+    expect(screen.getByText(/could not load your account roles/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(retryRoles).toHaveBeenCalledOnce();
 });
 
 it("shows one button per role for a both-roles account", () => {

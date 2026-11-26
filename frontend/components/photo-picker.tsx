@@ -10,9 +10,10 @@ type Props = {
     optional?: boolean;
     onUploaded: (fileId: string, previewUrl: string) => void;
     onClear: () => void;
+    onBusyChange?: (busy: boolean) => void;
 };
 
-export default function PhotoPicker({ purpose, requestId, optional = false, onUploaded, onClear }: Props) {
+export default function PhotoPicker({ purpose, requestId, optional = false, onUploaded, onClear, onBusyChange }: Props) {
     const [file, setFile] = useState<File | null>(null);
     const [preview, setPreview] = useState<string | null>(null);
     const [status, setStatus] = useState<"idle" | "uploading" | "done" | "error">("idle");
@@ -20,6 +21,13 @@ export default function PhotoPicker({ purpose, requestId, optional = false, onUp
     const input = useRef<HTMLInputElement>(null);
     // Each upload gets a number, so an old or unmounted upload's answer is ignored
     const attempt = useRef(0);
+    const controller = useRef<AbortController | null>(null);
+    const onBusyChangeRef = useRef(onBusyChange);
+    useEffect(() => { onBusyChangeRef.current = onBusyChange; }, [onBusyChange]);
+
+    useEffect(() => {
+        onBusyChangeRef.current?.(status === "uploading");
+    }, [status]);
 
     useEffect(() => () => {
         if (preview) URL.revokeObjectURL(preview);
@@ -27,20 +35,27 @@ export default function PhotoPicker({ purpose, requestId, optional = false, onUp
 
     useEffect(() => {
         const current = attempt;
-        return () => { current.current++; };
+        return () => {
+            current.current++;
+            controller.current?.abort();
+            onBusyChangeRef.current?.(false);
+        };
     }, []);
 
     async function upload(chosen: File, previewUrl: string) {
+        controller.current?.abort();
+        const ctrl = new AbortController();
+        controller.current = ctrl;
         const id = ++attempt.current;
         setStatus("uploading");
         setError("");
         try {
-            const fileId = await uploadPhoto(chosen, { purpose, requestId });
+            const fileId = await uploadPhoto(chosen, { purpose, requestId, signal: ctrl.signal });
             if (id !== attempt.current) return;
             setStatus("done");
             onUploaded(fileId, previewUrl);
         } catch (e) {
-            if (id !== attempt.current) return;
+            if (id !== attempt.current || ctrl.signal.aborted) return;
             setStatus("error");
             setError(e instanceof Error ? e.message : "The photo could not be uploaded, try again");
         }
@@ -59,9 +74,12 @@ export default function PhotoPicker({ purpose, requestId, optional = false, onUp
 
     function remove() {
         attempt.current++;
+        controller.current?.abort();
+        controller.current = null;
         setFile(null);
         setPreview(null);
         setStatus("idle");
+        setError("");
         // lets the same file be chosen again
         if (input.current) input.current.value = "";
         input.current?.focus();
@@ -85,7 +103,12 @@ export default function PhotoPicker({ purpose, requestId, optional = false, onUp
                 // eslint-disable-next-line @next/next/no-img-element -- a local object URL, so next/image does not fit
                 <img src={preview} alt={purpose === "delivery_evidence" ? "Delivery photo" : "Photo of the items"} className="h-28 w-40 max-w-full rounded-xl border border-border object-cover" />
             )}
-            {status === "uploading" && <p role="status">Uploading...</p>}
+            {status === "uploading" && (
+                <div className="flex flex-wrap items-center gap-2">
+                    <p role="status">Uploading...</p>
+                    <Button variant="secondary" onClick={remove}>Cancel upload</Button>
+                </div>
+            )}
             {status === "done" && (
                 <div className="flex flex-wrap items-center gap-2">
                     <p role="status">Uploaded</p>

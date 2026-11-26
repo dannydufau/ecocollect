@@ -17,10 +17,12 @@ export function Editable({ id, editLabel, open, unsaved, onOpen, onClose, saving
     read: ReactNode;
     fields: ReactNode;
 }) {
-    // After Save or Cancel the focus goes back to the Edit button, so a keyboard user is not lost
+    // After Save or Cancel the focus goes back to the Edit button; when opening, move focus to the first input
     const wasOpen = useRef(false);
+    const formRef = useRef<HTMLFormElement>(null);
     useEffect(() => {
         if (wasOpen.current && !open) document.getElementById(`edit-${id}`)?.focus();
+        if (!wasOpen.current && open) formRef.current?.querySelector<HTMLElement>("input, select, textarea")?.focus();
         wasOpen.current = open;
     }, [open, id]);
 
@@ -42,7 +44,7 @@ export function Editable({ id, editLabel, open, unsaved, onOpen, onClose, saving
     }
 
     return (
-        <form onSubmit={submit} noValidate className="space-y-4">
+        <form ref={formRef} onSubmit={submit} noValidate className="space-y-4">
             {message && <Alert variant="error">{message}</Alert>}
             {fields}
             <div className="flex flex-wrap gap-3">

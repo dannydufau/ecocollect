@@ -159,3 +159,18 @@ it("uses the wide dialog and marks the chosen window", async () => {
     expect(radio.closest("label")).toHaveClass("border-accent-2-700");
     expect(radio.closest("label")!.querySelector("svg[aria-hidden=true]")).not.toBeNull();
 });
+
+it("sends only one request on a synchronous double click", async () => {
+    let finish!: (value: unknown) => void;
+    vi.mocked(api.post).mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+    const dialog = await openDialog();
+    fireEvent.click(within(dialog).getByRole("radio", { name: /Sat, Nov 21/ }));
+    fireEvent.click(within(dialog).getByLabelText(termsBox));
+    const button = confirmButton(dialog);
+    fireEvent.click(button);
+    fireEvent.click(button);
+    await waitFor(() => expect(api.post).toHaveBeenCalled());
+    expect(api.post).toHaveBeenCalledTimes(1);
+    finish(request);
+    await waitFor(() => expect(dialog).not.toHaveAttribute("open"));
+});

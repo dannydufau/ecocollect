@@ -28,7 +28,7 @@ beforeEach(() => {
 it("rejects a GIF with a contentType field error", () => {
     const result = call("/api/uploads", "demo-resident-1", { ...photo, contentType: "image/gif" });
     expect(result.status).toBe(400);
-    expect(result.body.error.code).toBe("validation_error");
+    expect(result.body.error.code).toBe("validation_failed");
     expect(result.body.error.details.fields).toHaveProperty("contentType");
 });
 

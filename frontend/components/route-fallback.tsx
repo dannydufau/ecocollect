@@ -8,8 +8,8 @@ export function RouteFallback({ title, icon, action }: { title: string; icon: Re
     useEffect(() => { region.current?.focus(); }, []);
 
     return (
-        <main ref={region} tabIndex={-1} aria-label={title} className={`${pageWidth} p-4 sm:p-8`}>
-            <EmptyState title={title} icon={icon} action={action} />
+        <main ref={region} tabIndex={-1} aria-label={title} className={`${pageWidth} p-4 outline-none sm:p-8`}>
+            <EmptyState heading title={title} icon={icon} action={action} />
         </main>
     );
 }

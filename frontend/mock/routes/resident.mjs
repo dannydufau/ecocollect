@@ -38,6 +38,7 @@ function validate(body, timestamp, categories, createdAt = timestamp) {
   extraFields(body, ["items", "windows", "notes", "termsDocumentId"], "", fields);
   if (typeof body.termsDocumentId !== "string" || !body.termsDocumentId.trim()) fields.termsDocumentId = "Accept the terms.";
   if (body.notes !== undefined && typeof body.notes !== "string") fields.notes = "Enter text.";
+  else if (typeof body.notes === "string" && body.notes.length > 500) fields.notes = "Must be 500 characters or fewer.";
   if (!Array.isArray(body.items) || !body.items.length) fields.items = "Add at least one category.";
   else {
     const selected = new Set();
@@ -183,7 +184,7 @@ export function register(route, store, { notify = () => {} } = {}) {
     const saved = savedResponses.get(cacheKey);
     if (key && saved && timestamp - saved.timestamp < DAY) return send(res, 201, saved.body);
     const fields = validate(body, timestamp, store.categories);
-    if (Object.keys(fields).length) return sendError(res, 400, "validation_error", "Check the request fields.", fields);
+    if (Object.keys(fields).length) return sendError(res, 400, "validation_failed", "Check the request fields.", fields);
     if (body.termsDocumentId !== store.terms.at(-1).termsDocumentId) return sendError(res, 409, "terms_outdated", "The terms have changed. Please read and accept them again.");
     if (!user.account?.address) return sendError(res, 403, "forbidden", "A resident profile is required.");
     const createdAt = new Date(timestamp).toISOString();
@@ -219,14 +220,14 @@ export function register(route, store, { notify = () => {} } = {}) {
   route("GET", "/api/requests", (req, res, context) => {
     const { url } = context;
     if (["available", "volunteer"].includes(url.searchParams.get("view"))) return volunteerList(req, res, context);
-    if (url.searchParams.get("view") !== "mine") return sendError(res, 400, "validation_error", "Choose a valid view.", { view: "Use mine, available or volunteer." });
+    if (url.searchParams.get("view") !== "mine") return sendError(res, 400, "validation_failed", "Choose a valid view.", { view: "Use mine, available or volunteer." });
     const user = authenticate(req, res, "resident");
     if (!user) return;
     const status = url.searchParams.get("status");
     const filters = status?.split(",");
     if ((filters && filters.some((value) => !STATUSES.includes(value))) ||
         url.searchParams.has("postalCodes") || url.searchParams.has("assignmentStatus")) {
-      return sendError(res, 400, "validation_error", "Choose a valid request status.", { status: "Invalid filter." });
+      return sendError(res, 400, "validation_failed", "Choose a valid request status.", { status: "Invalid filter." });
     }
     const requests = store.requests
       .filter((request) => request.residentUid === user.uid && (!filters || filters.includes(request.status)))

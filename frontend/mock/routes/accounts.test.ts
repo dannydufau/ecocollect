@@ -267,7 +267,7 @@ it("answers 400 unless the public stream gets exactly one of profile and stats",
     for (const query of ["", "?profile=a&stats", "?profile="]) {
         const { response } = openPublicStream(query);
         expect(response.status).toBe(400);
-        expect(JSON.parse(response.text).error.code).toBe("validation_error");
+        expect(JSON.parse(response.text).error.code).toBe("validation_failed");
     }
     expect(store.publicConnections.size).toBe(0);
 });

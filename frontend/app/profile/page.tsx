@@ -5,7 +5,7 @@ import { useState } from "react";
 import EnableNotifications from "@/components/enable-notifications";
 import { Alert, BellIcon, LoadingRegion, QueryError, RoleBadge, card, identifier, pageTitle, pageWidth, textLink } from "@/components/ui";
 import { ApiError, isAuthError } from "@/lib/api";
-import { formatDate, formatTimestamp } from "@/lib/time";
+import { formatDate } from "@/lib/time";
 import type { Profile } from "@/lib/types";
 import { useProfile } from "@/lib/use-profile";
 import { DeactivateAccount } from "./deactivate-account";
@@ -62,7 +62,7 @@ export default function ProfilePage() {
                     <Row name="Email">{profile.email}</Row>
                     <Row name="Name">{profile.firstName} {profile.lastName}</Row>
                     <Row name="Date of birth">{formatDate(profile.dateOfBirth)}</Row>
-                    <Row name="Member since">{formatTimestamp(profile.createdAt)}</Row>
+                    <Row name="Member since">{formatDate(profile.createdAt.slice(0, 10))}</Row>
                     <Row name="Roles">
                         <span className="flex flex-wrap gap-1.5">
                             {profile.roles.map((role) => (
