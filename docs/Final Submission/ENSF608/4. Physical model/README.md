@@ -152,11 +152,11 @@ To repeat the SQL tests against the same seeded database, run `psql -X -d ecocol
 | DB06 | The awards query returns two resident awards worth 18.70 points and three volunteer awards worth 60.40 points. | Pass |
 | DB07 | The query returns eight request notifications and five award notifications with 13 distinct sources. | Pass |
 | DB08 | One eligibility link is removed, its replacement is present, and the business-rule procedure accepts the change. | Pass |
-| DB09 | An account update changes exactly one row and returns the new value on readback. | Pass |
+| DB09 | Updating an account changes one row. Reading the account again shows the new name. | Pass |
 | DB10 | Rollback restores the seed records affected by the test writes. | Pass |
 | DB11 | A new request with its initial Open status and zero consumed events passes the business-rule checks. | Pass |
 | DB12 | Active work blocks deactivation with SQLSTATE `23514` and the attempted change rolls back. | Pass |
-| DB13 | Cleanup removes the deactivated account's subscriptions, notifications and source rows. Other accounts' rows and historical requests, assignments, awards and terms acceptances remain. | Pass |
+| DB13 | Cleanup removes the deactivated account's subscription and both types of notification, including their source rows. Other notification IDs are unchanged, and the remaining subscription and history row counts match expectations. | Pass |
 | Existing SQL verification | Valid writes succeed and 41 invalid writes are rejected with their expected SQLSTATEs. | Pass on both runs |
 | Concurrent writes | Six competing writes wait on the parent lock and fail with SQLSTATE `23514` after the first writer commits. | Pass |
 
@@ -168,7 +168,7 @@ After the tests, run the merged query catalog against the same database:
 psql -X -a -v ON_ERROR_STOP=1 -d ecocollect608_test -f "../5. Database operations and queries/operations.sql"
 ```
 
-All 25 operations completed. The delivered-weight query returned two requests totaling 5.60 kg of estimated weight. The [catalog run output](results/query-catalog-tests.txt) records the statements and results.
+All 25 operations ran successfully. The community impact query reported two delivered requests with a combined estimated weight of 5.60 kg. The [catalog run output](results/query-catalog-tests.txt) contains the SQL and results.
 
 ### Earlier PostgreSQL 16.6 verification
 
