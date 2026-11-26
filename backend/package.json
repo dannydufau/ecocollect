@@ -7,8 +7,9 @@
     "node": ">=22.18"
   },
   "scripts": {
-    "test": "node --test --test-concurrency=1 test/*.test.js \"test/request/**/*.test.ts\"",
+    "test": "node --test --test-concurrency=1 test/*.test.js test/nfr/*.test.js \"test/request/**/*.test.ts\"",
     "test:integration": "bash scripts/test-integration.sh",
+    "test:nfr": "node --test --test-concurrency=1 test/nfr/*.test.js",
     "typecheck": "tsc -p src/request",
     "test:request": "node --test --test-concurrency=1 \"test/request/**/*.test.ts\""
   },
