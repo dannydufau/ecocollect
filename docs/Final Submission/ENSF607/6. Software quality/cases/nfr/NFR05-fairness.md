@@ -14,14 +14,14 @@ Two strategies practitioners report in the paper are used here. Manipulating use
 
 Existing tests are cited first. Following ISO/IEC/IEEE 29119 [2], the remaining gaps are ranked by risk on the scale in [NFR03](NFR03-privacy.md#strategy).
 
-**Scope:** the EcoPoints rules (F3, F5) are scripted: NFR05-P1 cites the Reward Service's test and NFR05-N1 is new. Discovery and acceptance (F1, F2) are explored in NFR05-E1. The test of simultaneous accepts (F2) is planned with NFR06.
+**Scope:** the EcoPoints rules (F3, F5) are scripted: NFR05-P1 cites the Reward Service's test and NFR05-N1 is new. Discovery and acceptance (F1, F2) are explored in NFR05-E1. Simultaneous accepts (F2) are tested in NFR06-P2.
 
 ## Fairness conditions and evidence
 
 | # | Fairness condition | Evidence | Gap and risk |
 | --- | --- | --- | --- |
 | F1 | Every eligible Volunteer sees the same Open requests; the only filter is the postal codes they choose | `backend/test/request/list-available.test.ts`, "200 in the contract shape, Open requests only; postalCodes filters on the pickup code". By design, the query (`requests.req_list_available`) receives only the chosen postal codes, never the caller's account, and orders by creation time; NFR05-E1 | Covered |
-| F2 | Acceptance and assignment follow the same rules for everyone: the first valid accept wins, with one active assignment per request | `backend/test/request/accept.test.ts`, "201 with the detail as the assigned volunteer; a second volunteer then gets 409 already_assigned" | Partly covered: accepts made at the same moment are not tested (planned with NFR06). Risk: medium impact, low likelihood. Explored in NFR05-E1 |
+| F2 | Acceptance and assignment follow the same rules for everyone: the first valid accept wins, with one active assignment per request | `backend/test/request/accept.test.ts`, "201 with the detail as the assigned volunteer; a second volunteer then gets 409 already_assigned" | Covered, including accepts at the same moment: [NFR06-P2](NFR06-reliability.md). Explored in NFR05-E1 |
 | F3 | Delivery points come only from the request: Volunteer = 3 × quantity + 4 × weight (kg); the Resident gets exactly half | NFR05-P1 | Covered |
 | F4 | Cancellation points follow one rule: a late cancellation gives the Volunteer one award; an early cancellation, or cancelling one's own request, gives none | `backend/test/reward-handlers.test.js`, "late cancellation: one award for the volunteer", "early cancellation: no points", "cancellation of your own request: no points" | Covered |
 | F5 | No hidden priority or extra reward based on account identity or saved pickup regions | NFR05-N1 (EcoPoints); NFR05-E1 (discovery and acceptance) | Covered for EcoPoints; explored for discovery and acceptance |
