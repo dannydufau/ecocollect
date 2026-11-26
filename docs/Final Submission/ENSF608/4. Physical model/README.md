@@ -20,6 +20,7 @@ Rechecked on PostgreSQL 16.6: the documented file order builds a fresh database 
 | `transactions.sql` | Creates procedures for checking related rows and new requests, accepting a request, adding a preferred postal code, attaching an item photo and removing a facility/category link. |
 | `seed.sql` | Adds related sample data to every table. |
 | `verify.sql` | Checks the dataset, tests valid changes and confirms that invalid writes are rejected. Test changes are rolled back. |
+| [tests.sql](tests.sql) | Runs `verify.sql` and adds ten assertions for database structure, data changes, query results and rollback. |
 | `verify_concurrency.py` | Uses two database connections to test limits when writes happen at the same time. Requires Python 3 and `psql`. |
 | `results/` | Saved output from the verification and concurrency checks. |
 
@@ -128,6 +129,37 @@ All people, addresses, facilities, image paths and push subscriptions are sample
 Request owners are found through their creation acceptance. Assignment requests are found through pickup windows, and volunteers through their acceptance. Award recipients are found through the assignment and earned role. Historical pickup addresses, estimates, award points and formulas remain stored with their records.
 
 ## Verification
+
+### Database test cases and results
+
+Run the full suite from this folder against a fresh database:
+
+```sh
+createdb ecocollect608_test
+psql -X -v ON_ERROR_STOP=1 -d ecocollect608_test -f tables.sql -f transactions.sql -f seed.sql -f tests.sql
+python3 verify_concurrency.py ecocollect608_test
+```
+
+To repeat the SQL tests against the same seeded database, run `psql -X -d ecocollect608_test -f tests.sql`. The script stops at the first unexpected result and rolls back its test writes.
+
+| Case | Expected result | Observed |
+|---|---|---|
+| DB01 | The schema has 25 base tables, 100 columns and one primary key per table. | Pass |
+| DB02 | All 30 foreign keys are present and validated. | Pass |
+| DB03 | Deleting a referenced category fails with SQLSTATE `23503`. | Pass |
+| DB04 | The latest-status query returns the expected counts for all seven request states. | Pass |
+| DB05 | The delivery join returns two deliveries with 5.60 kg of estimated weight in total. | Pass |
+| DB06 | The awards query returns two resident awards worth 18.70 points and three volunteer awards worth 60.40 points. | Pass |
+| DB07 | The query returns eight request notifications and five award notifications with 13 distinct sources. | Pass |
+| DB08 | One eligibility link is removed, its replacement is present, and the business-rule procedure accepts the change. | Pass |
+| DB09 | An account update changes exactly one row and returns the new value on readback. | Pass |
+| DB10 | Rollback restores the seed records affected by the test writes. | Pass |
+| Existing SQL verification | Valid writes succeed and 41 invalid writes are rejected with their expected SQLSTATEs. | Pass on both runs |
+| Concurrent writes | Six competing writes wait on the parent lock and fail with SQLSTATE `23514` after the first writer commits. | Pass |
+
+Both SQL runs and the concurrency run passed on PostgreSQL 18.6 on November 26, 2026. The [saved output](results/database-tests.txt) records the setup, assertions and concurrency results. The retrieval cases above cover representative queries on the course dataset. Verify the complete numbered operations catalog against the same seed once [PR #443](https://github.com/dannydufau/ecocollect/pull/443) is merged into `main`.
+
+### Earlier PostgreSQL 16.6 verification
 
 Tested on PostgreSQL 16.6:
 
