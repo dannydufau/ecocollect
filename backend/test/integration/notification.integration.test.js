@@ -130,7 +130,45 @@ async function addAccounts(db, uids) {
   }
 }
 
-// Removes what the test wrote: notifications and subscriptions first, then the accounts they point at.
+/*
+ * The request an event is about (request_event points at it), as the Request Service would
+ * have stored it. 'laptops' (Computers/Laptops) comes from db/init/011_request_seed.sql.
+ */
+async function addRequest(db, requestId, residentUid, quantity) {
+  const documentId = randomUUID();
+  const acceptanceId = randomUUID();
+  await db.query(
+    `INSERT INTO users.terms_document (terms_document_id, content, published_at) VALUES ($1, 'Test terms', now())`,
+    [documentId],
+  );
+  await db.query(
+    `INSERT INTO users.terms_acceptance (terms_acceptance_id, terms_document_id, account_id, accepted_at, type)
+     VALUES ($1, $2, $3, now(), 'AT_RESIDENT_REQUEST_CREATION')`,
+    [acceptanceId, documentId, residentUid],
+  );
+  await db.query(
+    `INSERT INTO requests.pickup_request (pickup_request_id, category_id, terms_acceptance_id, quantity,
+       estimated_weight_kg, created_at, request_seq, pickup_street, pickup_postal_code)
+     VALUES ($1, 'laptops', $2, $3, 2.5 * $3::int, now(), 1, '1 Test Street', 'T2P1J9')`,
+    [requestId, acceptanceId, quantity],
+  );
+}
+
+// Removes the requests addRequest() made for these accounts, with their terms rows.
+async function removeRequests(db, uids) {
+  await db.query(
+    `DELETE FROM requests.pickup_request r USING users.terms_acceptance t
+     WHERE t.terms_acceptance_id = r.terms_acceptance_id AND t.account_id = ANY($1)`,
+    [uids],
+  );
+  const { rows } = await db.query(
+    'DELETE FROM users.terms_acceptance WHERE account_id = ANY($1) RETURNING terms_document_id',
+    [uids],
+  );
+  await db.query('DELETE FROM users.terms_document WHERE terms_document_id = ANY($1)', [rows.map((r) => r.terms_document_id)]);
+}
+
+// Removes what the test wrote: notifications and subscriptions first, then what they point at.
 async function removeAccounts(db, uids) {
   const { rows } = await db.query(
     'DELETE FROM notifications.request_notification WHERE account_id = ANY($1) RETURNING notification_id, pickup_request_id',
@@ -139,6 +177,7 @@ async function removeAccounts(db, uids) {
   await db.query('DELETE FROM notifications.notification WHERE notification_id = ANY($1)', [rows.map((r) => r.notification_id)]);
   await db.query('DELETE FROM notifications.request_event WHERE pickup_request_id = ANY($1)', [rows.map((r) => r.pickup_request_id)]);
   await db.query('DELETE FROM notifications.push_subscription WHERE account_id = ANY($1)', [uids]);
+  await removeRequests(db, uids);
   await db.query('DELETE FROM users.account WHERE account_id = ANY($1)', [uids]);
 }
 
@@ -242,6 +281,7 @@ test('a RequestCreated reaches the resident and matched volunteers as signals, n
     for (const uid of subscribers) await subscribe(service, pushService, uid);
 
     const requestId = randomUUID();
+    await addRequest(db, requestId, resident, 2);
     const first = await publishRequestCreated({
       requestId,
       residentUid: resident,
@@ -306,6 +346,7 @@ test('a RequestCreated reaches the resident and matched volunteers as signals, n
     // the redelivery was handled (the queue delivers one at a time, in order).
     await publish(first);
     const secondId = randomUUID();
+    await addRequest(db, secondId, resident, 1);
     await publishRequestCreated({
       requestId: secondId,
       residentUid: resident,

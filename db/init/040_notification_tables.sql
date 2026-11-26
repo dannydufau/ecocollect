@@ -42,8 +42,8 @@ CREATE TABLE IF NOT EXISTS notifications.request_event (
     request_seq BIGINT NOT NULL,
     transition_id UUID NOT NULL,
     CONSTRAINT request_event_pk PRIMARY KEY (pickup_request_id, request_seq),
-    -- request_event_fk1 (pickup_request_id) -> requests.pickup_request: left off for now,
-    -- because the integration test publishes events for requests it doesn't create.
+    CONSTRAINT request_event_fk1 FOREIGN KEY (pickup_request_id)
+        REFERENCES requests.pickup_request (pickup_request_id),
     CONSTRAINT request_event_ck1 CHECK (request_seq > 0)
 );
 
