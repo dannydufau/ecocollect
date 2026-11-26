@@ -46,6 +46,9 @@ describe("validateAccount", () => {
         ["2026-11-17", "Birth date can't be in the future."],
         ["2027-01-01", "Birth date can't be in the future."],
         ["", "Enter your date of birth."],
+        ["2000-13-01", "Enter your date of birth."],
+        ["2000-01-00", "Enter your date of birth."],
+        ["2000-02-29", undefined],
         ["2000-02-30", "Enter your date of birth."],
         ["14/03/1995", "Enter your date of birth."],
     ])("birth date %j gives %j", (dateOfBirth, message) => expect(check({ dateOfBirth }).dateOfBirth).toBe(message));
