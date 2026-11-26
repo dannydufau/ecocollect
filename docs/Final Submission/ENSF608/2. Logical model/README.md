@@ -401,7 +401,7 @@ All primary keys are candidate keys. `delivery.assignment_id` and `delivery.file
 |---|---|
 | Account IDs | 3–50 lowercase characters from `a-z`, `0-9`, `_` and `-`; immutable username and Firebase UID. Email is held by Firebase (BR3, BR56). |
 | Required names, IDs and file paths | Non-empty text. |
-| Postal codes | Six uppercase Canadian letter/digit characters with no space. Application validation checks the Calgary address (BR7). |
+| Postal codes | Six uppercase characters matching `^T[0-9][A-Z][0-9][A-Z][0-9]$`, with no space. The application validates that the address is in Calgary (BR7). |
 | Date of birth | At least 18 at registration; birth date cannot be in the future (BR6). |
 | Quantity and weights | Positive integer quantity; positive exact standard and historical estimated weights. The system calculates the estimate at creation/edit (BR30–BR31). |
 | `start_hour` | Integer 0–23. Dates and hours are stored as Calgary local calendar values (BR32). |
@@ -461,7 +461,7 @@ ECOPOINTS_AWARDED_ON_ASSIGNMENT_CANCELLATION_VOLUNTEER
 | Event details | An update-event subtype has reason `edited` or `reopened`. Its changed-field rows are distinct and permitted only for `edited`. Request notifications reference the whole event key (BR58). |
 | Photos | Item photos may be shared by requests after rescheduling. In the transaction that attaches a photo, lock its row with `SELECT ... FOR UPDATE` and check that it is not used by both a delivery and a request (BR51, BR60). |
 | Rescheduling | Predecessor reference is unique when present, is not self-referential, belongs to the same owner and points to a Missed request. At creation, copy the category, quantity, notes and photo; recalculate the estimate using the current category weight; and record new terms, windows, address and creation time. Later Open edits follow the normal rules (BR50; contract 12.5). |
-| Deactivation and history | Apply active-work guards; retain historical requests, assignments and awards. Remove the account's notifications and subscriptions as specified (BR40, BR42, BR47, BR53). |
+| Deactivation and history | Under the account lock, the User Service rechecks active work, records deactivation and writes E16 to the outbox. The Notification Service consumes E16 and deletes subscriptions, notifications and their source rows. Retain historical requests, assignments and awards (BR40, BR42, BR47, BR53). |
 
 Rules involving several rows are checked in a transaction. Lock the relevant parent row with `SELECT ... FOR UPDATE` before reading and changing related rows. Use the lecture SQL features and transactions for these checks; do not rely on database triggers or partial indexes.
 
@@ -501,4 +501,4 @@ The SQL implementation must follow this 25-relation mapping, including its keys,
 
 The Notification Service owns the event/detail/source relations that store its consumed event facts. Request Service publishes the request sequences and transition IDs used by these relations.
 
-Event consumption may lag behind publication or arrive out of order. Stored event sequences can have gaps and need not yet reach the request's latest published sequence.
+A request can have zero consumed events while the Notification Service catches up. Event consumption may lag behind publication or arrive out of order. Stored event sequences can have gaps and need not yet reach the request's latest published sequence.

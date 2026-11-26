@@ -69,7 +69,7 @@ Notes, terms content and formula descriptions remain single text values because 
 | Table | Why the whole key is needed |
 |---|---|
 | `status_change` | A request has several status changes, and different requests can share a timestamp. Both `pickup_request_id` and `changed_at` identify the status and reason. |
-| `request_event` | A request has several events, and sequence numbers repeat across requests. Both `pickup_request_id` and `request_seq` identify the transition. |
+| `request_event` | A request can have zero or more consumed events, and sequence numbers can repeat across requests. Both `pickup_request_id` and `request_seq` identify the transition. |
 | `request_update_event` | Update reasons vary across events. Both `pickup_request_id` and `request_seq` identify the reason. |
 
 `volunteer_preferred_postal_code`, `facility_accepts` and `request_changed_field` contain only key columns, so they have no non-key columns with partial dependencies.
