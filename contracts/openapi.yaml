@@ -1399,6 +1399,8 @@ paths:
                     url: /volunteer/requests/6c0f2b1e-8a4d-4c3b-9e21-5d7a0f3c9b11
                     isRead: false
                     createdAt: '2026-11-20T16:15:00Z'
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
   /api/notifications/{id}/read:

@@ -34,11 +34,12 @@ test('the notification service is the backend image started with its own entry p
   assert.strictEqual(String(notification.environment.PORT), port);
 });
 
-test('the notification service only gets the broker: no database, no Firebase key', () => {
+test('the notification service gets the broker and Postgres, but no Firebase key', () => {
   const { environment, depends_on: dependsOn, secrets } = compose.services.notification;
   assert.match(environment.RABBITMQ_URL, /@rabbitmq:5672$/);
   assert.strictEqual(dependsOn.rabbitmq.condition, 'service_healthy');
-  assert.strictEqual(environment.DATABASE_URL, undefined);
+  assert.strictEqual(environment.DATABASE_URL, '${NOTIFICATION_DATABASE_URL:-}');   // its own login, not the admin
+  assert.strictEqual(dependsOn.postgres.condition, 'service_healthy');
   assert.strictEqual(environment.GOOGLE_APPLICATION_CREDENTIALS, undefined);
   assert.strictEqual(secrets, undefined);
 });
@@ -104,7 +105,7 @@ test('the backend image uses a Node version the backend supports', () => {
 
 test('the compose file asks for the .env values it needs instead of guessing', () => {
   const text = read('docker-compose.yml');
-  for (const name of ['POSTGRES_PASSWORD', 'RABBITMQ_PASSWORD', 'NEXT_PUBLIC_FIREBASE_API_KEY']) {
+  for (const name of ['POSTGRES_PASSWORD', 'RABBITMQ_PASSWORD', 'NEXT_PUBLIC_FIREBASE_API_KEY', 'VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'VAPID_SUBJECT']) {
     assert.match(text, new RegExp(`\\$\\{${name}:\\?`), `${name} should be required`);
   }
 });

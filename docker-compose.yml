@@ -64,12 +64,19 @@ services:
     environment:
       PORT: "80"                    # Caddy proxies to notification without a port, which means 80
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-ecocollect}:${RABBITMQ_PASSWORD:?copy .env.example to .env first}@rabbitmq:5672
-                                    # no DATABASE_URL and no Firebase key: it needs neither
+      # Stored notifications and push subscriptions. Connects as its own login, ecocollect_notification
+      # (contract 2.1), set up by backend/scripts/notification/load-db.sh. No Firebase key.
+      DATABASE_URL: ${NOTIFICATION_DATABASE_URL:-}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:?run npx web-push generate-vapid-keys, see .env.example}   # Web Push keys
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:?run npx web-push generate-vapid-keys, see .env.example}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:?add a mailto contact, see .env.example}                         # contact for push services
     sysctls:
       net.ipv4.ip_unprivileged_port_start: 0   # the container runs as a normal user, which may then use port 80
     depends_on:
       rabbitmq:
         condition: service_healthy
+      postgres:
+        condition: service_healthy  # stored notifications and push subscriptions
     healthcheck:                    # /api/events answers 401 without X-User-Id, so a 401 means it is up
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:80/api/events').then((r) => process.exit(r.status === 401 ? 0 : 1), () => process.exit(1))"]
       interval: 5s
@@ -187,3 +194,4 @@ volumes:
 secrets:
   firebase-admin.json:              # mounted in the user service at /run/secrets/firebase-admin.json
     file: ./secrets/firebase-admin.json
+    

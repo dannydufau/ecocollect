@@ -165,6 +165,9 @@ nano .env
 | Every `*_PASSWORD` | A new random value: run `openssl rand -hex 24` once for each. Put the **same** value inside the matching URL: `POSTGRES_PASSWORD` → `DATABASE_URL`, `USER_DB_PASSWORD` → `USER_DATABASE_URL`, and so on, `RABBITMQ_PASSWORD` → `RABBITMQ_URL`. |
 | `NEXT_PUBLIC_FIREBASE_*` | **All six** from your web app config, including `AUTH_DOMAIN` and `PROJECT_ID`. Compose falls back to the main team project's values if these two are missing. |
 | `IMAGEKIT_*` | Your ImageKit keys and URL endpoint |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | One key pair for push notifications: `docker run --rm node:22.18-alpine npx --yes web-push generate-vapid-keys`. Keep it: new keys break every browser's push subscription. Compose won't run without them. |
+| `VAPID_SUBJECT` | `mailto:` followed by your email address |
+| `NEXT_PUBLIC_VAPID_KEY` | The **same** value as `VAPID_PUBLIC_KEY` |
 | `DEMO_MODE` | `false` |
 | `SITE_ADDRESS` | `<name>.duckdns.org` |
 | `COMPOSE_FILE` | Uncomment it: `docker-compose.yml:docker-compose.prod.yml` |
@@ -199,6 +202,7 @@ docker compose up -d postgres rabbitmq
 docker compose ps                     # wait for both to show (healthy)
 
 backend/scripts/request/load-db.sh
+backend/scripts/notification/load-db.sh   # after request: its tables point at the request tables
 backend/scripts/reward/load-db.sh
 backend/scripts/cleanup/load-db.sh
 
@@ -224,7 +228,9 @@ git pull
 docker compose up -d --build
 ```
 
-If the pull brought new files in `db/`, rerun the matching `load-db.sh` scripts before `up`. They are safe to run again.
+If the pull added settings to `.env.example`, add them to `.env` before running any `docker compose` command. If it brought new files in `db/`, rerun the matching `load-db.sh` scripts before `up`. They are safe to run again.
+
+**First update that includes the Notification Service:** add `NOTIFICATION_DB_PASSWORD`, `NOTIFICATION_DATABASE_URL`, the three `VAPID_*` values and `NEXT_PUBLIC_VAPID_KEY` to `.env` (step 9), then run `backend/scripts/notification/load-db.sh` before `up`.
 
 ## Troubleshooting
 
