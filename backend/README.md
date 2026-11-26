@@ -100,6 +100,62 @@ REQUEST_TEST_ADMIN_DATABASE_URL="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD
 
 Use `127.0.0.1`, not `localhost`: if another Postgres runs on your machine (Homebrew, for example), `localhost` can reach it instead of the Compose one, and every test fails with `role "ecocollect" does not exist`.
 
+## Reward Service (`src/reward/`)
+
+Awards EcoPoints when a request is delivered (`RequestAssignmentDelivered`) or the resident cancels late (`RequestAssignmentCancelledResident`), and publishes `reward.points.delivery` or `reward.points.cancellation` through `rewards.outbox`. Follows [contracts/](../contracts/) sections 5.3, 9 and 15.
+
+| Route | Login | What it does |
+|---|---|---|
+| `GET /api/ecopoints` | yes | The caller's total, split into resident and volunteer points, and every award newest first. Reads `X-User-Id`. |
+| `GET /api/public/stats` | no | Community totals: deliveries, items, estimated weight and points awarded, also grouped by waste type. |
+| `GET /api/public/profiles/:accountId/stats` | no | The account's total EcoPoints. An unknown account returns `0`. |
+
+Each award is one `ecopoints_award` row plus one `resident_award` or `volunteer_award` row, in schema `rewards` (`db/init/012_reward_tables.sql`). The account is not stored on the award; it is found through the assignment's terms acceptance in `requests` and `users` (contract section 8). `db/reward/` holds `outbox`, `processed_events` and the `ecocollect_reward` login, so a repeated event is skipped.
+
+Load the Reward objects into the shared `ecocollect` database. Nothing is dropped, so run it again after every pull:
+
+```bash
+docker compose up -d postgres
+backend/scripts/reward/load-db.sh
+docker compose up -d reward
+```
+
+The script reads `REWARD_DB_PASSWORD` from `.env`; use the same password in `REWARD_DATABASE_URL`.
+
+Without Compose, run `node src/reward/index.js` from `backend/` with `DATABASE_URL` and `RABBITMQ_URL` set. `PORT` defaults to `3005`.
+
+To run the store tests, build the test database from the repo root, then run the tests from `backend/`:
+
+```bash
+backend/scripts/reward/load-db.sh --test
+cd backend
+TEST_DATABASE_URL=postgres://ecocollect:change_me@localhost:5432/ecocollect_reward_test node --test test/reward-store.test.js
+```
+
+## Cleanup Service (`src/cleanup/`)
+
+Keeps one expiry job per Open request and reminds the Request Service when it is due (contract 14). It has no HTTP routes.
+
+| File | What it does |
+|---|---|
+| `handlers.js` | E1 and E2 set the job at `expiresAt`; E3, E9 and E10 end it |
+| `store.js` | Saves job changes only if `requestSeq` is higher (contract 11), fires due jobs and the daily run, writes the outbox |
+| `consumer.js` | Consumes `cleanup.request-events` through the shared subscriber |
+| `timers.js` | Every 30 s fires due jobs (`CleanupRequest`, again every 5 min until a non-Open event ends the job; a warning at 12 fires). Every minute checks for the daily `NotificationCleanupRequested`, once per Calgary day from 03:00 |
+| `index.js` | Starts the consumer, the timers and the outbox publisher for `cleanup.outbox`; stops them in order on SIGTERM |
+
+Load the Cleanup objects into the shared `ecocollect` database. Nothing is dropped, so run it again after every pull (a new volume already runs `db/init/020_cleanup.sql`; on an older one this adds it):
+
+```bash
+docker compose up -d postgres
+backend/scripts/cleanup/load-db.sh
+docker compose up -d --build cleanup
+```
+
+The script reads `CLEANUP_DB_PASSWORD` from `.env`; use the same password in `CLEANUP_DATABASE_URL`. The service logs in as `ecocollect_cleanup`: full rights on `cleanup`, read-only on the other schemas. Compose passes `CLEANUP_DATABASE_URL` as its `DATABASE_URL`.
+
+Tests: `test/cleanup-*.test.js` (the store tests need `TEST_DATABASE_URL`), and `test/integration/cleanup.integration.test.js`, which needs `TEST_DATABASE_URL` and `RABBITMQ_URL`. Build the test database with `backend/scripts/cleanup/load-db.sh --test` (`ecocollect_cleanup_test`). Stop the `cleanup` container before the integration test, or it takes the test events.
+
 ## Run it
 
 ```bash

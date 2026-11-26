@@ -108,6 +108,42 @@ services:
       timeout: 3s
       retries: 10
 
+  reward:                           # EcoPoints: E5 and E6 in, E11 and E12 out, R1 to R3
+    build:
+      context: ./backend
+    command: ["node", "src/reward/index.js"]
+    restart: unless-stopped
+    environment:
+      PORT: "80"
+      DATABASE_URL: ${REWARD_DATABASE_URL:-}   # built by backend/scripts/reward/load-db.sh
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-ecocollect}:${RABBITMQ_PASSWORD:?copy .env.example to .env first}@rabbitmq:5672
+    sysctls:
+      net.ipv4.ip_unprivileged_port_start: 0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:80/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  cleanup:                          # Cleanup Service (contract 14): expiry jobs and the daily notification cleanup, no HTTP
+    build:
+      context: ./backend
+    command: ["node", "src/cleanup/index.js"]
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${CLEANUP_DATABASE_URL:-}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-ecocollect}:${RABBITMQ_PASSWORD:?copy .env.example to .env first}@rabbitmq:5672
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
   frontend:
     build:
       context: ./frontend
