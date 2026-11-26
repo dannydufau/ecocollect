@@ -40,7 +40,7 @@ SELECT RIGHT(pickup_request_id::text, 4) AS request, resident_id, category_id,
        pickup_postal_code, status
 FROM request_current_status
 ORDER BY status, resident_id;
- request | resident_id |   category_id    | pickup_postal_code |  status
+ request | resident_id |   category_id    | pickup_postal_code |  status   
 ---------+-------------+------------------+--------------------+-----------
  0002    | resident2   | desktops         | T2N1N4             | Assigned
  0005    | resident2   | monitors         | T2N1N4             | Cancelled
@@ -90,7 +90,7 @@ FROM account a
 JOIN resident r ON r.account_id = a.account_id
 JOIN terms_acceptance t ON t.account_id = a.account_id
 WHERE a.account_id = 'resident91';
- account_id | public_name | postal_code |                  type                  | terms
+ account_id | public_name | postal_code |                  type                  | terms 
 ------------+-------------+-------------+----------------------------------------+-------
  resident91 | Jordan L.   | T2N1N4      | AT_RESIDENT_REGISTRATION_OR_ACTIVATION | 0002
 (1 row)
@@ -121,7 +121,7 @@ SELECT account_id, endpoint, user_agent
 FROM push_subscription
 WHERE account_id = 'resident1'
 ORDER BY endpoint;
- account_id |                  endpoint                  |    user_agent
+ account_id |                  endpoint                  |    user_agent    
 ------------+--------------------------------------------+------------------
  resident1  | https://push.example.test/resident1-laptop | Firefox on Linux
 (1 row)
@@ -145,7 +145,7 @@ UPDATE 1
 SELECT account_id, first_name, last_name, public_name
 FROM account
 WHERE account_id = 'resident1';
- account_id | first_name | last_name | public_name
+ account_id | first_name | last_name | public_name 
 ------------+------------+-----------+-------------
  resident1  | Avery      | Chen      | Avery CC
 (1 row)
@@ -167,7 +167,7 @@ BEGIN
 SELECT pickup_request_id FROM pickup_request
 WHERE pickup_request_id = '00000003-0000-4000-8000-000000000001'
 FOR UPDATE;
-          pickup_request_id
+          pickup_request_id           
 --------------------------------------
  00000003-0000-4000-8000-000000000001
 (1 row)
@@ -203,7 +203,7 @@ FROM pickup_window w
 JOIN pickup_request pr ON pr.pickup_request_id = w.pickup_request_id
 WHERE w.pickup_request_id = '00000003-0000-4000-8000-000000000001'
 ORDER BY w.is_active DESC, w.pickup_date, w.start_hour;
- window | pickup_date | start_hour | is_active | request_seq
+ window | pickup_date | start_hour | is_active | request_seq 
 --------+-------------+------------+-----------+-------------
  0002   | 2026-11-28  |         15 | t         |           3
  0066   | 2026-11-28  |         10 | f         |           3
@@ -225,7 +225,7 @@ BEGIN
 -- a) Lock the volunteer: preferred-code changes lock the volunteer row
 --    (add_preferred_code does the same), so two edits can't race past the 3-code limit.
 SELECT account_id FROM volunteer WHERE account_id = 'volunteer1' FOR UPDATE;
- account_id
+ account_id 
 ------------
  volunteer1
 (1 row)
@@ -243,7 +243,7 @@ SELECT account_id, postal_code
 FROM volunteer_preferred_postal_code
 WHERE account_id = 'volunteer1'
 ORDER BY postal_code;
- account_id | postal_code
+ account_id | postal_code 
 ------------+-------------
  volunteer1 | T2N1N4
  volunteer1 | T2P1J9
@@ -267,7 +267,7 @@ SELECT is_expired, COUNT(*) AS notifications
 FROM notification
 GROUP BY is_expired
 ORDER BY is_expired;
- is_expired | notifications
+ is_expired | notifications 
 ------------+---------------
  f          |            12
  t          |             1
@@ -292,7 +292,7 @@ SELECT is_expired, COUNT(*) AS notifications
 FROM notification
 GROUP BY is_expired
 ORDER BY is_expired;
- is_expired | notifications
+ is_expired | notifications 
 ------------+---------------
  f          |            12
 (1 row)
@@ -309,7 +309,7 @@ SELECT postal_code
 FROM volunteer_preferred_postal_code
 WHERE account_id = 'volunteer1'
 ORDER BY postal_code;
- postal_code
+ postal_code 
 -------------
  T2N1N4
  T2P1J9
@@ -329,7 +329,7 @@ FROM request_current_status
 WHERE resident_id = 'resident2'
   AND (status = 'Open' OR status = 'Assigned')
 ORDER BY request;
- request | category_id |  status
+ request | category_id |  status  
 ---------+-------------+----------
  0002    | desktops    | Assigned
 (1 row)
@@ -349,7 +349,7 @@ WHERE status = 'Open'
                              FROM volunteer_preferred_postal_code
                              WHERE account_id = 'volunteer1')
 ORDER BY pickup_postal_code, request;
- request |   category_id    | pickup_postal_code
+ request |   category_id    | pickup_postal_code 
 ---------+------------------+--------------------
  0001    | laptops          | T2P1J9
  000a    | cables-chargers  | T2P1J9
@@ -370,7 +370,7 @@ WHERE is_active
   AND pickup_date BETWEEN (now() AT TIME ZONE 'America/Edmonton')::date
                       AND (now() AT TIME ZONE 'America/Edmonton')::date + 7
 ORDER BY pickup_date, start_hour, request;
- request | pickup_date | start_hour
+ request | pickup_date | start_hour 
 ---------+-------------+------------
  0002    | 2026-11-27  |         12
  000a    | 2026-11-27  |         12
@@ -389,7 +389,7 @@ ORDER BY pickup_date, start_hour, request;
 SELECT name AS category, waste_type, standard_weight_kg
 FROM item_category
 ORDER BY waste_type, name;
-      category       |    waste_type    | standard_weight_kg
+      category       |    waste_type    | standard_weight_kg 
 ---------------------+------------------+--------------------
  Cables and Chargers | Accessories      |               0.30
  Computers/Desktops  | Computers        |               8.00
@@ -403,8 +403,8 @@ ORDER BY waste_type, name;
 (9 rows)
 
 -- O2. Newest non-expired request notifications for an account, first page.
---    Rationale: demonstrates pagination of the request source. The full N3 list
---               also includes notifications derived from EcoPoints awards.
+--    Rationale: demonstrates pagination of the request source. Contract N3 also
+--               lists EcoPoints award notifications; PR #399 lists only request ones so far.
 --    Citation:  FR19; contract N3; notification-store.js listForAccount (PR #399).
 --    Concepts:  ORDER BY ... DESC, LIMIT, WHERE, AND NOT, join
 -- (ids shown as their last 4 characters, see op 0)
@@ -416,10 +416,10 @@ WHERE rn.account_id = 'resident1'
   AND NOT n.is_expired
 ORDER BY n.created_at DESC
 LIMIT 2;
-           type           |          created_at           | is_read | request
+           type           |          created_at           | is_read | request 
 --------------------------+-------------------------------+---------+---------
- REQUEST_UPDATED_RESIDENT | 2026-11-26 06:08:17.489719+00 | t       | 0001
- REQUEST_EXPIRED_RESIDENT | 2026-11-25 18:08:17.489719+00 | f       | 0006
+ REQUEST_UPDATED_RESIDENT | 2026-11-26 06:50:15.363744+00 | t       | 0001
+ REQUEST_EXPIRED_RESIDENT | 2026-11-25 18:50:15.363744+00 | f       | 0006
 (2 rows)
 
 -- 6. SELECT queries with aggregate functions
@@ -433,7 +433,7 @@ SELECT COUNT(*) AS delivered_requests,
 FROM pickup_request pr
 JOIN status_change sc ON sc.pickup_request_id = pr.pickup_request_id
 WHERE sc.status = 'Delivered';
- delivered_requests | total_weight_kg
+ delivered_requests | total_weight_kg 
 --------------------+-----------------
                   2 |            5.60
 (1 row)
@@ -451,14 +451,14 @@ SELECT COUNT(*) AS open_requests,
 FROM pickup_request pr
 JOIN request_current_status rcs ON rcs.pickup_request_id = pr.pickup_request_id
 WHERE rcs.status = 'Open';
- open_requests | avg_kg | min_kg | max_kg
+ open_requests | avg_kg | min_kg | max_kg 
 ---------------+--------+--------+--------
              4 |   3.88 |   1.50 |   6.00
 (1 row)
 
 -- A3. Unread, non-expired request notifications for an account.
---    Rationale: counts unread notifications from the request source. The actual
---               N3 unread count also includes notifications from the award source.
+--    Rationale: counts unread notifications from the request source. Contract N3's
+--               count also covers award ones; PR #399 counts only request ones so far.
 --    Citation:  FR19; contract N3; notification-store.js listForAccount (PR #399).
 --    Concepts:  COUNT, WHERE, AND NOT, join
 SELECT COUNT(*) AS unread
@@ -467,7 +467,7 @@ JOIN notification n ON n.notification_id = rn.notification_id
 WHERE rn.account_id = 'resident1'
   AND NOT n.is_expired
   AND NOT n.is_read;
- unread
+ unread 
 --------
       1
 (1 row)
@@ -485,7 +485,7 @@ FROM pickup_request pr
 JOIN item_category c ON c.category_id = pr.category_id
 GROUP BY c.waste_type
 ORDER BY total_weight_kg DESC;
-    waste_type    | requests | total_weight_kg
+    waste_type    | requests | total_weight_kg 
 ------------------+----------+-----------------
  Computers        |        3 |           18.00
  Displays         |        2 |           17.00
@@ -508,7 +508,7 @@ JOIN item_category c ON c.category_id = pr.category_id
 GROUP BY c.name
 HAVING COUNT(*) >= 2
 ORDER BY requests DESC, category;
-     category      | requests | items
+     category      | requests | items 
 -------------------+----------+-------
  Computers/Laptops |        2 |     4
  Phones            |        2 |     7
@@ -528,9 +528,9 @@ JOIN recycling_facility f ON f.facility_id = fa.facility_id
 JOIN item_category c ON c.category_id = fa.category_id
 WHERE fa.category_id = 'phones'
 ORDER BY f.name;
- category |         facility         |       street       | postal_code |        special_instructions
+ category |         facility         |       street       | postal_code |        special_instructions        
 ----------+--------------------------+--------------------+-------------+------------------------------------
- Phones   | Sample community depot   | 30 Example Way SW  | T2T4M3      |
+ Phones   | Sample community depot   | 30 Example Way SW  | T2T4M3      | 
  Phones   | Sample electronics depot | 10 Example Road SE | T2P1J9      | Use the electronics drop-off area.
 (2 rows)
 
@@ -547,7 +547,7 @@ JOIN pickup_request pr ON pr.pickup_request_id = rcs.pickup_request_id
 JOIN item_category c ON c.category_id = pr.category_id
 WHERE rcs.resident_id = 'resident1'
 ORDER BY pr.created_at DESC;
- request |      category       | quantity | estimated_weight_kg |  status
+ request |      category       | quantity | estimated_weight_kg |  status   
 ---------+---------------------+----------+---------------------+-----------
  0001    | Computers/Laptops   |        2 |                5.00 | Open
  000b    | Small Appliances    |        1 |                3.00 | Open
@@ -576,7 +576,7 @@ JOIN pickup_request pr ON pr.pickup_request_id = w.pickup_request_id
 JOIN item_category c ON c.category_id = pr.category_id
 WHERE a.ended_at IS NULL
 ORDER BY volunteer, w.pickup_date, w.start_hour;
- volunteer  | request |      category      | pickup_postal_code | pickup_date | start_hour | collected
+ volunteer  | request |      category      | pickup_postal_code | pickup_date | start_hour | collected 
 ------------+---------+--------------------+--------------------+-------------+------------+-----------
  volunteer1 | 0002    | Computers/Desktops | T2N1N4             | 2026-11-27  |         12 | f
  volunteer2 | 0003    | Phones             | T2T4M3             | 2026-11-25  |         12 | t
@@ -603,9 +603,9 @@ LEFT JOIN delivery d ON d.assignment_id = a.assignment_id
 LEFT JOIN recycling_facility f ON f.facility_id = d.facility_id
 WHERE ta.account_id = 'volunteer1'
 ORDER BY a.accepted_at DESC;
- request |  accepted  |  outcome  |       delivered_to
+ request |  accepted  |  outcome  |       delivered_to       
 ---------+------------+-----------+--------------------------
- 0002    | 2026-11-25 |           |
+ 0002    | 2026-11-25 |           | 
  0004    | 2026-11-17 | Delivered | Sample electronics depot
 (2 rows)
 
@@ -619,14 +619,14 @@ FROM volunteer v
 JOIN account a ON a.account_id = v.account_id
 LEFT JOIN volunteer_preferred_postal_code p ON p.account_id = v.account_id
 ORDER BY v.account_id, p.postal_code;
- volunteer  | public_name | postal_code
+ volunteer  | public_name | postal_code 
 ------------+-------------+-------------
  both1      | Riley P.    | T2P1J9
  volunteer1 | Maya B.     | T2N1N4
  volunteer1 | Maya B.     | T2P1J9
  volunteer1 | Maya B.     | T2T4M3
  volunteer2 | Owen L.     | T2N1N4
- volunteer3 | Zara W.     |
+ volunteer3 | Zara W.     | 
 (6 rows)
 
 -- 10. SELECT queries combining JOINs, aggregates, filtering or grouping
@@ -651,7 +651,7 @@ JOIN assignment a ON a.assignment_id = e.assignment_id
 JOIN terms_acceptance ta ON ta.terms_acceptance_id = a.terms_acceptance_id
 GROUP BY ta.account_id
 ORDER BY points DESC, account_id;
- account_id | earned_as | awards | points
+ account_id | earned_as | awards | points 
 ------------+-----------+--------+--------
  volunteer1 | volunteer |      1 |  26.00
  volunteer2 | volunteer |      1 |  23.00
@@ -663,7 +663,7 @@ ORDER BY points DESC, account_id;
 -- 11. Stored procedures
 -- P1. mark_all_read: mark an account's request notifications as read.
 --    Rationale: demonstrates the request-notification source of the mark-all action.
---               The production action handles both notification sources.
+--               Contract N5 also covers award ones; PR #399 handles only request ones so far.
 --    Citation:  FR19; contract N5; notifications.mark_all_read (PR #399).
 --    Concepts:  stored procedure, IN parameter, UPDATE ... FROM (multi-table update), CALL
 --    Mandate:   Lecture 12 - 3: data changes encapsulated in stored procedures, called with
@@ -691,7 +691,7 @@ FROM request_notification rn
 JOIN notification n ON n.notification_id = rn.notification_id
 WHERE rn.account_id = 'resident1'
 ORDER BY n.created_at DESC;
-            type            | is_read
+            type            | is_read 
 ----------------------------+---------
  REQUEST_UPDATED_RESIDENT   | t
  REQUEST_EXPIRED_RESIDENT   | f
@@ -705,7 +705,7 @@ FROM request_notification rn
 JOIN notification n ON n.notification_id = rn.notification_id
 WHERE rn.account_id = 'resident1'
 ORDER BY n.created_at DESC;
-            type            | is_read
+            type            | is_read 
 ----------------------------+---------
  REQUEST_UPDATED_RESIDENT   | t
  REQUEST_EXPIRED_RESIDENT   | t
@@ -716,7 +716,7 @@ ROLLBACK;
 ROLLBACK
 -- P2. mark_read: mark one request notification read if it belongs to the account.
 --    Rationale: demonstrates ownership and a found/not-found result for the request
---               source. The production action handles both notification sources.
+--               source. Contract N4 also covers award ones; PR #399 handles only request ones so far.
 --    Citation:  FR19; contract N4; notifications.mark_read (PR #399).
 --    Concepts:  stored procedure, IN and OUT parameters, SELECT ... INTO, COUNT,
 --               UPDATE ... FROM, CALL
@@ -754,14 +754,14 @@ BEGIN
 -- a) resident1 reads their own unread notification -> found = t
 --    (NULL fills the OUT slot; Postgres prints the OUT value as a row, no @variable)
 CALL mark_read('resident1', '0000000a-0000-4000-8000-000000000008', NULL);
- p_found
+ p_found 
 ---------
  t
 (1 row)
 
 -- b) resident1 tries resident2's notification -> found = f, nothing changes
 CALL mark_read('resident1', '0000000a-0000-4000-8000-000000000002', NULL);
- p_found
+ p_found 
 ---------
  f
 (1 row)
@@ -773,7 +773,7 @@ JOIN notification n ON n.notification_id = rn.notification_id
 WHERE n.notification_id IN ('0000000a-0000-4000-8000-000000000008',
                             '0000000a-0000-4000-8000-000000000002')
 ORDER BY rn.account_id;
- account_id |           type            | is_read
+ account_id |           type            | is_read 
 ------------+---------------------------+---------
  resident1  | REQUEST_EXPIRED_RESIDENT  | t
  resident2  | REQUEST_ASSIGNED_RESIDENT | f

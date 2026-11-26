@@ -317,8 +317,8 @@ FROM item_category
 ORDER BY waste_type, name;
 
 -- O2. Newest non-expired request notifications for an account, first page.
---    Rationale: demonstrates pagination of the request source. The full N3 list
---               also includes notifications derived from EcoPoints awards.
+--    Rationale: demonstrates pagination of the request source. Contract N3 also
+--               lists EcoPoints award notifications; PR #399 lists only request ones so far.
 --    Citation:  FR19; contract N3; notification-store.js listForAccount (PR #399).
 --    Concepts:  ORDER BY ... DESC, LIMIT, WHERE, AND NOT, join
 -- (ids shown as their last 4 characters, see op 0)
@@ -359,8 +359,8 @@ JOIN request_current_status rcs ON rcs.pickup_request_id = pr.pickup_request_id
 WHERE rcs.status = 'Open';
 
 -- A3. Unread, non-expired request notifications for an account.
---    Rationale: counts unread notifications from the request source. The actual
---               N3 unread count also includes notifications from the award source.
+--    Rationale: counts unread notifications from the request source. Contract N3's
+--               count also covers award ones; PR #399 counts only request ones so far.
 --    Citation:  FR19; contract N3; notification-store.js listForAccount (PR #399).
 --    Concepts:  COUNT, WHERE, AND NOT, join
 SELECT COUNT(*) AS unread
@@ -511,7 +511,7 @@ ORDER BY points DESC, account_id;
 
 -- P1. mark_all_read: mark an account's request notifications as read.
 --    Rationale: demonstrates the request-notification source of the mark-all action.
---               The production action handles both notification sources.
+--               Contract N5 also covers award ones; PR #399 handles only request ones so far.
 --    Citation:  FR19; contract N5; notifications.mark_all_read (PR #399).
 --    Concepts:  stored procedure, IN parameter, UPDATE ... FROM (multi-table update), CALL
 --    Mandate:   Lecture 12 - 3: data changes encapsulated in stored procedures, called with
@@ -552,7 +552,7 @@ ROLLBACK;
 
 -- P2. mark_read: mark one request notification read if it belongs to the account.
 --    Rationale: demonstrates ownership and a found/not-found result for the request
---               source. The production action handles both notification sources.
+--               source. Contract N4 also covers award ones; PR #399 handles only request ones so far.
 --    Citation:  FR19; contract N4; notifications.mark_read (PR #399).
 --    Concepts:  stored procedure, IN and OUT parameters, SELECT ... INTO, COUNT,
 --               UPDATE ... FROM, CALL
