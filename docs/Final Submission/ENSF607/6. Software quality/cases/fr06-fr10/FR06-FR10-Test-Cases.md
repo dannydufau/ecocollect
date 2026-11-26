@@ -89,7 +89,7 @@ The review shows two Calgary pickup windows and the pickup address.
   <tr><td>3</td><td>Accept the terms and choose Confirm and send.</td><td>One request is submitted with quantity three.</td></tr>
   <tr><th>Expected Result</th><td colspan="3">1. The review shows two laptops. No API submission occurs.<br/>2. The review shows three laptops. No submission occurs yet.<br/>3. One request is submitted with quantity three.</td></tr>
   <tr><th>Postcondition</th><td colspan="3">The form sends the corrected draft once, after confirmation.</td></tr>
-  <tr><th>Actual Result</th><td colspan="3">The review showed three laptops. After confirmation, the request appeared in My requests with quantity three.</td></tr>
+  <tr><th>Actual Result</th><td colspan="3">The review showed three laptops. After confirmation, My requests listed the new request for three laptops.</td></tr>
   <tr><th>Status</th><td colspan="3">Pass</td></tr>
 </table>
 
@@ -98,6 +98,8 @@ The review shows two Calgary pickup windows and the pickup address.
 The review shows the corrected quantity of three laptops.
 
 ![TC005 browser result](evidence/tc005-browser.png)
+
+![TC005 request after confirmation](evidence/tc005-confirmation.png)
 
 ![TC005 automated test result](evidence/tc005-test-output.png)
 
@@ -176,7 +178,7 @@ The Open filter shows only Open requests.
 
 **Evidence for TC009:**
 
-The request details show the saved quantity and recalculated weight.
+The browser screenshot shows a separate edit to three laptops. The automated test below verifies the phone request described in the table.
 
 ![TC009 browser result](evidence/tc009-browser.png)
 
@@ -202,3 +204,11 @@ The Expired request details have no edit action.
 ![TC010 browser result](evidence/tc010-browser.png)
 
 ![TC010 automated test result](evidence/tc010-test-output.png)
+
+## Test evidence
+
+The browser screenshots show automated Playwright checks of the frontend with a mock API. The Request Service tests used PostgreSQL and checked API responses, saved data, and outbox records. The Vitest results cover frontend behavior.
+
+## AI disclosure
+
+AI assistance was used to run the automated checks, capture screenshots, and draft and revise this report.
