@@ -11,11 +11,11 @@ The [functional requirements](../1.%20Functional%20Requirements/README.md) defin
 | FR03 | Additional Role Activation | [accounts.md](cases/accounts.md) |
 | FR04 | Profile Management | [accounts.md](cases/accounts.md) |
 | FR05 | Public User Profiles | [accounts.md](cases/accounts.md) |
-| FR06 | Create Pickup Requests | [resident-requests.md](cases/resident-requests.md) |
-| FR07 | Pickup Scheduling | [resident-requests.md](cases/resident-requests.md) |
-| FR08 | Review and Confirm Pickup Requests | [resident-requests.md](cases/resident-requests.md) |
-| FR09 | View Resident Pickup Requests | [resident-requests.md](cases/resident-requests.md) |
-| FR10 | Edit Open Pickup Requests | [resident-requests.md](cases/resident-requests.md) |
+| FR06 | Create Pickup Requests | [Case tables and evidence](cases/resident-request-evidence.md#fr06-create-pickup-requests) |
+| FR07 | Pickup Scheduling | [Case tables and evidence](cases/resident-request-evidence.md#fr07-pickup-scheduling) |
+| FR08 | Review and Confirm Pickup Requests | [Case tables and evidence](cases/resident-request-evidence.md#fr08-review-and-confirm-pickup-requests) |
+| FR09 | View Resident Pickup Requests | [Case tables and evidence](cases/resident-request-evidence.md#fr09-view-resident-pickup-requests) |
+| FR10 | Edit Open Pickup Requests | [Case tables and evidence](cases/resident-request-evidence.md#fr10-edit-open-pickup-requests) |
 | FR11 | Cancel Pickup Requests | [resident-requests.md](cases/resident-requests.md) |
 | FR12 | Volunteer Request Discovery | [volunteer.md](cases/volunteer.md) |
 | FR13 | Accept Pickup Requests | [volunteer.md](cases/volunteer.md) |
