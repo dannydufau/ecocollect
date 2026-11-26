@@ -18,6 +18,8 @@ import StatusHistory from "./status-history";
 
 const cardStyle = `${card} min-w-0 space-y-3`;
 const cardTitle = "text-title";
+type AssignmentStatus = NonNullable<RequestDetail["assignment"]>["status"];
+const SHOWN_ASSIGNMENTS: AssignmentStatus[] = ["Active", "Collected", "Delivered"];
 const part = "py-4 first:pt-0 last:pb-0";
 
 function UnavailableRequest() {
@@ -101,6 +103,9 @@ export function ResidentRequestView({ request, onPhotoError, actionRenderers, no
     if (request.viewer !== "owner") return <UnavailableRequest />;
 
     const terminal = (request.status === "Missed" || request.status === "Expired" || request.status === "Cancelled") && !request.rescheduledAs;
+    // The owner gets the last assignment even after it ended (README 5.2). Show its volunteer only while they are
+    // coming or after they delivered; a cancelled or missed pickup is in the status history instead.
+    const assignment = request.assignment && SHOWN_ASSIGNMENTS.includes(request.assignment.status) ? request.assignment : null;
 
     return <>
         <Link href="/resident" className={textLink}>Back to my requests</Link>
@@ -119,15 +124,15 @@ export function ResidentRequestView({ request, onPhotoError, actionRenderers, no
 
         {/* The page order is the phone order. On wide screens the grid puts the summary first on the left. */}
         <div className="grid min-w-0 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:grid-rows-[auto_1fr]">
-            {(request.assignment || request.delivery) && <div className="min-w-0 space-y-6 lg:col-start-1 lg:row-start-2">
-                {request.assignment && <section aria-labelledby="volunteer-heading" className={cardStyle}>
+            {(assignment || request.delivery) && <div className="min-w-0 space-y-6 lg:col-start-1 lg:row-start-2">
+                {assignment && <section aria-labelledby="volunteer-heading" className={cardStyle}>
                     <h2 id="volunteer-heading" className={cardTitle}>Volunteer</h2>
-                    <Link href={`/profiles/${encodeURIComponent(request.assignment.volunteer.accountId)}`} className={`${textLink} max-w-full font-semibold`}>
-                        <span className="min-w-0 break-words">{request.assignment.volunteer.publicName}</span>
+                    <Link href={`/profiles/${encodeURIComponent(assignment.volunteer.accountId)}`} className={`${textLink} max-w-full font-semibold`}>
+                        <span className="min-w-0 break-words">{assignment.volunteer.publicName}</span>
                     </Link>
                     <h3>Selected pickup window</h3>
-                    <WindowList windows={[request.assignment.window]} />
-                    {request.assignment.collectedAt && <p>Collected {formatTimestamp(request.assignment.collectedAt)}</p>}
+                    <WindowList windows={[assignment.window]} />
+                    {assignment.collectedAt && <p>Collected {formatTimestamp(assignment.collectedAt)}</p>}
                 </section>}
 
                 {request.delivery && <section aria-labelledby="delivery-heading" className={cardStyle}>

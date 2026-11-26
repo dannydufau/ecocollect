@@ -202,6 +202,15 @@ it.each(["Photo of the items", "Delivery photo"])("refetches once and gives a te
     expect(screen.getByText("The photo is not available right now.")).toBeInTheDocument();
 });
 
+it.each([
+    ["Open", "Volunteer_Cancelled"], ["Open", "Resident_Cancelled"], ["Cancelled", "Resident_Cancelled"], ["Missed", "Missed_Pickup"],
+] as const)("hides the volunteer of an ended assignment (%s request, %s)", (status, ended) => {
+    render(<ResidentRequestView request={detail({ status, allowedActions: [],
+        assignment: { ...assignment, status: ended, endedAt: "2026-11-19T18:00:00Z", endReason: ended } })} onPhotoError={vi.fn()} />);
+    expect(screen.queryByRole("heading", { name: "Volunteer" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Maya B.")).not.toBeInTheDocument();
+});
+
 it("omits absent notes, photos, address and assignment sections", () => {
     render(<ResidentRequestView request={detail({ notes: null, address: undefined })} onPhotoError={vi.fn()} />);
     for (const name of ["Photo", "Pickup address and notes", "Volunteer", "Delivery"]) {
