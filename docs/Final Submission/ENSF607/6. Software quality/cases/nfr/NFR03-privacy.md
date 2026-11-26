@@ -22,7 +22,7 @@ Existing tests are cited first. Following ISO/IEC/IEEE 29119 [2], the remaining 
 
 High-risk gaps in the event, notification and messaging paths get scripted cases; other gaps are listed with their rating as not yet scripted.
 
-**Scope:** this file scripts the event and notification path (C5), which the Notification Service owns: NFR03-P1 and NFR03-P2. Every other claim is listed with the evidence that exists, or as not yet scripted with its risk.
+**Scope:** this file scripts the event and notification path (C5), which the Notification Service owns: NFR03-P1 and NFR03-P2. It is chosen because it carries the highest impact on the scale: every event passes through it, and a leak there would send an address or photo link to every matched Volunteer's browser and to an outside push service. Every other claim is listed with the evidence that exists, or as not yet scripted with its risk.
 
 ## Criteria and evidence
 

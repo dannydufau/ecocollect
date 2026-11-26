@@ -14,7 +14,7 @@ Existing evidence is cited first, and new evidence is added only where none exis
 
 - **Precondition:** the principal activities work. This is functional behaviour, already covered by `FR06-P` (create a request, `resident-requests.md`) and `FR13-P` (accept a request, `volunteer.md`).
 - **Regression guard:** the frontend team's automated tests check labels, statuses, consistency and validation messages on every run.
-- **The usability check:** NFR02-E1, an exploratory charter, applies the heuristics to the Resident and Volunteer pages. Whether an interface is understandable is a judgement no automated test can make, so it is done by a person.
+- **The usability check:** NFR02-E1, an exploratory charter, applies the heuristics to the Resident and Volunteer pages. Whether an interface is understandable is a judgement no automated test can make, so it is done by a person. Exploratory testing is an experience-based technique in ISO/IEC/IEEE 29119 [3], which supports scripted and unscripted, manual and automated testing side by side.
 
 **Scope:** the automated tests are the frontend team's and are cited as they are; E1 was added for this requirement. A task test with a user outside the team was not run. Heuristics #3 (user control and freedom), #7 (flexibility and efficiency of use), #8 (aesthetic and minimalist design) and #10 (help and documentation) are not part of the requirement and are not tested.
 
@@ -65,6 +65,8 @@ Record each finding with the page, the heuristic it breaks, and what happened.
 [1] J. Nielsen, "10 Usability Heuristics for User Interface Design," Nielsen Norman Group. First published 1994. https://www.nngroup.com/articles/ten-usability-heuristics/
 
 [2] ISO/IEC 25010:2011, *Systems and software engineering — Systems and software Quality Requirements and Evaluation (SQuaRE) — System and software quality models*.
+
+[3] ISO/IEC/IEEE 29119, *Software and systems engineering — Software testing* (Part 1: General concepts, 2022; Part 3: Test documentation).
 
 ## Results
 

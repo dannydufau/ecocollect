@@ -20,7 +20,7 @@ Existing tests are cited first. Following ISO/IEC/IEEE 29119 [2], the remaining 
 
 High-risk gaps in the event, notification and messaging paths get scripted cases; other gaps are listed with their rating as not yet scripted.
 
-**Scope:** this file scripts the Notification Service's push path: NFR04-P1 (pushes are signed and encrypted) and NFR04-N1 (the push subscription endpoint rejects unauthenticated and unsafe requests). Every other claim is listed with the evidence that exists, or as not yet scripted with its risk.
+**Scope:** this file scripts the Notification Service's push path: NFR04-P1 (pushes are signed and encrypted) and NFR04-N1 (the push subscription endpoint rejects unauthenticated and unsafe requests). It is chosen because it carries the highest impact on the scale: it is the only place the system sends user data to an outside service, and the only place it accepts an address that the server will then call. Every other claim is listed with the evidence that exists, or as not yet scripted with its risk.
 
 ## Criteria and evidence
 
