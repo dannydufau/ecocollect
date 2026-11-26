@@ -1,0 +1,73 @@
+# NFR06 — Reliability: test cases
+
+## Requirement
+
+From [Non-functional requirements](../../../2.%20Non-functional%20requirements/README.md):
+
+> The system shall maintain consistent request statuses, Volunteer assignments, delivery records, notifications, and EcoPoints when operations are repeated, performed concurrently, or retried following processing failures. The system shall prevent duplicate Volunteer assignments, duplicate delivery records, and duplicate EcoPoints awards.
+
+## Strategy
+
+The criteria come from the requirement's wording and are named with the reliability and integrity sub-characteristics of ISO/IEC 25010:2011 [1]. Existing tests are cited first. Following ISO/IEC/IEEE 29119 [2], the remaining gaps are ranked by risk on the scale in [NFR03](NFR03-privacy.md#strategy).
+
+**Scope:** this file scripts the messaging path, which every event between services passes through: NFR06-P1 (a redelivered event creates no duplicate notification) and NFR06-N1 (a failing event is retried, then set aside, without blocking the others). It is chosen because it carries the highest impact on the scale: a failure there would repeat or lose notifications and points across every service. The other criteria are listed with the evidence that exists.
+
+## Criteria and evidence
+
+| # | Criterion | ISO/IEC 25010 [1] | Evidence | Gap and risk |
+| --- | --- | --- | --- | --- |
+| R1 | A repeated operation or event changes nothing the second time | Fault tolerance | NFR06-P1; `backend/test/request/requests.test.ts`, "201 in the contract shape; a repeat with the same Idempotency-Key replays the same ids"; `backend/test/request/cleanup.test.ts`, "expires an overdue Open request once; a redelivery changes nothing"; `backend/test/notification-handlers.test.js`, "RequestCreated: a volunteer listed twice gets one delivery" | Covered |
+| R2 | An event that fails to process is retried, and one that keeps failing is set aside without blocking or losing the others | Fault tolerance, recoverability | NFR06-N1; `backend/test/subscriber.test.js`, "rejects with requeue when the handler throws, so RabbitMQ retries it" and "reconnects and rebuilds the queue after the connection closes"; `backend/test/integration/subscriber.integration.test.js`, "events published while the subscriber is stopped arrive after it restarts" | Covered |
+| R3 | No duplicate Volunteer assignments, including when Volunteers accept at the same moment | Integrity | `backend/test/request/accept.test.ts`, "201 with the detail as the assigned volunteer; a second volunteer then gets 409 already_assigned". By design, `requests.req_accept` locks the request row before checking it, so accepts on one request run one after another | Partly covered: simultaneous accepts are not tested. Risk: high impact (two Volunteers sent to one pickup, double points), high likelihood (concurrent, untested). The highest-risk gap; it needs its own seeded request and Volunteers in the Request Service's test data. Also NFR05-F2 |
+| R4 | No duplicate delivery records | Integrity | `backend/test/request/record-delivery.test.ts`, "404 for another volunteer; 409 not_collected; 400 without ImageKit; 200 after collection; then 409". The database allows one delivery per assignment (`delivery_uq1`, unique on `assignment_id`) | Covered |
+| R5 | No duplicate EcoPoints awards | Integrity | `backend/test/reward-store.test.js`, "a delivery is saved once, even if the event arrives twice" | Covered |
+
+## Cases
+
+### NFR06-P1: A redelivered event creates no duplicate notification (R1, basic flow)
+
+**Preconditions:** Docker running; `npm ci` run in `backend/`. The test starts RabbitMQ and Postgres itself.
+
+| # | Action | Expected result |
+| --- | --- | --- |
+| 1 | Publish a `RequestCreated` for a new request, with one matched Volunteer listening | The Resident and the Volunteer each get their notification; three notification rows are saved for the request |
+| 2 | Publish the same event again, as RabbitMQ does on a redelivery | – |
+| 3 | Publish a `RequestCreated` for a second request | The Volunteer's open tab receives the second request's notification next, with nothing in between |
+| 4 | Count the notification rows for the first request | Still three |
+
+**Expected result:** processing the same event twice saves and sends nothing new.
+
+**Postcondition:** the test stops its own services.
+
+**Verification:** `backend/test/integration/notification.integration.test.js`, "a RequestCreated reaches the resident and matched volunteers as signals, notifications and pushes" (its redelivery step).
+
+### NFR06-N1: A failing event is retried, then set aside (R2, alternate flow)
+
+**Preconditions:** as NFR06-P1.
+
+| # | Action | Expected result |
+| --- | --- | --- |
+| 1 | Subscribe with a handler that always throws, and publish one event | The event is delivered again after each failure |
+| 2 | Wait for the fifth failure | The event moves to the dead-letter queue and is not delivered again |
+| 3 | Publish a message that is not valid JSON | It goes straight to the dead-letter queue, without retries |
+
+**Expected result:** a failing event is retried a bounded number of times, then kept aside for inspection, so it can neither be lost nor block the events behind it.
+
+**Postcondition:** the test stops its own services.
+
+**Verification:** `backend/test/integration/subscriber.integration.test.js`, "a message whose handler keeps failing is retried, then dead-lettered on the 5th failure" and "an unparseable message goes straight to the DLQ, without retries".
+
+## References
+
+[1] ISO/IEC 25010:2011, *Systems and software engineering — Systems and software Quality Requirements and Evaluation (SQuaRE) — System and software quality models*.
+
+[2] ISO/IEC/IEEE 29119, *Software and systems engineering — Software testing* (Part 1: General concepts, 2022).
+
+## Results
+
+Record one row per run. A planned case is not a pass until it has a row here.
+
+| Case | Date | Commit | Command or steps | Result |
+| --- | --- | --- | --- | --- |
+| NFR06-P1, NFR06-N1 | | | `npm run test:integration` in `backend/` (needs Docker) | |
+| Supporting tests | | | `npm test` in `backend/` (request and reward-store tests need their test databases) | |
