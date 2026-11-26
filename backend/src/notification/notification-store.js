@@ -95,7 +95,8 @@ function createNotificationStore(pool) {
 
   /*
    * One page of the account's unexpired notifications, newest first, and its unread count.
-   * `before` (a createdAt) gives the page after one already shown.
+   * `before` (the last createdAt shown) gives the next page. It includes that time, because two
+   * notifications can share one (self-accept); the client drops the repeat by notificationId.
    */
   async function listForAccount(uid, { before = null, limit = 30 } = {}) {
     const { rows } = await pool.query(
@@ -107,7 +108,7 @@ function createNotificationStore(pool) {
        JOIN requests.item_category c ON c.category_id = r.category_id
        WHERE rn.account_id = $1
          AND NOT n.is_expired
-         AND ($2::timestamptz IS NULL OR n.created_at < $2)
+         AND ($2::timestamptz IS NULL OR n.created_at <= $2)
        ORDER BY n.created_at DESC, n.notification_id
        LIMIT $3`,
       [uid, before, limit],

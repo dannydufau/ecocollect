@@ -19,6 +19,7 @@ const webpush = require('web-push');
 
 const { exchange, events, queues } = require('../../src/messaging/topology');
 const { declareConsumerQueue } = require('../../src/messaging/declare');
+const { createNotificationStore } = require('../../src/notification/notification-store');
 
 const URL_AMQP = process.env.RABBITMQ_URL;
 const URL_DB = process.env.DATABASE_URL;
@@ -398,3 +399,36 @@ test('a RequestCreated reaches the resident and matched volunteers as signals, n
     await db.end();
   }
 });
+
+// The store alone on the real database, for one account and one request of its own.
+async function withStore(run) {
+  const db = new Pool({ connectionString: URL_DB });
+  const uid = `it-store-${randomUUID()}`;
+  const requestId = randomUUID();
+  const store = createNotificationStore(db);
+  // One request event for this account, with one notification per type, all at the same time.
+  const save = (requestSeq, transitionId, ...types) => {
+    const createdAt = new Date().toISOString();
+    return store.saveRequestNotifications(
+      types.map((type) => ({ notificationId: randomUUID(), type, createdAt, accountId: uid })),
+      { pickupRequestId: requestId, requestSeq, transitionId, leavesOpen: true },
+    );
+  };
+  try {
+    await addAccounts(db, [uid]);
+    await addRequest(db, requestId, uid, 1);
+    await run({ db, store, uid, save });
+  } finally {
+    await removeAccounts(db, [uid]);
+    await db.end();
+  }
+}
+
+test('the next page includes a notification saved at the same time as the last one shown', { skip }, () =>
+  withStore(async ({ store, uid, save }) => {
+    // Self-accept: one account gets both sides of the same event.
+    const { saved } = await save(2, randomUUID(), 'REQUEST_ASSIGNED_RESIDENT', 'REQUEST_ASSIGNED_VOLUNTEER');
+    const [first] = (await store.listForAccount(uid, { limit: 1 })).rows;
+    const { rows } = await store.listForAccount(uid, { before: first.created_at.toISOString(), limit: 30 });
+    assert.deepEqual(new Set(rows.map((r) => r.notification_id)), saved);
+  }));

@@ -40,7 +40,7 @@ function createNotificationsRouter({ notifications, hub }) {
   const router = express.Router();
   router.use('/api/notifications', gatewayUser);
 
-  // Newest first, never expired; page with `before` (the createdAt of the last one shown).
+  // Newest first, never expired; page with `before` (the createdAt of the last one shown, included).
   router.get('/api/notifications', async (req, res) => {
     const { before, limit } = req.query;
     if (before !== undefined && !(typeof before === 'string' && TIMESTAMP.test(before))) {
