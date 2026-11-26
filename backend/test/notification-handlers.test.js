@@ -59,7 +59,7 @@ test('RequestCreated: private fields never reach a signal or a notification', ()
   for (const { signal, notification } of out) {
     assert.deepEqual(Object.keys(signal).sort(), ['requestId', 'type']);
     const text = JSON.stringify(notification);
-    for (const secret of ['123 Secret St', '4B', 'Jane Doe']) {
+    for (const secret of ['123 Secret St', '4B', 'Jane Doe', 'secret.jpg']) {
       assert.ok(!text.includes(secret), `notification leaked "${secret}"`);
     }
   }
@@ -104,6 +104,8 @@ test('RequestCreated v2: the request sits in data.request, same deliveries as v1
         categoryName: 'Computers/Laptops',
         quantity: 2,
         postalCode: 'T2P1J9',
+        residentName: 'Jane Doe',
+        photoUrl: 'https://ik.imagekit.io/ecocollect/secret.jpg',
       },
       matchedVolunteerUids: ['firebaseUid_v1', 'firebaseUid_v2'],
     },
