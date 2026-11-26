@@ -1,78 +1,78 @@
 {
   "/": {
-    "raw": 670398,
-    "gzip": 202964
+    "raw": 670424,
+    "gzip": 202974
   },
   "/_not-found": {
-    "raw": 669980,
-    "gzip": 202644
+    "raw": 670006,
+    "gzip": 202654
   },
   "/choose-role": {
-    "raw": 672345,
-    "gzip": 203770
+    "raw": 672371,
+    "gzip": 203780
   },
   "/demo": {
-    "raw": 671841,
-    "gzip": 203730
+    "raw": 671867,
+    "gzip": 203740
   },
   "/ecopoints": {
-    "raw": 674332,
-    "gzip": 204711
+    "raw": 674358,
+    "gzip": 204721
   },
   "/forgot-password": {
-    "raw": 672030,
-    "gzip": 203770
+    "raw": 672056,
+    "gzip": 203780
   },
   "/login": {
-    "raw": 673054,
-    "gzip": 204131
+    "raw": 673080,
+    "gzip": 204141
   },
   "/notifications": {
-    "raw": 677264,
-    "gzip": 205789
+    "raw": 677290,
+    "gzip": 205799
   },
   "/profile": {
-    "raw": 693128,
-    "gzip": 210587
+    "raw": 693217,
+    "gzip": 210620
   },
   "/profiles/[accountId]": {
-    "raw": 673755,
-    "gzip": 204298
+    "raw": 673781,
+    "gzip": 204308
   },
   "/register": {
-    "raw": 682730,
-    "gzip": 207444
+    "raw": 682819,
+    "gzip": 207480
   },
   "/resident": {
-    "raw": 674977,
-    "gzip": 205004
+    "raw": 675003,
+    "gzip": 205014
   },
   "/resident/requests/[id]": {
-    "raw": 712507,
-    "gzip": 215583
+    "raw": 712533,
+    "gzip": 215593
   },
   "/resident/requests/[id]/edit": {
-    "raw": 695135,
-    "gzip": 211685
+    "raw": 695161,
+    "gzip": 211695
   },
   "/resident/requests/new": {
-    "raw": 697714,
-    "gzip": 211982
+    "raw": 697740,
+    "gzip": 211992
   },
   "/stats": {
-    "raw": 673734,
-    "gzip": 204209
+    "raw": 673760,
+    "gzip": 204219
   },
   "/volunteer": {
-    "raw": 678452,
-    "gzip": 206328
+    "raw": 678541,
+    "gzip": 206359
   },
   "/volunteer/history": {
-    "raw": 675073,
-    "gzip": 205090
+    "raw": 675099,
+    "gzip": 205100
   },
   "/volunteer/requests/[id]": {
-    "raw": 696590,
-    "gzip": 211439
+    "raw": 696616,
+    "gzip": 211449
   }
 }

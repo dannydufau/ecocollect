@@ -125,7 +125,7 @@ Times are shown in Calgary time (`lib/time.ts`). Postal codes are sent as `T2P1J
 
 ## Baseline
 
-`baseline-js.json` records the 19 route budgets established during remediation with Next.js 16.4.6 and Turbopack. The size check reads the build's route diagnostics and sums each route's distinct first-load chunks in raw and gzip bytes. To compare with the recorded build, use the same placeholder Firebase configuration in a shell where the other `NEXT_PUBLIC_*` settings are unset. Next.js embeds these values in the browser bundle.
+`baseline-js.json` records 19 route budgets measured with Node 24.9.0, Next.js 16.4.6 and Turbopack. The size check reads the build's route diagnostics and sums each route's distinct first-load chunks in raw and gzip bytes. To compare with the recorded build, build in a clean checkout without local environment files, using the placeholders below and no other `NEXT_PUBLIC_*` settings. Next.js embeds these values in the browser bundle.
 
 ```sh
 export NEXT_PUBLIC_FIREBASE_API_KEY=demo-local-key
