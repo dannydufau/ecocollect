@@ -100,6 +100,17 @@ export function friendlyError(err: unknown): string {
     return Object.hasOwn(friendlyMessages, err.code) ? friendlyMessages[err.code] : err.message;
 }
 
+// The sentence for a 400 with field errors: the ones the page has no input for, so they are not lost,
+// or a pointer to the inputs when each one is already shown next to its input.
+export function fieldErrorsMessage(err: ApiError, shownInline: (field: string) => boolean): string {
+    const notShown = Object.entries(err.fields).filter(([field]) => !shownInline(field)).map(([, text]) => text);
+    return notShown.length ? [...new Set(notShown)].join(" ") : "Please check the highlighted fields.";
+}
+
+export function hasFieldErrors(err: unknown): err is ApiError {
+    return err instanceof ApiError && err.status === 400 && Object.keys(err.fields).length > 0;
+}
+
 async function getToken(): Promise<string | null> {
     await auth.authStateReady();
     const user = auth.currentUser;

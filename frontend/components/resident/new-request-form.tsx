@@ -3,11 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import RequestForm, { validate, type RequestValues } from "./request-form";
+import RequestForm, { shownInForm, validate, type RequestValues } from "./request-form";
 import ReviewRequest from "./review-request";
 import TermsCheckbox from "@/components/terms-checkbox";
 import { Alert, pageTitle } from "@/components/ui";
-import { apiFetch, ApiError, friendlyError } from "@/lib/api";
+import { apiFetch, ApiError, fieldErrorsMessage, friendlyError, hasFieldErrors } from "@/lib/api";
 import { auth } from "@/lib/firebase";
 import { queryKeys } from "@/lib/query-keys";
 import { useTerms } from "@/lib/use-terms";
@@ -142,7 +142,8 @@ export default function NewRequestForm() {
             await client.invalidateQueries({ queryKey: queryKeys.myRequests });
             router.push(`/resident?created=${response.requests.length}`);
         } catch (error) {
-            setMessage(friendlyError(error));
+            // The form shows its own fields' errors next to their inputs; the alert says the rest
+            setMessage(hasFieldErrors(error) ? fieldErrorsMessage(error, shownInForm) : friendlyError(error));
             if (error instanceof ApiError && error.status === 400) {
                 setFields(error.fields);
                 setReview(null);

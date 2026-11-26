@@ -87,6 +87,17 @@ it("shows the server message for a 400 and keeps the form open", async () => {
     expect(dialog).toHaveAttribute("open");
 });
 
+it("says which field Q15 refused, since the dialog has no input to show it next to", async () => {
+    vi.mocked(api.post).mockRejectedValue(new ApiError(400, { error: { code: "validation_failed", message: "Some fields are invalid.",
+        details: { fields: { facilityId: "does not accept this category", "evidencePhoto.fileId": "photo check failed" } } } }));
+    const dialog = openDialog();
+    fill(dialog);
+    const alert = await within(dialog).findByRole("alert");
+    expect(alert).toHaveTextContent("This facility doesn't accept this category. Please choose another facility.");
+    expect(alert).toHaveTextContent("We couldn't use this photo. Please remove it and add it again.");
+    expect(dialog).toHaveAttribute("open");
+});
+
 it.each([
     ["already_delivered", "This delivery has already been recorded."],
     ["not_collected", "Confirm the collection before recording a delivery."],

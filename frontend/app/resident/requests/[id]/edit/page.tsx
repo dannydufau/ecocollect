@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import RequestForm, { type RequestValues } from "@/components/resident/request-form";
+import RequestForm, { shownInForm, type RequestValues } from "@/components/resident/request-form";
 import { Alert, EmptyState, LoadingRegion, PackageIcon, QueryError, pageTitle, pageWidth, secondaryLinkButton, textLink } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
@@ -14,6 +14,12 @@ import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
 // Windows are the same when they have the same dates and hours, in any order
 const slots = (windows: PickupWindow[]) => windows.map(window => `${window.date}:${window.startHour}`).sort().join();
 
+// Q9 names the item's fields at the top; the form names them items[0].*
+const ITEM_FIELDS = ["categoryId", "quantity", "photo", "photo.fileId"];
+const toFormField = (field: string) => ITEM_FIELDS.includes(field) ? `items[0].${field}` : field;
+const toFormFields = (fields: Record<string, string>) =>
+    Object.fromEntries(Object.entries(fields).map(([field, text]) => [toFormField(field), text]));
+
 export default function EditRequestPage() {
     const { id } = useParams<{ id: string }>();
     const router = useRouter();
@@ -23,7 +29,7 @@ export default function EditRequestPage() {
     useUnsavedWarning(dirty);
     const action = useRequestAction<EditRequest>(id,
         body => api.patch(`/api/requests/${encodeURIComponent(id)}`, body),
-        [queryKeys.myRequests, queryKeys.availableRequests]);
+        [queryKeys.myRequests, queryKeys.availableRequests], field => shownInForm(toFormField(field)));
     const back = `/resident/requests/${encodeURIComponent(id)}`;
 
     function save(values: RequestValues) {
@@ -55,7 +61,7 @@ export default function EditRequestPage() {
                     action={<Link href={back} className={secondaryLinkButton}>Back to request</Link>} />}
                 {data && editable && <RequestForm single createdAt={data.createdAt} submitLabel="Save changes" cancelHref={back} busy={action.isPending}
                     currentPhoto={data.photoUrl ? { url: data.photoUrl, refetch: () => void refetch() } : undefined}
-                    fieldErrors={action.error instanceof ApiError ? action.error.fields : {}}
+                    fieldErrors={action.error instanceof ApiError ? toFormFields(action.error.fields) : {}}
                     initialValues={{
                         items: [{ categoryId: data.category.categoryId, quantity: String(data.quantity) }],
                         windows: data.windows.map(({ date, startHour }) => ({ date, startHour })),

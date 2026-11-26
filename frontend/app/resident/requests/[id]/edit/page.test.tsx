@@ -93,6 +93,18 @@ it("sends the new photo after it was replaced", async () => {
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/api/requests/r1", { photo: { fileId: "f-new" } }));
 });
 
+it("shows Q9's photo error under the photo and points to it", async () => {
+    vi.mocked(api.patch).mockRejectedValue(new ApiError(400, { error: { code: "validation_failed", message: "Some fields are invalid.",
+        details: { fields: { "photo.fileId": "photo check failed" } } } }));
+    await mount();
+    fireEvent.click(screen.getByRole("button", { name: "Replace photo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Upload photo" }));
+    save();
+    expect(await screen.findByText("We couldn't use this photo. Please remove it and add it again.")).toBeInTheDocument();
+    expect(screen.getByText("Please check the highlighted fields.")).toBeInTheDocument();
+    expect(screen.queryByText("Some fields are invalid.")).not.toBeInTheDocument();
+});
+
 it("sends nothing and says so when nothing changed", async () => {
     await mount();
     save();

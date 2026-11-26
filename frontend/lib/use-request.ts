@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useQuery, useQueryClient, type QueryKey } from "@tanstack/react-query";
-import { api, ApiError, ApiTimeoutError, friendlyError } from "@/lib/api";
+import { api, ApiError, ApiTimeoutError, fieldErrorsMessage, friendlyError, hasFieldErrors } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import type { RequestDetail } from "@/lib/types";
 import { useLockedMutation } from "@/lib/use-locked-mutation";
@@ -40,7 +40,9 @@ export function useRequestDetail(id: string) {
     };
 }
 
-export function useRequestAction<TBody = void>(id: string, call: (body: TBody) => Promise<unknown>, alsoInvalidate: readonly QueryKey[] = []) {
+// shownInline: the field errors the page shows next to an input. The action dialogs only have a reason input.
+export function useRequestAction<TBody = void>(id: string, call: (body: TBody) => Promise<unknown>, alsoInvalidate: readonly QueryKey[] = [],
+    shownInline: (field: string) => boolean = field => field === "reason") {
     const client = useQueryClient();
     async function invalidate() {
         await Promise.all([queryKeys.request(id), ...alsoInvalidate].map(queryKey => client.invalidateQueries({ queryKey })));
@@ -57,6 +59,7 @@ export function useRequestAction<TBody = void>(id: string, call: (body: TBody) =
 
     const message = mutation.error instanceof ApiTimeoutError
         ? "We didn't hear back in time, so we're refreshing the status. Check before trying again."
+        : hasFieldErrors(mutation.error) ? fieldErrorsMessage(mutation.error, shownInline)
         : mutation.error ? friendlyError(mutation.error) : null;
 
     return {

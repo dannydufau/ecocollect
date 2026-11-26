@@ -24,7 +24,7 @@ export function validate(values: RequestValues, createdAt = new Date().toISOStri
     if (!values.items.length) errors.items = "Add at least one item.";
     values.items.forEach((item, index) => {
         if (!item.categoryId) errors[`items[${index}].categoryId`] = "Choose a category.";
-        else if (selected.has(item.categoryId)) errors[`items[${index}].categoryId`] = "This category is already selected.";
+        else if (selected.has(item.categoryId)) errors[`items[${index}].categoryId`] = "This category is already selected. Please choose a different category.";
         selected.add(item.categoryId);
         const quantity = Number(item.quantity);
         if (!item.quantity.trim() || !Number.isSafeInteger(quantity) || quantity < 1) {
@@ -46,6 +46,15 @@ export function validate(values: RequestValues, createdAt = new Date().toISOStri
         slots.add(slot);
     });
     return errors;
+}
+
+// The keys the form below reads from its errors: one input each, the windows all under the picker
+const ITEM_ERROR = /^items\[\d+\]\.(categoryId|quantity|photo|photo\.fileId)$/;
+const isWindowError = (field: string) => field === "windows" || field.startsWith("windows[") || field.startsWith("windows.");
+
+// True for a server field error the form shows next to an input; the page's alert says the others
+export function shownInForm(field: string): boolean {
+    return field === "items" || field === "notes" || ITEM_ERROR.test(field) || isWindowError(field);
 }
 
 function PickupAddress() {
@@ -101,7 +110,7 @@ export default function RequestForm({ initialValues, createdAt, single = false, 
     }
     // Errors only show after the first submit, then follow the values as the user types
     const errors = { ...(tried ? validate(values, createdAt) : {}), ...fieldErrors };
-    const windowErrors = [...new Set(Object.entries(errors).filter(([key]) => key === "windows" || key.startsWith("windows[") || key.startsWith("windows.")).map(([, message]) => message))];
+    const windowErrors = [...new Set(Object.entries(errors).filter(([key]) => isWindowError(key)).map(([, message]) => message))];
 
     // Move focus to the first problem once the errors are on screen, for our own checks and for the server's
     const serverErrorKeys = Object.keys(fieldErrors).join();

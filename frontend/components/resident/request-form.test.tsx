@@ -2,7 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { api } from "@/lib/api";
 import { renderWithClient } from "@/test/utils";
-import RequestForm, { validate, type RequestValues } from "./request-form";
+import RequestForm, { shownInForm, validate, type RequestValues } from "./request-form";
+
+it.each([
+    ["items", true], ["items[1].categoryId", true], ["items[0].quantity", true], ["items[2].photo.fileId", true],
+    ["windows", true], ["windows[0]", true], ["notes", true],
+    ["items[0].colour", false], ["termsDocumentId", false], ["Idempotency-Key", false], ["notesExtra", false],
+])("shownInForm(%s) is %s, as the form has an input for it or not", (field, shown) => {
+    expect(shownInForm(field)).toBe(shown);
+});
 
 vi.mock("@/lib/api", () => ({ api: { get: vi.fn() } }));
 // A picker that remembers its own upload, so a picker moved to the wrong row would show the wrong id
