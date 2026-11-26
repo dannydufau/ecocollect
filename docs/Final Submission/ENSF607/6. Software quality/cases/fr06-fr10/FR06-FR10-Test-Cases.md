@@ -89,7 +89,7 @@ The review shows two Calgary pickup windows and the pickup address.
   <tr><td>3</td><td>Accept the terms and choose Confirm and send.</td><td>One request is submitted with quantity three.</td></tr>
   <tr><th>Expected Result</th><td colspan="3">1. The review shows two laptops. No API submission occurs.<br/>2. The review shows three laptops. No submission occurs yet.<br/>3. One request is submitted with quantity three.</td></tr>
   <tr><th>Postcondition</th><td colspan="3">The form sends the corrected draft once, after confirmation.</td></tr>
-  <tr><th>Actual Result</th><td colspan="3">The review displayed three laptops and the mocked API received exactly one submission with quantity three.</td></tr>
+  <tr><th>Actual Result</th><td colspan="3">The review showed three laptops. After confirmation, the request appeared in My requests with quantity three.</td></tr>
   <tr><th>Status</th><td colspan="3">Pass</td></tr>
 </table>
 
