@@ -18,7 +18,7 @@
 	}
 }
 
-localhost {
+{$SITE_ADDRESS:localhost} {
 	# strip any headers, that would be used internally by the services
 	import strip-headers-add-request-id
 

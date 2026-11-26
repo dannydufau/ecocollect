@@ -1,0 +1,12 @@
+# Changes for the demo VM, laid over docker-compose.yml. Only what differs goes here.
+# Use both files on the VM:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+services:
+  caddy:
+    ports:
+      !override # replaces the base file's 127.0.0.1 ports instead of adding to them
+      - "80:80" # only redirects to https; open to the internet, the cloud firewall decides what gets in
+      - "443:443"
+    environment:
+      # The site's domain, for example ecocollect.duckdns.org. Caddy gets its HTTPS certificate for it.
+      SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS in .env to the demo domain}
