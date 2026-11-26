@@ -31,6 +31,27 @@ The [functional requirements](../1.%20Functional%20Requirements/README.md) defin
 | FR23 | Public Community Impact Statistics | [points-expiry-stats.md](cases/points-expiry-stats.md) |
 | FR24 | Interactive Demo Mode | [notifications-demo.md](cases/notifications-demo.md) |
 
+## Non-functional requirement coverage
+
+The [non-functional requirements](../2.%20Non-functional%20requirements/README.md) define the qualities under test. Each NFR has its own file in `cases/nfr/`, with the requirement, its criteria, the evidence for each criterion, and a Results table.
+
+| ID | Non-functional requirement | Case file | Scripted cases |
+| --- | --- | --- | --- |
+| NFR01 | Maintainability | [NFR01-maintainability.md](cases/nfr/NFR01-maintainability.md) | P1–P5, N1 |
+| NFR02 | Usability | [NFR02-usability.md](cases/nfr/NFR02-usability.md) | E1 (charter) |
+| NFR03 | Privacy | [NFR03-privacy.md](cases/nfr/NFR03-privacy.md) | P1, P2 |
+| NFR04 | Security | [NFR04-security.md](cases/nfr/NFR04-security.md) | P1, N1 |
+| NFR05 | Fairness | [NFR05-fairness.md](cases/nfr/NFR05-fairness.md) | P1, N1, E1 (charter) |
+| NFR06 | Reliability | [NFR06-reliability.md](cases/nfr/NFR06-reliability.md) | P1, P2, N1 |
+| NFR07 | Portability and Reproducible Setup (from the team proposal) | In progress | – |
+
+### NFR strategy
+
+- **Criteria** come from each requirement's wording, named with ISO/IEC 25010:2011, with Nielsen's usability heuristics for NFR02 and the fairness testing definition of de Souza Santos et al. for NFR05. Each file gives its references.
+- **Existing tests are cited first.** The remaining gaps are ranked by risk, impact × likelihood, following ISO/IEC/IEEE 29119. The scale is in [NFR03](cases/nfr/NFR03-privacy.md#strategy). High-risk gaps get new cases; the others are listed with their rating as not yet scripted.
+- **The technique fits the quality.** NFR cases use the Lecture 12 scripted test case format, with exploratory charters where a judgement no script can make is needed (usability, fairness). ISO/IEC/IEEE 29119-3 supports scripted and unscripted, manual and automated testing side by side. The positive and negative rule below applies to functional requirements.
+- **Scope:** the cases go deepest in the event, notification and messaging paths. Each file states its own scope.
+
 ## Case format
 
 Use two IDs per requirement. For example, `FR01-P` is a positive case that checks the expected result of valid use, and `FR01-N` is a negative case that checks the expected rejection or constraint. Add more cases with a numeric suffix such as `FR01-N2` if needed.
@@ -42,6 +63,14 @@ The five files in `cases/` share the same columns. Add case rows to the file lis
 ## Run the suites
 
 Run the following commands from the repository root in Bash. Use the Node version required by the packages and run `npm ci` in each package before its first run.
+
+### Non-functional
+
+```bash
+(cd backend && npm ci && npm run test:nfr)
+```
+
+`npm run test:nfr` runs the new tests in `backend/test/nfr/`. They are also part of `npm test`. The concurrency test (NFR06-P2) needs the Request Service's test database: run `backend/scripts/request/load-db.sh --test` and set `REQUEST_TEST_DATABASE_URL` (see `backend/test/request/db.ts`). Without the variable it is skipped, like the other request tests; with it set but the database down, it fails. The other cases cite existing tests in their own suites; each file's Results table names the command.
 
 ### Backend
 
