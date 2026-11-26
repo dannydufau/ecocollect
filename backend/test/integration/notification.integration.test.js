@@ -365,6 +365,17 @@ test('a RequestCreated reaches the resident and matched volunteers as signals, n
     );
     assert.equal(again.rows[0].n, 3);
 
+    // A sent push is recorded, which is what lets it be replaced later.
+    await waitFor(async () => {
+      const { rows } = await db.query(
+        'SELECT 1 FROM notifications.notification WHERE notification_id = $1 AND pushed_at IS NOT NULL',
+        [toVolunteer.id],
+      );
+      return rows.length === 1;
+    }, 'pushed_at on the volunteer notification');
+    const pushesTo = (uid) => pushService.paths.filter((p) => p === `/push/${uid}`).length;
+    const offlinePushes = pushesTo(offline);
+
     // The volunteer accepts the first request (step 2). The resident is told (with a push), and
     // every volunteer's "New pickup near you" for it expires (X2), on their tabs and in their list.
     const matchingIds = notificationsIn(volunteerTab).filter((f) => f.data.requestId === requestId).map((f) => f.id);
@@ -385,7 +396,9 @@ test('a RequestCreated reaches the resident and matched volunteers as signals, n
       () => notificationsIn(residentTab).some((f) => f.data.type === 'REQUEST_ASSIGNED_RESIDENT'),
       'the accepted notification at the resident',
     );
-    await waitFor(() => pushService.paths.filter((p) => p === `/push/${resident}`).length === 1, 'the push to the resident');
+    await waitFor(() => pushesTo(resident) === 1, 'the push to the resident');
+    // The other volunteer's "New pickup near you" is still on their phone, so it is replaced.
+    await waitFor(() => pushesTo(offline) === offlinePushes + 1, 'the replacement push to the offline volunteer');
     await waitFor(() => framesIn(volunteerTab, 'notification-expired').length === 1, 'notification-expired at the volunteer');
     assert.deepEqual(framesIn(volunteerTab, 'notification-expired')[0].data.notificationIds, matchingIds);
     const after = await (await fetch(service.notificationsUrl, asVolunteer)).json();

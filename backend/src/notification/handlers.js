@@ -167,4 +167,28 @@ function requestExpired(envelope) {
   return [delivery(envelope, request.residentUid, 'REQUEST_EXPIRED_RESIDENT', request)];
 }
 
-module.exports = { requestCreated, requestAssigned, requestCancelled, requestExpired, describe, SIGNAL, NOTIFICATION_TYPES };
+/*
+ * What to push silently over phone notifications this event made stale (contract 13.2): the
+ * same tag replaces them. One per account, and none for an account this event already pushes.
+ * An account with its own notification from this event sees that; other volunteers are told
+ * the pickup is gone.
+ */
+function replacements(request, deliveries, expired) {
+  const pushedNow = new Set(deliveries.filter((d) => d.push).map((d) => d.uid));
+  const byUid = new Map();
+  for (const { accountId, notificationId, replace } of expired) {
+    if (!replace || pushedNow.has(accountId)) continue;
+    const own = deliveries.find((d) => d.uid === accountId)?.notification;
+    byUid.set(accountId, own ?? {
+      notificationId,
+      requestId: request.requestId,
+      awardId: null,
+      title: 'This pickup is no longer available',
+      body: describe(request),
+      url: `${NOTIFICATION_TYPES.NEW_MATCHING_REQUEST.path}${request.requestId}`,
+    });
+  }
+  return [...byUid].map(([uid, notification]) => ({ uid, notification }));
+}
+
+module.exports = { requestCreated, requestAssigned, requestCancelled, requestExpired, replacements, describe, SIGNAL, NOTIFICATION_TYPES };

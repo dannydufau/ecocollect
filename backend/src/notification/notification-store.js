@@ -11,7 +11,8 @@ function createNotificationStore(pool) {
    *   event: { pickupRequestId, requestSeq, transitionId, leavesOpen }
    * Returns { saved, expired, stale }:
    *   saved:   ids that were new (a redelivered event saves nothing again)
-   *   expired: [{ notificationId, accountId }] that this event made stale
+   *   expired: [{ notificationId, accountId, replace }] that this event made stale;
+   *            replace: it was pushed and is unread, so it may still be on the phone
    *   stale:   true if a later step of this request was already seen, saved already expired
    */
   async function saveRequestNotifications(rows, { pickupRequestId, requestSeq, transitionId, leavesOpen }) {
@@ -74,15 +75,17 @@ function createNotificationStore(pool) {
           `UPDATE notifications.notification n SET is_expired = true
            FROM notifications.request_notification rn
            JOIN notifications.request_event ev USING (pickup_request_id, request_seq)
+           JOIN users.account a ON a.account_id = rn.account_id
            WHERE n.notification_id = rn.notification_id
              AND rn.pickup_request_id = $1
              AND rn.request_seq < $2
              AND NOT n.is_expired
              AND ((rn.account_id = ANY($3) AND ev.transition_id <> $5) OR ($4 AND n.type = 'NEW_MATCHING_REQUEST'))
-           RETURNING n.notification_id, rn.account_id`,
+           RETURNING n.notification_id, rn.account_id,
+             (n.pushed_at IS NOT NULL AND NOT n.is_read AND a.deactivated_at IS NULL) AS replace`,
           [pickupRequestId, requestSeq, recipients, leavesOpen, transitionId],
         );
-        expired = result.rows.map((r) => ({ notificationId: r.notification_id, accountId: r.account_id }));
+        expired = result.rows.map((r) => ({ notificationId: r.notification_id, accountId: r.account_id, replace: r.replace }));
       }
 
       await client.query('COMMIT');
@@ -93,6 +96,15 @@ function createNotificationStore(pool) {
     } finally {
       client.release();
     }
+  }
+
+  // A push reached at least one of the recipient's browsers.
+  async function markPushed(notificationId) {
+    // GREATEST: pushed_at may never be before created_at (notification_ck2), and clocks differ.
+    await pool.query(
+      'UPDATE notifications.notification SET pushed_at = GREATEST(now(), created_at) WHERE notification_id = $1',
+      [notificationId],
+    );
   }
 
   /*
@@ -138,7 +150,7 @@ function createNotificationStore(pool) {
     await pool.query('CALL notifications.mark_all_read($1)', [uid]);
   }
 
-  return { saveRequestNotifications, listForAccount, markRead, markAllRead };
+  return { saveRequestNotifications, markPushed, listForAccount, markRead, markAllRead };
 }
 
 module.exports = { createNotificationStore };

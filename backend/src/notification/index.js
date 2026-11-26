@@ -12,7 +12,7 @@ const { Pool } = require('pg');
 
 const { createHub } = require('./hub');
 const { createEventsRouter } = require('./events');
-const { requestCreated, requestAssigned, requestCancelled, requestExpired } = require('./handlers');
+const { requestCreated, requestAssigned, requestCancelled, requestExpired, replacements } = require('./handlers');
 const { pushPayload, createWebPushSender } = require('./push');
 const { startSubscriber, queues } = require('../messaging');
 const { createPushRouter } = require('./push-router');
@@ -69,7 +69,8 @@ const server = app.listen(port, () => console.log(`Notification service listenin
 /*
  * One request event: the handler decides who gets what; this saves it (with the expiry
  * rules), then delivers it: notification (and the Oct 28 signal) to open tabs, a push if
- * the type pushes, and notification-expired for what this event made stale. The subscriber
+ * the type pushes, and for what this event made stale: notification-expired, plus a silent
+ * push over any that may still be on a phone. The subscriber
  * acks after this returns, so a failed save is retried; a redelivered event sends nothing.
  */
 function deliverRequestEvent(handler, { leavesOpen }) {
@@ -104,6 +105,7 @@ function deliverRequestEvent(handler, { leavesOpen }) {
       // Best-effort and not awaited: a failed push must not redeliver the event (and its SSE frames).
       if (push) {
         pushSender.send(uid, pushPayload(notification))
+          .then((delivered) => delivered > 0 && notifications.markPushed(notification.notificationId))
           .catch((err) => console.warn(`[push] failed for ${uid}: ${err.message}`));
       }
     }
@@ -115,6 +117,11 @@ function deliverRequestEvent(handler, { leavesOpen }) {
     }
     for (const [uid, notificationIds] of byAccount) {
       hub.send(uid, 'notification-expired', { notificationIds, requestId, tag: `request-${requestId}` });
+    }
+
+    for (const { uid, notification } of replacements(request, deliveries, expired)) {
+      pushSender.send(uid, { ...pushPayload(notification), silent: true })
+        .catch((err) => console.warn(`[push] replacing failed for ${uid}: ${err.message}`));
     }
   };
 }

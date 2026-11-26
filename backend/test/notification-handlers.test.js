@@ -8,7 +8,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 
-const { requestCreated, SIGNAL } = require('../src/notification/handlers');
+const { requestCreated, replacements, SIGNAL } = require('../src/notification/handlers');
 const { notificationUuid } = require('../src/notification/ids');
 
 const EVENT_ID = '6f1c9c2e-3b0e-4f0f-9d57-2c2f6a1d8e11';
@@ -126,4 +126,32 @@ test('a notification id is a UUID that the same event, recipient and type always
   assert.match(id, /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
   assert.equal(notificationUuid(EVENT_ID, 'firebaseUid_v1', 'NEW_MATCHING_REQUEST'), id);
   assert.notEqual(notificationUuid(EVENT_ID, 'firebaseUid_v2', 'NEW_MATCHING_REQUEST'), id);
+});
+
+test('replacements: one silent text per account whose pushed notification went stale', () => {
+  const request = { requestId: REQUEST_ID, quantity: 2, categoryName: 'Computers/Laptops', postalCode: 'T2P1J9' };
+  const own = (uid, title, push) => ({ uid, push, notification: { notificationId: `new-${uid}`, title } });
+  const deliveries = [own('resident', 'Pickup accepted', true), own('accepter', 'You accepted a pickup', false)];
+  const stale = (accountId, notificationId, replace = true) => ({ accountId, notificationId, replace });
+
+  assert.deepEqual(
+    replacements(request, deliveries, [
+      stale('resident', 'r1'), // gets a new push, which replaces by tag anyway
+      stale('accepter', 'a1'),
+      stale('other', 'o1'),
+      stale('other', 'o2'),
+      stale('unpushed', 'u1', false), // never pushed, or already read
+    ]),
+    [
+      { uid: 'accepter', notification: deliveries[1].notification },
+      {
+        uid: 'other',
+        notification: {
+          notificationId: 'o2', requestId: REQUEST_ID, awardId: null,
+          title: 'This pickup is no longer available', body: '2 * Computers/Laptops in T2P1J9',
+          url: `/volunteer/requests/${REQUEST_ID}`,
+        },
+      },
+    ],
+  );
 });
