@@ -24,7 +24,7 @@ function validate(body) {
   if (!["item_photo", "delivery_evidence"].includes(body.purpose)) fields.purpose = "Choose item_photo or delivery_evidence.";
   if (body.purpose === "delivery_evidence" && (typeof body.requestId !== "string" || !body.requestId)) fields.requestId = "Choose a request.";
   if (typeof body.fileName !== "string" || !body.fileName.trim()) fields.fileName = "Enter a file name.";
-  if (!EXTENSIONS[body.contentType]) fields.contentType = "Use a JPEG, PNG or WebP image.";
+  if (typeof body.contentType !== "string" || !Object.hasOwn(EXTENSIONS, body.contentType)) fields.contentType = "Use a JPEG, PNG or WebP image.";
   if (!Number.isInteger(body.sizeBytes) || body.sizeBytes < 1 || body.sizeBytes > MAX_BYTES) fields.sizeBytes = "The photo must be 10 MB or smaller.";
   return Object.keys(fields).length ? fields : null;
 }

@@ -22,8 +22,8 @@ beforeEach(() => {
     register((_method: string, path: string, handler: Handler) => handlers.set(path, handler), store);
 });
 
-it("rejects a GIF with a contentType field error", () => {
-    const result = call("/api/uploads", "demo-resident-1", { ...photo, contentType: "image/gif" });
+it.each(["image/gif", "constructor", "toString"])("rejects unsupported contentType %j", (contentType) => {
+    const result = call("/api/uploads", "demo-resident-1", { ...photo, contentType });
     expect(result.status).toBe(400);
     expect(result.body.error.code).toBe("validation_failed");
     expect(result.body.error.details.fields).toHaveProperty("contentType");
