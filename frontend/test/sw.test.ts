@@ -39,10 +39,10 @@ async function fire(name: string, extra: object) {
 const push = (payload: object) => fire("push", { data: { json: () => payload } });
 const payload = { notificationId: "n1", title: "New pickup", body: "2 items", url: "/volunteer/requests/1", tag: "request-1", silent: false };
 
-it("skips a push when a window is focused", async () => {
+it("still shows a push when a window is focused, but quietly", async () => {
     addWindow(true);
     await push(payload);
-    expect(showNotification).not.toHaveBeenCalled();
+    expect(showNotification).toHaveBeenCalledWith("New pickup", expect.objectContaining({ tag: "request-1", silent: true }));
 });
 
 it("shows the notification when no window is focused", async () => {

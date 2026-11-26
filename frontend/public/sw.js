@@ -8,9 +8,10 @@ self.addEventListener("push", (event) => {
     const { title, body, url, tag, silent } = data;
     event.waitUntil(
         self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
-            // the app already shows it in the open tab
-            if (!silent && list.some((c) => c.focused)) return;
-            return self.registration.showNotification(title, { body, tag, silent, data: { url } });
+            // Always show it: Safari cancels the push subscription after pushes that show nothing, and Chrome shows
+            // its own notice instead. A focused tab already shows it, so then it comes without sound or vibration.
+            const quiet = silent || list.some((c) => c.focused);
+            return self.registration.showNotification(title, { body, tag, silent: quiet, data: { url } });
         }),
     );
 });

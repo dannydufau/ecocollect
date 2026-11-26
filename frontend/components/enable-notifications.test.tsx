@@ -33,7 +33,9 @@ afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
+    vi.restoreAllMocks(); // the iPhone user agent
     delete (navigator as { serviceWorker?: unknown }).serviceWorker;
+    delete (navigator as { standalone?: boolean }).standalone;
 });
 
 it("asks for permission, subscribes and posts the subscription", async () => {
@@ -75,6 +77,23 @@ it("says On, with no button, when already subscribed", async () => {
     expect(screen.getByRole("status")).toHaveTextContent("You will get notifications on this device.");
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
     expect(requestPermission).not.toHaveBeenCalled();
+});
+
+const IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1";
+
+it("tells iPhone users in a Safari tab to add EcoCollect to the Home Screen", async () => {
+    vi.spyOn(navigator, "userAgent", "get").mockReturnValue(IPHONE);
+    render(<EnableNotifications />);
+    expect(await screen.findByText(/Tap the Share button, then Add to Home Screen/)).toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+});
+
+it("offers Turn on in the iPhone app opened from the Home Screen", async () => {
+    vi.spyOn(navigator, "userAgent", "get").mockReturnValue(IPHONE);
+    Object.defineProperty(navigator, "standalone", { configurable: true, value: true });
+    fakeBrowser();
+    render(<EnableNotifications />);
+    expect(await screen.findByRole("button", { name: /Turn on device notifications/ })).toBeInTheDocument();
 });
 
 it("says so in a browser without push", async () => {

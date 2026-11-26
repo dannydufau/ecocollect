@@ -4,6 +4,15 @@ export function pushSupported(): boolean {
     return typeof window !== "undefined" && "Notification" in window && "serviceWorker" in navigator && "PushManager" in window;
 }
 
+// iPhone and iPad offer web push only to an app opened from the Home Screen (iOS 16.4 and later).
+// An iPad says "Macintosh" by default, so a touch screen tells it apart from a Mac.
+export function needsHomeScreen(): boolean {
+    if (typeof window === "undefined") return false;
+    const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+    const fromHomeScreen = window.matchMedia?.("(display-mode: standalone)").matches || (navigator as { standalone?: boolean }).standalone === true;
+    return ios && !fromHomeScreen;
+}
+
 export async function isSubscribed(): Promise<boolean> {
     const registration = await navigator.serviceWorker.getRegistration();
     return Boolean(await registration?.pushManager.getSubscription());

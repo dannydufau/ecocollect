@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { Alert, BellIcon, Button } from "@/components/ui";
-import { isSubscribed, pushSupported, subscribe } from "@/lib/push";
+import { isSubscribed, needsHomeScreen, pushSupported, subscribe } from "@/lib/push";
 
-type View = "checking" | "on" | "unsupported" | "button" | "blocked" | "no-key";
+type View = "checking" | "on" | "unsupported" | "home-screen" | "button" | "blocked" | "no-key";
 
 async function firstView(vapidKey: string): Promise<View> {
+    if (needsHomeScreen()) return "home-screen";
     if (!pushSupported()) return "unsupported";
     if (!vapidKey) return "no-key";
     if (Notification.permission === "denied") return "blocked";
@@ -43,6 +44,10 @@ export default function EnableNotifications() {
     if (view === "checking") return null;
     if (view === "on") return <p role="status" className="flex flex-wrap items-center gap-2"><BellIcon className="size-5" /><strong>On</strong><span>You will get notifications on this device.</span></p>;
     if (view === "unsupported") return <p role="status">This browser does not support device notifications.</p>;
+    if (view === "home-screen") return <Alert variant="info">
+        On iPhone and iPad, notifications work when EcoCollect is on your Home Screen. Tap the Share button, then Add to Home Screen,
+        and open EcoCollect from there to turn them on.
+    </Alert>;
     if (view === "no-key") return <Alert variant="info">Notifications are not set up yet.</Alert>;
     if (view === "blocked") return <div className="space-y-2">
         <p className="flex items-center gap-2"><BellIcon className="size-5" /><strong>Blocked</strong></p>
