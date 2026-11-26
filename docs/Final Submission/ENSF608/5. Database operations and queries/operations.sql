@@ -261,11 +261,11 @@ FROM volunteer_preferred_postal_code
 WHERE account_id = 'volunteer1'
 ORDER BY postal_code;
 
--- F2. A resident's requests that can still be cancelled (Open or Assigned).
---    Rationale: residents may cancel only while a request is Open or Assigned; the
---               cancel button is offered on these (FR11).
---    Citation:  FR11 · Contract: Q10 (409 not_cancellable unless Open or Assigned)
---               · App: 034_request_cancel.sql:25 req_check_cancel
+-- F2. A resident's requests with Open or Assigned status.
+--    Rationale: groups the resident's ongoing requests by status. This status filter
+--               does not determine cancellation eligibility. Q10 also rejects overdue
+--               Open requests and Assigned requests whose selected window has ended.
+--    Citation:  FR09; FR11 and contract Q10 explain the separate cancellation checks.
 --    Concepts:  WHERE, AND, OR, parentheses
 --    Uses:      view request_current_status (op 0) for the current status
 -- (ids shown as their last 4 characters, see op 0)
@@ -275,11 +275,11 @@ WHERE resident_id = 'resident2'
   AND (status = 'Open' OR status = 'Assigned')
 ORDER BY request;
 
--- F3. Open requests in a volunteer's preferred postal codes.
---    Rationale: the volunteer's default discovery list shows only Open requests in
---               their preferred codes (FR12).
---    Citation:  FR12 · App: 029_request_list_available.sql:25 req_list_available
---               ("p.pickup_postal_code = ANY (p_postal_codes)")
+-- F3. Open-status requests matching a volunteer's saved postal codes.
+--    Rationale: demonstrates exact postal-code matching used in volunteer discovery.
+--               This example filters status and postal code only. The live Q6 list
+--               also excludes expired requests and lists only future windows.
+--    Citation:  FR12; contract Q6; db/request/029_request_list_available.sql.
 --    Concepts:  WHERE, AND, IN (with a list from a subquery)
 --    Uses:      view request_current_status (op 0) for the current status
 -- (ids shown as their last 4 characters, see op 0)
@@ -291,10 +291,11 @@ WHERE status = 'Open'
                              WHERE account_id = 'volunteer1')
 ORDER BY pickup_postal_code, request;
 
--- F4. Active pickup windows in the next 7 days (Calgary dates).
---    Rationale: shows the pickups scheduled for the coming week, for planning
---               and for the windows a volunteer can still pick from.
---    Citation:  FR07, FR12
+-- F4. Active window records dated today through seven days from today in Calgary.
+--    Rationale: shows the recorded schedule over an inclusive calendar-date range.
+--               is_active records whether the window remains offered on the request.
+--               Earlier hours today can appear. This is not a selectable-window list.
+--    Citation:  FR07, FR12; contract Q6 for live availability.
 --    Concepts:  WHERE, BETWEEN (inclusive date range), AND, boolean column
 -- (ids shown as their last 4 characters, see op 0)
 SELECT RIGHT(pickup_request_id::text, 4) AS request, pickup_date, start_hour
@@ -315,11 +316,10 @@ SELECT name AS category, waste_type, standard_weight_kg
 FROM item_category
 ORDER BY waste_type, name;
 
--- O2. Newest notifications for an account, first page.
---    Rationale: the in-app notification list shows the newest first, a page at a time;
---               expired notifications are hidden (FR19).
---    Citation:  FR19 · App: notification-store.js listForAccount (#103;
---               "ORDER BY n.created_at DESC ... LIMIT $3")
+-- O2. Newest non-expired request notifications for an account, first page.
+--    Rationale: demonstrates pagination of the request source. The full N3 list
+--               also includes notifications derived from EcoPoints awards.
+--    Citation:  FR19; contract N3; notification-store.js listForAccount (PR #399).
 --    Concepts:  ORDER BY ... DESC, LIMIT, WHERE, AND NOT, join
 -- (ids shown as their last 4 characters, see op 0)
 SELECT n.type, n.created_at, n.is_read,
@@ -358,11 +358,10 @@ FROM pickup_request pr
 JOIN request_current_status rcs ON rcs.pickup_request_id = pr.pickup_request_id
 WHERE rcs.status = 'Open';
 
--- A3. Unread notification count for an account (the badge on the bell icon).
---    Rationale: users see how many unread, still-relevant notifications they have;
---               expired ones don't count (FR19).
---    Citation:  FR19 · App: notification-store.js listForAccount (#103;
---               "SELECT count(*) ... AND NOT n.is_expired AND NOT n.is_read")
+-- A3. Unread, non-expired request notifications for an account.
+--    Rationale: counts unread notifications from the request source. The actual
+--               N3 unread count also includes notifications from the award source.
+--    Citation:  FR19; contract N3; notification-store.js listForAccount (PR #399).
 --    Concepts:  COUNT, WHERE, AND NOT, join
 SELECT COUNT(*) AS unread
 FROM request_notification rn
@@ -510,9 +509,10 @@ ORDER BY points DESC, account_id;
 
 -- 11. Stored procedures
 
--- P1. mark_all_read: mark all of an account's notifications as read.
---    Rationale: the "mark all as read" action in the notification list (FR19).
---    Citation:  FR19 · App: notification-store.js markAllRead (#103, same UPDATE)
+-- P1. mark_all_read: mark an account's request notifications as read.
+--    Rationale: demonstrates the request-notification source of the mark-all action.
+--               The production action handles both notification sources.
+--    Citation:  FR19; contract N5; notifications.mark_all_read (PR #399).
 --    Concepts:  stored procedure, IN parameter, UPDATE ... FROM (multi-table update), CALL
 --    Mandate:   Lecture 12 - 3: data changes encapsulated in stored procedures, called with
 --               CALL. Postgres syntax noted inline.
@@ -550,12 +550,10 @@ ORDER BY n.created_at DESC;
 
 ROLLBACK;
 
--- P2. mark_read: mark one notification read, only if it belongs to the account.
---    Rationale: tapping a notification marks it read (FR19); a user must not be able to
---               change someone else's notification, and the caller needs to know which
---               happened (the app answers 404 when nothing matched).
---    Citation:  FR19 · App: notification-store.js markRead (#103, same UPDATE;
---               "return rowCount > 0")
+-- P2. mark_read: mark one request notification read if it belongs to the account.
+--    Rationale: demonstrates ownership and a found/not-found result for the request
+--               source. The production action handles both notification sources.
+--    Citation:  FR19; contract N4; notifications.mark_read (PR #399).
 --    Concepts:  stored procedure, IN and OUT parameters, SELECT ... INTO, COUNT,
 --               UPDATE ... FROM, CALL
 --    Mandate:   Lecture 12 - 2.2: typed IN/OUT parameters; OUT set with SELECT ... INTO
