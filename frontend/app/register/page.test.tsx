@@ -145,7 +145,7 @@ it.each([["username_taken", "Username", "This username is already taken."], ["em
 
 it("shows 400 field errors under their inputs", async () => {
     vi.mocked(api.post).mockRejectedValue(new ApiError(400, {
-        error: { code: "validation_error", message: "Check", details: { fields: { "address.postalCode": "Not a Calgary code." } } },
+        error: { code: "validation_failed", message: "Some fields are invalid.", details: { fields: { "address.postalCode": "Not a Calgary code." } } },
     }));
     renderWithClient(<RegisterPage />);
     fillResident();
@@ -156,7 +156,7 @@ it("shows 400 field errors under their inputs", async () => {
 
 it("also shows the alert when a 400 names a field the form does not have", async () => {
     vi.mocked(api.post).mockRejectedValue(new ApiError(400, {
-        error: { code: "validation_error", message: "Check", details: { fields: { termsDocumentId: "Not valid." } } },
+        error: { code: "validation_failed", message: "Some fields are invalid.", details: { fields: { termsDocumentId: "Not valid." } } },
     }));
     renderWithClient(<RegisterPage />);
     fillResident();

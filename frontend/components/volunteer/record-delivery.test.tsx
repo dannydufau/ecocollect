@@ -79,14 +79,6 @@ it("explains who can see the delivery photo", () => {
     expect(dialog).toHaveTextContent("Add a photo of the items at the facility. Only you and the resident can see it.");
 });
 
-it("shows the server message for a 400 and keeps the form open", async () => {
-    vi.mocked(api.post).mockRejectedValue(new ApiError(400, { error: { code: "validation_error", message: "This facility does not accept laptops." } }));
-    const dialog = openDialog();
-    fill(dialog);
-    expect(await within(dialog).findByRole("alert")).toHaveTextContent("This facility does not accept laptops.");
-    expect(dialog).toHaveAttribute("open");
-});
-
 it("says which field Q15 refused, since the dialog has no input to show it next to", async () => {
     vi.mocked(api.post).mockRejectedValue(new ApiError(400, { error: { code: "validation_failed", message: "Some fields are invalid.",
         details: { fields: { facilityId: "does not accept this category", "evidencePhoto.fileId": "photo check failed" } } } }));

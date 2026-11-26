@@ -32,12 +32,12 @@ export function registerResidentActions(route, store, { authenticate, send, vali
     if (!body || typeof body !== "object" || Array.isArray(body)) return { body: "Send an object." };
     for (const key of Object.keys(body)) if (!allowed.includes(key)) fields[key] = "This field is not allowed.";
     if (body.reason !== undefined && typeof body.reason !== "string") fields.reason = "Enter text.";
-    else if (typeof body.reason === "string" && body.reason.length > 500) fields.reason = "Must be 500 characters or fewer.";
+    else if (typeof body.reason === "string" && body.reason.length > 500) fields.reason = "must be at most 500 characters";
     return fields;
   }
   function invalid(res, fields) {
     if (!Object.keys(fields).length) return false;
-    sendError(res, 400, "validation_failed", "Check the request fields.", fields);
+    sendError(res, 400, "validation_failed", "Some fields are invalid.", fields);
     return true;
   }
   function windowErrors(request, windows, timestamp, createdAt = Date.parse(request.createdAt)) {
@@ -96,11 +96,11 @@ export function registerResidentActions(route, store, { authenticate, send, vali
     if (request.status !== "Open") return sendError(res, 409, "not_open", "This request can't be edited now.");
     const fields = input(body, ["categoryId", "quantity", "notes", "windows", "photo"]);
     if (body && typeof body === "object" && !Array.isArray(body)) {
-      if (body.categoryId !== undefined && !store.categories.some(category => category.categoryId === body.categoryId)) fields.categoryId = "Choose a category.";
-      if (body.quantity !== undefined && (!Number.isSafeInteger(body.quantity) || body.quantity < 1)) fields.quantity = "Enter a positive whole number.";
+      if (body.categoryId !== undefined && !store.categories.some(category => category.categoryId === body.categoryId)) fields.categoryId = "unknown category";
+      if (body.quantity !== undefined && (!Number.isSafeInteger(body.quantity) || body.quantity < 1)) fields.quantity = "must be a whole number from 1 to 2147483647";
       if (body.notes !== undefined && body.notes !== null && typeof body.notes !== "string") fields.notes = "Enter text.";
       if (body.windows !== undefined) Object.assign(fields, windowErrors(request, body.windows, time));
-      if (body.photo !== undefined && !validPhoto(body.photo)) fields.photo = "Choose an uploaded photo.";
+      if (body.photo !== undefined && !validPhoto(body.photo)) fields["photo.fileId"] = "must be an uploaded file id";
     }
     if (invalid(res, fields)) return;
     for (const key of ["categoryId", "quantity", "notes", "photo"]) if (body[key] !== undefined) request[key] = body[key];
@@ -137,8 +137,8 @@ export function registerResidentActions(route, store, { authenticate, send, vali
     if (invalid(res, fields)) return;
     const owner = request.residentUid === user.uid;
     const volunteer = assignment?.volunteerId === user.uid;
-    if (body.as !== undefined && !["resident", "volunteer"].includes(body.as)) return sendError(res, 400, "validation_failed", "Choose a role.", { as: "Choose resident or volunteer." });
-    if (owner && volunteer && body.as === undefined) return sendError(res, 400, "validation_failed", "Choose a role.", { as: "Choose resident or volunteer." });
+    if (body.as !== undefined && !["resident", "volunteer"].includes(body.as)) return sendError(res, 400, "validation_failed", "Some fields are invalid.", { as: 'must be "resident" or "volunteer"' });
+    if (owner && volunteer && body.as === undefined) return sendError(res, 400, "validation_failed", "Some fields are invalid.", { as: "is required" });
     const as = body.as ?? "resident";
     if (as !== "resident") return sendError(res, 403, "forbidden", "Use the resident role for this action.");
     if (!assignment) return sendError(res, 409, "no_active_assignment", "There is no active assignment.");

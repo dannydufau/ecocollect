@@ -119,7 +119,7 @@ export function cancelAsVolunteer(req, res, { params, body = {} }, notify = () =
   const fields = isObject(body) ? extraFields(body, ["as", "reason"]) : { body: "Send an object." };
   if (isObject(body) && body.reason !== undefined && typeof body.reason !== "string") fields.reason = "Enter text.";
   if (Object.keys(fields).length) {
-    sendError(res, 400, "validation_failed", "Check the request fields.", fields);
+    sendError(res, 400, "validation_failed", "Some fields are invalid.", fields);
     return true;
   }
   const assignment = store.assignments.find((item) => item.requestId === request.requestId && !item.endedAt);
@@ -184,7 +184,7 @@ export function register(route, _store, { notify = () => {} } = {}) {
       if (typeof body.windowId !== "string" || !body.windowId) fields.windowId = "Choose a window.";
       if (typeof body.termsDocumentId !== "string" || !body.termsDocumentId) fields.termsDocumentId = "Accept the terms.";
     }
-    if (Object.keys(fields).length) return sendError(res, 400, "validation_failed", "Check the request fields.", fields);
+    if (Object.keys(fields).length) return sendError(res, 400, "validation_failed", "Some fields are invalid.", fields);
     const timestamp = now().toISOString();
     const time = Date.parse(timestamp);
     if (request.status === "Assigned") return sendError(res, 409, "already_assigned", "Another volunteer accepted this request first.");
@@ -196,7 +196,7 @@ export function register(route, _store, { notify = () => {} } = {}) {
       return sendError(res, 409, "expired", "This request has expired.");
     }
     const window = futureWindows(request, time).find((item) => item.windowId === body.windowId);
-    if (!window) return sendError(res, 400, "validation_failed", "Choose one of the request's future windows.", { windowId: "Choose one of the request's future windows." });
+    if (!window) return sendError(res, 400, "validation_failed", "Some fields are invalid.", { windowId: "must be an active window of this request that has not started" });
     if (body.termsDocumentId !== store.terms.at(-1).termsDocumentId) return sendError(res, 409, "terms_outdated", "The terms have changed. Please read and accept them again.");
 
     const assignment = {
@@ -221,12 +221,12 @@ export function register(route, _store, { notify = () => {} } = {}) {
     const facility = store.facilities.find((item) => item.facilityId === body?.facilityId);
     const fields = isObject(body) ? extraFields(body, ["facilityId", "evidencePhoto"]) : { body: "Send an object." };
     if (isObject(body)) {
-      if (!facility) fields.facilityId = "Choose a facility.";
-      else if (!facility.acceptedCategoryIds.includes(request.categoryId)) fields.facilityId = "This facility does not accept this category.";
+      if (!facility) fields.facilityId = "unknown facility";
+      else if (!facility.acceptedCategoryIds.includes(request.categoryId)) fields.facilityId = "does not accept this category";
       const photo = body.evidencePhoto;
-      if (!isObject(photo) || typeof photo.fileId !== "string" || !photo.fileId.trim()) fields["evidencePhoto.fileId"] = "Add a delivery photo.";
+      if (!isObject(photo) || typeof photo.fileId !== "string" || !photo.fileId.trim()) fields["evidencePhoto.fileId"] = "must be an uploaded file id";
     }
-    if (Object.keys(fields).length) return sendError(res, 400, "validation_failed", "Check the request fields.", fields);
+    if (Object.keys(fields).length) return sendError(res, 400, "validation_failed", "Some fields are invalid.", fields);
     const assignment = store.assignments
       .filter((item) => item.requestId === request.requestId && item.volunteerId === user.uid)
       .find((item) => !item.endedAt || item.endReason === "Delivered");

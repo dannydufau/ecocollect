@@ -45,7 +45,7 @@ async function accept() {
     fireEvent.click(await screen.findByRole("checkbox", { name: /accept the terms/ }));
 }
 const button = () => screen.getByRole("button", { name: "Confirm and send" });
-const failure = (status: number, code: string, fields?: Record<string, string>) => new apiModule.ApiError(status, { error: { code, message: "Check the request.", details: { fields } } });
+const failure = (status: number, code: string, fields?: Record<string, string>) => new apiModule.ApiError(status, { error: { code, message: "Some fields are invalid.", details: { fields } } });
 beforeEach(() => {
     vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-11-20T18:00:00Z"));
     termsId = "t1"; push.mockReset();
@@ -127,25 +127,25 @@ it("says why Send is disabled until the terms are accepted", async () => {
     expect(screen.queryByText("Accept the terms above to send.")).not.toBeInTheDocument();
 });
 it("moves focus to the first field the server rejected", async () => {
-    vi.mocked(apiModule.apiFetch).mockRejectedValueOnce(failure(400, "validation_error", { "items[0].quantity": "Choose a smaller quantity." }));
+    vi.mocked(apiModule.apiFetch).mockRejectedValueOnce(failure(400, "validation_failed", { "items[0].quantity": "must be at least 1" }));
     mount(); await fill(); await accept(); fireEvent.click(button());
-    await screen.findByText("Choose a smaller quantity.");
+    await screen.findByText("Please enter a whole number, 1 or more.");
     await waitFor(() => expect(screen.getByLabelText("Quantity")).toHaveFocus());
 });
 it("shows a server quantity error on its row and clears it when edited", async () => {
-    vi.mocked(apiModule.apiFetch).mockRejectedValueOnce(failure(400, "validation_error", { "items[0].quantity": "Choose a smaller quantity." }));
+    vi.mocked(apiModule.apiFetch).mockRejectedValueOnce(failure(400, "validation_failed", { "items[0].quantity": "must be at least 1" }));
     mount(); await fill(); await accept(); fireEvent.click(button());
-    await screen.findByText("Choose a smaller quantity.");
-    expect(screen.getByLabelText("Quantity")).toHaveAccessibleDescription("Choose a smaller quantity.");
+    await screen.findByText("Please enter a whole number, 1 or more.");
+    expect(screen.getByLabelText("Quantity")).toHaveAccessibleDescription("Please enter a whole number, 1 or more.");
     fireEvent.change(screen.getByLabelText("Quantity"), { target: { value: "1" } });
-    expect(screen.queryByText("Choose a smaller quantity.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Please enter a whole number, 1 or more.")).not.toBeInTheDocument();
     expect(push).not.toHaveBeenCalled();
 });
 it("shows indexed window and notes field errors", async () => {
-    vi.mocked(apiModule.apiFetch).mockRejectedValueOnce(failure(400, "validation_error", { "windows[0].date": "Choose another day.", notes: "Shorten the notes." }));
+    vi.mocked(apiModule.apiFetch).mockRejectedValueOnce(failure(400, "validation_failed", { "windows[0]": "must start in the future", notes: "must be at most 500 characters" }));
     mount(); await fill(); await accept(); fireEvent.click(button());
-    await screen.findByText("Choose another day.");
-    expect(screen.getByLabelText("Notes (optional)")).toHaveAccessibleDescription(/Shorten the notes\./);
+    await screen.findByText("This pickup window has already started. Please choose a later one.");
+    expect(screen.getByLabelText("Notes (optional)")).toHaveAccessibleDescription(/Please use 500 characters or fewer\./);
 });
 it("reloads outdated terms and requires acceptance again before retrying", async () => {
     vi.mocked(apiModule.apiFetch).mockRejectedValueOnce(failure(409, "terms_outdated"));
@@ -270,14 +270,15 @@ it("uses the shared heading size and the named text sizes on the review step", a
     expect(screen.getByText("Times are Calgary time.")).toHaveClass("text-caption");
     expect(screen.getByText("Accept the terms above to send.")).toHaveClass("text-small");
 });
-it("shows the invalid_photo field error under the item's picker", async () => {
-    vi.mocked(apiModule.apiFetch).mockRejectedValue(failure(400, "invalid_photo", { "items[0].photo": "This photo could not be used." }));
+it("shows a failed photo check under the item's picker and points to it", async () => {
+    vi.mocked(apiModule.apiFetch).mockRejectedValue(failure(400, "validation_failed", { "items[0].photo.fileId": "photo check failed" }));
     mount(); await fill();
     fireEvent.click(screen.getByRole("button", { name: "Upload photo" }));
     await accept();
     fireEvent.click(button());
     const row = await screen.findByRole("group", { name: "Item 1" });
-    await waitFor(() => expect(within(row).getByRole("alert")).toHaveTextContent("This photo could not be used."));
+    await waitFor(() => expect(within(row).getByRole("alert")).toHaveTextContent("We couldn't use this photo. Please remove it and add it again."));
+    expect(screen.getByText("Please check the highlighted fields.")).toBeInTheDocument();
 });
 it("has one heading and the step indicator on each step", async () => {
     mount(); await fill();

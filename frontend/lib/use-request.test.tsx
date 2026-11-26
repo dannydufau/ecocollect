@@ -137,18 +137,21 @@ it("invalidates the request when the action gets a 404", async () => {
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["request", "r1"] });
 });
 it("returns the error so forms can read the field errors", async () => {
-    const fields = { "windows.0.endAt": "Must be after the start" };
-    const call = vi.fn().mockRejectedValue(new ApiError(400, { error: { code: "validation_error", message: "Check the form.", details: { fields } } }));
+    const fields = { "windows[0]": "must start in the future" };
+    const call = vi.fn().mockRejectedValue(new ApiError(400, { error: { code: "validation_failed", message: "Some fields are invalid.", details: { fields } } }));
     const { result } = renderHook(() => useRequestAction("r1", call), { wrapper });
     act(() => result.current.run(undefined)); await tick();
-    expect((result.current.error as ApiError).fields).toEqual(fields);
+    expect((result.current.error as ApiError).fields).toEqual({ "windows[0]": "This pickup window has already started. Please choose a later one." });
 });
-it("shows validation errors without invalidating data", async () => {
-    const call = vi.fn().mockRejectedValue(new ApiError(400, { error: { code: "validation_error", message: "Check the quantity." } }));
+it.each([
+    [{ reason: "must be at most 500 characters", windowId: "must be an active window of this request that has not started" }, "This pickup window has started or is no longer offered. Please choose another one."],
+    [{ reason: "must be at most 500 characters" }, "Please check the highlighted fields."],
+])("says the field errors a dialog has no input for, without invalidating data: %j", async (fields, message) => {
+    const call = vi.fn().mockRejectedValue(new ApiError(400, { error: { code: "validation_failed", message: "Some fields are invalid.", details: { fields } } }));
     const invalidate = vi.spyOn(client, "invalidateQueries");
     const { result } = renderHook(() => useRequestAction("r1", call), { wrapper });
     act(() => result.current.run(undefined)); await tick();
-    expect(result.current.message).toBe("Check the quantity.");
+    expect(result.current.message).toBe(message);
     expect(invalidate).not.toHaveBeenCalled();
 });
 it("stays pending while sending and clears an earlier error on the next attempt", async () => {

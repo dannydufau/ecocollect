@@ -131,7 +131,7 @@ it("refetches the terms and shows the contract sentence when they are outdated",
 });
 
 it("shows a 400 field error under its input", async () => {
-    vi.mocked(api.post).mockRejectedValue(new ApiError(400, { error: { code: "validation_error", message: "bad", details: { fields: { "address.street": "Enter your street." } } } }));
+    vi.mocked(api.post).mockRejectedValue(new ApiError(400, { error: { code: "validation_failed", message: "Some fields are invalid.", details: { fields: { "address.street": "Enter your street." } } } }));
     await show(volunteer);
     type("Street", "9 New Rd");
     type("Postal code", "T3A0B1");

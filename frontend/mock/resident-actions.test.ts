@@ -71,6 +71,10 @@ it.each([null, [], { quantity: 0 }, { notes: 5 }, { photo: { fileId: "" } }, { a
     expect(call("PATCH", request, "", body).status).toBe(400);
     expect(JSON.stringify(request)).toBe(snapshot);
 });
+it("names a bad photo photo.fileId, as the Request Service does for Q9", () => {
+    const request = data.requests.find(item => item.status === "Open")!;
+    expect(call("PATCH", request, "", { photo: { fileId: "" } }).body.error.details.fields).toEqual({ "photo.fileId": "must be an uploaded file id" });
+});
 it("cancels an Open request with a reason and refuses a second cancellation", () => {
     const request = data.requests.find(item => item.status === "Open")!;
     expect(call("POST", request, "/cancel", { reason: "Plans changed" }).body.status).toBe("Cancelled");

@@ -34,7 +34,7 @@ function validate(body, timestamp, categories, createdAt = timestamp) {
   extraFields(body, ["items", "windows", "notes", "termsDocumentId"], "", fields);
   if (typeof body.termsDocumentId !== "string" || !body.termsDocumentId.trim()) fields.termsDocumentId = "Accept the terms.";
   if (body.notes !== undefined && typeof body.notes !== "string") fields.notes = "Enter text.";
-  else if (typeof body.notes === "string" && body.notes.length > 500) fields.notes = "Must be 500 characters or fewer.";
+  else if (typeof body.notes === "string" && body.notes.length > 500) fields.notes = "must be at most 500 characters";
   if (!Array.isArray(body.items) || !body.items.length) fields.items = "Add at least one category.";
   else {
     const selected = new Set();
@@ -45,10 +45,10 @@ function validate(body, timestamp, categories, createdAt = timestamp) {
         return;
       }
       extraFields(item, ["categoryId", "quantity", "photo"], `${path}.`, fields);
-      if (!categories.some((category) => category.categoryId === item.categoryId)) fields[`${path}.categoryId`] = "Choose a category.";
-      else if (selected.has(item.categoryId)) fields[`${path}.categoryId`] = "Already selected.";
+      if (!categories.some((category) => category.categoryId === item.categoryId)) fields[`${path}.categoryId`] = "unknown category";
+      else if (selected.has(item.categoryId)) fields[`${path}.categoryId`] = "already selected";
       selected.add(item.categoryId);
-      if (!Number.isSafeInteger(item.quantity) || item.quantity < 1) fields[`${path}.quantity`] = "Enter a positive whole number.";
+      if (!Number.isSafeInteger(item.quantity) || item.quantity < 1) fields[`${path}.quantity`] = "must be a whole number from 1 to 2147483647";
       if (item.photo !== undefined) {
         if (!item.photo || typeof item.photo !== "object" || Array.isArray(item.photo) ||
             typeof item.photo.fileId !== "string" || !item.photo.fileId.trim()) fields[`${path}.photo.fileId`] = "Choose an uploaded photo.";
@@ -56,9 +56,9 @@ function validate(body, timestamp, categories, createdAt = timestamp) {
       }
     });
   }
-  if (!Array.isArray(body.windows) || body.windows.length < 1 || body.windows.length > 3) fields.windows = "Choose one to three windows.";
+  if (!Array.isArray(body.windows) || body.windows.length < 1 || body.windows.length > 3) fields.windows = "must have 1 to 3 windows";
   else {
-    const slots = new Set();
+    const slots = new Map(); // slot -> index of its first window
     body.windows.forEach((window, index) => {
       const path = `windows[${index}]`;
       if (!window || typeof window !== "object" || Array.isArray(window)) {
@@ -78,10 +78,11 @@ function validate(body, timestamp, categories, createdAt = timestamp) {
       }
       const start = windowStart(window.date, window.startHour).getTime();
       const slot = `${window.date}-${window.startHour}`;
-      if (slots.has(slot)) fields[path] = "Choose a different date or hour.";
-      else if (start <= timestamp) fields[path] = "Choose a future pickup window.";
-      else if (start + HOUR > createdAt + 30 * DAY) fields[path] = "The window must end within 30 days.";
-      slots.add(slot);
+      // Same order and wording as the Request Service's req_validate_windows
+      if (start <= timestamp) fields[path] = "must start in the future";
+      else if (start + HOUR > createdAt + 30 * DAY) fields[path] = "must end within 30 days of the request's creation";
+      else if (slots.has(slot)) fields[path] = `same slot as windows[${slots.get(slot)}]`;
+      if (!slots.has(slot)) slots.set(slot, index);
     });
   }
   return fields;
@@ -180,7 +181,7 @@ export function register(route, store, { notify = () => {} } = {}) {
     const saved = savedResponses.get(cacheKey);
     if (key && saved && timestamp - saved.timestamp < DAY) return send(res, 201, saved.body);
     const fields = validate(body, timestamp, store.categories);
-    if (Object.keys(fields).length) return sendError(res, 400, "validation_failed", "Check the request fields.", fields);
+    if (Object.keys(fields).length) return sendError(res, 400, "validation_failed", "Some fields are invalid.", fields);
     if (body.termsDocumentId !== store.terms.at(-1).termsDocumentId) return sendError(res, 409, "terms_outdated", "The terms have changed. Please read and accept them again.");
     if (!user.account?.address) return sendError(res, 403, "forbidden", "A resident profile is required.");
     const createdAt = new Date(timestamp).toISOString();

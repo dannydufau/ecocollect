@@ -164,8 +164,9 @@ describe("resident mock routes", () => {
         body.windows[1] = body.windows[0];
         const result = call("POST", "/api/requests", "demo-resident-1", body);
         expect(result.status).toBe(400);
-        expect(result.body.error.details.fields).toHaveProperty("items[1].categoryId");
-        expect(result.body.error.details.fields).toHaveProperty("windows[1]");
+        // The Request Service's wording, so the frontend's translation is exercised
+        expect(result.body.error).toMatchObject({ code: "validation_failed", message: "Some fields are invalid." });
+        expect(result.body.error.details.fields).toMatchObject({ "items[1].categoryId": "already selected", "windows[1]": "same slot as windows[0]" });
         expect(mockStore.requests).toHaveLength(Object.keys(fixtureRequests).length);
     });
 

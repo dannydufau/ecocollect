@@ -45,7 +45,7 @@ describe("sendError", () => {
     });
 
     it("puts field errors under details.fields", () => {
-        const { body } = send(400, "validation_error", "Bad input", { quantity: "must be positive" });
-        expect(body.error.details).toEqual({ fields: { quantity: "must be positive" } });
+        const { body } = send(400, "validation_failed", "Some fields are invalid.", { quantity: "must be at least 1" });
+        expect(body.error.details).toEqual({ fields: { quantity: "must be at least 1" } });
     });
 });

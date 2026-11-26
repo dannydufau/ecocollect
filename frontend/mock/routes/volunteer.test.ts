@@ -190,7 +190,7 @@ it("Q15 checks the facility, the collection and a second delivery", () => {
     const deliver = (facilityId: string, id = collected.requestId) =>
         call("POST", `/api/requests/${id}/assignment/delivery`, "demo-volunteer-1", { facilityId, evidencePhoto: { fileId: "mock-1" } });
 
-    expect(deliver("mock-facility-3").status).toBe(400);
+    expect(deliver("mock-facility-3").body.error).toMatchObject({ code: "validation_failed", details: { fields: { facilityId: "does not accept this category" } } });
     expect(deliver("mock-facility-1", seeded("Assigned").requestId).body.error.code).toBe("not_collected");
     const delivered = deliver("mock-facility-1");
     expect(delivered.status).toBe(200);
