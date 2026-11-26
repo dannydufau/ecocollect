@@ -74,8 +74,12 @@ test('N3 lists the caller\'s notifications in the contract shape, with the unrea
   });
 
   assert.deepEqual(await (await call('', 'uid_other')).json(), { unreadCount: 0, notifications: [] });
-  assert.equal((await call('?limit=0', 'uid_v1')).status, 400);
-  assert.equal((await call('?before=yesterday', 'uid_v1')).status, 400);
+  // A 400 names the bad field.
+  for (const [query, field] of [['?limit=0', 'limit'], ['?before=yesterday', 'before']]) {
+    const bad = await call(query, 'uid_v1');
+    assert.equal(bad.status, 400);
+    assert.deepEqual(Object.keys((await bad.json()).error.details.fields), [field]);
+  }
 });
 
 test('N4 marks the caller\'s own notification read and tells their tabs; anyone else gets 404', async (t) => {
