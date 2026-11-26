@@ -363,7 +363,9 @@ export interface paths {
         /**
          * Q12. Cancel the assignment (owner or volunteer)
          * @description A volunteer can cancel any time before collection (FR14). A resident only until the selected window ends
-         *     (FR11). The request then reopens, or expires if it is past `expiresAt`.
+         *     (FR11). The request then reopens, or expires if it is past `expiresAt`. When a volunteer's cancel
+         *     expires the request, the answer is `404 request_unavailable`: the cancel was saved, but the volunteer
+         *     can no longer see the request (README Q12, 16.13).
          */
         post: operations["cancelAssignment"];
         delete?: never;
@@ -1704,10 +1706,10 @@ export interface operations {
                      * @example {
                      *       "error": {
                      *         "code": "validation_failed",
-                     *         "message": "Choose an existing category.",
+                     *         "message": "Some fields are invalid.",
                      *         "details": {
                      *           "fields": {
-                     *             "categoryId": "Unknown category."
+                     *             "categoryId": "unknown category"
                      *           }
                      *         }
                      *       }
@@ -1867,7 +1869,29 @@ export interface operations {
                     };
                 };
             };
-            400: components["responses"]["ValidationError"];
+            /** @description One entry per field in `error.details.fields`, for example a photo that failed the check or a window that has started. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "validation_failed",
+                     *         "message": "Some fields are invalid.",
+                     *         "details": {
+                     *           "fields": {
+                     *             "items[1].photo.fileId": "photo check failed",
+                     *             "windows[0]": "must start in the future"
+                     *           }
+                     *         }
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             /** @description The terms changed: reload them and ask again. */
@@ -2014,7 +2038,28 @@ export interface operations {
                     "application/json": components["schemas"]["RequestDetail"];
                 };
             };
-            400: components["responses"]["ValidationError"];
+            /** @description One entry per field in `error.details.fields`. The item's fields are named at the top (`categoryId`, `quantity`, `photo.fileId`); a photo that failed the check is `photo.fileId`. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "validation_failed",
+                     *         "message": "Some fields are invalid.",
+                     *         "details": {
+                     *           "fields": {
+                     *             "photo.fileId": "photo check failed"
+                     *           }
+                     *         }
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -2320,7 +2365,29 @@ export interface operations {
                     "application/json": components["schemas"]["RequestDetail"];
                 };
             };
-            400: components["responses"]["ValidationError"];
+            /** @description One entry per field in `error.details.fields`: a facility that does not accept the category (FR17), or an evidence photo that failed the check (README 6.5). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "validation_failed",
+                     *         "message": "Some fields are invalid.",
+                     *         "details": {
+                     *           "fields": {
+                     *             "facilityId": "does not accept this category",
+                     *             "evidencePhoto.fileId": "photo check failed"
+                     *           }
+                     *         }
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
