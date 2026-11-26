@@ -19,7 +19,7 @@
    ```
 
    and set up the User Service login as in [backend/scripts/user/README.md](./backend/scripts/user/README.md), then put the same password in `USER_DATABASE_URL` in `.env`.
-   Then load the Notification Service's procedures: `backend/scripts/notification/load-db.sh`.
+   Then set `NOTIFICATION_DB_PASSWORD` and `NOTIFICATION_DATABASE_URL` the same way and load the Notification Service's tables, functions and login: `backend/scripts/notification/load-db.sh`. Compose also needs the `VAPID_*` push keys in `.env` (see `.env.example`) before any command works.
 
 4. Start it:
 
