@@ -20,7 +20,7 @@ Rechecked on PostgreSQL 16.6: the documented file order builds a fresh database 
 | `transactions.sql` | Creates procedures for checking related rows and new requests, accepting a request, adding a preferred postal code, attaching an item photo and removing a facility/category link. |
 | `seed.sql` | Adds related sample data to every table. |
 | `verify.sql` | Checks the dataset, tests valid changes and confirms that invalid writes are rejected. Test changes are rolled back. |
-| [tests.sql](tests.sql) | Runs `verify.sql` and adds ten assertions for database structure, data changes, query results and rollback. |
+| [tests.sql](tests.sql) | Runs `verify.sql` and adds 13 assertions for database structure, data changes, query results, rollback, and deactivation cleanup. |
 | `verify_concurrency.py` | Uses two database connections to test limits when writes happen at the same time. Requires Python 3 and `psql`. |
 | `results/` | Saved output from the verification and concurrency checks. |
 
@@ -145,10 +145,21 @@ To repeat the SQL tests against the same seeded database, run `psql -X -d ecocol
 | DB08 | One eligibility link is removed, its replacement is present, and the business-rule procedure accepts the change. | Pass |
 | DB09 | An account update changes exactly one row and returns the new value on readback. | Pass |
 | DB10 | Rollback restores the seed records affected by the test writes. | Pass |
+| DB11 | A new request with its initial Open status and zero consumed events passes the business-rule checks. | Pass |
+| DB12 | Active work blocks deactivation with SQLSTATE `23514` and the attempted change rolls back. | Pass |
+| DB13 | Cleanup removes the deactivated account's subscriptions, notifications and source rows. Other accounts' rows and historical requests, assignments, awards and terms acceptances remain. | Pass |
 | Existing SQL verification | Valid writes succeed and 41 invalid writes are rejected with their expected SQLSTATEs. | Pass on both runs |
 | Concurrent writes | Six competing writes wait on the parent lock and fail with SQLSTATE `23514` after the first writer commits. | Pass |
 
-Both SQL runs and the concurrency run passed on PostgreSQL 18.6 on November 26, 2026. The [saved output](results/database-tests.txt) records the setup, assertions and concurrency results. The retrieval cases above cover representative queries on the course dataset. Verify the complete numbered operations catalog against the same seed once [PR #443](https://github.com/dannydufau/ecocollect/pull/443) is merged into `main`.
+Both SQL runs and the concurrency run passed on PostgreSQL 18.6 on November 26, 2026, against the course SQL on `main` at `b8ca8d3`. The [saved output](results/database-tests.txt) records the setup, assertions, and concurrency results. DB13 exercises the cleanup SQL. E16 publication and consumption require a service integration run.
+
+After the tests, run the merged query catalog against the same database:
+
+```sh
+psql -X -a -v ON_ERROR_STOP=1 -d ecocollect608_test -f "../5. Database operations and queries/operations.sql"
+```
+
+All 25 operations completed. The delivered-weight query returned two requests totaling 5.60 kg of estimated weight. The [catalog run output](results/query-catalog-tests.txt) records the statements and results.
 
 ### Earlier PostgreSQL 16.6 verification
 
@@ -162,4 +173,4 @@ Tested on PostgreSQL 16.6:
 - Valid cases cover replacement edits, a recalculated replacement estimate, delayed events, late cancellation awards and accepting an available request with current terms.
 - Two concurrent connections were tested for duplicate unfinished assignments, a fourth preferred code, duplicate awards for one assignment and role, a photo used for both an item and delivery evidence, and concurrent removals of the last facility/category links in both directions. In each case the second writer waited for the parent lock and was rejected after the first committed.
 
-`verify.sql` prints request-state counts, award totals and notification-source counts. The separate database-operations deliverable will use this dataset for its numbered queries and saved results.
+`verify.sql` prints request-state counts, award totals and notification-source counts. The [database operations catalog](<../5. Database operations and queries/README.md>) uses the same dataset.
