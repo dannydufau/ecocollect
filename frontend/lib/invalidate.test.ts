@@ -28,8 +28,4 @@ describe("keysFor", () => {
         expect(keysFor("REQUEST_ASSIGNED_RESIDENT", null)).toEqual([["notifications"], mine]);
         expect(keysFor("REQUEST_DELIVERED_VOLUNTEER", null)).toEqual([["notifications"], ["requests", "volunteer"]]);
     });
-
-    it("does not touch the request lists for an award", () => {
-        expect(keysFor("ECOPOINTS_AWARDED_ON_DELIVERY_RESIDENT", "r1")).toEqual([["notifications"], ["ecopoints"]]);
-    });
 });

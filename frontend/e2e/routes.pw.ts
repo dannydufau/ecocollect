@@ -1,10 +1,11 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { openRoute } from "./helpers";
+import { fontsLoaded, width } from "./session";
 import { routes } from "./routes";
 
 for (const route of routes) {
-    test(`${route.name} loads without browser errors`, async ({ page }) => {
+    test(`${route.name} loads with the expected title, headings and layout`, async ({ page }) => {
         const errors: string[] = [];
         page.on("pageerror", error => errors.push(error.message));
         page.on("console", message => {
@@ -12,6 +13,17 @@ for (const route of routes) {
         });
         await openRoute(page, route);
         await expect(page).toHaveTitle(route.title);
+        await fontsLoaded(page);
+        if ([375, 1280].includes(width(page))) {
+            const levels = await page.evaluate(() => [...document.querySelectorAll("h1, h2, h3, h4, h5, h6")]
+                .filter(heading => heading.checkVisibility()).map(heading => Number(heading.tagName[1])));
+            expect(levels[0], `heading levels: ${levels.join(" ")}`).toBe(1);
+            levels.slice(1).forEach((level, index) => expect(level - levels[index], `heading levels: ${levels.join(" ")}`).toBeLessThanOrEqual(1));
+        }
+        if ([320, 375, 768].includes(width(page))) {
+            const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+            expect(overflow, "pixels past the right edge").toBeLessThanOrEqual(0);
+        }
         expect(errors).toEqual([]);
     });
 

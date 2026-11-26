@@ -14,7 +14,7 @@ const check = (values: Partial<AccountValues>, base = resident) => validateAccou
 describe("normalizing", () => {
     it("lowercases and trims the username", () => expect(normalizeUsername("  Abc_1 ")).toBe("abc_1"));
     it("uppercases a postal code and removes the spaces", () => expect(normalizePostalCode(" t2p 1j9 ")).toBe("T2P1J9"));
-    it("finds the oldest allowed birth date", () => expect(eighteenYearsAgo(today)).toBe("2008-11-16"));
+    it("finds the latest birth date eligible for registration", () => expect(eighteenYearsAgo(today)).toBe("2008-11-16"));
     it("finds a real date when today is 29 February", () => expect(eighteenYearsAgo("2028-02-29")).toBe("2010-02-28"));
 });
 

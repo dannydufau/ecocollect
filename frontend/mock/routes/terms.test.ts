@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
+import { mockResponse } from "@/test/mock-response";
 import { seed, store } from "../store.mjs";
 import { register as registerResident } from "./resident.mjs";
 import { register } from "./terms.mjs";
@@ -7,11 +8,7 @@ import { register } from "./terms.mjs";
 let handler: (req: IncomingMessage, res: ServerResponse) => void;
 
 function getTerms() {
-    const response = {
-        status: 0, text: "",
-        writeHead(status: number) { this.status = status; return this; },
-        end(text: string) { this.text = text; return this; },
-    };
+    const response = mockResponse();
     handler({ headers: {} } as IncomingMessage, response as unknown as ServerResponse);
     return { status: response.status, body: JSON.parse(response.text) };
 }
@@ -22,7 +19,6 @@ function load() {
     register((_method: string, _path: string, routeHandler: typeof handler) => { handler = routeHandler; }, store);
 }
 
-beforeEach(() => seed());
 afterEach(() => vi.unstubAllEnvs());
 
 it("serves the same terms id that creating a request checks", () => {

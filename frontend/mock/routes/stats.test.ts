@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { beforeEach, expect, it } from "vitest";
+import { mockResponse } from "@/test/mock-response";
 import { seed, store } from "../store.mjs";
 import { register as registerResident } from "./resident.mjs";
 import { register } from "./stats.mjs";
@@ -10,11 +11,7 @@ let handler: (req: IncomingMessage, res: ServerResponse) => void;
 
 // No cookie and no Authorization header: R2 is public
 function getStats() {
-    const response = {
-        status: 0, text: "",
-        writeHead(status: number) { this.status = status; return this; },
-        end(text: string) { this.text = text; return this; },
-    };
+    const response = mockResponse();
     handler({ headers: {} } as IncomingMessage, response as unknown as ServerResponse);
     return { status: response.status, body: JSON.parse(response.text) };
 }

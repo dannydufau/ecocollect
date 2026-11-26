@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { beforeEach, expect, it } from "vitest";
+import { mockResponse } from "@/test/mock-response";
 import { seed, store } from "../store.mjs";
 import { register as registerResident } from "./resident.mjs";
 import { register } from "./demo.mjs";
@@ -14,11 +15,7 @@ beforeEach(() => {
 });
 
 it("answers 200 with a custom token for a new account with both roles, without a login", () => {
-    const response = {
-        status: 0, text: "",
-        writeHead(status: number) { this.status = status; return this; },
-        end(text: string) { this.text = text; return this; },
-    };
+    const response = mockResponse();
     handler({ headers: {} } as IncomingMessage, response as unknown as ServerResponse);
     expect(response.status).toBe(200);
     const { customToken } = JSON.parse(response.text);

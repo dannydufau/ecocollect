@@ -3,6 +3,7 @@ import path from "node:path";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { mockResponse } from "@/test/mock-response";
 import { seed, store } from "../store.mjs";
 
 type StoredWindow = { windowId: string; date: string; startHour: number };
@@ -32,11 +33,7 @@ async function loadRoutes() {
 
 function call(method: string, target: string, user: string | null = "demo-volunteer-1", body?: unknown) {
     const url = new URL(target, "http://localhost");
-    const response = {
-        status: 0, text: "",
-        writeHead(status: number) { this.status = status; return this; },
-        end(text?: string) { this.text = text ?? ""; return this; },
-    };
+    const response = mockResponse();
     for (const route of routes) {
         const match = route.regex.exec(url.pathname);
         if (route.method !== method || !match) continue;

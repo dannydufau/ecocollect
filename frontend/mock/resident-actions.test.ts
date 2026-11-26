@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { mockResponse } from "@/test/mock-response";
 import { seed, store } from "./store.mjs";
 import { windowStart } from "./detail.mjs";
 import { register } from "./routes/resident.mjs";
@@ -14,7 +15,7 @@ const notify = vi.fn();
 const HOUR = 3600000;
 function call(method: string, request: Request, suffix = "", body?: unknown, user = "demo-resident-1") {
     const path = `/api/requests/${request.requestId}${suffix}`;
-    const response = { status: 0, text: "", writeHead(status: number) { this.status = status; return this; }, end(text: string) { this.text = text; return this; } };
+    const response = mockResponse();
     routes.get(`${method} /api/requests/:id${suffix}`)!({ headers: user ? { authorization: `Bearer ${user}` } : {} } as IncomingMessage, response as unknown as ServerResponse, { body, params: { id: request.requestId }, url: new URL(path, "http://localhost") });
     return { status: response.status, body: JSON.parse(response.text) };
 }

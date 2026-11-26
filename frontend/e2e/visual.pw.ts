@@ -66,19 +66,17 @@ test.describe("motion", () => {
     test("primary buttons, link buttons and chips scale down while pressed", async ({ page }) => {
         test.skip(width(page) !== 1280, "Needs a mouse.");
         await openPage(page, "/resident", resident);
-        const pressed = async (selector: string) => {
+        const expectPressed = async (selector: string, label: string) => {
             const target = page.locator(selector).first();
             await target.hover();
             await page.mouse.down();
-            await page.waitForTimeout(250);
-            const scale = await target.evaluate(element => getComputedStyle(element).scale);
+            await expect.poll(() => target.evaluate(element => Number(getComputedStyle(element).scale)), { message: label }).toBeLessThan(1);
             // Let go away from the control, so a link does not open and a chip does not change
             await page.mouse.move(0, 0);
             await page.mouse.up();
-            return scale;
         };
-        expect(Number(await pressed("main a.bg-accent")), "a link button").toBeLessThan(1);
-        expect(Number(await pressed('main [role="group"] button')), "a chip").toBeLessThan(1);
+        await expectPressed("main a.bg-accent", "a link button");
+        await expectPressed('main [role="group"] button', "a chip");
     });
 
     test("a dialog opens in 200 ms and closes in 150 ms", async ({ page, browserName }) => {
@@ -155,22 +153,28 @@ test.describe("badges, fields and sizes", () => {
         await expect(message.locator("svg[aria-hidden=true]")).toHaveCount(1);
     });
 
-    test("buttons and links on a phone are at least 24 px, and primary buttons at least 44 px", async ({ page }) => {
-        test.skip(width(page) !== 375, "Checked on the phone.");
-        for (const path of ["/resident", `/resident/requests/${fixtureRequests.Assigned}`, "/volunteer", "/resident/requests/new"]) {
-            await openPage(page, path, resident);
-        }
-        const small = await page.evaluate(() => {
-            const found: string[] = [];
-            for (const element of document.querySelectorAll("button, a[href]")) {
-                if (!(element as HTMLElement).checkVisibility() || element.closest("[class*='sr-only']") || element.matches("[class*='sr-only']")) continue;
-                if (element.closest("p, li") && element.matches("a:not([class*='button'])") && element.closest("p")) continue;   // a link inside a sentence is exempt (WCAG 2.5.8)
-                const box = element.getBoundingClientRect();
-                const primary = getComputedStyle(element).backgroundColor === "rgb(158, 82, 32)";
-                if (box.height < (primary ? 44 : 24) || box.width < 24) found.push(`${element.textContent?.trim().slice(0, 24) || element.getAttribute("aria-label")} ${Math.round(box.width)}x${Math.round(box.height)}${primary ? " (primary)" : ""}`);
-            }
-            return found;
+    for (const [path, account] of [
+        ["/resident", resident],
+        [`/resident/requests/${fixtureRequests.Assigned}`, resident],
+        ["/volunteer", fixtureAccounts.volunteer],
+        ["/resident/requests/new", resident],
+    ] as const) {
+        test(`${path}: phone controls meet the minimum touch size`, async ({ page }) => {
+            test.skip(width(page) !== 375, "Checked on the phone.");
+            await openPage(page, path, account);
+            await expect(page).toHaveURL(path);
+            const small = await page.evaluate(() => {
+                const found: string[] = [];
+                for (const element of document.querySelectorAll("button, a[href]")) {
+                    if (!(element as HTMLElement).checkVisibility() || element.closest("[class*='sr-only']") || element.matches("[class*='sr-only']")) continue;
+                    if (element.closest("p, li") && element.matches("a:not([class*='button'])") && element.closest("p")) continue;   // a link inside a sentence is exempt (WCAG 2.5.8)
+                    const box = element.getBoundingClientRect();
+                    const primary = getComputedStyle(element).backgroundColor === "rgb(158, 82, 32)";
+                    if (box.height < (primary ? 44 : 24) || box.width < 24) found.push(`${element.textContent?.trim().slice(0, 24) || element.getAttribute("aria-label")} ${Math.round(box.width)}x${Math.round(box.height)}${primary ? " (primary)" : ""}`);
+                }
+                return found;
+            });
+            expect(small, `controls that are too small on ${path}`).toEqual([]);
         });
-        expect(small, "controls that are too small").toEqual([]);
-    });
+    }
 });

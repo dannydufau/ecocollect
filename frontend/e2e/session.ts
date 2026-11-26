@@ -1,10 +1,13 @@
 import { expect, type Page } from "@playwright/test";
 import { mockNow } from "./fixtures";
 
-// Signed in as a mock account (or signed out with null), on the fixed clock, and the page settled
-export async function openPage(page: Page, path: string, account: string | null): Promise<void> {
+export async function prepareSession(page: Page, account: string | null): Promise<void> {
     await page.clock.setFixedTime(new Date(mockNow));
     await page.addInitScript(id => sessionStorage.setItem("e2e-account", id ?? ""), account);
+}
+
+export async function openPage(page: Page, path: string, account: string | null): Promise<void> {
+    await prepareSession(page, account);
     await page.goto(path);
     await page.locator("h1").first().waitFor();
     await expect(page.getByRole("status").filter({ hasText: /Loading/i })).toHaveCount(0);
