@@ -1,0 +1,163 @@
+[
+ {
+  "page": "/login",
+  "ttfb": 151,
+  "fcp": 724,
+  "lcp": 724,
+  "contentReady": 1911,
+  "cls": 0,
+  "blockingMs": 36,
+  "requests": 30,
+  "kb": 283,
+  "jsKb": 213,
+  "lcpEl": "H1 Sign in to EcoCollect",
+  "api": []
+ },
+ {
+  "page": "/register",
+  "ttfb": 151,
+  "fcp": 704,
+  "lcp": 704,
+  "contentReady": 2155,
+  "cls": 0,
+  "blockingMs": 44,
+  "requests": 25,
+  "kb": 277,
+  "jsKb": 209,
+  "lcpEl": "P You can add the other role lat",
+  "api": [
+   "/api/terms"
+  ]
+ },
+ {
+  "page": "/stats",
+  "ttfb": 151,
+  "fcp": 716,
+  "lcp": 716,
+  "contentReady": 2093,
+  "cls": 0.071,
+  "blockingMs": 37,
+  "requests": 26,
+  "kb": 270,
+  "jsKb": 206,
+  "lcpEl": "H1 Community impact",
+  "api": [
+   "/api/public/stats",
+   "/api/public/events"
+  ]
+ },
+ {
+  "page": "/resident",
+  "ttfb": 151,
+  "fcp": 720,
+  "lcp": 2216,
+  "contentReady": 2668,
+  "cls": 0,
+  "blockingMs": 20,
+  "requests": 51,
+  "kb": 306,
+  "jsKb": 221,
+  "lcpEl": "H1 My requests",
+  "api": [
+   "/api/profile",
+   "/api/session",
+   "/api/notifications",
+   "/api/requests",
+   "/api/events",
+   "/api/notifications",
+   "/api/requests"
+  ]
+ },
+ {
+  "page": "/resident/requests/new",
+  "ttfb": 151,
+  "fcp": 716,
+  "lcp": 2324,
+  "contentReady": 2711,
+  "cls": 0.027,
+  "blockingMs": 38,
+  "requests": 48,
+  "kb": 299,
+  "jsKb": 221,
+  "lcpEl": "P Add the items you want collect",
+  "api": [
+   "/api/profile",
+   "/api/session",
+   "/api/notifications",
+   "/api/categories",
+   "/api/terms",
+   "/api/profile",
+   "/api/events",
+   "/api/notifications",
+   "/api/terms",
+   "/api/categories",
+   "/api/profile"
+  ]
+ },
+ {
+  "page": "/resident/requests/{id}",
+  "ttfb": 151,
+  "fcp": 712,
+  "lcp": 2444,
+  "contentReady": 2719,
+  "cls": 0,
+  "blockingMs": 25,
+  "requests": 45,
+  "kb": 312,
+  "jsKb": 233,
+  "lcpEl": "P A volunteer will collect your ",
+  "api": [
+   "/api/profile",
+   "/api/session",
+   "/api/notifications",
+   "/api/requests/10000000-0000-4000-8000-000000000002",
+   "/api/events",
+   "/api/notifications",
+   "/api/requests/10000000-0000-4000-8000-000000000002"
+  ]
+ },
+ {
+  "page": "/volunteer",
+  "ttfb": 151,
+  "fcp": 716,
+  "lcp": 2224,
+  "contentReady": 2685,
+  "cls": 0.199,
+  "blockingMs": 25,
+  "requests": 45,
+  "kb": 294,
+  "jsKb": 217,
+  "lcpEl": "H1 Available requests",
+  "api": [
+   "/api/profile",
+   "/api/session",
+   "/api/notifications",
+   "/api/events",
+   "/api/profile",
+   "/api/notifications",
+   "/api/requests"
+  ]
+ },
+ {
+  "page": "/profile",
+  "ttfb": 151,
+  "fcp": 720,
+  "lcp": 2424,
+  "contentReady": 2404,
+  "cls": 0,
+  "blockingMs": 46,
+  "requests": 45,
+  "kb": 306,
+  "jsKb": 229,
+  "lcpEl": "DD demo-resident-1@example.test",
+  "api": [
+   "/api/profile",
+   "/api/session",
+   "/api/notifications",
+   "/api/profile",
+   "/api/events",
+   "/api/notifications",
+   "/api/profile"
+  ]
+ }
+]
