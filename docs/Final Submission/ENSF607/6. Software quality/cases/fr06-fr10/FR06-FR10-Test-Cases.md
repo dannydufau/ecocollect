@@ -205,10 +205,4 @@ The Expired request details have no edit action.
 
 ![TC010 automated test result](evidence/tc010-test-output.png)
 
-## Test evidence
 
-The browser screenshots show automated Playwright checks of the frontend with a mock API. The Request Service tests used PostgreSQL and checked API responses, saved data, and outbox records. The Vitest results cover frontend behavior.
-
-## AI disclosure
-
-AI assistance was used to run the automated checks, capture screenshots, and draft and revise this report.
