@@ -100,6 +100,8 @@ Call `check_new_request(request_id)` during creation to check the current weight
 
 A request can have an initial `Open` status before the Notification Service records any consumed events. Consumed event sequences may have gaps or lag behind the published counter, but cannot exceed it.
 
+`accept_request` inserts the assignment, records Assigned in the status history and advances the request's published sequence. A complete service action must also publish its event in the same transaction as required by the contract. Services must adopt these write and read paths before using this schema. Processed events, outbox records and other service-support tables remain outside the course model.
+
 ### Account deactivation
 
 [Contract ?7.4 and event E16](../../../../contracts/README.md) define two steps:
@@ -108,8 +110,6 @@ A request can have an initial `Open` status before the Notification Service reco
 2. The Notification Service consumes E16 and deletes the account's push subscriptions and notifications. In the course schema, delete the dependent request and award notification source rows before their parent notification rows.
 
 The standalone SQL checks the active-work rule for deactivated accounts through `check_business_rules()`. Verifying the User Service transaction, outbox delivery and E16 cleanup end to end requires the running services.
-
-`accept_request` inserts the assignment, records Assigned in the status history and advances the request's published sequence. A complete service action must also publish its event in the same transaction as required by the contract. Services must adopt these write and read paths before using this schema. Processed events, outbox records and other service-support tables remain outside the course model.
 
 ## Sample data
 
