@@ -1,9 +1,9 @@
 import { expect, type Page } from "@playwright/test";
-import { prepareSession } from "./session";
+import { setupSession } from "./session";
 import type { BrowserRoute } from "./routes";
 
 export async function openRoute(page: Page, route: BrowserRoute): Promise<void> {
-    await prepareSession(page, route.account);
+    await setupSession(page, route.account);
     const response = await page.goto(route.path);
     expect(response?.ok(), `HTTP response for ${route.path}`).toBe(true);
     await expect(page).toHaveURL(route.destination ?? route.path);

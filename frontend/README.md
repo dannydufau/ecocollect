@@ -89,7 +89,7 @@ npm run e2e:shots                      # every screen, at 375 and 1280 px
 npm run e2e:shots -- --only request    # only the screens with "request" in their name
 ```
 
-It takes a picture of every route, every request status as the resident and as the volunteer, the empty account's pages, the long-data account's profile and lists, and a 404, and saves them as `e2e/shots/<screen name>/<width>.png`. The folder is not tracked by git. The screenshot server disables demo mode, so its demo target currently captures the 404 page. To add a screen, add it to `e2e/shot-targets.ts`.
+It takes a picture of every route, every request status as the resident and as the volunteer, the empty account's pages, the long-data account's profile and lists, and a 404, and saves them as `e2e/shots/<screen name>/<width>.png`. The folder is not tracked by git. The demo capture uses a separate run with demo mode enabled and checks the “Try EcoCollect” heading before capturing. To add a screen, add it to `e2e/shot-targets.ts`.
 
 ## Frontend pull requests
 

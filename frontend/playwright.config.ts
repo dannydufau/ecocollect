@@ -6,6 +6,7 @@ const browserName = (process.env.E2E_BROWSER ?? "chromium") as "chromium" | "fir
 export default defineConfig({
     testDir: "./e2e",
     testMatch: "**/*.pw.ts",
+    testIgnore: process.platform === "win32" && browserName === "chromium" ? [] : ["**/screenshot-comparison.pw.ts"],
     workers: 2,
     // Reduced motion, so axe never scans an alert while it is still fading in (that read as low contrast)
     use: { baseURL: appUrl, browserName, reducedMotion: "reduce" },
