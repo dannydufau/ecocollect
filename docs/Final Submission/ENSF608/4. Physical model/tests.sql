@@ -127,3 +127,97 @@ BEGIN
     RAISE NOTICE 'PASS DB10: rollback restored the seed used by the write tests';
 END;
 $$;
+
+BEGIN;
+SET LOCAL search_path TO ecocollect608, public;
+
+DO $$
+DECLARE
+    new_request CONSTANT UUID := '00000003-0000-4000-8000-000000000099';
+    delivered_request CONSTANT UUID := '00000003-0000-4000-8000-000000000009';
+    test_notification CONSTANT UUID := '0000000a-0000-4000-8000-000000000099';
+    cleanup_ids CONSTANT UUID[] := ARRAY[
+        '0000000a-0000-4000-8000-000000000068',
+        '0000000a-0000-4000-8000-000000000069',
+        '0000000a-0000-4000-8000-000000000099'
+    ]::UUID[];
+    other_notifications UUID[];
+    history_before JSONB;
+    failure_message TEXT;
+BEGIN
+    INSERT INTO pickup_request (pickup_request_id, category_id, terms_acceptance_id, quantity,
+        estimated_weight_kg, created_at, request_seq, pickup_street, pickup_postal_code)
+    SELECT new_request, 'phones', terms_acceptance_id, 1, 0.20, created_at, 1, pickup_street, pickup_postal_code
+    FROM pickup_request WHERE pickup_request_id='00000003-0000-4000-8000-00000000000b';
+
+    INSERT INTO pickup_window (pickup_window_id, pickup_request_id, pickup_date, start_hour, is_active)
+    VALUES ('00000004-0000-4000-8000-000000000099', new_request,
+        (CURRENT_TIMESTAMP AT TIME ZONE 'America/Edmonton')::DATE + 3, 12, TRUE);
+
+    INSERT INTO status_change (pickup_request_id, changed_at, status)
+    SELECT pickup_request_id, created_at, 'Open' FROM pickup_request WHERE pickup_request_id=new_request;
+
+    CALL check_business_rules();
+    IF (SELECT status FROM status_change WHERE pickup_request_id=new_request) IS DISTINCT FROM 'Open'
+       OR EXISTS (SELECT 1 FROM request_event WHERE pickup_request_id=new_request) THEN
+        RAISE EXCEPTION 'DB11: expected an Open request with zero consumed events';
+    END IF;
+    RAISE NOTICE 'PASS DB11: Open request accepted with zero consumed events';
+
+    -- A failed subtransaction rolls the proposed deactivation back.
+    BEGIN
+        UPDATE account SET deactivated_at=CURRENT_TIMESTAMP WHERE account_id='resident1';
+        CALL check_business_rules();
+        RAISE EXCEPTION 'DB12: deactivation succeeded despite active work';
+    EXCEPTION WHEN check_violation THEN
+        GET STACKED DIAGNOSTICS failure_message = MESSAGE_TEXT;
+        IF failure_message <> 'Deactivated accounts cannot retain active work' THEN
+            RAISE;
+        END IF;
+    END;
+    IF (SELECT deactivated_at FROM account WHERE account_id='resident1') IS NOT NULL THEN
+        RAISE EXCEPTION 'DB12: rejected deactivation was not rolled back';
+    END IF;
+    RAISE NOTICE 'PASS DB12: active work blocks deactivation (23514)';
+
+    INSERT INTO push_subscription (endpoint, account_id, p256dh, auth, updated_at)
+    VALUES ('https://push.example.test/db13', 'both1', 'sample-key', 'sample-token', CURRENT_TIMESTAMP);
+    INSERT INTO notification (notification_id, type, created_at, is_read, is_expired)
+    VALUES (test_notification, 'REQUEST_DELIVERED_RESIDENT', CURRENT_TIMESTAMP, FALSE, FALSE);
+    INSERT INTO request_notification (notification_id, account_id, pickup_request_id, request_seq)
+    VALUES (test_notification, 'both1', delivered_request, 4);
+
+    SELECT array_agg(notification_id ORDER BY notification_id) INTO other_notifications
+    FROM notification WHERE notification_id <> ALL(cleanup_ids);
+
+    SELECT jsonb_build_array((SELECT count(*) FROM pickup_request), (SELECT count(*) FROM assignment),
+        (SELECT count(*) FROM ecopoints_award), (SELECT count(*) FROM terms_acceptance))
+    INTO history_before;
+
+    UPDATE account SET deactivated_at=CURRENT_TIMESTAMP WHERE account_id='both1';
+    CALL check_business_rules();
+
+    -- Exercise the SQL cleanup step on source rows and their parents.
+    -- The course database has no running E16 consumer.
+    DELETE FROM request_notification WHERE notification_id=ANY(cleanup_ids);
+    DELETE FROM award_notification WHERE notification_id=ANY(cleanup_ids);
+    DELETE FROM notification WHERE notification_id=ANY(cleanup_ids);
+    DELETE FROM push_subscription WHERE account_id='both1';
+    CALL check_business_rules();
+
+    IF (SELECT deactivated_at FROM account WHERE account_id='both1') IS NULL
+       OR EXISTS (SELECT 1 FROM notification WHERE notification_id=ANY(cleanup_ids))
+       OR EXISTS (SELECT 1 FROM request_notification WHERE notification_id=ANY(cleanup_ids))
+       OR EXISTS (SELECT 1 FROM award_notification WHERE notification_id=ANY(cleanup_ids))
+       OR EXISTS (SELECT 1 FROM push_subscription WHERE account_id='both1')
+       OR (SELECT array_agg(notification_id ORDER BY notification_id) FROM notification) IS DISTINCT FROM other_notifications
+       OR (SELECT count(*) FROM push_subscription WHERE account_id <> 'both1') <> 2
+       OR jsonb_build_array((SELECT count(*) FROM pickup_request), (SELECT count(*) FROM assignment),
+           (SELECT count(*) FROM ecopoints_award), (SELECT count(*) FROM terms_acceptance)) IS DISTINCT FROM history_before THEN
+        RAISE EXCEPTION 'DB13: cleanup failed or changed other accounts or history';
+    END IF;
+    RAISE NOTICE 'PASS DB13: deactivation cleanup removed target rows and preserved other accounts and history';
+END;
+$$;
+
+ROLLBACK;

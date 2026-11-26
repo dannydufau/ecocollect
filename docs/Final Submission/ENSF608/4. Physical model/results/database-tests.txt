@@ -1,7 +1,5 @@
- server_version
-----------------
- 18.6
-(1 row)
+PostgreSQL 18.6
+Fresh course database. SQL baseline b8ca8d3.
 
 BEGIN
 CREATE SCHEMA
@@ -71,6 +69,7 @@ INSERT 0 8
 INSERT 0 5
 CALL
 COMMIT
+
 BEGIN
 SET
 SET
@@ -199,8 +198,15 @@ DO
 ROLLBACK
 psql:tests.sql:129: NOTICE:  PASS DB10: rollback restored the seed used by the write tests
 DO
+BEGIN
+SET
+psql:tests.sql:221: NOTICE:  PASS DB11: Open request accepted with zero consumed events
+psql:tests.sql:221: NOTICE:  PASS DB12: active work blocks deactivation (23514)
+psql:tests.sql:221: NOTICE:  PASS DB13: deactivation cleanup removed target rows and preserved other accounts and history
+DO
+ROLLBACK
 
-Repeat run: 41 expected refusals and DB01-DB10 passed again.
+Repeat run: 41 expected refusals and DB01-DB13 passed again.
 
 Preferred-code limit: second writer waited, then was rejected (23514)
 Unfinished assignment limit: second writer waited, then was rejected (23514)
