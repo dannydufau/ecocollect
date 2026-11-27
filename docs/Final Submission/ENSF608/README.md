@@ -10,7 +10,7 @@ This folder contains the standalone EcoCollect database for ENSF 608. Start here
 | Physical database and setup | [Setup guide](<4. Physical model/README.md>), [tables and constraints](<4. Physical model/tables.sql>), and [transaction procedures](<4. Physical model/transactions.sql>) |
 | Sample data | [Course seed](<4. Physical model/seed.sql>) |
 | SQL operations and queries | [Query guide](<5. Database operations and queries/README.md>), [25 operations](<5. Database operations and queries/operations.sql>), and [saved query output](<5. Database operations and queries/results/operations.txt>) |
-| Database tests and results | [SQL verification](<4. Physical model/verify.sql>), [concurrency tests](<4. Physical model/verify_concurrency.py>), [saved results](<4. Physical model/results/>), and the expanded tests in [PR #499](https://github.com/dannydufau/ecocollect/pull/499) |
+| Database tests and results | [Test cases and run instructions](<4. Physical model/README.md#database-test-cases-and-results>), [SQL tests](<4. Physical model/tests.sql>), [concurrency tests](<4. Physical model/verify_concurrency.py>), and [saved results](<4. Physical model/results/database-tests.txt>) |
 | Contribution history | [ENSF 608 commit history](https://github.com/dannydufau/ecocollect/commits/main/docs/Final%20Submission/ENSF608) |
 
 ## Run the course database
@@ -20,7 +20,7 @@ Use PostgreSQL and Python 3. From this folder, run the commands below against a 
 ```sh
 createdb ecocollect608_test
 psql -X -v ON_ERROR_STOP=1 -d ecocollect608_test -f "4. Physical model/tables.sql" -f "4. Physical model/transactions.sql" -f "4. Physical model/seed.sql"
-psql -X -v ON_ERROR_STOP=1 -d ecocollect608_test -f "4. Physical model/verify.sql"
+psql -X -v ON_ERROR_STOP=1 -d ecocollect608_test -f "4. Physical model/tests.sql"
 python3 "4. Physical model/verify_concurrency.py" ecocollect608_test
 psql -X -v ON_ERROR_STOP=1 -d ecocollect608_test -f "5. Database operations and queries/operations.sql"
 ```
