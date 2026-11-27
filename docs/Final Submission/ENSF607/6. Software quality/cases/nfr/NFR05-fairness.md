@@ -82,7 +82,7 @@ Expected, because the rules state it:
 
 - Only A gets the push and the notification (event E1, `matchedVolunteerUids`: exact postal-code match, on purpose). The profile page says a Volunteer with no saved codes gets no new-request notifications.
 - Every list is newest first (Q6, `GET /api/requests`): filtered lists show only their codes, and C's list shows every area. The request in the code no one saved is in C's list.
-- B's list without the filter is the same as C's: the same requests in the same order (contract 16.9: the list can always be browsed without the filter). Two differences are expected: expired requests are hidden, and a Volunteer's own requests are included.
+- B's list without the filter is the same as C's: the same requests in the same order (contract 16.9: the list can always be browsed without the filter). Both lists hide expired requests and include the Volunteer's own requests (Q6).
 - B's or C's accept succeeds; A then gets `409 already_assigned` (Q11).
 
 Record as a bug, with the accounts involved and the condition it bears on (F1, F2 or F5):
