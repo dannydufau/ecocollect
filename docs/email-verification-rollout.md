@@ -4,14 +4,35 @@ This runbook documents the deployment sequence, pre-enforcement checks, post-dep
 
 ## 1. Pre-enforcement audit (mandatory gate)
 
-Before deploying enforcement to any environment with existing accounts, audit all active work tied to accounts that cannot verify their email address (for example, legacy placeholder/test accounts without a real inbox):
+Before deploying enforcement to an environment with existing accounts, check every participant in unfinished work against that environment's Firebase project. An account with a working inbox can still be blocked if it has yet to verify.
 
-1. Identify accounts with `email_verified !== true` in Firebase Auth.
-2. Query PostgreSQL for any **Open**, **Assigned**, or **Collected** pickup requests owned by those accounts, and any **Active** or **Collected** volunteer assignments (`requests.assignment.ended_at IS NULL`) held by those accounts.
-3. Resolve every such item through the normal application lifecycle before enabling enforcement:
-   - Open/Assigned requests may be cancelled or completed normally.
-   - **Collected** pickups **must** follow the delivery flow (`POST /api/requests/:id/assignment/delivery`) so items are accounted for and never stranded.
-4. **Hold enforcement** if any in-progress work would be stranded by blocking an account that cannot verify.
+Use this read-only query to list affected work and the Firebase UID to check for each participant. The terms acceptance identifies both the request owner and the assigned volunteer.
+
+```sql
+WITH latest_status AS (
+    SELECT DISTINCT ON (pickup_request_id) pickup_request_id, status
+    FROM requests.status_change
+    ORDER BY pickup_request_id, changed_at DESC
+)
+SELECT r.pickup_request_id, s.status, 'resident' AS role, t.account_id
+FROM requests.pickup_request r
+JOIN latest_status s USING (pickup_request_id)
+JOIN users.terms_acceptance t USING (terms_acceptance_id)
+WHERE s.status IN ('Open', 'Assigned', 'Collected')
+UNION ALL
+SELECT w.pickup_request_id, s.status, 'volunteer' AS role, t.account_id
+FROM requests.assignment a
+JOIN requests.pickup_window w USING (pickup_window_id)
+JOIN latest_status s ON s.pickup_request_id = w.pickup_request_id
+JOIN users.terms_acceptance t ON t.terms_acceptance_id = a.terms_acceptance_id
+WHERE a.ended_at IS NULL
+ORDER BY pickup_request_id, role;
+```
+
+1. Look up every distinct `account_id` as a Firebase UID using the Admin SDK. An eligible participant must exist, be enabled and have `emailVerified === true`. Treat an inconclusive lookup as a blocker until retried successfully.
+2. For an unverified participant with an accessible inbox, the previous frontend has no resend button. An authorized operator can look up the user in the deployment's Firebase project, call `getAuth().generateEmailVerificationLink(user.email)` and deliver the link privately to that exact address. The Admin SDK generates the link and the operator sends it. Keep links out of logs, tickets and chat. Ask the user to follow the link, then check `emailVerified` again. [Firebase Admin SDK instructions](https://firebase.google.com/docs/auth/admin/email-action-links#generate_email_verification_link)
+3. If pre-verification is unavailable, resolve the work while users can still act through the previous app. Use the actions available for the current status and pickup window. For a collected pickup, record delivery only after it actually happens. Hold the release while any blocked participant still has unfinished work. Unverified accounts without unfinished work can use **Send again** after release.
+4. Schedule a quiet period and ask users and operators to stop creating, editing or acting on pickups during the cutover. Let outstanding actions finish, rerun the query and Firebase checks immediately before deployment, and postpone if new unresolved work appears or the quiet period cannot be maintained. Rerun the audit just after the Caddy check and before ending the quiet period. If an account is stranded, restore the previous User Service and frontend, resolve the work and repeat the cutover. This quiet-period procedure depends on participants observing it. If that cannot be arranged, reschedule the cutover.
 
 ## 2. Deployment sequence
 
@@ -37,15 +58,16 @@ If a separate Demo Mode deployment (`DEMO_MODE=true`) is active on an isolated F
 
 ## 4. Staging rehearsal checklist
 
-Rehearse in staging (with a test Firebase project) using two accounts — Account A (verified) and Account B (unverified, with a private SSE stream and Web Push enabled **before** deploying enforcement):
+Rehearse on the previous build in isolated staging with a test Firebase project and trusted HTTPS for browser push. Use Account A (verified) and Account B (unverified, with an inbox you control) in **separate browser profiles or devices**. Keep both original browser sessions open. Record the tested commit and save sanitized evidence of each outcome.
 
-1. Deploy User Service + Frontend, confirm `403 email_verification_required` through Caddy, and restart the Notification Service.
-2. Confirm **Account A (verified)** reconnects to `/api/events` automatically and continues receiving live notifications and push.
-3. Confirm **Account B (unverified)**:
+1. Open private SSE and enable push in both profiles. Trigger a test notification for each account through the normal pickup flow. Confirm both accounts receive the SSE notification and device push in their own profiles before proceeding.
+2. Give Account B unfinished test work and verify that the audit blocks deployment. Resolve the work through the existing lifecycle, leave B unverified, and follow the quiet-period audit procedure. Deploy User Service + Frontend, confirm `403 email_verification_required` through Caddy with a valid unverified ID token, and restart the Notification Service.
+3. Confirm **Account A (verified)** reconnects to `/api/events` automatically and continues receiving live notifications and push.
+4. Confirm **Account B (unverified)**:
    - Its existing `/api/events` stream closes on Notification Service restart and cannot reconnect (`403 email_verification_required`).
    - Protected routes redirect to `/verify-email` while keeping the Firebase user signed in.
    - After push reconciliation removes Account B's `notifications.push_subscription` row, new push delivery stops for Account B.
-4. Open Account B's Firebase verification link (testing from another device/browser), then click **I’ve verified** in the original browser session:
+5. Open Account B's Firebase verification link (testing from another device/browser), then click **I’ve verified** in the original browser session:
    - Confirm Account B's session is created, protected actions work, and private `/api/events` opens.
    - Verify **both** push recovery paths:
      - **Path A (local cleanup ran while unverified):** Because confirmed-unverified browser sessions attempt to unsubscribe locally, the UI typically shows **Turn on device notifications**. Click it, confirm the browser re-subscribes and registers via `POST /api/push/subscriptions`, and verify push delivery resumes.

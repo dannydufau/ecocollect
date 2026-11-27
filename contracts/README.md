@@ -90,10 +90,12 @@ What goes in and out of every component. No SQL schema: tables are named only to
 | # | Call | Input | Output | Notes |
 |---|---|---|---|---|
 | 3.1 | `signInWithEmailAndPassword` | email, password | Firebase user | Login, and right after `POST /api/accounts` succeeds |
-| 3.2 | `getIdTokenResult()` | – | ID token + `claims.roles` | Decide which role(s) to offer after login (FR02) |
+| 3.2 | `getIdTokenResult()` | – | ID token + `claims.roles` and `claims.email_verified` | Check verification and choose which roles to offer after login (FR02). Offer Retry if the token read fails |
 | 3.3 | `getIdToken()` / `getIdToken(true)` | – | ID token (~1 h) | Before each API request. Force refresh (`true`) after role activation, then `POST /api/session` again and reopen the `EventSource` |
 | 3.4 | `sendPasswordResetEmail` | email | – | Optional, frontend only |
 | 3.5 | `signOut` | – | – | First `DELETE /api/push/subscriptions` and `DELETE /api/session`, then `signOut` |
+| 3.6 | `sendEmailVerification(user)` | Current Firebase user | – | After registration and on explicit resend. The email link opens Firebase's hosted verification page |
+| 3.7 | `reload(user)`, then `getIdTokenResult(true)` | Current Firebase user | Fresh ID token and claims | On **I’ve verified**, recheck the account and start a protected session when `claims.email_verified === true` |
 
 There is no `createUserWithEmailAndPassword` in the frontend: it would give the user a random uid.
 
@@ -681,7 +683,7 @@ The page refetches U10 + R3 or R2. No other data travels on this stream.
 
 | # | Trigger | Action |
 |---|---|---|
-| 16.1 | Login succeeds | `POST /api/session`, open `EventSource('/api/events', { withCredentials: true })`, register the service worker |
+| 16.1 | Login succeeds | Check the ID token claims. For a verified user with a role, `POST /api/session`, open the private `EventSource('/api/events', { withCredentials: true })` and register the service worker. Send an unverified user to `/verify-email` while keeping their Firebase sign-in. Public streams remain available |
 | 16.2 | Any mutation succeeds | Invalidate what it changed (e.g. Q4 → `["requests","mine"]`, Q11 → `["requests","available"]`, `["requests","volunteer"]`, `["request", id]`) |
 | 16.3 | SSE `notification` | Always `["notifications"]`. Then by type: `REQUEST_CREATED` and `*_RESIDENT` request types → `["requests","mine"]`, `["request", requestId]`; `NEW_MATCHING_REQUEST` → `["requests","available"]`; `*_VOLUNTEER` request types → `["requests","volunteer"]`, `["request", requestId]`; `ECOPOINTS_*` → `["ecopoints"]` |
 | 16.4 | Other SSE messages | Section 13.3 |
@@ -689,9 +691,10 @@ The page refetches U10 + R3 or R2. No other data travels on this stream.
 | 16.6 | Service worker `push` | Always `showNotification(title, { body, tag, silent, data: { url } })`: Safari (including iPhone and iPad) cancels the push subscription after pushes that show no notification, and Chrome shows its own notice instead. When an EcoCollect tab is focused, `silent` is `true`, so it comes without sound or vibration (the page already shows it). A silent one replaces the old notification with the same tag quietly |
 | 16.7 | `notificationclick` | Focus or open `url`. If the request is gone, Q8's `404 request_unavailable` shows a friendly page |
 | 16.8 | Enable notifications (button) | Permission → `pushManager.subscribe()` with `NEXT_PUBLIC_VAPID_KEY` → N6. Must come from a click |
+| 16.8a | Reconnect device notifications (button) | Re-register the existing browser subscription with N6 without prompting for permission again. If the subscription is gone, refresh the device state and offer **Turn on device notifications** when supported. If registration fails, keep Reconnect available and show a retry error |
 | 16.9 | Volunteer opens available requests | Load U6 (cached). Non-empty `preferredPostalCodes` → Q6 with them; else Q6 without. The filter can be cleared |
 | 16.10 | Public profile / stats page | U10 + R3, or R2, then open `EventSource('/api/public/events?profile=…')` or `?stats` |
-| 16.11 | Role activated (U8) | `getIdToken(true)`, `POST /api/session`, reopen the `EventSource` (the hub reads roles when the stream opens) |
+| 16.11 | Role activated (U8) | Refresh the ID token and its claims. For a verified user, send the refreshed token in `POST /api/session` before reopening the private `EventSource`. The hub reads roles when the stream opens |
 | 16.12 | Request page receives a request detail | If `refreshAt` is not null, set a timer that invalidates `["request", id]` at `refreshAt`. Compute the delay from the server's time (the response's `Date` header), not the device clock, and wait at least 5 s so a fast device clock can't cause a refetch loop. Clear the timer when the page unmounts or the data refetches |
 | 16.13 | Any mutation returns `409` | Invalidate `["request", id]` and the list the user came from, and show a message for the `code`. The refetched request and its `allowedActions` show what is possible now. Examples: `window_ended` (Q10, or Q12 as the resident): "The pickup window has ended. Confirm the collection or report a missed pickup." (the cancel buttons give way to `confirm_collected` and `report_missed`); `expired` (Q9–Q11): "This request has expired."; `already_assigned` (Q11): "Another volunteer accepted this request first."; `terms_outdated`: reload the terms (U5) and ask for acknowledgement again. One `404` is a success: after a volunteer's Q12, `404 request_unavailable` means the cancel was saved and the request expired (Q12), so the frontend shows it as cancelled |
 | 16.14 | Page paths | Notification `url`s (13.1) and links use only these. The prefix sets the tab's active role when opened from a notification. `/resident/requests/<requestId>`: `REQUEST_CREATED`, `REQUEST_UPDATED_RESIDENT`, `REQUEST_ASSIGNED_RESIDENT`, `REQUEST_COLLECTED_RESIDENT`, `REQUEST_DELIVERED_RESIDENT`, `ASSIGNMENT_CANCELLED_BY_RESIDENT_RESIDENT`, `ASSIGNMENT_CANCELLED_BY_VOLUNTEER_RESIDENT`, `ASSIGNMENT_MISSED_RESIDENT`, `REQUEST_CANCELLED_RESIDENT`, `REQUEST_EXPIRED_RESIDENT`. `/volunteer/requests/<requestId>`: `NEW_MATCHING_REQUEST`, `REQUEST_ASSIGNED_VOLUNTEER`, `REQUEST_COLLECTED_VOLUNTEER`, `REQUEST_DELIVERED_VOLUNTEER`. `/volunteer/history`: `ASSIGNMENT_CANCELLED_BY_RESIDENT_VOLUNTEER`, `ASSIGNMENT_CANCELLED_BY_VOLUNTEER_VOLUNTEER`, `ASSIGNMENT_MISSED_VOLUNTEER`. `/ecopoints`: every `ECOPOINTS_*` type. Not used by notifications: `/profiles/<accountId>` (public profile, 16.10), `/stats` (public stats) |
