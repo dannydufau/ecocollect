@@ -280,9 +280,19 @@ function createNotificationStore(pool) {
     return rows[0].p_deleted;
   }
 
+  /*
+   * Deletes a deactivated account's notifications and push subscriptions (E16).
+   * Returns { notifications, subscriptions }: how many of each were deleted.
+   */
+  async function deleteAccountData(uid) {
+    // Procedure in db/notification/020_notification_delete.sql; NULLs fill its OUT parameters.
+    const { rows } = await pool.query('CALL notifications.delete_account_data($1, NULL, NULL)', [uid]);
+    return { notifications: rows[0].p_deleted_notifications, subscriptions: rows[0].p_deleted_subscriptions };
+  }
+
   return {
     saveRequestNotifications, saveAwardNotifications, markPushed, listForAccount, markRead, markAllRead,
-    deleteExpired,
+    deleteExpired, deleteAccountData,
   };
 }
 

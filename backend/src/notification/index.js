@@ -196,6 +196,22 @@ function sendProfileUpdated(envelope) {
   console.log(`[notification] profile-updated [${changed.join(', ')}] -> ${accountId} (${tabs} open tab${tabs === 1 ? '' : 's'})`);
 }
 
+/*
+ * A deactivated account (E16, from U9): delete its notifications and push subscriptions, then
+ * send account-deactivated to its open tabs and close them (the frontend signs out).
+ * Database first: if the delete fails the event is retried, and nothing was sent yet.
+ * Later events skip the account, because the store reads its deactivated_at.
+ */
+async function handleDeactivatedAccount(envelope) {
+  const { accountId } = envelope.data;
+  if (typeof accountId !== 'string' || accountId === '') throw new Error('AccountDeactivated without an accountId');
+
+  const deleted = await notifications.deleteAccountData(accountId);
+  const tabs = hub.closeUser(accountId, 'account-deactivated', {});
+  console.log(`[notification] account-deactivated ${accountId}: deleted ${deleted.notifications} notifications`
+    + ` and ${deleted.subscriptions} push subscriptions, closed ${tabs} open tab${tabs === 1 ? '' : 's'}`);
+}
+
 const subscriber = startSubscriber({
   queue: queues.notification,
   url: process.env.RABBITMQ_URL,
@@ -218,6 +234,7 @@ const subscriber = startSubscriber({
     PointsAwardedCancellation: deliverAwardEvent(awardsEarned('cancellation')),
     NotificationCleanupRequested: deleteExpiredNotifications,
     ProfileUpdated: sendProfileUpdated,
+    AccountDeactivated: handleDeactivatedAccount,
   },
 });
 

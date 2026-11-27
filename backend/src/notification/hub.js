@@ -74,6 +74,28 @@ function createHub() {
     return written;
   }
 
+  /*
+   * Writes one last frame to every open tab of this user, then ends those tabs and forgets the user
+   * (a deactivated account, E16). Returns how many tabs got it. Each tab's 'close' handler still
+   * calls remove(), which then finds nothing left to do.
+   */
+  function closeUser(uid, event, data) {
+    const set = byUid.get(uid);
+    if (!set) return 0;
+    const text = frame(event, data);
+    let closed = 0;
+    for (const res of set) {
+      rolesOf.delete(res);
+      // A tab closing right now: skip it.
+      if (res.writableEnded) continue;
+      res.write(text);
+      res.end();
+      closed += 1;
+    }
+    byUid.delete(uid);
+    return closed;
+  }
+
   // Shutdown: end every stream so browsers reconnect and refetch.
   function closeAll() {
     for (const set of byUid.values()) {
@@ -92,7 +114,7 @@ function createHub() {
     return { users: byUid.size, connections };
   }
 
-  return { add, remove, send, sendToRole, closeAll, stats };
+  return { add, remove, send, sendToRole, closeUser, closeAll, stats };
 }
 
 module.exports = { createHub, frame };
