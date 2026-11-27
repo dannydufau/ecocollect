@@ -90,6 +90,18 @@ npm run e2e:shots -- --only request    # only the screens with "request" in thei
 
 It takes a picture of every route, every request status as the resident and as the volunteer, the empty account's pages, the long-data account's profile and lists, and a 404, and saves them as `e2e/shots/<screen name>/<width>.png`. The folder is not tracked by git. The demo capture uses a separate run with demo mode enabled and checks the “Try EcoCollect” heading before capturing. To add a screen, add it to `e2e/shot-targets.ts`.
 
+## About page data
+
+The categories and EcoPoints text on `/about` are typed into `components/about/content.ts`. Keep them in step with the database and the Reward Service:
+
+| When this changes | Update in `content.ts` |
+|---|---|
+| Item categories in `../db/init/011_request_seed.sql` (`requests.item_category`) | `acceptedCategories`. The heading count follows the array. |
+| `VOLUNTEER_FORMULA` or `RESIDENT_FORMULA` in `../backend/src/reward/points.js` (the text stored in `rewards.ecopoints_award.formula`) | `volunteerFormulaText` and `residentFormulaText`, copied exactly |
+| Either formula, or the Monitors weight in the seed | Every string in `workedExample`: the title, both calculations and both point totals |
+
+Then run `npm test`. `components/about/content.test.ts` fails if `acceptedCategories` or the formula text no longer match. Nothing checks `workedExample`, so work it out by hand.
+
 ## Frontend pull requests
 
 Before you open one, run `npm test`, `npm run lint`, `npx tsc --noEmit` and `npm run e2e`. Attach before and after images of the screens you changed (`npm run e2e:shots -- --only <screen>` makes them).

@@ -276,6 +276,21 @@ html:has(dialog[open]) {
   animation: fade-in var(--duration-dialog) var(--ease-decel);
 }
 
+@keyframes route-draw {
+  from {
+    stroke-dashoffset: 360;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.about-route-path {
+  stroke-dasharray: 360;
+  stroke-dashoffset: 0;
+  animation: route-draw 850ms var(--ease-decel) 120ms both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after, ::backdrop {
     animation-duration: 0.01ms !important;

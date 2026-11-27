@@ -98,7 +98,10 @@ export default function LoginPage() {
         <Button type="submit" busy={submitting} busyLabel="Signing in..." className="w-full">Sign in</Button>
         <Link href="/register" className={`${textLink} self-start`}>Create an account</Link>
       </form>
-      <Link href="/stats" className={`${textLink} text-sm`}>Community stats</Link>
+      <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1">
+        <Link href="/about" className={`${textLink} text-sm`}>About</Link>
+        <Link href="/stats" className={`${textLink} text-sm`}>Community stats</Link>
+      </div>
     </main>
   );
 }

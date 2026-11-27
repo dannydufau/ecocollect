@@ -48,7 +48,10 @@ export default function DemoPage() {
                 {error && <Alert variant="error">{error}</Alert>}
                 <Button onClick={() => void start()} busy={busy} busyLabel="Starting..." className="w-full">Start demo</Button>
                 <hr className="border-border" />
-                <p className="text-center"><Link href="/stats" className={textLink}>Community stats</Link></p>
+                <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1">
+                    <Link href="/about" className={textLink}>About</Link>
+                    <Link href="/stats" className={textLink}>Community stats</Link>
+                </div>
             </section>
         </main>
     );

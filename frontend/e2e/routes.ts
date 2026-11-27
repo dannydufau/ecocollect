@@ -30,4 +30,5 @@ export const routes: BrowserRoute[] = [
     { name: "notifications", path: "/notifications", account: resident, heading: "Notifications", title: "Notifications · EcoCollect" },
     { name: "ecopoints", path: "/ecopoints", account: resident, heading: "EcoPoints", title: "EcoPoints · EcoCollect" },
     { name: "community-stats", path: "/stats", account: null, heading: "Community impact", title: "Community stats · EcoCollect" },
+    { name: "about", path: "/about", account: null, heading: "Old electronics shouldn’t live in your closet.", title: "About · EcoCollect" },
 ];
