@@ -97,6 +97,19 @@ CREATE TABLE IF NOT EXISTS notifications.award_notification (
     CONSTRAINT award_notification_uq1 UNIQUE (ecopoints_award_id),
     CONSTRAINT award_notification_fk1 FOREIGN KEY (notification_id)
         REFERENCES notifications.notification (notification_id)
-    -- award_notification_fk2 (ecopoints_award_id) -> rewards.ecopoints_award: add when the
-    -- Reward Service's tables are merged (db/init/012_reward_tables.sql).
 );
+
+-- Apply the award reference on both fresh databases and existing volumes.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conrelid = 'notifications.award_notification'::regclass
+          AND conname = 'award_notification_fk2'
+    ) THEN
+        ALTER TABLE notifications.award_notification
+            ADD CONSTRAINT award_notification_fk2 FOREIGN KEY (ecopoints_award_id)
+            REFERENCES rewards.ecopoints_award (ecopoints_award_id);
+    END IF;
+END;
+$$;

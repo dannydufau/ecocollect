@@ -1,8 +1,7 @@
 -- Reward Service course tables, in its own schema "rewards" (contract 2.1 and 8:
--- the Reward Service is the only writer of these tables). The definitions are the
--- 608 physical model's (docs/Final Submission/ENSF608/4. Physical model/tables.sql),
--- with the same names and constraints. Only the schema changes: the foreign key to
--- assignment points at "requests", which 010_request_tables.sql creates.
+-- the Reward Service owns these tables). These definitions are the ENSF 608
+-- physical implementation. The foreign key to assignment points to the requests
+-- schema, which 010_request_tables.sql creates.
 -- The service's operational tables and login are in db/reward/.
 
 CREATE SCHEMA IF NOT EXISTS rewards;

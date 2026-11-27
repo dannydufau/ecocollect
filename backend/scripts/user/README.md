@@ -21,7 +21,7 @@ Set `DATABASE_URL` for a local User Service to `postgres://ecocollect_user:your_
 
 ## Tables and access
 
-The six table definitions match the final physical model. They live in `users` rather than the course submission's `ecocollect608` schema. `terms_acceptance` retains all four action types because Request Service also inserts acceptances; its migration must grant its login INSERT on this shared table.
+The six tables in the `users` schema are part of the ENSF 608 physical model. `terms_acceptance` retains all four action types because Request Service also inserts acceptances; its migration must grant its login INSERT on this shared table.
 
 `ecocollect_user` can read the other services' tables through PostgreSQL's `pg_read_all_data` role, including tables created later. It has row-write permissions on its own tables. Terms acceptances are insert-only: it cannot update or delete them. The setup admin retains ownership so the service cannot bypass this restriction by changing table permissions. Cross-row workflow checks, such as one or both account roles and at most three preferred codes, belong in the endpoint transactions.
 

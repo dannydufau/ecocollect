@@ -202,8 +202,8 @@ docker compose up -d postgres rabbitmq
 docker compose ps                     # wait for both to show (healthy)
 
 backend/scripts/request/load-db.sh
-backend/scripts/notification/load-db.sh   # after request: its tables point at the request tables
 backend/scripts/reward/load-db.sh
+backend/scripts/notification/load-db.sh
 backend/scripts/cleanup/load-db.sh
 
 set -a; . ./.env; set +a              # the User script reads DATABASE_URL and USER_DB_PASSWORD from the shell
@@ -230,7 +230,7 @@ docker compose up -d --build
 
 If the pull added settings to `.env.example`, add them to `.env` before running any `docker compose` command. If it brought new files in `db/`, rerun the matching `load-db.sh` scripts before `up`. They are safe to run again.
 
-**First update that includes the Notification Service:** add `NOTIFICATION_DB_PASSWORD`, `NOTIFICATION_DATABASE_URL`, the three `VAPID_*` values and `NEXT_PUBLIC_VAPID_KEY` to `.env` (step 9), then run `backend/scripts/notification/load-db.sh` before `up`.
+**First update that includes the Notification Service:** add `NOTIFICATION_DB_PASSWORD`, `NOTIFICATION_DATABASE_URL`, the three `VAPID_*` values and `NEXT_PUBLIC_VAPID_KEY` to `.env` (step 9), then run `backend/scripts/notification/load-db.sh` before `up`. The loader creates the Reward tables it needs if they are missing.
 
 ## Troubleshooting
 

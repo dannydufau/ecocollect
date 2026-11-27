@@ -1,7 +1,7 @@
 -- Request Service internal helpers on the course tables.
 -- Created in "requests"; course tables are named without a schema (see 020).
 -- Called by the Request Service's other functions, never by TypeScript.
--- Needs the 608 physical model's tables.sql loaded first (load-db.sh does that).
+-- Requires the Request tables from db/init/010_request_tables.sql.
 --
 -- STABLE: the result depends only on the arguments and the database's contents
 -- within one statement (AT TIME ZONE reads the time zone data, so not IMMUTABLE).

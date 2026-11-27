@@ -1,6 +1,5 @@
--- Request Service test seed: the 608 seed's rows for the User and Request tables
--- (docs/Final Submission/ENSF608/4. Physical model/seed.sql), copied unchanged,
--- with the same ids, so backend/test/request/seed.ts still describes them.
+-- Sample User and Request rows used by the Request and ENSF 608 test suites.
+-- Expected fixture IDs are declared in backend/test/request/seed.ts.
 -- Loaded by backend/scripts/request/load-db.sh --test, after db/init (which already
 -- has the categories, facilities and the current terms document) and db/request.
 -- Left out: the rows db/init already inserts (item_category, recycling_facility,

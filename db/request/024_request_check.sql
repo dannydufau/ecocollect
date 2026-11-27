@@ -1,14 +1,12 @@
 -- check_request: the request-level rules of the model,
 -- checked for one request at the end of every write function. Only a bug can
 -- trip it: the write functions check everything before writing, so this is a
--- last line of defence. It raises (check_violation, like the physical model's
--- check_business_rules), which rolls back the whole action.
+-- last line of defence. It raises check_violation, which rolls back the whole action.
 --
 -- Rules that depend on the current time (a window in the future, terms current
 -- now) are checked by the write functions at the moment of the action: they
 -- stop holding as time passes. Rules only for a new request (estimated weight,
 -- address from the profile, reschedule copies) belong to the create functions.
--- check_business_rules() stays the global oracle for the tests.
 -- Created in "requests"; course tables are named without a schema (see 020).
 CREATE OR REPLACE FUNCTION requests.check_request(p_request_id UUID)
 RETURNS VOID
