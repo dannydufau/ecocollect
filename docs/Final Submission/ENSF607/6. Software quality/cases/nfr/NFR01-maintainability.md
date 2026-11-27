@@ -6,6 +6,12 @@ From [Non-functional requirements](../../../2.%20Non-functional%20requirements/R
 
 > The system shall use a modular design that separates user interfaces, user management, pickup request management, notification processing, EcoPoints management and data cleanup operations into clearly defined components. Changes to one component shall not require unnecessary modifications to unrelated components.
 
+## Strategy
+
+Structure is checked statically: the tests read the repository's own files (the Compose file, every import in the source, the SQL) instead of starting the services, so they take under a second and run with every `npm test`. Existing contract tests are cited for the interfaces (NFR01-P3). NFR01-N1 shows the import check catches a real violation, and NFR01-P5 walks through one likely change.
+
+**Scope:** P1 and P2 check every service and the frontend; P4 checks every backend service. P5 is one change scenario (EcoPoints); other change scenarios are not scripted.
+
 ## Criteria
 
 The criteria come from the requirement's two sentences. Each is grouped under the maintainability sub-characteristic it shows in ISO/IEC 25010 (modularity, reusability, analysability, modifiability, testability).
