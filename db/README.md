@@ -1,60 +1,53 @@
 # Database
 
-Postgres 16 in Docker Compose. SQL files in `db/init/` are applied automatically, in filename order, the first time the database volume is created.
+Postgres 16 in Docker Compose. Every service uses the one database, `ecocollect` (or your `POSTGRES_DB`). Each service has its own schema and login: it writes its own tables and can read the others. The one exception: the Request Service also adds rows to `users.terms_acceptance`.
 
-The October 28 schema is in `db/init/001_schema.sql` (ticket #12). Future-only tables were moved to `db/future/002_future_schema.sql` and are **not** automatically executed; the team should decide when to apply them later.
+For first-time setup, follow the [main README](../README.md#run-everything-with-docker).
 
-## Run
+## What's in here
 
-```bash
-cp .env.example .env        # then change the password
-docker compose up -d postgres
-docker compose ps           # postgres should show "healthy"
-```
+SQL files in `db/init/` run automatically, in filename order, the first time the database volume is created:
+
+| File | What it creates |
+|---|---|
+| `001_schema.sql` | The old October 28 tables in `public`. The services don't read them. `scripts/seed` and one outbox test (`backend/test/outbox.test.js`) still use them |
+| `005_user_tables.sql` | User Service tables, schema `users` |
+| `010_request_tables.sql`, `011_request_seed.sql` | Request Service tables, schema `requests`, with the item categories and recycling facilities |
+| `012_reward_tables.sql` | Reward Service award tables, schema `rewards` |
+| `020_cleanup.sql` | Cleanup Service tables, schema `cleanup`, and its role |
+| `030_user_ops.sql`, `031_user_seed.sql` | User Service outbox, role and permissions, and the current terms document |
+| `040_notification_tables.sql` | Notification Service tables, schema `notifications` |
+
+The rest isn't run automatically. Each service's `load-db.sh` in `backend/scripts/<service>/` adds it and turns on the service's login:
+
+| Service | The script loads |
+|---|---|
+| Request | `010`, `011`, then everything in `db/request/` (operational tables, functions, role) |
+| Reward | `010` to `012`, then everything in `db/reward/` (outbox, processed events, role) |
+| Notification | `012`, `040`, then everything in `db/notification/` (procedures, role) |
+| Cleanup | `020` |
+| User | `005`, `030`, `031`. It needs `psql` 15 or newer on your machine |
 
 ## Inspect
 
 ```bash
 docker compose exec postgres psql -U ecocollect -d ecocollect
-\dt                         -- list tables
+\dn                         -- list schemas
+\dt requests.*              -- list one schema's tables
 \q                          -- quit
 ```
 
-## Change the schema
+Plain `\dt` shows only the old tables in `public`. If you changed `POSTGRES_USER` or `POSTGRES_DB`, use those names.
 
-Init scripts run only on an empty volume. After editing a file in `db/init/`, reset the database:
+## Change the database
 
-```bash
-docker compose down -v      # deletes all data
-docker compose up -d postgres
-```
-
-Add new scripts as `002_...sql`, `003_...sql`; they run in filename order. (A migration tool can replace this later if the schema needs to change without wiping data.)
-
-If a script fails, the error is in `docker compose logs postgres`.
-
-## Running scripts against the database (e.g. the seed)
-
-Scripts run on your machine need `DATABASE_URL` set, using the password from your `.env`:
+`db/init/` runs only on an empty volume. On an existing database, rerun the `load-db.sh` scripts for the services whose files changed. They keep your data, but `CREATE TABLE IF NOT EXISTS` doesn't change a table that already exists. For that, add an `ALTER TABLE` that is safe to rerun, or reset a database you can throw away:
 
 ```bash
-export DATABASE_URL=postgres://ecocollect:<your POSTGRES_PASSWORD>@localhost:5432/ecocollect
+docker compose down -v      # deletes all Compose data: the database, queued messages and Caddy's certificates
+docker compose up -d --wait postgres
 ```
 
-Replace `<your POSTGRES_PASSWORD>` with the value in your `.env`. If you changed `POSTGRES_PORT`, use that port instead of `5432`.
+Then run the setup scripts again. If an init script fails, the error is in `docker compose logs postgres`.
 
-## Tables for Oct 28
-
-| Table | Written by | Purpose |
-|---|---|---|
-| `profiles` | seed script | Users keyed by Firebase uid: roles, address, postal code, `fsa` (generated from postal code) |
-| `volunteer_preferred_postal_codes` | seed script | Up to 3 postal codes per volunteer, used to match new requests |
-| `categories` | seed script | Category ids (must match the shared category list) and standard weights |
-| `pickup_request` | request service | One request per category; stores the computed estimated weight and the 30-day expiry |
-| `pickup_window` | request service | 1-3 one-hour windows per request, distinct dates, Calgary local time |
-| `status_change` | request service | History of each request's status |
-| `outbox` | request service | `RequestCreated` events; the publisher sets `published_at` after RabbitMQ confirms |
-
-The notification service has no database for Oct 28, so there is no notifications table.
-
-Postal codes are stored normalized (`T2P1J9`: uppercase, no space). The application normalizes input before inserting.
+Postal codes are stored uppercase with no space (`T2P1J9`).

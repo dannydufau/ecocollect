@@ -43,8 +43,7 @@ All of them go in `.env.local` (copied from `.env.example`). The `NEXT_PUBLIC_` 
 | `NEXT_PUBLIC_FIREBASE_APP_ID` | Firebase web config: the web app id |
 | `GATEWAY_URL` | Where the Next.js rewrite sends `/api/*`, server side only (the mock or the Caddy gateway) |
 | `NEXT_PUBLIC_VAPID_KEY` | Public VAPID key for web push. Empty turns the notifications button into a "not set up" message |
-
-Not in the example: `NEXT_PUBLIC_DEMO=true` builds the demo version (banner and Start demo page instead of login).
+| `NEXT_PUBLIC_DEMO` | `true` builds the demo version (banner and Start demo page instead of login) |
 
 ## Signed-in test mode
 
