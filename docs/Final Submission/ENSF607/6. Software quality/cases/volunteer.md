@@ -1,2 +1,2 @@
-| Case ID | Scenario | Setup and steps | Expected result | Verification |
-| --- | --- | --- | --- | --- |
+| Case ID | Scenario | Setup and steps | Expected result | Verification | Result |
+| --- | --- | --- | --- | --- | --- |
