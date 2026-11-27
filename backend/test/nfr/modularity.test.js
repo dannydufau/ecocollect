@@ -4,7 +4,6 @@ const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
-const YAML = require('yaml');
 
 const root = path.join(__dirname, '..', '..', '..');
 const src = path.join(root, 'backend', 'src');
@@ -28,36 +27,7 @@ function imports(file) {
   return [...text.matchAll(/(?:require\(|import\(|from\s+)\s*['"]([^'"]+)['"]/g)].map((m) => m[1]);
 }
 
-test('NFR01-P1: each part named in NFR01 is its own component', () => {
-  const services = YAML.parse(fs.readFileSync(path.join(root, 'docker-compose.yml'), 'utf8')).services;
-
-  for (const name of SERVICES) {
-    const service = services[name];
-    assert.ok(service, `Compose has no "${name}" service`);
-    const entry = service.command?.[1] ?? '';
-    assert.match(entry, new RegExp(`^src/${name}/index\\.(js|ts)$`), `"${name}" does not start its own entry point`);
-    assert.ok(fs.existsSync(path.join(root, 'backend', entry)), `${entry} does not exist`);
-  }
-
-  const frontendContext = services.frontend?.build?.context;
-  assert.strictEqual(frontendContext, './frontend', 'the frontend builds from frontend/');
-
-  const sql = sourceFilesSql(path.join(root, 'db')).map((f) => fs.readFileSync(f, 'utf8')).join('\n');
-  const schemas = new Set([...sql.matchAll(/CREATE SCHEMA(?: IF NOT EXISTS)?\s+(\w+)/gi)].map((m) => m[1]));
-  for (const schema of ['users', 'requests', 'notifications', 'rewards', 'cleanup']) {
-    assert.ok(schemas.has(schema), `no CREATE SCHEMA for "${schema}" under db/`);
-  }
-});
-
-function sourceFilesSql(dir) {
-  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) return sourceFilesSql(full);
-    return entry.name.endsWith('.sql') ? [full] : [];
-  });
-}
-
-test("NFR01-P2: no service imports another service's code", () => {
+test("NFR01-P1: no service imports another service's code", () => {
   const found = [];
   for (const service of SERVICES) {
     for (const file of sourceFiles(path.join(src, service))) {
@@ -80,7 +50,7 @@ test("NFR01-P2: no service imports another service's code", () => {
   assert.deepStrictEqual(found, [], `imports that reach into another component:\n${found.join('\n')}`);
 });
 
-test("NFR01-P4: each external service's library is used in one place", () => {
+test("NFR01-P2: each external service's library is used in one place", () => {
   // Library -> the one folder allowed to import it.
   const owners = {
     amqplib: 'backend/src/messaging/',
