@@ -8,7 +8,7 @@ The [functional requirements](../1.%20Functional%20Requirements/README.md) defin
 | --- | --- | --- | --- | --- |
 | FR01 | Account Registration | [accounts.md](cases/accounts.md) | Pass | Pass |
 | FR02 | User Login, Logout, and Role Selection | [accounts.md](cases/accounts.md) | Pass | Pass |
-| FR03 | Additional Role Activation | [accounts.md](cases/accounts.md) | Pass | Not run |
+| FR03 | Additional Role Activation | [accounts.md](cases/accounts.md) | Pass | Pass |
 | FR04 | Profile Management | [accounts.md](cases/accounts.md) | Pass | Pass |
 | FR05 | Public User Profiles | [accounts.md](cases/accounts.md) | Pass | Pass |
 | FR06 | Create Pickup Requests | [resident-requests.md](cases/resident-requests.md) | Pass | Pass |
@@ -19,15 +19,15 @@ The [functional requirements](../1.%20Functional%20Requirements/README.md) defin
 | FR11 | Cancel Pickup Requests | [resident-requests.md](cases/resident-requests.md) | Pass | Not run |
 | FR12 | Volunteer Request Discovery | [volunteer.md](cases/volunteer.md) | Pass | Pass |
 | FR13 | Accept Pickup Requests | [volunteer.md](cases/volunteer.md) | Pass | Not run |
-| FR14 | Cancel Volunteer Assignment | [volunteer.md](cases/volunteer.md) | Pass | Not run |
+| FR14 | Cancel Volunteer Assignment | [volunteer.md](cases/volunteer.md) | Pass | Pass |
 | FR15 | Confirm Item Collection | [volunteer.md](cases/volunteer.md) | Pass | Pass |
-| FR16 | Report Missed Pickup | [volunteer.md](cases/volunteer.md) | Not run | Not run |
-| FR17 | Record Facility Delivery | [volunteer.md](cases/volunteer.md) | Pass | Not run |
+| FR16 | Report Missed Pickup | [volunteer.md](cases/volunteer.md) | Not run | Pass |
+| FR17 | Record Facility Delivery | [volunteer.md](cases/volunteer.md) | Pass | Pass |
 | FR18 | EcoPoints Calculation and Awarding | [points-expiry-stats.md](cases/points-expiry-stats.md) | Pass | Pass |
 | FR19 | In-App Notifications and Push Notifications | [notifications-demo.md](cases/notifications-demo.md) | Not run | Not run |
 | FR20 | Automatic Request Expiration | [points-expiry-stats.md](cases/points-expiry-stats.md) | Pass | Pass |
 | FR21 | Volunteer Pickup History | [volunteer.md](cases/volunteer.md) | Pass | Pass |
-| FR22 | Terms and Conditions, including Safety Guidelines | [accounts.md](cases/accounts.md) | Not run | Pass |
+| FR22 | Terms and Conditions, including Safety Guidelines | [accounts.md](cases/accounts.md) | Pass | Pass |
 | FR23 | Public Community Impact Statistics | [points-expiry-stats.md](cases/points-expiry-stats.md) | Pass | Pass |
 
 ## Case format
@@ -40,25 +40,20 @@ The five files in `cases/` share the same columns, ending with **Result**: Pass,
 
 ## Results
 
-All testing is manual. The 23 requirements have a positive and a negative case, 46 in total: **36 pass and 10 are not run**. No case failed.
+All testing is manual. The 23 requirements have a positive and a negative case, 46 in total: **41 pass and 5 are not run**. No case failed.
 
 | How the case was run | Passed |
 | --- | --- |
 | Team manual runs | 34 |
-| Browser runs on the local Compose stack (FR02-P and FR08-P) | 2 |
+| Browser runs on the local Compose stack (FR02-P, FR03-N, FR08-P, FR14-N, FR16-N, FR17-N and FR22-P) | 7 |
 
 **Not run:**
 
 | Cases | Still needed |
 | --- | --- |
-| FR03-N | An account with both roles |
 | FR11-N, FR16-P | An accepted, uncollected request whose window has ended |
-| FR16-N | An accepted request before its window ends |
 | FR13-N | Two volunteer accounts |
-| FR14-N | A Collected request |
-| FR17-N | An Assigned request |
 | FR19-P, FR19-N | Web push in Chrome with a trusted certificate |
-| FR22-P | Three screens tried with the terms box unticked: role activation, request review and pickup acceptance |
 
 ### Database and event flows
 
@@ -78,7 +73,7 @@ The team ran 38 manual cases and marked all of them as passed. Their documents a
 | [FR06–10](results/manual/fr06-10.pdf) | 10 | Yes |
 | [FR20–23](results/manual/fr20-23.pdf) | 8 | No |
 
-The tested commit was not recorded for these runs or for the two local Compose runs, which also have no screenshots. The case tables use some of the team cases; the rest are extra checks. A password visible in the TC001 screenshot of the first document is blacked out in the saved copy.
+The tested commit was not recorded for these runs or for FR02-P and FR08-P. The other five local Compose runs, on 2026-11-27 in Chrome, used app code from `main` at `73700f2`; FR22-P also relies on two team cases. None of the local runs has saved screenshots. The case tables use some of the team cases; the rest are extra checks. A password visible in the TC001 screenshot of the first document is blacked out in the saved copy.
 
 ## Run the cases
 
