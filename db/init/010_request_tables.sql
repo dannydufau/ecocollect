@@ -1,8 +1,7 @@
 -- Request Service course tables, in its own schema "requests" (contract 2.1 and 8:
--- the Request Service is the only writer of these tables). The definitions are the
--- 608 physical model's (docs/Final Submission/ENSF608/4. Physical model/tables.sql),
--- with the same names and constraints. Only the schema changes: the two foreign
--- keys to terms_acceptance point at "users", which 005_user_tables.sql creates.
+-- the Request Service owns these tables). These definitions are the ENSF 608
+-- physical implementation. The two foreign keys to terms_acceptance point to
+-- the users schema, which 005_user_tables.sql creates.
 -- The service's operational tables, functions and login are in db/request/.
 
 CREATE SCHEMA IF NOT EXISTS requests;

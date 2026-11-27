@@ -4,15 +4,11 @@ These SQL cases check the 25 course relations in the application's PostgreSQL sc
 
 ## Run
 
-Use a separate PostgreSQL instance and a fresh database. Set `PGHOST`, `PGPORT`, and `PGUSER` to the test instance. The setup user needs permission to create the database, schemas, and roles used by the init scripts.
+Follow the [physical database setup](<../../../docs/Final Submission/ENSF608/4. Physical model/README.md>) to build and seed a fresh application test database. Use the same connection for the Section 5 query catalog.
 
-From the repository root in Bash:
+From the repository root:
 
 ```bash
-createdb ecocollect_608_test
-for file in db/init/*.sql db/request/*.sql backend/test/request/seed.sql; do
-  psql -X -v ON_ERROR_STOP=1 -d ecocollect_608_test -f "$file" || exit 1
-done
 psql -X -v ON_ERROR_STOP=1 -d ecocollect_608_test -f backend/test/ensf608/application.sql
 ```
 
@@ -30,6 +26,6 @@ Run the last command again to repeat the checks without reloading the seed. The 
 | APP06 | A duplicate facility and category pair is rejected with `23505`. | Pass |
 | APP07 | PostgreSQL rejects a zero quantity with `23514` and a missing public name with `23502`. | Pass |
 | APP08 | Updating the notification's read state and deleting the notification both succeed. Its award remains. | Pass |
-| APP09 | The test award is absent after rollback. | Pass |
+| APP09 | The original award notification is restored after rollback. | Pass |
 
 All nine cases passed twice on PostgreSQL 18.6. See the [saved output](results/application.txt).

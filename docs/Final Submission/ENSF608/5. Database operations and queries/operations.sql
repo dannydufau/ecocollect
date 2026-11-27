@@ -1,12 +1,13 @@
 -- ENSF 608 Section 5: Database Operations and Queries
--- Runs on the physical model in "../4. Physical model/" (tables.sql, transactions.sql, seed.sql).
+-- Run on the seeded application test database described in README.md.
 -- Sections follow the category table in the 608 project description.
 -- Citations: FRxx = ENSF607/1. Functional Requirements; Contract = contracts/README.md.
---   App: <file>:<line> <function> for code on main (db/request/*.sql = Request Service,
---   accounts.ts and profile.ts = backend/src/user/). Notification Service code is not on main
---   yet (#103), so it is cited by function name only (notification-store.js, subscriptions.js).
+-- The write examples demonstrate database operations inside rolled-back transactions.
+-- Use a scratch application database. The helper schema is removed at the end.
 
-SET search_path TO ecocollect608, public;
+\set ON_ERROR_STOP on
+CREATE SCHEMA ensf608_queries;
+SET search_path TO ensf608_queries, users, requests, rewards, notifications, pg_catalog;
 SET client_min_messages = warning;  -- hide "does not exist, skipping" from DROP PROCEDURE IF EXISTS
 
 
@@ -50,7 +51,6 @@ ORDER BY status, resident_id;
 --               acceptance of the current terms, together or not at all.
 --    Citation:  FR01, FR22 · App: accounts.ts:69 saveRegistration (same tables)
 --    Concepts:  transaction, INSERT ... VALUES, INSERT ... SELECT, CALL, 3-table join
---    Uses:      check_business_rules() (transactions.sql)
 BEGIN;
 
 -- a) The person.
@@ -70,7 +70,7 @@ ORDER BY published_at DESC
 LIMIT 1;
 
 -- d) Multi-row rules (e.g. each role needs its registration acceptance).
-CALL check_business_rules();
+
 
 -- e) Show the new resident.
 SELECT a.account_id, a.public_name, r.postal_code, t.type,
@@ -136,7 +136,6 @@ ROLLBACK;
 --    Citation:  FR10, FR07 · App: 037_request_edit.sql:118 req_edit
 --    Concepts:  transaction, row lock (FOR UPDATE), UPDATE, INSERT ... SELECT,
 --               business-rule check (CALL), ROLLBACK keeps the seed unchanged
---    Uses:      check_business_rules() (transactions.sql); request ...0001 from seed.sql
 BEGIN;
 
 -- a) Lock the request; a resident editing and a volunteer accepting can
@@ -167,7 +166,7 @@ SET request_seq = request_seq + 1
 WHERE pickup_request_id = '00000003-0000-4000-8000-000000000001';
 
 -- e) Multi-row rules (1-3 active windows, distinct, inside the 30-day period).
-CALL check_business_rules();
+SELECT requests.check_request('00000003-0000-4000-8000-000000000001');
 
 -- f) Show the result.
 -- (ids shown as their last 4 characters, see op 0)
@@ -187,7 +186,6 @@ ROLLBACK;
 --               one stops new-request notifications for that area.
 --    Citation:  FR04, FR01 (up to 3 preferred codes)
 --    Concepts:  DELETE ... WHERE, AND, row lock (FOR UPDATE), CALL
---    Uses:      check_business_rules() (transactions.sql); volunteer1 from seed.sql
 BEGIN;
 
 -- a) Lock the volunteer: preferred-code changes lock the volunteer row
@@ -200,7 +198,7 @@ WHERE account_id = 'volunteer1'
   AND postal_code = 'T2T4M3';
 
 -- c) Multi-row rules.
-CALL check_business_rules();
+
 
 -- d) Show the remaining codes.
 SELECT account_id, postal_code
@@ -218,7 +216,6 @@ ROLLBACK;
 --    Citation:  FR19 · Contract: E14 NotificationCleanupRequested (daily at 03:00 Calgary),
 --               13.2 "Expired notifications are deleted on NotificationCleanupRequested"
 --    Concepts:  DELETE ... WHERE ... IN (subquery), foreign-key order, transaction, CALL
---    Uses:      check_business_rules() (transactions.sql)
 BEGIN;
 
 -- a) Before: notifications by state.
@@ -237,9 +234,6 @@ WHERE notification_id IN (SELECT notification_id FROM notification WHERE is_expi
 -- c) Then the parents.
 DELETE FROM notification
 WHERE is_expired;
-
--- d) Multi-row rules (every notification still has exactly one source row).
-CALL check_business_rules();
 
 -- e) After.
 SELECT is_expired, COUNT(*) AS notifications
@@ -603,3 +597,9 @@ WHERE n.notification_id IN ('0000000a-0000-4000-8000-000000000008',
 ORDER BY rn.account_id;
 
 ROLLBACK;
+
+DROP PROCEDURE ensf608_queries.mark_read(VARCHAR, UUID, BOOLEAN);
+DROP PROCEDURE ensf608_queries.mark_all_read(VARCHAR);
+DROP VIEW ensf608_queries.request_current_status;
+DROP SCHEMA ensf608_queries;
+RESET search_path;

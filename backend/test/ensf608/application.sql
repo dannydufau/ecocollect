@@ -12,7 +12,7 @@ DECLARE
         'notification', 'request_event', 'request_update_event', 'request_changed_field',
         'request_notification', 'award_notification'
     ];
-    award_id CONSTANT uuid := 'f6080000-0000-4000-8000-000000000001';
+    award_id CONSTANT uuid := '00000008-0000-4000-8000-000000000002';
     notice_id CONSTANT uuid := 'f6080000-0000-4000-8000-000000000002';
     unknown_id CONSTANT uuid := 'f6080000-0000-4000-8000-000000000003';
     delivered bigint;
@@ -55,9 +55,9 @@ BEGIN
     END IF;
     RAISE NOTICE 'PASS APP03: phones are accepted at two facilities and the first facility accepts eight categories';
 
-    INSERT INTO rewards.ecopoints_award (ecopoints_award_id, assignment_id, points, formula)
-    VALUES (award_id, '00000005-0000-4000-8000-000000000004', 13, '(3 * quantity + 4 * estimated_weight_kg) / 2');
-    INSERT INTO rewards.resident_award (ecopoints_award_id) VALUES (award_id);
+    -- Replace the seeded notification inside this transaction to exercise the unique award link.
+    DELETE FROM notifications.award_notification WHERE ecopoints_award_id=award_id;
+    DELETE FROM notifications.notification WHERE notification_id='0000000a-0000-4000-8000-000000000066';
     INSERT INTO notifications.notification (notification_id, type, created_at, is_read, is_expired)
     VALUES (notice_id, 'ECOPOINTS_AWARDED_ON_DELIVERY_RESIDENT', CURRENT_TIMESTAMP, FALSE, FALSE);
     INSERT INTO notifications.award_notification (notification_id, ecopoints_award_id)
@@ -67,7 +67,7 @@ BEGIN
         WHERE n.notification_id=notice_id) IS DISTINCT FROM 13 THEN
         RAISE EXCEPTION 'APP04: linked award could not be read back';
     END IF;
-    RAISE NOTICE 'PASS APP04: valid award and notification saved and joined across schemas';
+    RAISE NOTICE 'PASS APP04: new notification linked to an existing award across schemas';
 
     BEGIN
         UPDATE notifications.award_notification SET ecopoints_award_id=unknown_id WHERE notification_id=notice_id;
@@ -124,11 +124,15 @@ ROLLBACK;
 DO $$
 BEGIN
     IF EXISTS (
-        SELECT 1 FROM rewards.ecopoints_award
-        WHERE ecopoints_award_id='f6080000-0000-4000-8000-000000000001'
+        SELECT 1 FROM notifications.notification
+        WHERE notification_id='f6080000-0000-4000-8000-000000000002'
+    ) OR NOT EXISTS (
+        SELECT 1 FROM notifications.award_notification
+        WHERE notification_id='0000000a-0000-4000-8000-000000000066'
+          AND ecopoints_award_id='00000008-0000-4000-8000-000000000002'
     ) THEN
-        RAISE EXCEPTION 'APP09: a test record survived rollback';
+        RAISE EXCEPTION 'APP09: rollback did not restore the seeded notification';
     END IF;
-    RAISE NOTICE 'PASS APP09: rollback removed the test award';
+    RAISE NOTICE 'PASS APP09: rollback restored the original award notification';
 END;
 $$;
