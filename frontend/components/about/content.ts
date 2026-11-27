@@ -100,13 +100,22 @@ export const trustPrinciples: readonly TrustPrinciple[] = [
     },
 ];
 
-// Worked EcoPoints example (FR18): 1 Monitor at 5.00 kg.
+const monitorCategory = acceptedCategories.find((category) => category.id === "monitors");
+if (!monitorCategory) {
+    throw new Error("Expected 'monitors' category in acceptedCategories");
+}
+const exampleQuantity = 1;
+const exampleWeightKg = exampleQuantity * monitorCategory.standardWeightKg;
+const exampleVolunteerPoints = 3 * exampleQuantity + 4 * exampleWeightKg;
+
+// Worked EcoPoints example (FR18): 1 Monitor derived from the acceptedCategories row.
+// Verified against backend/src/reward/points.js by content.test.ts.
 export const workedExample = {
-    categoryName: "Monitors",
+    categoryName: monitorCategory.name,
     itemLabel: "1 × Monitor",
-    quantity: 1,
-    standardWeightKg: 5.0,
-    estimatedWeightKg: 5.0,
-    volunteerPoints: 3 * 1 + 4 * 5.0, // 23.00
-    residentPoints: (3 * 1 + 4 * 5.0) / 2, // 11.50
+    quantity: exampleQuantity,
+    standardWeightKg: monitorCategory.standardWeightKg,
+    estimatedWeightKg: exampleWeightKg,
+    volunteerPoints: exampleVolunteerPoints, // 23.00
+    residentPoints: exampleVolunteerPoints / 2, // 11.50
 } as const;
