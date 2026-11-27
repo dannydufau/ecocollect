@@ -173,15 +173,18 @@ BEGIN
         RETURN;
     END IF;
 
-    -- 3. Field checks, every failure collected. The facility must exist and accept
-    -- the request's category (FR17).
+    -- 3. Field checks, every failure collected. The facility must exist, be enabled
+    -- for new deliveries, and have an enabled mapping for the request's category (FR17).
     IF NOT EXISTS (SELECT 1 FROM recycling_facility f WHERE f.facility_id = p_facility_id) THEN
         error_fields   := array_append(error_fields, k_field_facility);
         error_messages := array_append(error_messages, k_msg_unknown_facility);
     ELSIF NOT EXISTS (
-            SELECT 1 FROM facility_accepts fa
-            WHERE fa.facility_id = p_facility_id
-              AND fa.category_id = v_category_id) THEN
+            SELECT 1 FROM recycling_facility f
+            JOIN facility_accepts fa ON fa.facility_id = f.facility_id
+            WHERE f.facility_id = p_facility_id
+              AND f.is_enabled
+              AND fa.category_id = v_category_id
+              AND fa.is_enabled) THEN
         error_fields   := array_append(error_fields, k_field_facility);
         error_messages := array_append(error_messages, k_msg_not_accepted);
     END IF;

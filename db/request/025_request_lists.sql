@@ -54,13 +54,23 @@ BEGIN
            ARRAY(SELECT fa.category_id
                  FROM facility_accepts fa
                  WHERE fa.facility_id = f.facility_id
+                   AND fa.is_enabled
                  ORDER BY fa.category_id)
     FROM recycling_facility f
-    WHERE p_category_id IS NULL
-       OR EXISTS (SELECT 1
-                  FROM facility_accepts fa
-                  WHERE fa.facility_id = f.facility_id
-                    AND fa.category_id = p_category_id)
+    WHERE f.is_enabled
+      AND (
+          (p_category_id IS NULL
+              AND EXISTS (SELECT 1
+                          FROM facility_accepts fa
+                          WHERE fa.facility_id = f.facility_id
+                            AND fa.is_enabled))
+          OR (p_category_id IS NOT NULL
+              AND EXISTS (SELECT 1
+                          FROM facility_accepts fa
+                          WHERE fa.facility_id = f.facility_id
+                            AND fa.category_id = p_category_id
+                            AND fa.is_enabled))
+      )
     ORDER BY f.name, f.facility_id;
 END;
 $$;
