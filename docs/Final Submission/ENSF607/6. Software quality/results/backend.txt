@@ -1,0 +1,261 @@
+Command: cd backend && npm test
+Commit: 56785bf (main fac33fe plus backend/test/request/resident-cases.test.ts)
+Date: 2026-11-27 11:11 CST
+Environment: macOS, Node v24.9.0. No database URL set, so database cases are skipped.
+
+
+> ecocollect-backend@1.0.0 test
+> node --test --test-concurrency=1 test/*.test.js "test/request/**/*.test.ts"
+
+✔ created or updated: the job runs at expiresAt (1.142125ms)
+✔ assigned, cancelled or expired: no job (0.081375ms)
+✔ an event with bad data throws (0.151208ms)
+﹣ cleanup store (0.35225ms) # set TEST_DATABASE_URL to run the database tests
+✔ the 12th fire of a job logs a warning with its requestId and requestSeq (22.329ms)
+✔ every upstream in the Caddyfile is a service or an alias in Compose (0.467ms)
+✔ the notification service is the backend image started with its own entry point, on the port Caddy uses (0.414833ms)
+✔ the notification service gets the broker and Postgres, but no Firebase key (0.116416ms)
+✔ the frontend is reachable as "frontend" on the port Caddy uses (0.067292ms)
+✔ the Request Service finds Postgres (as its own login) and RabbitMQ by service name, and waits for them (0.34325ms)
+✔ the Firebase key reaches the User Service as a secret at the path it is told to read (0.072125ms)
+✔ nothing is published beyond this machine, and only Caddy publishes the app (0.111208ms)
+✔ Caddy mounts the Caddyfile that is in the repo (0.069166ms)
+✖ the frontend gets every NEXT_PUBLIC_ value as a build arg, in Compose and in its Dockerfile (0.958167ms)
+✔ the backend image uses a Node version the backend supports (0.347292ms)
+✔ the compose file asks for the .env values it needs instead of guessing (0.110958ms)
+✔ declares the DLQ and binds it to the DLX with the queue name, before the main queue (0.792334ms)
+✔ rejects a bad queue definition before calling the broker (0.300042ms)
+✔ without X-User-Id the request gets 401 and no stream is opened (56.916584ms)
+✔ the heartbeat writes a ping comment (34.212416ms)
+✔ when the tab disconnects, the hub forgets it (25.044583ms)
+✔ closeAll ends open streams, so browsers reconnect elsewhere (5.78575ms)
+✔ RequestCreated: the resident gets REQUEST_CREATED, each volunteer NEW_MATCHING_REQUEST with a push (1.351583ms)
+✔ RequestCreated: private fields never reach a signal or a notification (0.226917ms)
+✔ RequestCreated: a volunteer listed twice gets one delivery (0.133334ms)
+✔ RequestCreated: no matched volunteers means only the resident gets a delivery (0.127ms)
+✔ RequestCreated v2: the request sits in data.request, same deliveries as v1 (0.136125ms)
+✔ RequestCreated: an event without a requestId or eventId throws, so the subscriber retries it (0.273125ms)
+✔ a notification id is a UUID that the same event, recipient and type always repeat (0.177583ms)
+✔ replacements: one silent text per account whose pushed notification went stale (0.186334ms)
+✔ send reaches every open tab of that user, and nobody else (0.770833ms)
+✔ send to a user with no open tab returns 0 and adds nothing (0.081125ms)
+✔ send skips a tab that already ended instead of throwing (0.074083ms)
+✔ remove forgets one tab; the user goes away with their last tab (0.093916ms)
+✔ remove for an unknown user or tab does nothing (0.071ms)
+✔ closeAll ends every open tab and empties the hub (0.44225ms)
+✔ frame is one SSE message, with an id line only when given (0.250916ms)
+✔ N3 lists the caller's notifications in the contract shape, with the unread count (34.236792ms)
+✔ N4 marks the caller's own notification read and tells their tabs; anyone else gets 404 (8.563875ms)
+✔ N5 marks everything read and sends one notification-read with all: true (4.707041ms)
+✔ pushPayload keeps only what the OS notification needs, tagged by request or award (0.867375ms)
+✔ the sender POSTs a signed, encrypted push to each of the user's browsers (29.242625ms)
+✔ a 410 from the push service forgets that subscription (5.879667ms)
+✔ POST /api/push/subscriptions saves the caller's subscription, DELETE removes it (15.214917ms)
+▶ sending to the broker
+  ✔ the message is persistent JSON on the events exchange, with the event id and type (0.80275ms)
+  ✔ a message the broker refuses is an error (0.367584ms)
+  ✔ a broker that never confirms is an error after the timeout, not a hang (21.171042ms)
+✔ sending to the broker (23.019042ms)
+✔ publishNext reads and marks the outbox table it is given (0.354209ms)
+✔ publishNext refuses a table name that is not a plain name, before any SQL runs (0.206917ms)
+﹣ the outbox (0.076709ms) # set TEST_DATABASE_URL to run the database tests
+﹣ Q11 accept (0.261333ms) # set REQUEST_TEST_DATABASE_URL to run the database tests
+﹣ health answers 200 when the database answers (0.267166ms) # set REQUEST_TEST_DATABASE_URL to run the database tests
+✔ the app answers in the contract shape (35.967334ms)
+﹣ Q12 cancel assignment (0.3035ms) # set REQUEST_TEST_DATABASE_URL to run the database tests
+﹣ Q10 cancel (0.266042ms) # set REQUEST_TEST_DATABASE_URL to run the database tests
+﹣ CleanupRequest consumer (0.26975ms) # set REQUEST_TEST_DATABASE_URL to run the database tests
+﹣ Q13 confirm collected (0.262708ms) # set REQUEST_TEST_DATABASE_URL to run the database tests
+﹣ Q9 edit (0.2625ms) # set REQUEST_TEST_DATABASE_URL to run the database tests
+﹣ Q8 request detail (0.312334ms) # set REQUEST_TEST_DATABASE_URL to run the database tests
+﹣ Q6 available requests (0.273625ms) # set REQUEST_TEST_DATABASE_URL to run the database tests
+﹣ Q5 my requests (0.271042ms) # set REQUEST_TEST_DATABASE_URL to run the database tests
+﹣ Q7 volunteer history (0.253833ms) # set REQUEST_TEST_DATABASE_URL to run the database tests
+﹣ lists (0.261ms) # set REQUEST_TEST_DATABASE_URL to run the database tests
+﹣ Q15 record delivery (0.2665ms) # set REQUEST_TEST_DATABASE_URL to run the database tests
+﹣ Q14 report missed (0.264584ms) # set REQUEST_TEST_DATABASE_URL to run the database tests
+﹣ Q4 create requests (0.297125ms) # set REQUEST_TEST_DATABASE_URL to run the database tests
+﹣ 607 resident cases (0.254042ms) # set REQUEST_TEST_DATABASE_URL to run the database tests
+✔ shared CommonJS modules can be imported from TypeScript (0.323292ms)
+﹣ Q3 upload ticket (0.263958ms) # set REQUEST_TEST_DATABASE_URL to run the database tests
+✔ delivery: 26 points to the volunteer and 13 to the resident (3.108458ms)
+✔ delivery: publishes PointsAwardedDelivery (0.094083ms)
+✔ late cancellation: one award for the volunteer (0.109583ms)
+✔ early cancellation: no points (0.055834ms)
+✔ cancellation of your own request: no points (0.057791ms)
+✔ an event with bad data throws (0.16025ms)
+✔ the contract example: 2 laptops, 5.0 kg -> 26 and 13 (0.817916ms)
+✔ small weights stay exact (0.174375ms)
+✔ the resident award is always exactly half (1.03725ms)
+✔ rejects a quantity that is not a whole number of at least 1 (0.21225ms)
+✔ rejects a weight that is negative, not a number, or has more than 2 decimals (0.09875ms)
+﹣ R1 to R3 read the seeded awards (0.522625ms) # set TEST_DATABASE_URL to run the database tests
+﹣ a delivery is saved once, even if the event arrives twice (0.065917ms) # set TEST_DATABASE_URL to run the database tests
+✔ reconnects and rebuilds the queue after the connection closes (14.856333ms)
+✔ dispatches by envelope.type and acks when the handler returns (5.207416ms)
+✔ rejects with requeue when the handler throws, so RabbitMQ retries it (5.455166ms)
+✔ dead-letters unparseable JSON, unknown types and invalid envelopes (2.07275ms)
+✔ acks and skips a valid event with no handler (1.599042ms)
+✔ every consumer queue has the name, bindings and arguments the contract gives it (9.341583ms)
+✔ fails with a clear message when the key file is missing (0.772125ms)
+✔ POST /api/session swaps a good ID token for a secure cookie (88.318166ms)
+✔ POST /api/session returns 401 for an invalid or stale token (5.958209ms)
+✔ POST /api/session returns 401 when the token is missing (2.3085ms)
+✔ POST /api/session returns 400 for a body that is not valid JSON (3.079375ms)
+✔ POST /api/session returns 500 when Firebase fails for another reason (5.175ms)
+✔ POST /api/session returns 500 when Firebase itself reports an internal error (1.918334ms)
+✔ DELETE /api/session clears the cookie (1.830291ms)
+✔ DELETE /api/session revokes the user's sessions for a valid cookie (1.83425ms)
+✔ DELETE /api/session revokes nothing when there is no cookie (1.560709ms)
+✔ DELETE /api/session still returns 204 for a bad cookie (1.776167ms)
+✔ DELETE /api/session logs a Firebase failure but still returns 204 (1.514417ms)
+✔ a valid bearer token returns 200 with the user headers (1.649667ms)
+✔ a valid session cookie returns 200 with the user headers (1.260916ms)
+✔ the bearer token wins when both are sent (1.172041ms)
+✔ returns 401 when there are no credentials (2.515834ms)
+✔ returns 401 for a rejected bearer token (1.348042ms)
+✔ returns 401 for a rejected session cookie (1.263417ms)
+✔ a user without a roles claim gets an empty roles header (1.298667ms)
+✔ returns 500 when Firebase fails for another reason (1.348959ms)
+✔ returns 500 for a Firebase auth error that is not about the token (1.169875ms)
+✔ the old initializer path points to the User Service implementation (0.119417ms)
+✔ revoked tokens, revoked cookies and disabled accounts still return 401 (3.587917ms)
+✔ malformed session JSON keeps the original plain 400 response (1.665208ms)
+✔ the route is absent in normal mode (22.345083ms)
+✔ the rate limit ignores forwarded headers from direct callers and resets after a minute (12.127667ms)
+✔ the configured proxy uses the nearest forwarded address for independent limits (5.812792ms)
+✔ a failed database write removes the created Firebase user and withholds the token (4.265208ms)
+﹣ the restricted role can persist a demo account, both roles and both terms acceptances (0.064958ms) # requires scratch PostgreSQL with the User schema and seed
+✔ creates the requested Firebase user and sets its first role (1.690416ms)
+✔ new volunteer accounts receive the volunteer role (0.145792ms)
+✔ an existing database account keeps its Firebase user and returns a typed conflict (0.472375ms)
+✔ an old orphan found by username is deleted and registration is retried once (0.16325ms)
+✔ email cleanup uses the Firebase owner uid rather than the requested username (0.151458ms)
+✔ recent, exactly ten-minute-old, future-dated and unknown-age users are never deleted (0.272167ms)
+✔ an orphan just over ten minutes old can be cleaned up (0.146209ms)
+✔ a second collision is mapped to its own conflict without further cleanup (0.158083ms)
+✔ ordinary Firebase creation failures propagate without cleanup or retry (0.111ms)
+✔ a failed lookup or account check never deletes a Firebase user (0.233708ms)
+✔ cleanup requires an explicit false result from the database check (0.088917ms)
+✔ failed orphan deletion prevents a second create attempt (0.104042ms)
+✔ setRoles succeeds on the third attempt and does not change the supplied roles (0.124042ms)
+✔ setRoles stops after three failures and returns the last error (0.108625ms)
+✔ failed initial claims remove only the newly created Firebase account (0.120792ms)
+✔ a claims failure and cleanup failure are both preserved (0.125958ms)
+✔ invalid roles and missing database time fail before creating a user (0.091292ms)
+✔ disableUser disables the account before revoking refresh tokens (0.080208ms)
+✔ disable failures propagate and a failed update does not revoke tokens (0.103333ms)
+✔ enableUser only re-enables the account and propagates failures (0.0855ms)
+✔ deactivation requires a verified identity before accessing the database (22.102291ms)
+﹣ deactivation checks owned work and assignments, compensates failures, and emits one event (0.076458ms) # requires scratch PostgreSQL with shared users and requests schemas
+✔ authentication, invalid fields, and malformed terms are handled before connecting (33.277584ms)
+﹣ role activation persists both directions, serializes duplicates and rolls back failed claims (0.081208ms) # requires scratch PostgreSQL with the User schema and seed
+✔ profile editing requires an identity and validates fields before accessing PostgreSQL (34.004375ms)
+﹣ the shared schema enforces role and latest request state, and the event omits address data (0.064167ms) # requires scratch PostgreSQL with shared users and requests schemas
+✔ resident profile matches the contract and reads email only from Firebase (1.766333ms)
+✔ volunteer-only and dual-role profiles have the right address and codes (0.270667ms)
+✔ missing database profiles return 404 without querying Firebase (0.264875ms)
+✔ Firebase failures propagate and incomplete profiles are not returned (0.229333ms)
+✔ the route requires a verified user header before loading a profile (23.762625ms)
+✔ the profile route uses only the caller id and ignores role headers and query targets (6.275458ms)
+✔ profile errors use the shared response without leaking server details (3.206958ms)
+﹣ database profile joins cover all roles, isolate accounts and preserve date-only values (0.141333ms) # set TEST_DATABASE_URL to a scratch database loaded with the User scripts
+✔ the public response has exactly the contract fields and excludes private data (1.958875ms)
+✔ the public response supports volunteer-only and dual-role membership (0.212167ms)
+✔ invalid account ids return 404 before making a database query (0.399458ms)
+✔ missing and incomplete profiles use the same 404 response (0.137666ms)
+✔ the HTTP route is public and ignores identity headers and query targets (30.937458ms)
+✔ invalid and unknown HTTP ids are indistinguishable (8.064875ms)
+✔ profile stats and unsupported methods do not reach the User lookup (2.265708ms)
+✔ database failures return a safe JSON 500 (1.6255ms)
+﹣ database public profiles include all roles and hide deactivated and unknown accounts (0.045125ms) # set TEST_DATABASE_URL to a scratch database loaded with the User scripts
+✔ underage and stale or malformed terms are rejected before Firebase or writes (34.632125ms)
+✔ terms changed during Firebase provisioning abort registration and clean up the Firebase account (52.990209ms)
+✔ registration maps auth/uid-already-exists before opening a write transaction (7.29275ms)
+✔ registration maps auth/email-already-exists before opening a write transaction (6.695791ms)
+✔ registration maps auth/invalid-password before opening a write transaction (5.654417ms)
+✔ failed registration rolls back and removes the Firebase user (400) (5.419917ms)
+✔ failed registration rolls back and removes the Firebase user (500) (6.773625ms)
+✔ an unconfirmed commit keeps the Firebase account in case the database committed (6.344542ms)
+﹣ registration persists residents, volunteers and terms without an outbox event (0.066833ms) # requires scratch PostgreSQL with the User schema and seed
+✔ health works without gateway headers and exposes no implementation header (42.25625ms)
+✔ the User Service exits before listening when the Firebase key is missing (192.137291ms)
+✔ unknown routes and methods use the JSON error shape (7.055334ms)
+✔ bad JSON and oversized bodies have safe client errors (11.811083ms)
+✔ discovers route files in order, awaits registration and ignores declarations (4.112042ms)
+✔ a route without register fails startup instead of silently disappearing (1.666166ms)
+✔ validation errors preserve field messages and unexpected errors do not expose details (3.473ms)
+✔ Compose runs the User Service internally from the existing backend image (0.078917ms)
+✔ only the User Service mounts the Firebase key (0.066875ms)
+✔ gateway uses User auth and preserves routing priority and production isolation (0.234958ms)
+✔ accepts a resident, a volunteer without an address, and optional empty codes (0.590042ms)
+✔ every required field has its own missing and wrong-type error (0.689292ms)
+✔ non-object bodies produce a field error rather than throwing (0.057375ms)
+✔ unknown fields, including prototype names, get safe field errors (0.072375ms)
+✔ username limits and allowed characters are exact (0.148666ms)
+✔ email accepts common valid forms and rejects malformed addresses (0.138083ms)
+✔ password minimum counts characters and names reject blank text (0.139083ms)
+✔ Calgary birthdays use the local day even when UTC is already tomorrow (0.061958ms)
+﹣ the eighteenth birthday begins at Calgary midnight with current November 2026 time zone data (0.020792ms) # This Node build has older Calgary time zone data. Update Node/ICU to run the November 2026 midnight check.
+✔ leap-day birthdays become 18 on March 1 in a non-leap year (0.056417ms)
+✔ date validation rejects impossible dates, timestamps and future dates (0.244416ms)
+✔ the role must be one supported role and a resident needs an address (0.124667ms)
+✔ address errors use nested paths and the optional city follows the shared schema (0.105084ms)
+✔ postal format is strict, does not normalize and matches the contract (0.041ms)
+✔ preferred code errors identify the list or the offending entry (0.111667ms)
+✔ optional fields are checked for either role without changing the submitted object (0.133042ms)
+✔ a supplied terms string is not checked against current terms by this function (0.068417ms)
+✔ the User database requires an explicit connection URL (0.065708ms)
+✔ unknown events and mismatched routing keys are rejected before a write (0.199583ms)
+﹣ User database transactions and permissions (0.02425ms) # set TEST_DATABASE_URL to a scratch database loaded with the User scripts
+✔ User relay retries a broker outage and publishes persistent JSON on recovery (11.757209ms)
+﹣ User outbox preserves insertion order at equal timestamps and retries an unconfirmed row (0.04075ms) # requires a scratch User database
+✔ getCurrentTerms returns only the contract fields and formats the timestamp in UTC (1.423125ms)
+✔ an empty terms table gives a safe internal error (0.281458ms)
+✔ GET terms is public and ignores supplied identity headers (29.518042ms)
+✔ terms lookup failures use the shared JSON error shape without exposing database details (5.97725ms)
+✔ an empty terms lookup returns 500 through the HTTP route (2.089083ms)
+✔ unsupported terms methods do not read the database (1.510792ms)
+﹣ real terms lookup skips scheduled publications and breaks ties at the current time (0.051041ms) # set TEST_DATABASE_URL to a scratch database loaded with the User scripts
+✔ no X-User-Id header means 401 (0.428875ms)
+✔ the uid and the comma separated roles are read from the headers (0.370792ms)
+✔ an empty roles header means no roles (0.074708ms)
+✔ requireRole lets the right role through and answers 403 to the wrong one (0.069458ms)
+ℹ tests 197
+ℹ suites 16
+ℹ pass 180
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 16
+ℹ todo 0
+ℹ duration_ms 9360.394458
+
+✖ failing tests:
+
+test at test/compose.test.js:89:1
+✖ the frontend gets every NEXT_PUBLIC_ value as a build arg, in Compose and in its Dockerfile (0.958167ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  +   'NEXT_PUBLIC_DEMO',
+      'NEXT_PUBLIC_FIREBASE_API_KEY',
+      'NEXT_PUBLIC_FIREBASE_APP_ID',
+      'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN',
+      'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID',
+      'NEXT_PUBLIC_FIREBASE_PROJECT_ID',
+  
+      at TestContext.<anonymous> (./backend/test/compose.test.js:92:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'NEXT_PUBLIC_DEMO', 'NEXT_PUBLIC_FIREBASE_API_KEY', 'NEXT_PUBLIC_FIREBASE_APP_ID', 'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN', 'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID', 'NEXT_PUBLIC_FIREBASE_PROJECT_ID', 'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET', 'NEXT_PUBLIC_VAPID_KEY' ],
+    expected: [ 'NEXT_PUBLIC_FIREBASE_API_KEY', 'NEXT_PUBLIC_FIREBASE_APP_ID', 'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN', 'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID', 'NEXT_PUBLIC_FIREBASE_PROJECT_ID', 'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET', 'NEXT_PUBLIC_VAPID_KEY' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,1300 @@
+Command: cd frontend && npm test -- --reporter=verbose (then npm run lint, npx next typegen and npx tsc --noEmit)
+Commit: 56785bf (main fac33fe plus backend/test/request/resident-cases.test.ts)
+Date: 2026-11-27 11:11 CST
+Environment: macOS, Node v24.9.0. No .env.local.
+
+
+> frontend@0.1.0 test
+> vitest run --reporter=verbose
+
+
+ RUN  v4.1.12 ./frontend
+
+ ✓ components/resident/request-form.test.tsx > shownInForm(items) is true, as the form has an input for it or not 2ms
+ ✓ components/resident/request-form.test.tsx > shownInForm(items[1].categoryId) is true, as the form has an input for it or not 0ms
+ ✓ components/resident/request-form.test.tsx > shownInForm(items[0].quantity) is true, as the form has an input for it or not 0ms
+ ✓ components/resident/request-form.test.tsx > shownInForm(items[2].photo.fileId) is true, as the form has an input for it or not 0ms
+ ✓ components/resident/request-form.test.tsx > shownInForm(windows) is true, as the form has an input for it or not 0ms
+ ✓ components/resident/request-form.test.tsx > shownInForm(windows[0]) is true, as the form has an input for it or not 0ms
+ ✓ components/resident/request-form.test.tsx > shownInForm(notes) is true, as the form has an input for it or not 0ms
+ ✓ components/resident/request-form.test.tsx > shownInForm(items[0].colour) is false, as the form has an input for it or not 0ms
+ ✓ components/resident/request-form.test.tsx > shownInForm(termsDocumentId) is false, as the form has an input for it or not 0ms
+ ✓ components/resident/request-form.test.tsx > shownInForm(Idempotency-Key) is false, as the form has an input for it or not 0ms
+ ✓ components/resident/request-form.test.tsx > shownInForm(notesExtra) is false, as the form has an input for it or not 0ms
+ ✓ components/resident/request-form.test.tsx > validate > accepts valid values and two different hours on the same day 27ms
+ ✓ components/resident/request-form.test.tsx > validate > rejects quantity "0" at its field path 0ms
+ ✓ components/resident/request-form.test.tsx > validate > rejects quantity "-1" at its field path 0ms
+ ✓ components/resident/request-form.test.tsx > validate > rejects quantity "1.5" at its field path 0ms
+ ✓ components/resident/request-form.test.tsx > validate > rejects quantity "" at its field path 0ms
+ ✓ components/resident/request-form.test.tsx > validate > rejects quantity " " at its field path 0ms
+ ✓ components/resident/request-form.test.tsx > validate > rejects a repeated or missing category at the matching row 1ms
+ ✓ components/resident/request-form.test.tsx > validate > requires items and windows 0ms
+ ✓ components/resident/request-form.test.tsx > validate > rejects duplicate slots, invalid dates, past windows and late end times 1ms
+ ✓ components/resident/request-form.test.tsx > validate > uses the original creation date when editing 0ms
+ ✓ components/app-header.test.tsx > keeps the header bar in the same width as the pages 217ms
+ ✓ components/register-form.test.tsx > shows the about you and account fields and a role choice, and no role details yet 338ms
+ ✓ components/app-header.test.tsx > shows the resident links 110ms
+ ✓ components/app-header.test.tsx > shows the volunteer links 73ms
+ ✓ app/register/page.test.tsx > shows the form, a link to sign in and the logo 370ms
+ ✓ app/register/page.test.tsx > keeps the form in a narrow column that sits at the left of the page width 65ms
+ ✓ app/resident/requests/[id]/edit/page.test.tsx > prefills the form from the request in single item mode 435ms
+ ✓ app/resident/requests/[id]/edit/page.test.tsx > keeps the form in a narrow column at the left of the page width 82ms
+ ✓ components/app-header.test.tsx > lets a both-roles account switch to volunteer 79ms
+ ✓ components/app-header.test.tsx > shows My requests, Available, shared links and the switcher before a both-roles account picks a role 64ms
+ ✓ app/register/page.test.tsx > says why submit is disabled until the terms are accepted 83ms
+ ✓ components/register-form.test.tsx > shows street and postal code for a resident, and hides the street for a volunteer 208ms
+ ✓ components/resident/request-form.test.tsx > RequestForm > adds rows, disables chosen categories in other rows and limits rows to category count 551ms
+ ✓ components/resident/request-form.test.tsx > RequestForm > updates the read-only estimated weight when quantity changes 91ms
+ ✓ app/profile/editors.test.tsx > gives each card its own Edit button, and only one form is open at a time 525ms
+ ✓ components/app-header.test.tsx > sends the brand link of a resident tab to its home 66ms
+ ✓ components/app-header.test.tsx > sends the brand link of a volunteer tab to its home 49ms
+ ✓ app/resident/requests/[id]/edit/page.test.tsx > sends only the quantity when only that changed, then goes back to the request 123ms
+ ✓ components/resident/request-form.test.tsx > RequestForm > shows no errors before the first submit 43ms
+ ✓ components/register-form.test.tsx > groups the fields like the design, with Role details for either role 227ms
+ ✓ components/register-form.test.tsx > has the sign in link next to the button 18ms
+ ✓ components/app-header.test.tsx > sends the brand link to /choose-role before a role is picked and to /login when signed out 84ms
+ ✓ components/app-header.test.tsx > shows the switcher from 960 px and a badge that switches role on a phone, for a both-roles account 31ms
+ ✓ components/app-header.test.tsx > switches to the other role with one tap on the phone badge and lands on its home page 27ms
+ ✓ app/profile/editors.test.tsx > sends only the public name, shows Profile saved and gives the focus back to Edit 163ms
+ ✓ app/register/page.test.tsx > keeps submit disabled until the terms are accepted 95ms
+ ✓ components/resident/request-form.test.tsx > RequestForm > shows errors under the matching item and window fields 107ms
+ ✓ components/resident/request-form.test.tsx > RequestForm > moves focus to the first field with an error 57ms
+ ✓ app/profile/editors.test.tsx > asks for a public name and sends nothing when it is empty 110ms
+ ✓ app/profile/editors.test.tsx > sends nothing when Save is pressed without a change, and closes the form 95ms
+ ✓ app/resident/requests/[id]/edit/page.test.tsx > sends photo null when the photo is removed 154ms
+ ✓ components/app-header.test.tsx > does not make the badge of a one-role account a button 51ms
+ ✓ components/app-header.test.tsx > has no Acting as label, and keeps the labelled group with pressed buttons 28ms
+ ✓ components/app-header.test.tsx > keeps the one-role tag at every width 13ms
+ ✓ components/app-header.test.tsx > shows a role tag and no switcher for one role 8ms
+ ✓ components/app-header.test.tsx > shows the brand, stats and sign in when signed out 5ms
+ ✓ components/app-header.test.tsx > shows only the brand on /login 9ms
+ ✓ components/app-header.test.tsx > shows only the brand on /register 11ms
+ ✓ components/app-header.test.tsx > shows only the brand on /demo 9ms
+ ✓ components/app-header.test.tsx > shows only the brand on /demo/start 2ms
+ ✓ components/app-header.test.tsx > shows only the brand while auth loads 2ms
+ ✓ components/app-header.test.tsx > shows the brand and Log out on /choose-role 10ms
+ ✓ components/resident/request-form.test.tsx > RequestForm > keeps the other errors while one is fixed and updates them as the user types 135ms
+ ✓ components/resident/new-request-form.test.tsx > requires current terms acceptance and sends nothing when the form is submitted without it 758ms
+ ✓ app/profile/editors.test.tsx > cleans up a changed address before sending it 86ms
+ ✓ app/register/page.test.tsx > posts a resident account with the terms, signs in and goes to /choose-role 341ms
+ ✓ components/register-form.test.tsx > lowercases the username and tidies the postal code when the field is left 256ms
+ ✓ components/register-form.test.tsx > explains the age requirement and sets the latest birth date to 18 years ago 13ms
+ ✓ components/app-header.test.tsx > uses a bottom bar with three short links and a More menu below 960px 54ms
+ ✓ components/app-header.test.tsx > opens More as a modal dialog with a Close button 29ms
+ ✓ components/app-header.test.tsx > closes More on Escape and gives focus back to the More button 54ms
+ ✓ app/resident/requests/[id]/edit/page.test.tsx > sends the new photo after it was replaced 188ms
+ ✓ components/resident/request-form.test.tsx > RequestForm > sends valid details to onValid and links to the profile for the address 62ms
+ ✓ app/profile/editors.test.tsx > checks the address before sending it 69ms
+ ✓ app/resident/requests/[id]/edit/page.test.tsx > shows Q9's photo error under the photo and points to it 176ms
+ ✓ components/app-header.test.tsx > closes More with the Close button and gives focus back to the More button 36ms
+ ✓ components/app-header.test.tsx > closes More when the backdrop is tapped, but not when the sheet itself is 46ms
+ ✓ components/resident/new-request-form.test.tsx > posts the Q4 body with numeric quantities and an idempotency header, then refreshes the list and navigates 304ms
+ ✓ components/register-form.test.tsx > shows a message under each empty field, sends nothing and moves focus to the first one 104ms
+ ✓ components/register-form.test.tsx > says why a birth date under 18 or in the future does not work, and updates as the user types 91ms
+ ✓ components/resident/request-form.test.tsx > item photo > puts the uploaded photo on its item and leaves it out when nothing was uploaded 109ms
+ ✓ app/profile/editors.test.tsx > shows the contract sentence when the address is locked and keeps the form open 111ms
+ ✓ app/profile/editors.test.tsx > shows server field errors under their inputs 98ms
+ ✓ app/resident/requests/[id]/edit/page.test.tsx > sends nothing and says so when nothing changed 83ms
+ ✓ app/resident/requests/[id]/edit/page.test.tsx > shows not_open and refetches the request 96ms
+ ✓ components/app-header.test.tsx > shows the volunteer short links and puts the switcher in More 64ms
+ ✓ components/app-header.test.tsx > closes More when a link is chosen and when the page changes 47ms
+ ✓ components/app-header.test.tsx > switches between the top nav and the bottom bar with CSS at 960px 27ms
+ ✓ app/register/page.test.tsx > posts a volunteer account with only the filled postal codes 259ms
+ ✓ components/resident/request-form.test.tsx > item photo > removes the photo when the picker is cleared 133ms
+ ✓ components/resident/request-form.test.tsx > item photo > shows the server's photo error under its row 45ms
+ ✓ components/resident/request-form.test.tsx > item photo > shows the photo error when the server names photo.fileId 50ms
+ ✓ components/resident/new-request-form.test.tsx > omits empty notes and photo fields 183ms
+ ✓ components/app-header.test.tsx > puts Community stats, Profile and Log out in the Account menu on the wide header 28ms
+ ✓ components/app-header.test.tsx > closes the Account menu on Escape and gives focus back to its button 25ms
+ ✓ components/app-header.test.tsx > closes the Account menu on a click outside and leaves focus where the click put it 26ms
+ ✓ components/app-header.test.tsx > closes the Account menu when a link is chosen and when the page changes 27ms
+ ✓ components/app-header.test.tsx > marks the current page inside the Account menu 20ms
+ ✓ components/register-form.test.tsx > checks the resident address and the Calgary postal code 175ms
+ ✓ app/profile/editors.test.tsx > shows the empty text for no codes and saves added codes in their clean form 99ms
+ ✓ app/register/page.test.tsx > shows username_taken under Username and clears it on edit 199ms
+ ✓ app/resident/requests/[id]/edit/page.test.tsx > shows a message and a link back instead of the form when the request can't be edited 23ms
+ ✓ app/resident/requests/[id]/edit/page.test.tsx > says the address can't be changed and cancels back to the request 42ms
+ ✓ components/app-header.test.tsx > keeps the wide header in one row, in the order brand, links, switcher, bell, Account 46ms
+ ✓ components/app-header.test.tsx > gives the main links, the role switcher and the Account button the same hover and pressed states 54ms
+ ✓ components/app-header.test.tsx > marks the current bottom link with aria-current, the role colour and a bar 34ms
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+ ✓ components/app-header.test.tsx > marks only the best matching link as the current page 23ms
+ ✓ components/app-header.test.tsx > has the bell slot and the logout button for a signed-in user 13ms
+ ✓ components/app-header.test.tsx > the More sheet is a bottom sheet with its own slide and backdrop styles, and room for the home indicator 14ms
+ ✓ components/app-header.test.tsx > opens and closes More again after it was closed 42ms
+ ✓ app/profile/editors.test.tsx > removes a code, ignores a blank row and stops adding at 3 128ms
+ ✓ app/profile/editors.test.tsx > refuses a repeated code 46ms
+ ✓ app/register/page.test.tsx > shows email_taken under Email and clears it on edit 152ms
+ ✓ components/resident/new-request-form.test.tsx > prevents duplicate submissions and disables editing while sending 199ms
+ ✓ app/resident/requests/[id]/edit/page.test.tsx > Keep current photo undoes a replace, shows the saved photo and sends no photo 182ms
+ ✓ components/resident/request-form.test.tsx > item photo > keeps each photo with its own item when an earlier item is removed 191ms
+ ✓ components/resident/request-form.test.tsx > editing > has no add or remove item buttons in single mode 44ms
+ ✓ app/profile/editors.test.tsx > throws away the changes on Cancel and gives the focus back 82ms
+ ✓ app/profile/editors.test.tsx > shows a message and keeps the form for any other failure 58ms
+ ✓ components/register-form.test.tsx > adds and removes up to 3 postal codes for a volunteer and names the row of a duplicate 350ms
+ ✓ app/resident/requests/[id]/edit/page.test.tsx > Keep current photo with nothing else changed sends nothing 162ms
+ ✓ app/resident/requests/[id]/edit/page.test.tsx > Keep current photo also undoes a removal 94ms
+ ✓ app/register/page.test.tsx > shows 400 field errors under their inputs 165ms
+ ✓ app/resident/requests/[id]/edit/page.test.tsx > shows one EmptyState with a back button when the request can't be edited 11ms
+ ✓ app/resident/requests/[id]/edit/page.test.tsx > shows the same EmptyState when the request is gone 10ms
+ ✓ components/resident/new-request-form.test.tsx > reuses the idempotency key after a failed attempt 294ms
+ ✓ components/resident/request-form.test.tsx > editing > shows the saved photo until it is removed, then offers the picker and sends null 161ms
+ ✓ app/profile/editors.test.tsx > keeps a typed draft when another card is opened, and highlights the one being edited 80ms
+ ✓ app/profile/editors.test.tsx > clears a kept draft on Cancel 91ms
+ ✓ app/register/page.test.tsx > also shows the alert when a 400 names a field the form does not have 151ms
+ ✓ app/register/page.test.tsx > sends a signed-in user to /choose-role 12ms
+ ✓ components/resident/request-form.test.tsx > editing > keeps the saved photo when a replacement is started and cleared 101ms
+ ✓ components/resident/request-form.test.tsx > has no Keep current photo without a saved photo 28ms
+ ✓ app/profile/editors.test.tsx > keeps the lock note on the address after the server says it is locked 79ms
+ ✓ app/profile/editors.test.tsx > does not say there are unsaved changes when the typing is put back to the saved value 74ms
+ ✓ components/resident/request-form.test.tsx > blocks submit and focuses the missing field when a pickup window is half-filled 108ms
+ ✓ components/resident/request-form.test.tsx > disables submit with a clear message while a photo upload is in progress 93ms
+ ✓ components/resident/new-request-form.test.tsx > uses a new idempotency key when the form was edited after a failed attempt 272ms
+ ✓ app/register/page.test.tsx > reloads the terms and asks again when they are outdated 163ms
+ ✓ components/resident/new-request-form.test.tsx > says why Send is disabled until the terms are accepted 108ms
+ ✓ app/register/page.test.tsx > shows a plain message for other errors 124ms
+ ✓ components/resident/new-request-form.test.tsx > moves focus to the first field the server rejected 132ms
+ ✓ components/register-form.test.tsx > passes a valid resident to onValid 617ms
+ ✓ app/register/page.test.tsx > says the account exists when signing in fails, and does not post again 158ms
+ ✓ app/register/page.test.tsx > does not post twice while busy 116ms
+ ✓ components/resident/new-request-form.test.tsx > shows a server quantity error on its row and clears it when edited 156ms
+ ✓ components/resident/new-request-form.test.tsx > shows indexed window and notes field errors 125ms
+ ✓ components/resident/new-request-form.test.tsx > reloads outdated terms and requires acceptance again before retrying 274ms
+ ✓ components/register-form.test.tsx > passes a valid volunteer without codes to onValid 462ms
+ ✓ components/register-form.test.tsx > shows the server's field errors under the matching inputs and moves focus to the first 19ms
+ ✓ components/register-form.test.tsx > tells the page about an edit, but not about leaving a field unchanged 68ms
+ ✓ components/resident/new-request-form.test.tsx > does not open review for invalid item details 71ms
+ ✓ components/resident/new-request-form.test.tsx > reviews the entered details and profile address without sending, then keeps them when going back 290ms
+ ✓ components/volunteer/accept-request.test.tsx > disables a window once it starts and keeps the later window available 411ms
+ ✓ components/register-form.test.tsx > disables the form while sending and ignores a submit when the button is disabled 498ms
+ ✓ components/register-form.test.tsx > shows and hides the password with a button and says the length rule 29ms
+ ✓ components/volunteer/accept-request.test.tsx > requires a new choice if the selected window starts while the dialog is open 158ms
+ ✓ components/volunteer/accept-request.test.tsx > says so when every window has started 40ms
+ ✓ components/volunteer/request-detail.test.tsx > shows an Open request without address, notes or resident, and an Accept button 337ms
+ ✓ components/resident/new-request-form.test.tsx > blocks confirmation when the profile address cannot be loaded and allows retry 228ms
+ ✓ components/register-form.test.tsx > picks a role card with the keyboard and marks it without relying on colour 76ms
+ ✓ components/register-form.test.tsx > updates the persistent live region when the selected role changes 84ms
+ ✓ components/volunteer/request-detail.test.tsx > tells a volunteer who owns the request that it is their own 38ms
+ ✓ components/volunteer/request-detail.test.tsx > does not say that for another resident's request 23ms
+ ✓ components/volunteer/request-detail.test.tsx > shows the next step sentence once, without a label 25ms
+ ✓ components/volunteer/accept-request.test.tsx > keeps Confirm disabled until a window and the terms are chosen 107ms
+ ✓ components/volunteer/accept-request.test.tsx > shows each window with its friendly and full text and preselects a single window 94ms
+ ✓ components/volunteer/request-detail.test.tsx > shows the address, notes, resident and assignment for the assigned volunteer 56ms
+ ✓ components/volunteer/request-detail.test.tsx > states the delivery step once and shows Record delivery when collected 31ms
+ ✓ components/volunteer/request-detail.test.tsx > shows the delivery once it is recorded 26ms
+ ✓ components/resident/request-detail.test.tsx > includes owner history and the replacement link on the detail page 258ms
+ ✓ components/resident/request-detail.test.tsx > puts the history after the delivery section 43ms
+ ✓ components/resident/request-detail.test.tsx > does not expose history or linked request IDs to a non-owner 7ms
+ ✓ components/resident/report-missed.test.tsx > sends no reschedule without the checkbox and stays on the request 306ms
+ ✓ components/resident/new-request-form.test.tsx > rechecks windows before confirmation if time has passed during review 223ms
+ ✓ components/volunteer/accept-request.test.tsx > posts the window and the terms id, then refreshes the lists and closes 72ms
+ ✓ components/volunteer/accept-request.test.tsx > tells the volunteer to pick one window and that the address comes after 41ms
+ ✓ components/volunteer/request-detail.test.tsx > never shows an address the server left out 51ms
+ ✓ components/volunteer/request-detail.test.tsx > says the request is gone when the server answers request_unavailable 8ms
+ ✓ components/volunteer/request-detail.test.tsx > shows the loading state first 3ms
+ ✓ components/volunteer/request-detail.test.tsx > shows an error with a retry 28ms
+ ✓ components/volunteer/request-detail.test.tsx > keeps the status, next step and buttons in one top card 58ms
+ ✓ components/resident/request-detail.test.tsx > loads the requested ID through the shared detail hook and shows the owner fields 95ms
+ ✓ components/resident/request-detail.test.tsx > shows loading without stale details while waiting for the first response 44ms
+ ✓ components/resident/request-detail.test.tsx > shows the Open status and its resident next-step sentence 19ms
+ ✓ components/resident/request-detail.test.tsx > shows the Assigned status and its resident next-step sentence 20ms
+ ✓ components/resident/report-missed.test.tsx > keeps Confirm disabled until the new windows are valid and the terms accepted, then sends them 190ms
+ ✓ components/volunteer/accept-request.test.tsx > says another volunteer was first and refetches the request 100ms
+ ✓ components/volunteer/accept-request.test.tsx > shows the message for expired 75ms
+ ✓ components/resident/new-request-form.test.tsx > requires renewed acceptance when a background refetch changes the terms 169ms
+ ✓ components/volunteer/request-detail.test.tsx > shows the address card with a moss border after accepting, with a formatted postal code 14ms
+ ✓ components/volunteer/request-detail.test.tsx > does not repeat the category and quantity from the title in Details 17ms
+ ✓ components/volunteer/request-detail.test.tsx > shows the progress stepper with Open as the current step 23ms
+ ✓ components/volunteer/request-detail.test.tsx > shows the progress stepper with Assigned as the current step 36ms
+Not implemented: navigation to another Document
+ ✓ components/resident/request-detail.test.tsx > shows the Collected status and its resident next-step sentence 16ms
+ ✓ components/resident/request-detail.test.tsx > shows the Delivered status and its resident next-step sentence 20ms
+ ✓ components/resident/request-detail.test.tsx > shows the Cancelled status and its resident next-step sentence 5ms
+ ✓ components/resident/request-detail.test.tsx > shows the Expired status and its resident next-step sentence 7ms
+ ✓ components/resident/request-detail.test.tsx > shows the Missed status and its resident next-step sentence 6ms
+ ✓ components/resident/request-detail.test.tsx > shows the volunteer's public profile and selected window 60ms
+ ✓ app/notifications/page.test.tsx > lists the notifications with title, body, time and the unread count 212ms
+ ✓ app/notifications/page.test.tsx > marks unread rows in text, not only by color 21ms
+ ✓ app/notifications/page.test.tsx > every row is a link to its page 8ms
+ ✓ app/notifications/page.test.tsx > marks an unread row as read when it is opened 68ms
+Not implemented: navigation to another Document
+ ✓ components/volunteer/accept-request.test.tsx > shows the message for not_open 73ms
+ ✓ components/resident/report-missed.test.tsx > opens the new request when it was rescheduled 110ms
+ ✓ components/resident/report-missed.test.tsx > shows the window_not_ended message 71ms
+ ✓ components/volunteer/request-detail.test.tsx > shows the progress stepper with Collected as the current step 31ms
+ ✓ components/volunteer/request-detail.test.tsx > shows the progress stepper with Delivered as the current step 18ms
+ ✓ components/volunteer/request-detail.test.tsx > shows the weight, postal code, windows and closing time at the top of an Open request, and no Details card 18ms
+ ✓ components/volunteer/request-detail.test.tsx > puts the resident, the selected window and the address line above the buttons of an Assigned request 19ms
+ ✓ components/volunteer/request-detail.test.tsx > does not say the address is shown when the server sent none 16ms
+ ✓ components/resident/new-request-form.test.tsx > says how many requests the items will create 159ms
+Not implemented: navigation to another Document
+ ✓ components/resident/request-detail.test.tsx > renders only supplied actions allowed by the server for Open 27ms
+ ✓ components/resident/request-detail.test.tsx > renders only supplied actions allowed by the server for Assigned 13ms
+ ✓ components/resident/request-detail.test.tsx > renders only supplied actions allowed by the server for Assigned 20ms
+ ✓ components/resident/request-detail.test.tsx > renders only supplied actions allowed by the server for Assigned 8ms
+ ✓ components/resident/request-detail.test.tsx > renders only supplied actions allowed by the server for Delivered 6ms
+ ✓ components/resident/request-detail.test.tsx > ignores unsupported actions and has no empty actions section 18ms
+ ✓ components/resident/request-detail.test.tsx > omits actions without a supplied control 11ms
+ ✓ components/resident/request-detail.test.tsx > shows the delivery facility, Calgary time and evidence photo 16ms
+ ✓ components/volunteer/accept-request.test.tsx > shows the message for terms_outdated 77ms
+ ✓ components/volunteer/accept-request.test.tsx > reloads the terms when they are outdated 56ms
+ ✓ components/volunteer/request-detail.test.tsx > puts the resident and the collection time above Record delivery for a Collected request 61ms
+ ✓ components/volunteer/request-detail.test.tsx > shows the facility and the delivery time at the top of a Delivered request 34ms
+ ✓ components/volunteer/request-detail.test.tsx > shows the buttons of a Open request as the server lists them 20ms
+ ✓ components/resident/report-missed.test.tsx > asks to accept the terms again when they changed 124ms
+ ✓ app/notifications/page.test.tsx > does not wait for the read mark, and a failing one changes nothing 69ms
+ ✓ app/notifications/page.test.tsx > does not mark a row that is already read 12ms
+ ✓ app/notifications/page.test.tsx > does not link to https://evil.com 10ms
+ ✓ app/notifications/page.test.tsx > does not link to //evil.com 11ms
+ ✓ components/resident/request-detail.test.tsx > shows offered windows and expiration above the Open request actions 32ms
+ ✓ components/resident/request-detail.test.tsx > puts the collection facts and notices before the actions 45ms
+ ✓ components/resident/request-detail.test.tsx > refetches once and gives a text fallback when Photo of the items fails 17ms
+ ✓ components/resident/request-detail.test.tsx > refetches once and gives a text fallback when Delivery photo fails 15ms
+ ✓ components/resident/request-detail.test.tsx > hides the volunteer of an ended assignment (Open request, Volunteer_Cancelled) 13ms
+ ✓ components/volunteer/accept-request.test.tsx > sends nothing when the dialog is cancelled 68ms
+ ✓ components/volunteer/accept-request.test.tsx > uses the wide dialog and marks the chosen window 40ms
+ ✓ components/resident/report-missed.test.tsx > uses the wide dialog and the picker has no card of its own 67ms
+ ✓ components/resident/report-missed.test.tsx > disables Confirm and shows an error when a second reschedule window is half-filled 109ms
+ ✓ components/volunteer/accept-request.test.tsx > sends only one request on a synchronous double click 91ms
+ ✓ components/volunteer/request-detail.test.tsx > shows the buttons of a Assigned request as the server lists them 27ms
+ ✓ components/volunteer/request-detail.test.tsx > shows the buttons of a Collected request as the server lists them 21ms
+ ✓ components/volunteer/request-detail.test.tsx > shows the buttons of a Delivered request as the server lists them 23ms
+ ✓ components/volunteer/request-detail.test.tsx > puts Accept and Record delivery before Cancel assignment, and never cancel first 33ms
+ ✓ components/volunteer/request-detail.test.tsx > announces a status change that arrives from a refresh 91ms
+ ✓ app/notifications/page.test.tsx > marks all as read and refreshes the list 74ms
+ ✓ app/notifications/page.test.tsx > disables Mark all read when nothing is unread 12ms
+ ✓ app/notifications/page.test.tsx > shows the empty state 10ms
+ ✓ app/notifications/page.test.tsx > hides Load more when the first page is short 12ms
+ ✓ components/resident/request-detail.test.tsx > hides the volunteer of an ended assignment (Open request, Resident_Cancelled) 20ms
+ ✓ components/resident/request-detail.test.tsx > hides the volunteer of an ended assignment (Cancelled request, Resident_Cancelled) 13ms
+ ✓ components/resident/request-detail.test.tsx > hides the volunteer of an ended assignment (Missed request, Missed_Pickup) 16ms
+ ✓ components/resident/request-detail.test.tsx > omits absent notes, photos, address and assignment sections 28ms
+ ✓ components/resident/request-detail.test.tsx > does not show owner details for viewer volunteer 11ms
+ ✓ components/resident/request-detail.test.tsx > does not show owner details for viewer assigned_volunteer 8ms
+ ✓ components/resident/request-detail.test.tsx > clears cached owner details and actions when a refresh returns request_unavailable 72ms
+ ✓ app/notifications/page.test.tsx > loads older ones before the last row, without duplicates, and hides the button at the end 167ms
+ ✓ components/resident/new-request-form.test.tsx > shows the item thumbnail and sends only the uploaded file ID 424ms
+ ✓ components/resident/request-detail.test.tsx > replaces the actions and shows the warning when the server allows reporting a missed pickup 98ms
+ ✓ components/resident/request-detail.test.tsx > allows a failed request to be retried 30ms
+ ✓ components/resident/request-detail.test.tsx > shows an authorization error without offering a retry 7ms
+ ✓ components/resident/request-detail.test.tsx > links Edit request to the edit page when the request can be edited 52ms
+ ✓ app/notifications/page.test.tsx > keeps the older pages when the first page is refetched 176ms
+ ✓ app/notifications/page.test.tsx > shows an error with a retry 19ms
+ ✓ app/notifications/page.test.tsx > tells unread and read rows apart in text and structure 15ms
+ ✓ app/notifications/page.test.tsx > shows the right hidden icon for ECOPOINTS_AWARDED_ON_DELIVERY_VOLUNTEER 11ms
+ ✓ components/resident/request-detail.test.tsx > shows the missed pickup message after a reschedule 14ms
+ ✓ components/resident/request-detail.test.tsx > groups the details, windows, address, notes and photo in one Summary card 10ms
+ ✓ components/resident/request-detail.test.tsx > keeps Volunteer and Delivery as their own cards, before the summary for phones 45ms
+ ✓ components/resident/request-detail.test.tsx > shows the unavailable page and no details to anyone who is not the owner 15ms
+ ✓ components/resident/request-detail.test.tsx > announces a status change that arrives from a refresh, and fades the badge in 27ms
+ ✓ components/resident/request-detail.test.tsx > announces nothing when a refresh brings the same status 26ms
+ ✓ components/resident/request-detail.test.tsx > stays quiet while the page shows the person's own notice 25ms
+ ✓ app/notifications/page.test.tsx > shows the right hidden icon for NEW_MATCHING_REQUEST 12ms
+ ✓ app/notifications/page.test.tsx > shows the right hidden icon for REQUEST_COLLECTED_VOLUNTEER 7ms
+ ✓ app/notifications/page.test.tsx > shows the right hidden icon for REQUEST_DELIVERED_RESIDENT 8ms
+ ✓ app/notifications/page.test.tsx > shows the right hidden icon for REQUEST_CANCELLED_RESIDENT 9ms
+ ✓ app/notifications/page.test.tsx > shows the right hidden icon for SOMETHING_NEW 11ms
+ ✓ app/notifications/page.test.tsx > centres Load more and shows it busy 90ms
+ ✓ components/resident/new-request-form.test.tsx > leaves photo out of the item when nothing was uploaded 231ms
+ ✓ components/resident/new-request-form.test.tsx > keeps the review thumbnail across steps and clears it when the photo is removed 422ms
+ ✓ components/resident/new-request-form.test.tsx > uses the shared heading size and the named text sizes on the review step 96ms
+ ✓ components/resident/windows-picker.test.tsx > WindowsPicker > starts with one empty row and all 24 hours 360ms
+ ✓ components/resident/windows-picker.test.tsx > WindowsPicker > adds up to three rows and removes down to one 119ms
+ ✓ components/resident/windows-picker.test.tsx > WindowsPicker > sets Calgary dates, groups hours, and summarizes overnight windows 152ms
+ ✓ components/resident/windows-picker.test.tsx > WindowsPicker > disables shortcuts after the last future hour and at the edit limit 10ms
+ ✓ components/resident/new-request-form.test.tsx > shows a failed photo check under the item's picker and points to it 281ms
+ ✓ components/resident/windows-picker.test.tsx > WindowsPicker > shows a row error for duplicate date and hour slots 91ms
+ ✓ components/resident/windows-picker.test.tsx > WindowsPicker > checks the 30-day date limit at 2026-02-15T19:00:00Z 26ms
+ ✓ components/resident/windows-picker.test.tsx > WindowsPicker > checks the 30-day date limit at 2026-04-15T18:00:00Z 35ms
+ ✓ components/resident/windows-picker.test.tsx > WindowsPicker > emits only the stored date and numeric hour for complete rows 20ms
+ ✓ components/resident/windows-picker.test.tsx > WindowsPicker > uses the original creation timestamp for the edit limit 4ms
+ ✓ components/resident/windows-picker.test.tsx > WindowsPicker > updates when the parent replaces the windows 12ms
+ ✓ components/resident/new-request-form.test.tsx > has one heading and the step indicator on each step 112ms
+ ✓ components/resident/new-request-form.test.tsx > shows the profile address on step 1 and opens Change address in a new tab 24ms
+ ✓ components/resident/windows-picker.test.tsx > WindowsPicker > clears a half-filled date row when the parent resets 25ms
+ ✓ components/resident/windows-picker.test.tsx > WindowsPicker > clears a half-filled hour row when the parent resets 17ms
+ ✓ components/resident/windows-picker.test.tsx > WindowsPicker > clears partial rows when rerendered with a new empty value 10ms
+ ✓ components/resident/windows-picker.test.tsx > WindowsPicker > keeps a partial row when the parent value has not changed 7ms
+ ✓ components/resident/windows-picker.test.tsx > WindowsPicker > shows errors for past dates and hours in Calgary 39ms
+ ✓ components/resident/windows-picker.test.tsx > WindowsPicker > has its own card by default and none when embedded 10ms
+ ✓ components/resident/windows-picker.test.tsx > WindowsPicker > disables the hours already past today, and none on a later day 88ms
+ ✓ components/resident/windows-picker.test.tsx > WindowsPicker > shows Remove only when there is more than one row 37ms
+ ✓ components/resident/windows-picker.test.tsx > WindowsPicker > reports incomplete rows and marks the missing field when showIncomplete is set 14ms
+ ✓ components/resident/new-request-form.test.tsx > shows the total weight on review only with two or more items 217ms
+ ✓ components/photo-picker.test.tsx > shows a preview, uploads the file and calls onUploaded 205ms
+ ✓ components/photo-picker.test.tsx > draws the drop area on the raised surface with a dashed strong border 4ms
+ ✓ components/photo-picker.test.tsx > shows the hint 2ms
+ ✓ components/photo-picker.test.tsx > shows the error and does not call onUploaded when the upload fails 23ms
+ ✓ components/resident/my-requests.test.tsx > renders the current contract fields and keeps server order 255ms
+ ✓ components/resident/my-requests.test.tsx > reads initial status filter from URL, updates URL on change, and strips ?created after reading 14ms
+ ✓ components/resident/cancel-request.test.tsx > hides cancellation when the viewer or allowed actions prohibit it 33ms
+ ✓ components/resident/cancel-request.test.tsx > hides cancellation when the viewer or allowed actions prohibit it 2ms
+ ✓ components/resident/cancel-request.test.tsx > hides cancellation when the viewer or allowed actions prohibit it 1ms
+ ✓ components/photo-picker.test.tsx > uploads the same file again on Retry 37ms
+ ✓ components/photo-picker.test.tsx > clears an old error when a new file is chosen 39ms
+ ✓ components/photo-picker.test.tsx > clears the old photo as soon as another one is chosen, so a failed second upload leaves no id behind 45ms
+ ✓ components/resident/my-requests.test.tsx > filters by Missed and returns to the unfiltered list with one active button 63ms
+ ✓ components/resident/my-requests.test.tsx > shows an empty state and a new request link 15ms
+ ✓ components/resident/my-requests.test.tsx > draws the first-run empty state with the shared EmptyState and an icon, not its own heading 11ms
+ ✓ components/resident/new-request-form.test.tsx > fades step 2 in and still moves focus to its heading 118ms
+ ✓ components/resident/cancel-request.test.tsx > dismissing the dialog sends nothing and reopening starts with an empty reason 186ms
+ ✓ components/resident/cancel-request.test.tsx > posts the optional reason and invalidates affected lists 64ms
+ ✓ components/resident/cancel-request.test.tsx > posts the optional reason and invalidates affected lists 25ms
+ ✓ components/resident/my-requests.test.tsx > says which status has no requests when a filter is empty 36ms
+ ✓ components/resident/my-requests.test.tsx > shows an API error and lets the resident retry 31ms
+ ✓ components/photo-picker.test.tsx > calls onClear on Remove and lets the same file be chosen again 71ms
+ ✓ components/photo-picker.test.tsx > Remove can be reached with Tab and used with Enter 43ms
+ ✓ components/photo-picker.test.tsx > ignores the first upload when a second file is chosen before it ends 98ms
+ ✓ app/profile/page.test.tsx > shows the loading state first 106ms
+ ✓ components/resident/new-request-form.test.tsx > pushes #review on Review and returns to the filled form on browser Back 228ms
+ ✓ components/resident/my-requests.test.tsx > shows confirmation for created=1 77ms
+ ✓ components/resident/my-requests.test.tsx > shows confirmation for created=2 83ms
+ ✓ components/volunteer/available-requests.test.tsx > renders each card with category, quantity, weight, postal code and windows, in server order 344ms
+ ✓ components/photo-picker.test.tsx > does not call onUploaded when unmounted during an upload 64ms
+ ✓ components/photo-picker.test.tsx > revokes the object URL on unmount 97ms
+ ✓ components/resident/cancel-request.test.tsx > sends once and prevents editing or closing while the call is pending 261ms
+ ✓ components/resident/new-request-form.test.tsx > saves a draft in sessionStorage, restores it on remount, and clears it after submit 353ms
+ ✓ app/profile/page.test.tsx > shows a resident's account card and the address card, with no postal codes card 350ms
+ ✓ components/volunteer/available-requests.test.tsx > shows the number of requests 141ms
+ ✓ components/volunteer/available-requests.test.tsx > says 1 request for a single card 17ms
+ ✓ components/volunteer/available-requests.test.tsx > has the page title as the h1 18ms
+ ✓ components/resident/my-requests.test.tsx > ignores invalid created=0 124ms
+ ✓ components/resident/my-requests.test.tsx > ignores invalid created=-1 28ms
+ ✓ components/resident/my-requests.test.tsx > ignores invalid created=oops 38ms
+ ✓ components/photo-picker.test.tsx > adds (optional) to the label when the photo is optional 5ms
+ ✓ components/photo-picker.test.tsx > calls the delivery preview Delivery photo 72ms
+ ✓ components/photo-picker.test.tsx > moves focus back to the file input after Remove 46ms
+ ✓ components/volunteer/available-requests.test.tsx > shows the photo mark only when the request has a photo 70ms
+ ✓ components/volunteer/available-requests.test.tsx > shows the empty state 22ms
+ ✓ components/photo-picker.test.tsx > shows the location note and a hidden input inside a dashed label with a camera icon 142ms
+ ✓ components/photo-picker.test.tsx > can be reached with the keyboard 30ms
+ ✓ components/resident/my-requests.test.tsx > ignores invalid created=2.5 48ms
+ ✓ components/resident/cancel-request.test.tsx > retries a network failure with the entered reason 184ms
+ ✓ app/profile/page.test.tsx > shows a volunteer's postal codes with a space and no address card 119ms
+ ✓ app/profile/page.test.tsx > says so when a volunteer has no saved codes 31ms
+ ✓ app/profile/page.test.tsx > shows the address and the postal codes and both role pills for an account with both roles 52ms
+stdout | mock/server.test.ts > serves the same resident list across restarts with a fixed clock
+GET /api/requests?view=mine -> 200
+
+ ✓ components/photo-picker.test.tsx > reports upload busy state and lets the user cancel a hung upload 69ms
+ ✓ components/volunteer/available-requests.test.tsx > with no saved codes, points to the profile 186ms
+ ✓ app/profile/page.test.tsx > shows member since from createdAt 269ms
+ ✓ app/profile/page.test.tsx > links to the public profile 48ms
+stdout | mock/server.test.ts > serves the same resident list across restarts with a fixed clock
+GET /api/requests?view=mine -> 200
+
+ ✓ components/resident/my-requests.test.tsx > shows the shared loading indicator until the first response 285ms
+ ✓ components/resident/my-requests.test.tsx > keeps rows visible while a different filter loads, then replaces them 85ms
+stdout | mock/server.test.ts > mock server > returns 404 with the error envelope for an unknown path
+GET /api/nope -> 404
+
+ ✓ components/resident/cancel-request.test.tsx > refreshes the page after success, shows Cancelled and removes the button 378ms
+stdout | mock/server.test.ts > mock server > loads a route file without editing server.mjs
+POST /api/echo -> 200
+
+ ✓ mock/server.test.ts > serves the same resident list across restarts with a fixed clock 813ms
+ ✓ mock/server.test.ts > mock server > returns 404 with the error envelope for an unknown path 45ms
+ ✓ mock/server.test.ts > mock server > loads a route file without editing server.mjs 35ms
+ ✓ app/profile/page.test.tsx > shows the error for a 401 with a retry 85ms
+ ✓ app/profile/page.test.tsx > shows the error for a 404 14ms
+stdout | mock/server.test.ts > mock server > gives every route file the notify and emitPublic helpers
+GET /api/notify-type -> 200
+
+stdout | mock/server.test.ts > mock server > passes :id params to the handler
+GET /api/things/abc-123 -> 200
+
+ ✓ components/resident/my-requests.test.tsx > puts the filters in one scrolling row that wraps on wider screens and still selects 155ms
+ ✓ components/volunteer/available-requests.test.tsx > with a filter and no results, one Show all areas button clears the filter 233ms
+ ✓ components/volunteer/available-requests.test.tsx > shows an error 14ms
+stdout | mock/server.test.ts > mock server > returns 400 invalid_json for a bad body
+POST /api/echo -> 400
+
+ ✓ mock/server.test.ts > mock server > gives every route file the notify and emitPublic helpers 86ms
+ ✓ mock/server.test.ts > mock server > passes :id params to the handler 32ms
+stdout | mock/server.test.ts > mock server > passes a multipart body to the handler without reading it as JSON
+POST /api/echo -> 200
+
+stdout | mock/server.test.ts > mock server > returns 400 for a bad % escape in a :id path
+GET /api/things/%E0 -> 400
+
+ ✓ components/volunteer/available-requests.test.tsx > lets the volunteer try again after an error 209ms
+ ✓ components/volunteer/available-requests.test.tsx > leaves the Assignments link to the header 54ms
+ ✓ mock/server.test.ts > mock server > returns 400 invalid_json for a bad body 37ms
+ ✓ mock/server.test.ts > mock server > passes a multipart body to the handler without reading it as JSON 19ms
+ ✓ mock/server.test.ts > mock server > returns 400 for a bad % escape in a :id path 26ms
+ ✓ components/resident/cancel-request.test.tsx > keeps the expired message on the page when the refetch removes the button 291ms
+ ✓ components/resident/my-requests.test.tsx > dims the old list while a new filter loads 156ms
+stdout | mock/server.test.ts > mock server > uses the first route file by name when two files have the same path
+DELETE /api/session -> 200
+
+ ✓ components/volunteer/available-requests.test.tsx > asks without postalCodes when there are no codes 71ms
+ ✓ components/volunteer/available-requests.test.tsx > fetches again when the available requests key is invalidated 66ms
+ ✓ app/profile/page.test.tsx > keeps the success message after the role card is gone 322ms
+ ✓ app/profile/page.test.tsx > has a Notifications card with a plain status 96ms
+ ✓ mock/server.test.ts > mock server > uses the first route file by name when two files have the same path 114ms
+ ✓ components/resident/my-requests.test.tsx > resets an empty filter with Show all requests 182ms
+ ✓ mock/server.test.ts > mock server > forgets an event stream when the client disconnects 252ms
+ ✓ components/volunteer/available-requests.test.tsx > puts each of 1 windows on its own row with both texts 87ms
+ ✓ components/resident/cancel-request.test.tsx > keeps the not_cancellable message on the page when the refetch removes the button 205ms
+ ✓ components/resident/my-requests.test.tsx > lets the created banner be dismissed 220ms
+ ✓ components/resident/my-requests.test.tsx > ignores repeated created parameters 30ms
+ ✓ components/resident/my-requests.test.tsx > shows Expires on Open cards only and quiets closed ones 47ms
+ ✓ components/volunteer/available-requests.test.tsx > puts each of 2 windows on its own row with both texts 201ms
+ ✓ components/volunteer/available-requests.test.tsx > puts each of 3 windows on its own row with both texts 27ms
+ ✓ components/volunteer/available-requests.test.tsx > shows the postal code as a badge with a pin icon 47ms
+ ✓ app/profile/page.test.tsx > shows the public profile link near the top, before the Account card 186ms
+ ✓ components/resident/cancel-request.test.tsx > shows the success alert Request cancelled. at the top of the page 292ms
+ ✓ components/resident/cancel-request.test.tsx > tells the page about the result, and clears an old one when the dialog opens again 104ms
+ ✓ components/resident/cancel-request.test.tsx > explains what cancelling a Open request does 57ms
+ ✓ app/profile/page.test.tsx > puts a divider between the account list and the public name, and marks the danger zone 188ms
+ ✓ components/volunteer/available-requests.test.tsx > never shows a street address, even if the server sends one 37ms
+ ✓ components/resident/cancel-request.test.tsx > explains what cancelling a Assigned request does 65ms
+ ✓ components/volunteer/available-requests.test.tsx > keeps the old list, dimmed and without a spinner, while the filter changes 350ms
+ ✓ components/resident/cancel-request.test.tsx > names the buttons Keep request and Cancel request in the dialog, and shows the page button as a red outline 179ms
+ ✓ components/resident/cancel-request.test.tsx > puts the cancel button in the same group as the other actions 39ms
+ ✓ app/profile/page.test.tsx > lets the notice be dismissed 366ms
+ ✓ components/resident/cancel-assignment.test.tsx > always sends as resident, with no reason or windows when none were entered 331ms
+ ✓ app/volunteer/history/page.test.tsx > shows a delivered row with its category, status words and a link 260ms
+ ✓ app/volunteer/history/page.test.tsx > shows and focuses Assignment cancelled banner and strips ?cancelled=1 from URL 13ms
+ ✓ app/volunteer/history/page.test.tsx > shows a missed row with null request fields as status, window and end time, without a link 17ms
+ ✓ app/volunteer/history/page.test.tsx > puts Collected rows first with the Record delivery label 16ms
+ ✓ app/volunteer/history/page.test.tsx > the Active chip asks for assignmentStatus=Active 36ms
+ ✓ app/volunteer/history/page.test.tsx > the Collected chip asks for assignmentStatus=Collected 15ms
+ ✓ app/profile/second-role.test.tsx > starts as a closed card with a button, and Cancel closes the form again 223ms
+ ✓ app/profile/second-role.test.tsx > asks a volunteer for an address and posts nothing without one 42ms
+ ✓ app/profile/second-role.test.tsx > posts the resident role with a normalized address 57ms
+ ✓ app/profile/second-role.test.tsx > posts the volunteer role with its codes and the terms id 71ms
+ ✓ app/volunteer/history/page.test.tsx > the Delivered chip asks for assignmentStatus=Delivered 77ms
+ ✓ components/volunteer/cancel-assignment.test.tsx > says what happens to the request and that no EcoPoints are earned 255ms
+ ✓ components/resident/cancel-assignment.test.tsx > sends the reason and the new windows when they were entered 109ms
+ ✓ components/resident/cancel-assignment.test.tsx > does not send windows in the past 71ms
+ ✓ app/volunteer/history/page.test.tsx > the Cancelled by me chip asks for assignmentStatus=Volunteer_Cancelled 52ms
+ ✓ app/volunteer/history/page.test.tsx > the Cancelled by resident chip asks for assignmentStatus=Resident_Cancelled 28ms
+ ✓ app/volunteer/history/page.test.tsx > the Missed chip asks for assignmentStatus=Missed_Pickup 61ms
+ ✓ app/volunteer/history/page.test.tsx > starts on All, which sends no assignmentStatus 8ms
+ ✓ app/profile/second-role.test.tsx > refreshes the roles once, invalidates the profile and says it worked 47ms
+ ✓ app/profile/second-role.test.tsx > tells the person to reload when the role was added but the refresh failed 63ms
+ ✓ app/profile/second-role.test.tsx > says so when the role is already active 18ms
+ ✓ components/volunteer/cancel-assignment.test.tsx > sends as volunteer without a reason when none was typed 104ms
+ ✓ components/volunteer/cancel-assignment.test.tsx > sends the typed reason 77ms
+ ✓ components/resident/cancel-assignment.test.tsx > warns about points only when the cancel is close to the pickup 122ms
+ ✓ components/resident/cancel-assignment.test.tsx > does not promise points when the resident is their own volunteer (FR18) 62ms
+ ✓ components/resident/cancel-assignment.test.tsx > sends nothing when dismissed 28ms
+ ✓ components/volunteer/facility-picker.test.tsx > asks for the facilities of the category 278ms
+ ✓ components/volunteer/record-delivery.test.tsx > keeps Confirm disabled until a facility and a photo are set 324ms
+ ✓ app/volunteer/history/page.test.tsx > shows the empty state 13ms
+ ✓ app/volunteer/history/page.test.tsx > names the filter when a filtered list is empty 14ms
+ ✓ app/volunteer/history/page.test.tsx > has the page title as the h1 9ms
+ ✓ app/profile/second-role.test.tsx > refetches the terms and shows the contract sentence when they are outdated 96ms
+ ✓ app/profile/second-role.test.tsx > shows a 400 field error under its input 35ms
+ ✓ components/volunteer/cancel-assignment.test.tsx > sends nothing when the dialog is dismissed 47ms
+ ✓ components/volunteer/cancel-assignment.test.tsx > refreshes the request and the history, then goes to the history page with a cancelled flag 91ms
+ ✓ components/volunteer/postal-filter.test.tsx > is a labelled search form 254ms
+ ✓ components/volunteer/postal-filter.test.tsx > filters by the profile's preferred codes 24ms
+ ✓ components/volunteer/postal-filter.test.tsx > sends no codes when the profile has none 20ms
+ ✓ components/volunteer/postal-filter.test.tsx > waits for the profile before asking for the list 11ms
+ ✓ app/profile/second-role.test.tsx > keeps the button disabled until the terms are ticked 29ms
+ ✓ app/profile/second-role.test.tsx > shows nothing for an account with both roles 2ms
+ ✓ app/profile/second-role.test.tsx > does not post twice when clicked again while busy 57ms
+ ✓ components/volunteer/facility-picker.test.tsx > calls onChange with the facility id when a row is chosen 104ms
+ ✓ components/volunteer/facility-picker.test.tsx > checks the row that matches value 27ms
+ ✓ components/volunteer/facility-picker.test.tsx > shows special instructions only when they are set 30ms
+ ✓ components/volunteer/facility-picker.test.tsx > shows a message when no facility accepts the category 8ms
+ ✓ components/volunteer/facility-picker.test.tsx > shows an error 16ms
+ ✓ components/volunteer/facility-picker.test.tsx > shows the address with a spaced postal code 11ms
+ ✓ components/volunteer/record-delivery.test.tsx > posts the facility and the photo id, then refreshes the request, history and EcoPoints 163ms
+ ✓ components/volunteer/record-delivery.test.tsx > explains who can see the delivery photo 19ms
+ ✓ app/volunteer/history/page.test.tsx > shows an error with a retry 82ms
+ ✓ app/volunteer/history/page.test.tsx > gives collected rows an accent bar and a clear Record delivery call-out 59ms
+ ✓ app/volunteer/history/page.test.tsx > makes redacted rows quieter and dashed, with no link 18ms
+ ✓ components/volunteer/cancel-assignment.test.tsx > treats 404 request_unavailable after volunteer cancel as success (expired request) 68ms
+ ✓ components/volunteer/postal-filter.test.tsx > adds a typed code in the stored form 71ms
+ ✓ components/volunteer/postal-filter.test.tsx > shows an error for an invalid code and does not add it 39ms
+ ✓ components/volunteer/facility-picker.test.tsx > fills the chosen row 39ms
+ ✓ components/volunteer/facility-picker.test.tsx > lets the volunteer try again after an error 28ms
+ ✓ components/volunteer/facility-picker.test.tsx > marks the chosen option with a checked radio, a moss border and a check 32ms
+ ✓ components/volunteer/facility-picker.test.tsx > shows a pin icon, a postal code and the instructions in an inset box 52ms
+ ✓ components/volunteer/cancel-assignment.test.tsx > shows the message when the items were already collected 55ms
+ ✓ components/volunteer/cancel-assignment.test.tsx > shows the button while cancel_assignment is allowed, even after the window ended 73ms
+ ✓ app/volunteer/history/page.test.tsx > links to the available list when there are no assignments 47ms
+ ✓ app/volunteer/history/page.test.tsx > resets an empty filter with Show all assignments 85ms
+ ✓ components/volunteer/postal-filter.test.tsx > does not add a duplicate 99ms
+ ✓ components/volunteer/postal-filter.test.tsx > blocks the 11th code 84ms
+ ✓ components/volunteer/record-delivery.test.tsx > says which field Q15 refused, since the dialog has no input to show it next to 94ms
+ ✓ components/volunteer/record-delivery.test.tsx > refetches the request and shows the message for already_delivered 73ms
+ ✓ components/resident/cancel-assignment.test.tsx > keeps the window_ended sentence on the page and refreshes the request 236ms
+ ✓ components/resident/cancel-assignment.test.tsx > uses the wide dialog and the picker has no card of its own 48ms
+ ✓ components/volunteer/record-delivery.test.tsx > refetches the request and shows the message for not_collected 138ms
+ ✓ components/volunteer/record-delivery.test.tsx > uses the wide dialog 8ms
+ ✓ components/resident/cancel-assignment.test.tsx > refuses a half-filled new pickup window instead of silently dropping it 116ms
+ ✓ app/volunteer/history/page.test.tsx > keeps the list, dimmed, while the filter changes 86ms
+ ✓ components/volunteer/postal-filter.test.tsx > refetches with the other codes when a chip is removed 31ms
+ ✓ components/volunteer/postal-filter.test.tsx > Show all removes the postalCodes param 63ms
+ ✓ components/volunteer/postal-filter.test.tsx > loads the list without a filter when the profile fails 37ms
+ ✓ components/volunteer/postal-filter.test.tsx > keeps the volunteer's changes when the profile refetches 65ms
+ ✓ components/ui/ui.test.tsx > UI components > shows the Open badge with an icon and its word 36ms
+ ✓ components/ui/ui.test.tsx > UI components > shows the Assigned badge with an icon and its word 6ms
+ ✓ components/ui/ui.test.tsx > UI components > shows the Collected badge with an icon and its word 6ms
+ ✓ components/ui/ui.test.tsx > UI components > shows the Delivered badge with an icon and its word 3ms
+ ✓ components/ui/ui.test.tsx > UI components > shows the Cancelled badge with an icon and its word 2ms
+ ✓ components/ui/ui.test.tsx > UI components > shows the Expired badge with an icon and its word 1ms
+ ✓ components/ui/ui.test.tsx > UI components > shows the Missed badge with an icon and its word 1ms
+ ✓ app/ecopoints/page.test.tsx > EcoPoints page > loads R1 and displays each total with two decimals 94ms
+ ✓ app/login/page.test.tsx > shows the sign in form without a second mark and links to register and the stats 120ms
+ ✓ app/login/page.test.tsx > links to the password reset page 10ms
+ ✓ app/login/page.test.tsx > shows one message for auth/invalid-credential and stays on the page 54ms
+ ✓ app/login/page.test.tsx > shows one message for auth/wrong-password and stays on the page 21ms
+ ✓ components/ui/ui.test.tsx > UI components > uses alert for errors and status for information 72ms
+ ✓ components/ui/ui.test.tsx > UI components > shows children and errors and calls dialog actions 26ms
+ ✓ components/ui/ui.test.tsx > UI components > can name the cancel button, so Cancel is not misread as cancelling a request 22ms
+ ✓ components/ui/ui.test.tsx > UI components > disables confirm: { busy: true } 5ms
+ ✓ components/ui/ui.test.tsx > UI components > disables confirm: { confirmDisabled: true } 23ms
+ ✓ components/ui/ui.test.tsx > UI components > gives each dialog its own accessible heading 24ms
+ ✓ app/demo/page.test.tsx > explains the shared demo data and links to the community stats 136ms
+ ✓ app/demo/page.test.tsx > has a full-width Start button, the mark and a divider above the stats link 25ms
+ ✓ app/demo/page.test.tsx > is a 404 in a normal build 4ms
+ ✓ app/login/page.test.tsx > shows one message for auth/user-not-found and stays on the page 21ms
+ ✓ app/login/page.test.tsx > shows one message for auth/invalid-email and stays on the page 32ms
+ ✓ app/login/page.test.tsx > shows the deactivated message for a disabled account 13ms
+ ✓ app/login/page.test.tsx > keeps the old messages for other errors 19ms
+ ✓ app/login/page.test.tsx > goes to /choose-role after signing in with ["resident"] 12ms
+ ✓ app/login/page.test.tsx > goes to /choose-role after signing in with ["resident","volunteer"] 13ms
+ ✓ app/login/page.test.tsx > sends an already signed-in visitor to /choose-role 2ms
+ ✓ app/profile/deactivate-account.test.tsx > says the history is kept and that it cannot be undone 182ms
+ ✓ app/profile/deactivate-account.test.tsx > deletes the profile, then signs out without the server calls, then goes to the login page 71ms
+ ✓ app/profiles/[accountId]/page.test.tsx > shows the public name, roles, member since and EcoPoints, signed out 206ms
+ ✓ app/profiles/[accountId]/page.test.tsx > never shows the legal name, birth date or address 8ms
+ ✓ app/profiles/[accountId]/page.test.tsx > sends no Authorization header 9ms
+ ✓ app/profiles/[accountId]/page.test.tsx > shows not found and no EcoPoints for a 404 29ms
+ ✓ components/ui/ui.test.tsx > UI components > handles Escape through onCancel and prevents dismissal while busy 18ms
+ ✓ components/ui/ui.test.tsx > UI components > cleans up dialog children after closing 61ms
+ ✓ components/ui/ui.test.tsx > PageLoading centres one status spinner in the space it gets 2ms
+ ✓ components/ui/ui.test.tsx > Spinner stops spinning for people who ask for less motion 2ms
+ ✓ components/ui/ui.test.tsx > StatusBadge shows the assignment status Active with an icon and its word 3ms
+ ✓ components/ui/ui.test.tsx > StatusBadge shows the assignment status Cancelled by me with an icon and its word 8ms
+ ✓ components/ui/ui.test.tsx > StatusBadge shows the assignment status Cancelled by resident with an icon and its word 3ms
+ ✓ components/ui/ui.test.tsx > StatusBadge draws a different shape for each kind of status, and no text symbol 9ms
+ ✓ components/ui/ui.test.tsx > ConfirmDialog with size undefined uses max-w-md 2ms
+ ✓ components/ui/ui.test.tsx > ConfirmDialog with size md uses max-w-md 3ms
+ ✓ components/ui/ui.test.tsx > ConfirmDialog with size lg uses max-w-xl 1ms
+ ✓ components/ui/ui.test.tsx > Button has a ghost variant and a small size, and keeps 44px by default 4ms
+ ✓ app/ecopoints/page.test.tsx > EcoPoints page > keeps newest-first order and hides cancellation request details 145ms
+ ✓ app/ecopoints/page.test.tsx > EcoPoints page > shows the item line and the formula for each delivery award 14ms
+ ✓ app/ecopoints/page.test.tsx > EcoPoints page > explains how points are earned under the totals 20ms
+ ✓ app/ecopoints/page.test.tsx > EcoPoints page > links delivery awards to the page for the role that earned them 25ms
+ ✓ app/ecopoints/page.test.tsx > EcoPoints page > shows No awards yet for an empty history 15ms
+ ✓ app/ecopoints/page.test.tsx > EcoPoints page > shows the loading state while R1 is pending 7ms
+ ✓ app/login/page.test.tsx > signs out an account with no roles and says so 17ms
+ ✓ app/login/page.test.tsx > is busy while signing in and does not sign in twice 28ms
+ ✓ app/login/page.test.tsx > leaves returnTo for the role page 33ms
+ ✓ app/login/page.test.tsx > asks to sign in again when the session expired 8ms
+ ✓ app/login/page.test.tsx > shows no expired notice without ?expired 3ms
+ ✓ app/login/page.test.tsx > shows and hides the password with a toggle button 6ms
+ ✓ components/ui/ui.test.tsx > Button shows a hidden spinner while busy and keeps aria-busy 6ms
+ ✓ components/ui/ui.test.tsx > Alert error has its icon, role and lead word 6ms
+ ✓ components/ui/ui.test.tsx > Alert success has its icon, role and lead word 4ms
+ ✓ components/ui/ui.test.tsx > Alert warning has its icon, role and lead word 5ms
+ ✓ components/ui/ui.test.tsx > Alert info has its icon, role and lead word 4ms
+ ✓ components/ui/ui.test.tsx > Alert only has a Dismiss button with onDismiss, outside the live region 4ms
+ ✓ components/ui/ui.test.tsx > applies the dialog transition and Alert fade classes 5ms
+ ✓ components/ui/ui.test.tsx > a link button carries every class of the inline-flex items-center justify-center soft-transition rounded-full font-semibold motion-safe:not-disabled:active:scale-[0.985] motion-safe:not-disabled:active:duration-(--duration-press) disabled:cursor-not-allowed disabled:opacity-60 min-h-11 px-5 py-2 bg-accent text-on-accent not-disabled:hover:bg-accent-700 not-disabled:active:bg-accent-800 Button 0ms
+ ✓ components/ui/ui.test.tsx > a link button carries every class of the inline-flex items-center justify-center soft-transition rounded-full font-semibold motion-safe:not-disabled:active:scale-[0.985] motion-safe:not-disabled:active:duration-(--duration-press) disabled:cursor-not-allowed disabled:opacity-60 min-h-11 px-5 py-2 border border-neutral-600 text-text not-disabled:hover:bg-text/10 not-disabled:active:bg-text/15 Button 0ms
+ ✓ components/ui/ui.test.tsx > the primary button changes on hover and press only when it is not disabled 0ms
+ ✓ components/ui/ui.test.tsx > the secondary button changes on hover and press only when it is not disabled 0ms
+ ✓ components/ui/ui.test.tsx > the danger button changes on hover and press only when it is not disabled 0ms
+ ✓ components/ui/ui.test.tsx > the danger-outline button changes on hover and press only when it is not disabled 0ms
+ ✓ components/ui/ui.test.tsx > the ghost button changes on hover and press only when it is not disabled 0ms
+ ✓ components/ui/ui.test.tsx > a clickable card goes back to its resting shadow when pressed, and is never scaled 0ms
+ ✓ components/ui/ui.test.tsx > the input style has a raised fill and a look for focus, invalid, disabled and read-only 0ms
+ ✓ components/ui/ui.test.tsx > the textarea style has a raised fill and a look for focus, invalid, disabled and read-only 0ms
+ ✓ components/ui/ui.test.tsx > the select style has a raised fill and a look for focus, invalid, disabled and read-only 0ms
+ ✓ components/ui/ui.test.tsx > only the select style draws its own chevron 0ms
+ ✓ components/ui/ui.test.tsx > LoadingRegion keeps a minimum height around a labelled spinner, so the page does not jump 3ms
+ ✓ components/ui/ui.test.tsx > a card has 16px of padding on a phone and 20px from 640px, with the resting shadow only 0ms
+ ✓ app/demo/page.test.tsx > Start asks for a demo session and signs in with its custom token 72ms
+ ✓ app/demo/page.test.tsx > goes to the role page once the auth context has the account 2ms
+ ✓ app/demo/page.test.tsx > shows a retry message for 429 85ms
+ ✓ app/profiles/[accountId]/page.test.tsx > refetches both when the public stream says the profile changed 22ms
+ ✓ app/profiles/[accountId]/page.test.tsx > shows an error with a retry 34ms
+ ✓ app/profiles/[accountId]/page.test.tsx > shows an initials circle hidden from screen readers 14ms
+ ✓ app/profiles/[accountId]/page.test.tsx > keeps a large EcoPoints number in one piece 19ms
+ ✓ app/profiles/[accountId]/page.test.tsx > shows the fallback when the EcoPoints can't be loaded 16ms
+ ✓ app/profile/deactivate-account.test.tsx > calls nothing when the dialog is cancelled 39ms
+ ✓ app/profile/deactivate-account.test.tsx > shows the active_work sentence, keeps the dialog open and does not sign out 39ms
+ ✓ app/profile/deactivate-account.test.tsx > shows a plain message for other errors and stays open 31ms
+ ✓ app/profile/deactivate-account.test.tsx > does not send twice when confirmed again while busy 38ms
+ ✓ app/profile/deactivate-account.test.tsx > sends only once on a synchronous double click before re-render 25ms
+ ✓ app/ecopoints/page.test.tsx > EcoPoints page > shows an error and lets the user retry 27ms
+ ✓ app/ecopoints/page.test.tsx > EcoPoints page > keeps the digits of a very large total together 9ms
+ ✓ app/ecopoints/page.test.tsx > EcoPoints page > shows a zero total as 0.00 10ms
+ ✓ app/ecopoints/page.test.tsx > EcoPoints page > highlights Total and marks the role totals with a dot 28ms
+ ✓ app/ecopoints/page.test.tsx > EcoPoints page > puts the awards in one bordered list 25ms
+ ✓ app/ecopoints/page.test.tsx > EcoPoints page > never shows item details or a link on a cancellation, even if the server sends them 9ms
+ ✓ components/terms-checkbox.test.tsx > calls onChange with the terms id when ticked 168ms
+ ✓ components/terms-checkbox.test.tsx > calls onChange with null when unticked 48ms
+ ✓ app/demo/page.test.tsx > shows a retry message for 500 80ms
+ ✓ app/demo/page.test.tsx > keeps the normal login page without the demo flag 28ms
+ ✓ app/demo/page.test.tsx > sends /login to /demo in a demo build 7ms
+ ✓ components/terms-checkbox.test.tsx > resets when a refetch gives a new terms id 82ms
+ ✓ components/terms-checkbox.test.tsx > shows loading text and no checkbox while loading 3ms
+ ✓ components/terms-checkbox.test.tsx > shows an error and lets the user try again 38ms
+ ✓ components/terms-checkbox.test.tsx > shows a 24px checkbox in a row at least 44px tall, and the terms on the inset surface 38ms
+ ✓ components/ui/form-components.test.tsx > form components > disables a busy button and shows its busy label 117ms
+ ✓ components/ui/form-components.test.tsx > form components > draws the danger-outline button as a red outline with red text, not a fill 21ms
+ ✓ components/ui/form-components.test.tsx > form components > links a field error with aria-describedby and sets aria-invalid 8ms
+ ✓ components/ui/form-components.test.tsx > form components > shows an invalid field's message with an icon, announced, and fading in 8ms
+ ✓ components/ui/form-components.test.tsx > form components > FieldError passes an id and tabIndex on, so a form can focus it 2ms
+ ✓ components/ui/form-components.test.tsx > form components > presses only the chosen filter and calls onChange 8ms
+ ✓ components/ui/form-components.test.tsx > form components > refetches once and then shows the fallback text 15ms
+ ✓ components/ui/form-components.test.tsx > form components > starts again with a refetch when the photo url changes 13ms
+ ✓ components/ui/form-components.test.tsx > form components > styles the label, hint and error and keeps them linked 5ms
+ ✓ components/ui/form-components.test.tsx > form components > announces a field error 2ms
+ ✓ components/ui/form-components.test.tsx > form components > has no dark mode rule in globals.css 1ms
+ ✓ components/ui/form-components.test.tsx > form components > cuts all motion for people who ask for less, and never animates layout 1ms
+ ✓ components/ui/form-components.test.tsx > form components > gives buttons a soft transition and a small press only with motion allowed 2ms
+ ✓ components/ui/form-components.test.tsx > form components > keeps the h2 and h3 defaults in the base layer so size classes still win 0ms
+ ✓ components/ui/form-components.test.tsx > EmptyState is a dashed card with just a title and children 2ms
+ ✓ components/ui/form-components.test.tsx > EmptyState fills its dashed box with the inset surface 1ms
+ ✓ components/ui/form-components.test.tsx > EmptyState shows a hidden icon and an action 4ms
+ ✓ app/forgot-password/page.test.tsx > asks for an email and links back to sign in 115ms
+ ✓ app/forgot-password/page.test.tsx > sends the reset email once and says a link was sent, without saying whether the account exists 61ms
+ ✓ app/forgot-password/page.test.tsx > shows what is wrong with an email Firebase refuses and does not say a link was sent 14ms
+ ✓ app/forgot-password/page.test.tsx > shows a message for auth/too-many-requests 10ms
+ ✓ components/ui/form-components.test.tsx > WindowList shows a hidden icon and the exact text on each row 21ms
+ ✓ components/ui/form-components.test.tsx > RequestPhoto keeps a fixed box, and the failure box has the same shape, an icon and the text 14ms
+ ✓ components/ui/form-components.test.tsx > a filter chip scales down while pressed, but not under reduced motion 3ms
+ ✓ components/ui/form-components.test.tsx > FilterTabs fade > shows no fade when nothing overflows 31ms
+ ✓ components/ui/form-components.test.tsx > FilterTabs fade > fades only the side with more to scroll, and buttons still select 8ms
+ ✓ components/ui/form-components.test.tsx > FilterTabs fade > keeps the chosen and focused chips above the fade 4ms
+ ✓ components/ui/form-components.test.tsx > EmptyState can drop its box when it sits inside a card 1ms
+ ✓ components/ui/choice-card.test.tsx > styles the resident choice card and uses a native radio 231ms
+ ✓ components/ui/choice-card.test.tsx > styles the volunteer choice card and uses a native radio 80ms
+ ✓ components/enable-notifications.test.tsx > asks for permission, subscribes and posts the subscription 187ms
+ ✓ components/enable-notifications.test.tsx > shows the hint and posts nothing when permission is denied on click 38ms
+ ✓ components/enable-notifications.test.tsx > shows the hint without a button when permission was already denied 8ms
+ ✓ components/enable-notifications.test.tsx > says On, with no button, when already subscribed 7ms
+ ✓ components/enable-notifications.test.tsx > tells iPhone users in a Safari tab to add EcoCollect to the Home Screen 8ms
+ ✓ app/choose-role/page.test.tsx > explains the redirect when sent from a wrong-role page 148ms
+ ✓ app/choose-role/page.test.tsx > shows Retry instead of signing out when role lookup fails 23ms
+ ✓ app/choose-role/page.test.tsx > shows one button per role for a both-roles account 17ms
+ ✓ app/choose-role/page.test.tsx > shows one button for a single-role account and does not redirect on its own 4ms
+ ✓ app/choose-role/page.test.tsx > sets the chosen role and goes to its home 15ms
+ ✓ app/choose-role/page.test.tsx > sends a signed-out visitor to /login 1ms
+ ✓ app/choose-role/page.test.tsx > signs out an account with no roles 1ms
+ ✓ app/choose-role/page.test.tsx > returns to the page saved by the guard after choosing the role 9ms
+ ✓ app/choose-role/page.test.tsx > ignores a saved volunteer page for a resident-only account 6ms
+ ✓ app/forgot-password/page.test.tsx > shows a message for auth/network-request-failed 17ms
+ ✓ app/forgot-password/page.test.tsx > shows a message for auth/internal-error 9ms
+ ✓ app/forgot-password/page.test.tsx > shows a message for an error that is not from Firebase 26ms
+ ✓ app/forgot-password/page.test.tsx > is busy while sending and does not send twice 28ms
+ ✓ app/forgot-password/page.test.tsx > drops an old error when the next try works 32ms
+ ✓ app/forgot-password/page.test.tsx > goes to the demo page in a demo build, which has no passwords 4ms
+ ✓ app/forgot-password/page.test.tsx > stays on the page in a normal build 1ms
+ ✓ components/resident/confirm-collected.test.tsx > is hidden without the confirm_collected action 130ms
+ ✓ app/stats/page.test.tsx > shows the four totals, the table and the update time 203ms
+ ✓ app/stats/page.test.tsx > shows zeros, not blanks or NaN, when nothing was delivered 27ms
+ ✓ app/stats/page.test.tsx > refetches when the stream says the stats changed 19ms
+ ✓ app/stats/page.test.tsx > sends no Authorization header and needs no login 22ms
+ ✓ app/stats/page.test.tsx > shows an error with a retry 27ms
+ ✓ app/stats/page.test.tsx > keeps a very large number in one piece 14ms
+ ✓ app/choose-role/page.test.tsx > switches to volunteer for a saved volunteer page when the account has both roles 14ms
+ ✓ app/choose-role/page.test.tsx > goes to a saved /ecopoints as resident 5ms
+ ✓ app/choose-role/page.test.tsx > goes to a saved /ecopoints as volunteer 2ms
+ ✓ app/choose-role/page.test.tsx > ignores a bad saved value //evil.com 15ms
+ ✓ app/choose-role/page.test.tsx > ignores a bad saved value https://evil.com 7ms
+ ✓ app/choose-role/page.test.tsx > still works when storage throws 11ms
+ ✓ app/choose-role/page.test.tsx > shows the signed-in email and role icons that add no text 32ms
+ ✓ components/enable-notifications.test.tsx > offers Turn on in the iPhone app opened from the Home Screen 8ms
+ ✓ components/enable-notifications.test.tsx > says so in a browser without push 3ms
+ ✓ components/enable-notifications.test.tsx > says Blocked when permission was denied 9ms
+ ✓ components/enable-notifications.test.tsx > offers Turn on with a hidden bell icon 12ms
+ ✓ components/enable-notifications.test.tsx > says notifications are not set up when the VAPID key is empty 6ms
+ ✓ components/enable-notifications.test.tsx > shows an error when subscribing fails 22ms
+ ✓ components/enable-notifications.test.tsx > offers Turn on again on revisit when saving the subscription to the server failed 100ms
+ ✓ components/resident/confirm-collected.test.tsx > posts once with no body, is disabled while sending, and refreshes the request and my list 199ms
+ ✓ components/resident/confirm-collected.test.tsx > shows the success on the page after the button goes away 115ms
+ ✓ components/resident/confirm-collected.test.tsx > keeps the not_assigned message on the page when the refetch removes the button 39ms
+ ✓ components/resident/confirm-collected.test.tsx > asks the resident to confirm only after the items were taken 24ms
+ ✓ components/require-auth.test.tsx > saves /profile and sends a signed-out visitor to /login 117ms
+ ✓ components/require-auth.test.tsx > saves /ecopoints and sends a signed-out visitor to /login 4ms
+ ✓ components/require-auth.test.tsx > saves /notifications?page=2 and sends a signed-out visitor to /login 12ms
+ ✓ components/require-auth.test.tsx > shows the children to a signed-in user without a redirect 2ms
+ ✓ components/require-auth.test.tsx > shows a spinner, no children and no redirect while auth loads 3ms
+ ✓ components/ui/query-error.test.tsx > shows the message and retries 137ms
+ ✓ components/ui/query-error.test.tsx > is busy while retrying 6ms
+ ✓ mock/routes/volunteer.test.ts > Q6 comes from the volunteer route 170ms
+ ✓ mock/routes/volunteer.test.ts > Q6 filters by postal code 4ms
+ ✓ mock/routes/volunteer.test.ts > Q6 gives 400 for more than 10 postal codes and for status filters 3ms
+ ✓ mock/routes/volunteer.test.ts > Q6 keeps the caller's own requests 4ms
+ ✓ mock/routes/volunteer.test.ts > Q6 drops past windows and expired requests 3ms
+ ✓ mock/routes/volunteer.test.ts > Q6 needs a login and the volunteer role 2ms
+ ✓ mock/routes/volunteer.test.ts > Q8 hides the address while Open and shows it after Q11 3ms
+ ✓ mock/routes/volunteer.test.ts > Q11 gives not_open, expired, terms_outdated and 400 for a bad window 1ms
+ ✓ mock/routes/volunteer.test.ts > Q7 shows nulls for a cancelled row and filters by assignment status 4ms
+ ✓ mock/routes/volunteer.test.ts > Q2 with categoryId returns only facilities that accept it 2ms
+ ✓ mock/routes/volunteer.test.ts > Q12 lets the volunteer cancel before collection and gives already_collected after 4ms
+ ✓ mock/routes/volunteer.test.ts > Q15 checks the facility, the collection and a second delivery 3ms
+ ✓ mock/routes/volunteer.test.ts > notifies the resident on Q11, Q12 and Q15 4ms
+ ✓ mock/routes/volunteer.test.ts > writes a title and body for the notifications, like the examples in README 13.1 2ms
+ ✓ lib/sse.test.tsx > opens one stream with the cookie when signed in 16ms
+ ✓ lib/sse.test.tsx > opens no stream when signed out or without a role 2ms
+ ✓ lib/sse.test.tsx > does nothing when the browser has no EventSource 2ms
+ ✓ lib/sse.test.tsx > closes the stream on sign-out and on unmount 7ms
+ ✓ lib/sse.test.tsx > a notification invalidates the keys for its type 1ms
+ ✓ lib/sse.test.tsx > notification-expired invalidates notifications and closes the device notifications with its tag 52ms
+ ✓ components/ui/password-input.test.tsx > toggles the type and aria-pressed and keeps one label 191ms
+ ✓ components/ui/password-input.test.tsx > can be used by keyboard 37ms
+ ✓ components/ui/password-input.test.tsx > forwards the input props and works inside Field 20ms
+ ✓ components/ui/password-input.test.tsx > keeps the focus ring of the Show password button inside the button 4ms
+ ✓ components/resident/category-picker.test.tsx > CategoryPicker > loads Q1 and renders every category name 164ms
+ ✓ components/resident/category-picker.test.tsx > CategoryPicker > calls onChange with the selected categoryId 19ms
+ ✓ components/resident/category-picker.test.tsx > CategoryPicker > disables the options listed in disabledIds 24ms
+ ✓ components/resident/category-picker.test.tsx > CategoryPicker > shows loading text while waiting for categories 3ms
+ ✓ lib/sse.test.tsx > notification-read closes the device notifications of those ids 53ms
+ ✓ lib/sse.test.tsx > notification-read with all closes every device notification 53ms
+ ✓ lib/sse.test.tsx > does not throw when there is no service worker 1ms
+ ✓ lib/sse.test.tsx > available-requests-changed invalidates the list and the request 1ms
+ ✓ lib/sse.test.tsx > profile-updated invalidates the profile and refreshes roles only when they changed 7ms
+ ✓ lib/sse.test.tsx > onopen invalidates everything 1ms
+ ✓ lib/sse.test.tsx > account-deactivated signs out 1ms
+ ✓ lib/sse.test.tsx > refetches notifications every 30 s while the stream is down and stops on reopen 4ms
+ ✓ lib/sse.test.tsx > leaves no timer after unmount or sign-out 3ms
+ ✓ lib/sse.test.tsx > opens a new stream after the browser gave up, waiting longer each time and starting over once it opens 1ms
+ ✓ lib/sse.test.tsx > never waits more than 30 s between tries 1ms
+ ✓ lib/sse.test.tsx > leaves the browser alone while it is reconnecting by itself 5ms
+ ✓ lib/sse.test.tsx > cancels a waiting retry on unmount 1ms
+ ✓ lib/sse.test.tsx > reopen closes the old stream and opens a new one 1ms
+ ✓ lib/sse.test.tsx > reopens when the account's roles change 1ms
+ ✓ lib/sse.test.tsx > ignores a bad JSON message and unknown events 1ms
+ ✓ components/ui/lifecycle-stepper.test.tsx > marks the current step in text and with aria-current 313ms
+ ✓ components/ui/lifecycle-stepper.test.tsx > marks Open as the only current step 7ms
+ ✓ components/ui/lifecycle-stepper.test.tsx > marks Collected as the only current step 7ms
+ ✓ components/ui/lifecycle-stepper.test.tsx > marks Delivered as the only current step 9ms
+ ✓ components/demo-banner.test.tsx > renders nothing without the demo flag 32ms
+ ✓ app/route-fallbacks.test.tsx > focuses the not-found content and links back to EcoCollect 182ms
+ ✓ app/route-fallbacks.test.tsx > focuses the error content and resets the route when requested 36ms
+ ✓ app/route-fallbacks.test.tsx > uses Next's retry when it can refetch the segment 17ms
+ ✓ app/route-fallbacks.test.tsx > renders a standalone global error document with the app body font 9ms
+ ✓ app/route-fallbacks.test.tsx > exposes the shared loading status to assistive technology 3ms
+ ✓ components/demo-banner.test.tsx > shows the demo banner in a demo build 109ms
+ ✓ components/demo-banner.test.tsx > has a hidden info icon inside the header width 10ms
+ ✓ components/notification-bell.test.tsx > links to the notifications page 130ms
+ ✓ components/notification-bell.test.tsx > shows no badge at 0 unread 5ms
+ ✓ components/notification-bell.test.tsx > shows 5 unread as 5 11ms
+ ✓ components/notification-bell.test.tsx > shows 99 unread as 99 6ms
+ ✓ components/notification-bell.test.tsx > shows 120 unread as 99+ 6ms
+ ✓ components/notification-bell.test.tsx > shows no badge while loading or after an error 5ms
+ ✓ components/notification-bell.test.tsx > is the current page on /notifications only 9ms
+ ✓ components/notification-bell.test.tsx > rings the badge in the page colour so it stands apart from the bell 3ms
+ ✓ components/resident/status-history.test.tsx > shows history oldest first without changing the response order, using Calgary timestamps 189ms
+ ✓ components/resident/status-history.test.tsx > links the missed request to its replacement and the replacement back to its source 20ms
+ ✓ components/resident/status-history.test.tsx > shows only the supplied rescheduledFrom link 4ms
+ ✓ components/resident/status-history.test.tsx > shows only the supplied rescheduledAs link 27ms
+ ✓ components/ui/next-step-panel.test.tsx > announces nothing and animates nothing on the first load 185ms
+ ✓ components/ui/next-step-panel.test.tsx > announces a change of status once and fades the badge and the sentence in again 15ms
+ ✓ components/ui/next-step-panel.test.tsx > does nothing when a refresh brings the same status 9ms
+ ✓ components/ui/next-step-panel.test.tsx > stays quiet when the person's own action caused the change 16ms
+ ✓ components/ui/next-step-panel.test.tsx > announces the next change that comes by itself after a quiet one 8ms
+ ✓ components/ui/next-step-panel.test.tsx > does not move focus when the status changes 20ms
+ ✓ components/ui/next-step-panel.test.tsx > keeps the announcement out of sight, in a polite status region 3ms
+ ✓ components/resident/status-history.test.tsx > shows a single history row without an empty rescheduling card 70ms
+ ✓ components/resident/status-history.test.tsx > omits the section when there is no history or reschedule link 1ms
+ ✓ components/resident/status-history.test.tsx > shows a timeline with each status and its time 19ms
+ ✓ app/providers.test.tsx > fails mutations immediately while offline instead of queuing them for reconnect 179ms
+ ✓ components/address-fields.test.tsx > shows the address errors and tidies the postal code on blur 167ms
+ ✓ components/address-fields.test.tsx > adds, removes and tidies codes and stops at three 72ms
+stdout | mock/resident-actions.test.ts > serves the resident action through the HTTP router
+POST /api/requests/10000000-0000-4000-8000-000000000001/cancel -> 200
+
+ ✓ mock/resident-actions.test.ts > edits only supplied fields, recalculates weight and removes a photo 6ms
+ ✓ mock/resident-actions.test.ts > keeps replaced windows inactive and checks the original creation deadline 1ms
+ ✓ mock/resident-actions.test.ts > rejects editing Assigned requests 0ms
+ ✓ mock/resident-actions.test.ts > expires an overdue Open request once on PATCH 1ms
+ ✓ mock/resident-actions.test.ts > expires an overdue Open request once on POST 1ms
+ ✓ mock/resident-actions.test.ts > rejects invalid edits without mutation: null 0ms
+ ✓ mock/resident-actions.test.ts > rejects invalid edits without mutation: undefined 0ms
+ ✓ mock/resident-actions.test.ts > rejects invalid edits without mutation: {"quantity":0} 0ms
+ ✓ mock/resident-actions.test.ts > rejects invalid edits without mutation: {"notes":5} 0ms
+ ✓ mock/resident-actions.test.ts > rejects invalid edits without mutation: {"photo":{"fileId":""}} 1ms
+ ✓ mock/resident-actions.test.ts > rejects invalid edits without mutation: {"address":"wrong"} 0ms
+ ✓ mock/resident-actions.test.ts > names a bad photo photo.fileId, as the Request Service does for Q9 0ms
+ ✓ mock/resident-actions.test.ts > cancels an Open request with a reason and refuses a second cancellation 0ms
+ ✓ mock/resident-actions.test.ts > awards late resident cancellation once for /cancel 1ms
+ ✓ mock/resident-actions.test.ts > awards late resident cancellation once for /assignment/cancel 1ms
+ ✓ mock/resident-actions.test.ts > awards no points -72 hours from the selected start 1ms
+ ✓ mock/resident-actions.test.ts > awards no points -24 hours from the selected start 1ms
+ ✓ mock/resident-actions.test.ts > awards nothing for self-cancellation and requires the role for a dual-role actor 1ms
+ ✓ mock/resident-actions.test.ts > refuses /cancel at the exact selected window end 0ms
+ ✓ mock/resident-actions.test.ts > refuses /assignment/cancel at the exact selected window end 0ms
+ ✓ mock/resident-actions.test.ts > expires after cancellation when the last slot has started, but reopens with new windows 1ms
+ ✓ mock/resident-actions.test.ts > reopens with replacement windows while preserving the selected historical slot 1ms
+ ✓ mock/resident-actions.test.ts > confirms collection once and disallows later cancellation or missed reporting 1ms
+ ✓ mock/resident-actions.test.ts > refuses missed reporting before the end and allows it at the exact end without rescheduling 1ms
+ ✓ mock/resident-actions.test.ts > reschedules once with current weight, address, terms, linked history and a shared photo 1ms
+ ✓ mock/resident-actions.test.ts > keeps the assignment unchanged on invalid rescheduling: {"windows":[],"termsDocumentId":"mock-terms-1"} 0ms
+ ✓ mock/resident-actions.test.ts > keeps the assignment unchanged on invalid rescheduling: {"windows":[{"date":"2026-11-25","startHour":14}],"termsDocumentId":"old"} 0ms
+ ✓ mock/resident-actions.test.ts > keeps the assignment unchanged on invalid rescheduling: null 0ms
+ ✓ mock/resident-actions.test.ts > blocks another actor or a missing login:  0ms
+ ✓ mock/resident-actions.test.ts > blocks another actor or a missing login: demo-resident-2 0ms
+ ✓ mock/resident-actions.test.ts > blocks another actor or a missing login: demo-volunteer-1 0ms
+ ✓ mock/resident-actions.test.ts > sends the other party a notification without private request fields 2ms
+ ✓ mock/resident-actions.test.ts > sends both cancellation notifications when Q10 cancels an Assigned request 1ms
+ ✓ mock/resident-actions.test.ts > hands a volunteer cancellation to volunteer.mjs without exposing the owner's detail 1ms
+stdout | mock/resident-actions.test.ts > serves the resident action through the HTTP router
+POST /api/requests/10000000-0000-4000-8000-000000000001/cancel -> 409
+
+ ✓ components/require-role.test.tsx > shows Loading while the auth state loads 28ms
+ ✓ components/require-role.test.tsx > sends a resident-only user away from a volunteer page to /choose-role with a reason 3ms
+ ✓ components/require-role.test.tsx > sends an account with no roles to /login 2ms
+ ✓ components/require-role.test.tsx > sends a signed-out visitor to /login and saves the page they wanted 4ms
+ ✓ components/require-role.test.tsx > does not save a page outside the allowed list 3ms
+ ✓ components/require-role.test.tsx > still redirects when storage throws 2ms
+ ✓ components/require-role.test.tsx > sets the page's role once when a both-roles account opens it with the other role active 1ms
+ ✓ components/require-role.test.tsx > does not set the role when it already matches 1ms
+ ✓ mock/resident-actions.test.ts > serves the resident action through the HTTP router 81ms
+ ✓ lib/use-request.test.tsx > returns the detail and refreshes from the server clock rather than the device clock 31ms
+ ✓ lib/use-request.test.tsx > waits at least five seconds for refreshAt 2026-11-15T18:00:01Z 6ms
+ ✓ lib/use-request.test.tsx > waits at least five seconds for refreshAt 2026-11-15T17:59:59Z 6ms
+ ✓ lib/use-request.test.tsx > clears the timer on unmount 3ms
+ ✓ lib/use-request.test.tsx > replaces the timer when another response arrives 4ms
+ ✓ lib/use-request.test.tsx > resets the timer even if a new response contains the same values 5ms
+ ✓ lib/use-request.test.tsx > clears the previous request's timer when the id changes 44ms
+ ✓ components/resident/request-actions.test.tsx > puts the main task first and the cancel buttons last for a request that is Open 127ms
+ ✓ components/resident/request-actions.test.tsx > puts the main task first and the cancel buttons last for a request that is Assigned, before the window ends 8ms
+ ✓ components/resident/request-actions.test.tsx > puts the main task first and the cancel buttons last for a request that is Assigned, after the window ends 5ms
+ ✓ components/resident/request-actions.test.tsx > shows no buttons when the server allows no actions 1ms
+ ✓ components/resident/request-actions.test.tsx > never puts a cancel button first when a main task is shown 4ms
+ ✓ components/resident/request-actions.test.tsx > shows only the actions the server lists 2ms
+ ✓ components/resident/request-actions.test.tsx > stacks the buttons at full width on a phone and puts them side by side from 640 px 3ms
+ ✓ app/volunteer/requests/[id]/page.test.tsx > passes the id from the url to the detail 133ms
+ ✓ lib/use-request.test.tsx > does not schedule a timer for refreshAt null 6ms
+ ✓ lib/use-request.test.tsx > does not schedule a timer for refreshAt invalid 7ms
+ ✓ lib/use-request.test.tsx > handles a refresh more than the browser timer limit away 4ms
+ ✓ lib/use-request.test.tsx > handles 404 request_unavailable 5ms
+ ✓ lib/use-request.test.tsx > handles 404 not_found 12ms
+ ✓ lib/use-request.test.tsx > handles 403 forbidden 1ms
+ ✓ lib/use-request.test.tsx > invalidates the request and supplied lists after a successful action 5ms
+ ✓ lib/use-request.test.tsx > keeps the friendly 409 message while invalidating the request and lists 6ms
+ ✓ lib/use-request.test.tsx > invalidates the request when the action gets a 404 4ms
+ ✓ lib/use-request.test.tsx > returns the error so forms can read the field errors 16ms
+ ✓ lib/use-request.test.tsx > says the field errors a dialog has no input for, without invalidating data: {"reason":"must be at most 500 characters","windowId":"must be an active window of this request that has not started"} 4ms
+ ✓ lib/use-request.test.tsx > says the field errors a dialog has no input for, without invalidating data: {"reason":"must be at most 500 characters"} 10ms
+ ✓ lib/use-request.test.tsx > stays pending while sending and clears an earlier error on the next attempt 3ms
+ ✓ lib/use-request.test.tsx > ignores a second synchronous run before React re-renders, and allows retry after failure 4ms
+ ✓ lib/use-request.test.tsx > refreshes the request and lists and warns about unknown outcome when a write times out 2ms
+ ✓ lib/auth-context.test.tsx > signIn reads the roles and posts the id token to the session route once 19ms
+ ✓ lib/auth-context.test.tsx > signIn leaves out the session when the account has no role 7ms
+ ✓ lib/auth-context.test.tsx > signOut removes the push subscription, then the session, then signs out of Firebase 2ms
+ ✓ lib/auth-context.test.tsx > signOut still finishes when the push call fails 2ms
+ ✓ lib/auth-context.test.tsx > signOut with skipServer only signs out of Firebase 3ms
+ ✓ lib/auth-context.test.tsx > deletes the session only once when the listener sees the sign out afterwards 3ms
+ ✓ lib/auth-context.test.tsx > deletes the session when Firebase ends the login by itself 3ms
+ ✓ lib/auth-context.test.tsx > picks the only role, and no role when the account has two 3ms
+ ✓ lib/auth-context.test.tsx > reads activeRole from sessionStorage and keeps it over a re-render 3ms
+ ✓ lib/auth-context.test.tsx > setActiveRole stores the role for this tab and ignores a role the account does not have 3ms
+ ✓ lib/auth-context.test.tsx > ignores a stored role the account no longer has 1ms
+ ✓ lib/auth-context.test.tsx > works when sessionStorage is blocked 2ms
+ ✓ lib/auth-context.test.tsx > refreshRoles asks for a new token and starts the session again 2ms
+ ✓ lib/auth-context.test.tsx > refreshRoles drops the answer when another account signed in meanwhile 9ms
+ ✓ lib/auth-context.test.tsx > signOut waits for a session request that is still pending, so the cookie ends up deleted 2ms
+ ✓ lib/auth-context.test.tsx > refreshRoles does nothing when nobody is signed in 2ms
+ ✓ lib/auth-context.test.tsx > useAuth outside the provider says what is wrong 8ms
+ ✓ components/ui/icons.test.tsx > PlusIcon is hidden from screen readers and takes a className 58ms
+ ✓ components/ui/icons.test.tsx > ClockIcon is hidden from screen readers and takes a className 2ms
+ ✓ components/ui/icons.test.tsx > CalendarIcon is hidden from screen readers and takes a className 1ms
+ ✓ components/ui/icons.test.tsx > MapPinIcon is hidden from screen readers and takes a className 3ms
+ ✓ components/ui/icons.test.tsx > ScaleIcon is hidden from screen readers and takes a className 1ms
+ ✓ components/ui/icons.test.tsx > CameraIcon is hidden from screen readers and takes a className 1ms
+ ✓ components/ui/icons.test.tsx > CameraOffIcon is hidden from screen readers and takes a className 21ms
+ ✓ components/ui/icons.test.tsx > TruckIcon is hidden from screen readers and takes a className 1ms
+ ✓ components/ui/icons.test.tsx > PackageIcon is hidden from screen readers and takes a className 1ms
+ ✓ components/ui/icons.test.tsx > ChevronRightIcon is hidden from screen readers and takes a className 1ms
+ ✓ components/ui/icons.test.tsx > CheckIcon is hidden from screen readers and takes a className 1ms
+ ✓ components/ui/icons.test.tsx > InfoIcon is hidden from screen readers and takes a className 1ms
+ ✓ components/ui/icons.test.tsx > WarningIcon is hidden from screen readers and takes a className 1ms
+ ✓ components/ui/icons.test.tsx > AlertIcon is hidden from screen readers and takes a className 1ms
+ ✓ components/ui/icons.test.tsx > EyeIcon is hidden from screen readers and takes a className 0ms
+ ✓ components/ui/icons.test.tsx > EyeOffIcon is hidden from screen readers and takes a className 0ms
+ ✓ components/ui/icons.test.tsx > BellIcon is hidden from screen readers and takes a className 1ms
+ ✓ components/ui/icons.test.tsx > LeafIcon is hidden from screen readers and takes a className 0ms
+ ✓ components/ui/icons.test.tsx > CircleIcon is hidden from screen readers and takes a className 0ms
+ ✓ components/ui/icons.test.tsx > CircleHalfIcon is hidden from screen readers and takes a className 4ms
+ ✓ components/ui/icons.test.tsx > CircleThreeQuartersIcon is hidden from screen readers and takes a className 1ms
+ ✓ components/ui/icons.test.tsx > CrossIcon is hidden from screen readers and takes a className 0ms
+ ✓ components/ui/icons.test.tsx > DashIcon is hidden from screen readers and takes a className 0ms
+ ✓ components/ui/icons.test.tsx > ExclamationIcon is hidden from screen readers and takes a className 0ms
+ ✓ components/ui/icons.test.tsx > has the 24 icons 1ms
+ ✓ mock/routes/resident.test.ts > resident mock routes > returns the nine category names, weights and waste types 4ms
+ ✓ mock/routes/resident.test.ts > resident mock routes > notifies the resident and the volunteers who prefer the postal code about each new request 3ms
+ ✓ mock/routes/resident.test.ts > resident mock routes > does not notify a deactivated volunteer about a new request 4ms
+ ✓ mock/routes/resident.test.ts > resident mock routes > creates one request per item and uses the last window start as expiry 5ms
+ ✓ mock/routes/resident.test.ts > resident mock routes > replays the same result for the same resident and idempotency key 1ms
+ ✓ mock/routes/resident.test.ts > resident mock routes > copies the resident profile address and rejects a client-supplied address 2ms
+ ✓ mock/routes/resident.test.ts > resident mock routes > expires idempotency responses after 24 hours 1ms
+ ✓ mock/routes/resident.test.ts > resident mock routes > rejects an invalid window { date: '2026-12-21', startHour: 14 } with field errors 1ms
+ ✓ mock/routes/resident.test.ts > resident mock routes > rejects an invalid window { date: '2026-02-30', startHour: 14 } with field errors 0ms
+ ✓ mock/routes/resident.test.ts > resident mock routes > rejects an invalid window { date: '2026-11-19', startHour: 14 } with field errors 0ms
+ ✓ mock/routes/resident.test.ts > resident mock routes > rejects an invalid window { date: '2026-11-22', startHour: 24 } with field errors 0ms
+ ✓ mock/routes/resident.test.ts > resident mock routes > rejects a window whose end exceeds the 30-day limit 3ms
+ ✓ mock/routes/resident.test.ts > resident mock routes > rejects duplicate slots and categories without creating partial requests 1ms
+ ✓ mock/routes/resident.test.ts > resident mock routes > returns terms_outdated for an old terms document 3ms
+ ✓ mock/routes/resident.test.ts > resident mock routes > rejects anonymous callers and non-resident creation 1ms
+ ✓ mock/routes/resident.test.ts > resident mock routes > lists only the owner's requests with comma-separated status filters 2ms
+ ✓ mock/routes/resident.test.ts > resident mock routes > keeps private fields and photo URLs out of the list 2ms
+ ✓ mock/routes/resident.test.ts > resident mock routes > returns request_unavailable for hidden and missing requests 0ms
+ ✓ mock/routes/resident.test.ts > buildDetail > shows public Open details to volunteers and private details to the owner 1ms
+ ✓ mock/routes/resident.test.ts > buildDetail > changes owner actions at the exact end of the selected window 1ms
+ ✓ mock/routes/resident.test.ts > buildDetail > updates cancellation timing and refreshes at the window end 1ms
+ ✓ mock/routes/resident.test.ts > buildDetail > hides address and notes after collection but keeps the delivery action 1ms
+ ✓ mock/routes/resident.test.ts > buildDetail > keeps delivery evidence visible to the owner and delivering volunteer 0ms
+ ✓ mock/routes/resident.test.ts > buildDetail > hides missed requests from the former volunteer 1ms
+ ✓ mock/routes/resident.test.ts > buildDetail > hides requests after the volunteer's assignment ends as Resident_Cancelled 0ms
+ ✓ mock/routes/resident.test.ts > buildDetail > hides requests after the volunteer's assignment ends as Volunteer_Cancelled 0ms
+ ✓ mock/routes/resident.test.ts > buildDetail > hides requests after the volunteer's assignment ends as Missed_Pickup 0ms
+ ✓ mock/routes/resident.test.ts > buildDetail > combines both sets of actions when the owner is also the volunteer 0ms
+ ✓ mock/routes/resident.test.ts > buildDetail > gives overdue Open requests no actions and hides past windows from volunteers 0ms
+ ✓ components/ui/role-badge.test.tsx > shows resident with its word and colour 20ms
+ ✓ components/ui/role-badge.test.tsx > shows volunteer with its word and colour 9ms
+ ✓ components/ui/role-badge.test.tsx > gives the role and status badges the same base, so they line up 4ms
+ ✓ lib/e2e.test.ts > is off when the flag is not set, even on localhost 11ms
+ ✓ lib/e2e.test.ts > is off when the flag is not exactly true 1ms
+ ✓ lib/e2e.test.ts > is on for localhost when the flag is set 1ms
+ ✓ lib/e2e.test.ts > is on for 127.0.0.1 when the flag is set 1ms
+ ✓ lib/e2e.test.ts > is on for [::1] when the flag is set 0ms
+ ✓ lib/e2e.test.ts > is off for 192.168.1.20 even with the flag 1ms
+ ✓ lib/e2e.test.ts > is off for ecocollect.example.com even with the flag 1ms
+ ✓ lib/e2e.test.ts > is off for localhost.evil.com even with the flag 1ms
+ ✓ lib/e2e.test.ts > stays signed out when the mock does not know the account 1ms
+ ✓ lib/e2e.test.ts > stays signed out without asking the mock when the stored account is empty 1ms
+ ✓ lib/e2e.test.ts > signs in as the stored account with the roles from the mock, and signs out 1ms
+ ✓ mock/routes/accounts.test.ts > seeds a resident only account, one with both roles and a deactivated one 4ms
+ ✓ mock/routes/accounts.test.ts > returns the own profile with the address and no volunteer codes for a resident 1ms
+ ✓ mock/routes/accounts.test.ts > gives a volunteer only account no address 1ms
+ ✓ mock/routes/accounts.test.ts > answers 401 without a login or for a deactivated account, and 404 for an unknown account 2ms
+ ✓ mock/routes/accounts.test.ts > shows a public profile without any private details 2ms
+ ✓ mock/routes/accounts.test.ts > hides the public profile of demo-deactivated-1 with a 404 0ms
+ ✓ mock/routes/accounts.test.ts > hides the public profile of nobody with a 404 0ms
+ ✓ mock/routes/accounts.test.ts > adds up the EcoPoints of an account and gives zero for an unknown one 0ms
+ ✓ mock/routes/accounts.test.ts > registers a resident, who can then read their own profile 1ms
+ ✓ mock/routes/accounts.test.ts > registers a volunteer with preferred postal codes and no address 1ms
+ ✓ mock/routes/accounts.test.ts > refuses a taken username or email with 409 0ms
+ ✓ mock/routes/accounts.test.ts > refuses outdated terms with 409 0ms
+ ✓ mock/routes/accounts.test.ts > gives 400 with a message per field for age under 18, a non-Calgary postal code and a future birth date 0ms
+ ✓ mock/routes/accounts.test.ts > gives 400 for a resident without an address, a bad username, a short password and 4 postal codes 0ms
+ ✓ mock/routes/accounts.test.ts > does not create an account when the checks fail 0ms
+ ✓ mock/routes/accounts.test.ts > changes only the fields that are sent 4ms
+ ✓ mock/routes/accounts.test.ts > replaces the preferred postal codes of a volunteer and refuses a fourth one 2ms
+ ✓ mock/routes/accounts.test.ts > gives 403 role_required for an address on a volunteer or codes on a resident 4ms
+ ✓ mock/routes/accounts.test.ts > locks the address while the resident has an Open or Assigned request 1ms
+ ✓ mock/routes/accounts.test.ts > gives 400 for an unknown field, an empty name and a bad address 1ms
+ ✓ mock/routes/accounts.test.ts > adds the volunteer role to a resident and the resident role to a volunteer 2ms
+ ✓ mock/routes/accounts.test.ts > needs an address to activate the resident role, and refuses a role the account has or old terms 2ms
+ ✓ mock/routes/accounts.test.ts > does not change the demo accounts for the next test 1ms
+ ✓ mock/routes/accounts.test.ts > refuses to deactivate an account that owns an Open request or has an unfinished pickup 1ms
+ ✓ mock/routes/accounts.test.ts > deactivates an account without work, clears the cookie and hides the public profile 0ms
+ ✓ mock/routes/accounts.test.ts > starts a session by setting an HttpOnly cookie with the ID token 0ms
+ ✓ mock/routes/accounts.test.ts > gives a cookie to a Firebase user the mock does not know 0ms
+ ✓ mock/routes/accounts.test.ts > refuses a session without a token or for a deactivated account 0ms
+ ✓ mock/routes/accounts.test.ts > ends the session by clearing the cookie 0ms
+ ✓ mock/routes/accounts.test.ts > gives 400 when the username is missing or not a string 0ms
+ ✓ mock/routes/accounts.test.ts > gives 400 for the impossible birth date 1995-02-30 0ms
+ ✓ mock/routes/accounts.test.ts > gives 400 for the impossible birth date 1995-13-01 0ms
+ ✓ mock/routes/accounts.test.ts > gives 400 for the impossible birth date 2001-04-31 0ms
+ ✓ mock/routes/accounts.test.ts > gives 400 for the impossible birth date 1995-6-5 0ms
+ ✓ mock/routes/accounts.test.ts > gives 400 for the impossible birth date 19950615 0ms
+ ✓ mock/routes/accounts.test.ts > gives 400 for the impossible birth date null 0ms
+ ✓ mock/routes/accounts.test.ts > accepts 29 February of a leap year 0ms
+ ✓ mock/routes/accounts.test.ts > gives 400 when a postal code is not a string, in the address or the preferred codes 0ms
+ ✓ mock/routes/accounts.test.ts > applies the same postal code check when editing the profile or adding a role 1ms
+ ✓ mock/routes/accounts.test.ts > opens the public stream without a login and sends ready, then a ping every 25 seconds 1ms
+ ✓ mock/routes/accounts.test.ts > answers 400 unless the public stream gets exactly one of profile and stats 1ms
+ ✓ mock/routes/accounts.test.ts > emitPublic reaches only the watchers it is meant for 2ms
+ ✓ mock/routes/accounts.test.ts > forgets a public stream and stops pinging when it closes 1ms
+ ✓ lib/public-stream.test.tsx > opens the stream of one profile 16ms
+ ✓ lib/public-stream.test.tsx > encodes the account id 1ms
+ ✓ lib/public-stream.test.tsx > opens the stats stream 2ms
+ ✓ lib/public-stream.test.tsx > calls onChange for a profile update and for a stats update 2ms
+ ✓ lib/public-stream.test.tsx > refetches when the stream reconnects, but not on the first open 1ms
+ ✓ lib/public-stream.test.tsx > closes the stream on unmount 1ms
+ ✓ lib/public-stream.test.tsx > calls the newest onChange without reopening the stream 4ms
+ ✓ lib/public-stream.test.tsx > opens a new stream when the profile changes and closes the old one 3ms
+ ✓ lib/public-stream.test.tsx > throws in development unless exactly one of profile and stats is given: {} 5ms
+ ✓ lib/public-stream.test.tsx > throws in development unless exactly one of profile and stats is given: {"profile":"abc","stats":true} 1ms
+ ✓ app/resident/requests/new/page.test.tsx > new request access > shows the form to residents 39ms
+ ✓ app/resident/requests/new/page.test.tsx > new request access > redirects volunteers without exposing the form 10ms
+ ✓ app/resident/requests/new/page.test.tsx > new request access > redirects signed-out users to login 2ms
+ ✓ app/resident/requests/[id]/page.test.tsx > awaits the dynamic ID and displays the detail page to a resident 24ms
+ ✓ app/resident/requests/[id]/page.test.tsx > does not expose details to a volunteer-only account 6ms
+ ✓ app/resident/requests/[id]/page.test.tsx > redirects signed-out visitors to login 2ms
+ ✓ app/resident/requests/[id]/page.test.tsx > tells the detail it was opened after a reschedule 2ms
+ ✓ lib/time.test.ts > window formatting > does not change the displayed hour across the March clock change 37ms
+ ✓ lib/time.test.ts > window formatting > uses Calgary dates for Today and Tomorrow 3ms
+ ✓ lib/time.test.ts > window formatting > accepts only a real date and an hour from 0 to 23 0ms
+ ✓ lib/time.test.ts > window formatting > reads the day and the hour in Calgary time 1ms
+ ✓ lib/time.test.ts > window formatting > formats a date with no time, and leaves a bad one as it came 0ms
+ ✓ lib/time.test.ts > window formatting > pads single-digit hours 0ms
+ ✓ lib/time.test.ts > calgaryInstant > 2026-03-07 at 3:00 is that hour in Calgary 2ms
+ ✓ lib/time.test.ts > calgaryInstant > 2026-03-08 at 1:00 is that hour in Calgary 0ms
+ ✓ lib/time.test.ts > calgaryInstant > 2026-03-08 at 3:00 is that hour in Calgary 0ms
+ ✓ lib/time.test.ts > calgaryInstant > 2026-03-08 at 10:00 is that hour in Calgary 0ms
+ ✓ lib/time.test.ts > calgaryInstant > 2026-03-09 at 3:00 is that hour in Calgary 0ms
+ ✓ lib/time.test.ts > calgaryInstant > 2026-10-31 at 2:00 is that hour in Calgary 0ms
+ ✓ lib/time.test.ts > calgaryInstant > 2026-11-01 at 2:00 is that hour in Calgary 1ms
+ ✓ lib/time.test.ts > calgaryInstant > 2026-11-01 at 10:00 is that hour in Calgary 0ms
+ ✓ lib/time.test.ts > calgaryInstant > 2026-11-02 at 2:00 is that hour in Calgary 0ms
+ ✓ lib/time.test.ts > calgaryInstant > gives the earlier one of the hour that happens twice in November 0ms
+ ✓ app/style-guard.test.ts > finds no banned class or font in app/ and components/ 22ms
+ ✓ app/style-guard.test.ts > names the file and line of a banned class 0ms
+ ✓ app/style-guard.test.ts > catches each banned class 1ms
+ ✓ app/style-guard.test.ts > lets only the h1 rule, the brand and fonts.ts use the display font 0ms
+ ✓ lib/api.test.ts > turns a 409 error body into an ApiError with the code and message 4ms
+ ✓ lib/api.test.ts > exposes the per-field messages of a 400 as sentences 1ms
+ ✓ lib/api.test.ts > falls back to the code unknown when the body is not our error format 0ms
+ ✓ lib/api.test.ts > returns undefined for a 204 0ms
+ ✓ lib/api.test.ts > sends PATCH with a JSON body 1ms
+ ✓ lib/api.test.ts > getWithMeta returns the Date header of the response as a Date 1ms
+ ✓ lib/api.test.ts > getWithMeta falls back to the device clock when there is no Date header 1ms
+ ✓ lib/api.test.ts > friendlyError gives a plain sentence for window_ended 0ms
+ ✓ lib/api.test.ts > friendlyError gives a plain sentence for expired 0ms
+ ✓ lib/api.test.ts > friendlyError gives a plain sentence for already_assigned 0ms
+ ✓ lib/api.test.ts > friendlyError gives a plain sentence for terms_outdated 0ms
+ ✓ lib/api.test.ts > friendlyError uses the server message for a code it does not know 0ms
+ ✓ lib/api.test.ts > friendlyError uses the server message for the inherited name toString 0ms
+ ✓ lib/api.test.ts > friendlyError uses the server message for the inherited name constructor 0ms
+ ✓ lib/api.test.ts > friendlyError uses the server message for the inherited name __proto__ 0ms
+ ✓ lib/api.test.ts > friendlyError does not blame the user when the call never reached the server 3ms
+ ✓ lib/api.test.ts > signs out, saves the current page for returnTo, and goes to the login page when a protected call gets a 401 3ms
+ ✓ lib/api.test.ts > signs out only once when two protected calls get a 401 together 12ms
+ ✓ lib/api.test.ts > leaves a 401 from the session call alone, because that is the login itself 1ms
+ ✓ lib/api.test.ts > does not send a signed-out visitor to the login page for a 401 0ms
+ ✓ lib/api.test.ts > does not redirect again when the visitor is already on the login page 0ms
+ ✓ lib/api.test.ts > aborts a hung request after REQUEST_TIMEOUT_MS with ApiTimeoutError 13ms
+ ✓ mock/routes/uploads.test.ts > rejects unsupported contentType "image/gif" 18ms
+ ✓ mock/routes/uploads.test.ts > rejects unsupported contentType "constructor" 0ms
+ ✓ mock/routes/uploads.test.ts > rejects unsupported contentType "toString" 0ms
+ ✓ mock/routes/uploads.test.ts > returns a full upload ticket for an item photo 1ms
+ ✓ mock/routes/uploads.test.ts > rejects a file over 10 MB 0ms
+ ✓ mock/routes/uploads.test.ts > returns 401 without a login 0ms
+ ✓ mock/routes/uploads.test.ts > returns 403 for evidence on a request this volunteer has not collected 0ms
+ ✓ mock/routes/uploads.test.ts > fake upload returns a fileId 0ms
+ ✓ mock/routes/uploads.test.ts > serves a placeholder image for the photoUrl of the mock detail 0ms
+ ✓ lib/upload/prepare-image.test.ts > scales a 4000x3000 photo down to 2048x1536 6ms
+ ✓ lib/upload/prepare-image.test.ts > keeps a 100x100 photo at 100x100 1ms
+ ✓ lib/upload/prepare-image.test.ts > keeps a very narrow 1x5000 photo at least 1 px wide 0ms
+ ✓ lib/upload/prepare-image.test.ts > throws for a gif 1ms
+ ✓ lib/upload/prepare-image.test.ts > throws for a file over 10 MB 2ms
+ ✓ lib/upload/prepare-image.test.ts > returns a JPEG blob 0ms
+ ✓ lib/upload/prepare-image.test.ts > says the photo could not be read when the browser cannot decode it 0ms
+ ✓ lib/upload/prepare-image.test.ts > fails when the canvas gives back no blob 0ms
+ ✓ lib/upload/prepare-image.test.ts > frees the decoded photo when there is no canvas context 0ms
+ ✓ mock/routes/notifications.test.ts > GET /api/events > sends ready first, then a ping every 25 seconds 3ms
+ ✓ mock/routes/notifications.test.ts > GET /api/events > accepts the session cookie and answers 401 without a login 0ms
+ ✓ mock/routes/notifications.test.ts > GET /api/events > keeps the connection under the user and stops pinging when it closes 0ms
+ ✓ mock/routes/notifications.test.ts > notify > stores the notification and writes a notification event to every stream of the user 1ms
+ ✓ mock/routes/notifications.test.ts > notify > gives notifications created in the same millisecond different timestamps, so paging by time skips none 1ms
+ ✓ mock/routes/notifications.test.ts > notify > sends nothing to a deactivated account 0ms
+ ✓ mock/routes/notifications.test.ts > notify > tells every volunteer stream, and only those, when a request is created, changed, accepted, cancelled or expires 0ms
+ ✓ mock/routes/notifications.test.ts > notify > does not tell the volunteers about changes that leave the list as it is 0ms
+ ✓ mock/routes/notifications.test.ts > notify > works with nobody connected 1ms
+ ✓ mock/routes/notifications.test.ts > GET /api/notifications > seeds six notifications of different types for the demo users 1ms
+ ✓ mock/routes/notifications.test.ts > GET /api/notifications > lists newest first with the unread count of all of the user's notifications 0ms
+ ✓ mock/routes/notifications.test.ts > GET /api/notifications > pages with before and limit 0ms
+ ✓ mock/routes/notifications.test.ts > GET /api/notifications > returns only the signed-in user's notifications, including new ones 0ms
+ ✓ mock/routes/notifications.test.ts > GET /api/notifications > rejects limit=0 0ms
+ ✓ mock/routes/notifications.test.ts > GET /api/notifications > rejects limit=101 0ms
+ ✓ mock/routes/notifications.test.ts > GET /api/notifications > rejects limit=abc 0ms
+ ✓ mock/routes/notifications.test.ts > GET /api/notifications > rejects limit=2.5 0ms
+ ✓ mock/routes/notifications.test.ts > GET /api/notifications > rejects before=yesterday 0ms
+ ✓ mock/routes/notifications.test.ts > GET /api/notifications > answers 401 without a login 0ms
+ ✓ mock/routes/notifications.test.ts > PATCH /api/notifications/:id/read > marks one read, lowers the unread count and tells the user's streams 0ms
+ ✓ mock/routes/notifications.test.ts > PATCH /api/notifications/:id/read > answers 204 again for one that is already read 0ms
+ ✓ mock/routes/notifications.test.ts > PATCH /api/notifications/:id/read > answers 404 for an unknown id and for someone else's notification 0ms
+ ✓ mock/routes/notifications.test.ts > PATCH /api/notifications/:id/read > answers 401 without a login 0ms
+ ✓ mock/routes/notifications.test.ts > POST /api/notifications/read-all > marks all of the user's notifications read and sends one message with all: true 0ms
+ ✓ mock/routes/notifications.test.ts > POST /api/notifications/read-all > answers 401 without a login 0ms
+ ✓ lib/return-to.test.ts > saves an allowed page and gives it back once 8ms
+ ✓ lib/return-to.test.ts > saves exact resident and volunteer list pages and identifies their role 0ms
+ ✓ lib/return-to.test.ts > does not save /stats 0ms
+ ✓ lib/return-to.test.ts > does not save /login 0ms
+ ✓ lib/return-to.test.ts > does not save /ecopointsx 0ms
+ ✓ lib/return-to.test.ts > does not save //evil.com 0ms
+ ✓ lib/return-to.test.ts > does not save https://evil.com 0ms
+ ✓ lib/return-to.test.ts > does not save /resident//evil.com 0ms
+ ✓ lib/return-to.test.ts > ignores a bad stored value and clears it 0ms
+ ✓ lib/return-to.test.ts > tells which role a page belongs to 0ms
+ ✓ lib/return-to.test.ts > works when storage throws 1ms
+ ✓ lib/upload/upload-photo.test.ts > sends token, file and every field to ImageKit and returns the fileId 5ms
+ ✓ lib/upload/upload-photo.test.ts > does not call ImageKit when Q3 answers 403 2ms
+ ✓ lib/upload/upload-photo.test.ts > shows a retry message and preserves the ImageKit error response 4ms
+ ✓ lib/upload/upload-photo.test.ts > fails when ImageKit answers 200 without a fileId 2ms
+ ✓ lib/upload/upload-photo.test.ts > fails and keeps the cause when the upload has a network error 1ms
+ ✓ lib/upload/upload-photo.test.ts > times out a hung ImageKit upload after UPLOAD_TIMEOUT_MS 2ms
+ ✓ lib/upload/upload-photo.test.ts > cancels an in-flight upload when the caller signal aborts 5ms
+ ✓ lib/validate-account.test.ts > normalizing > lowercases and trims the username 1ms
+ ✓ lib/validate-account.test.ts > normalizing > uppercases a postal code and removes the spaces 0ms
+ ✓ lib/validate-account.test.ts > normalizing > finds the latest birth date eligible for registration 0ms
+ ✓ lib/validate-account.test.ts > normalizing > finds a real date when today is 29 February 0ms
+ ✓ lib/validate-account.test.ts > validateAccount > accepts a resident and a volunteer 23ms
+ ✓ lib/validate-account.test.ts > validateAccount > username "Ab" is valid: false 3ms
+ ✓ lib/validate-account.test.ts > validateAccount > username "abc_1" is valid: true 3ms
+ ✓ lib/validate-account.test.ts > validateAccount > username "a-b" is valid: true 5ms
+ ✓ lib/validate-account.test.ts > validateAccount > username "ab c" is valid: false 0ms
+ ✓ lib/validate-account.test.ts > validateAccount > username "abc!" is valid: false 0ms
+ ✓ lib/validate-account.test.ts > validateAccount > username "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" is valid: true 0ms
+ ✓ lib/validate-account.test.ts > validateAccount > username "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" is valid: false 0ms
+ ✓ lib/validate-account.test.ts > validateAccount > accepts an uppercase username because it is lowercased before sending 0ms
+ ✓ lib/validate-account.test.ts > validateAccount > email "" is valid: false 0ms
+ ✓ lib/validate-account.test.ts > validateAccount > email "riley" is valid: false 0ms
+ ✓ lib/validate-account.test.ts > validateAccount > email "riley@" is valid: false 0ms
+ ✓ lib/validate-account.test.ts > validateAccount > email "riley@example" is valid: false 0ms
+ ✓ lib/validate-account.test.ts > validateAccount > email "riley@example.com" is valid: true 0ms
+ ✓ lib/validate-account.test.ts > validateAccount > asks for a name, a public name and a password 0ms
+ ✓ lib/validate-account.test.ts > validateAccount > birth date "2008-11-16" gives undefined 0ms
+ ✓ lib/validate-account.test.ts > validateAccount > birth date "2008-11-17" gives "You must be 18 or older to register." 0ms
+ ✓ lib/validate-account.test.ts > validateAccount > birth date "2009-11-16" gives "You must be 18 or older to register." 0ms
+ ✓ lib/validate-account.test.ts > validateAccount > birth date "2026-11-17" gives "Birth date can't be in the future." 0ms
+ ✓ lib/validate-account.test.ts > validateAccount > birth date "2027-01-01" gives "Birth date can't be in the future." 0ms
+ ✓ lib/validate-account.test.ts > validateAccount > birth date "" gives "Enter your date of birth." 0ms
+ ✓ lib/validate-account.test.ts > validateAccount > birth date "2000-13-01" gives "Enter your date of birth." 0ms
+ ✓ lib/validate-account.test.ts > validateAccount > birth date "2000-01-00" gives "Enter your date of birth." 0ms
+ ✓ lib/validate-account.test.ts > validateAccount > birth date "2000-02-29" gives undefined 0ms
+ ✓ lib/validate-account.test.ts > validateAccount > birth date "2000-02-30" gives "Enter your date of birth." 0ms
+ ✓ lib/validate-account.test.ts > validateAccount > birth date "14/03/1995" gives "Enter your date of birth." 0ms
+ ✓ lib/validate-account.test.ts > validateAccount > turns 18 on the day after for a 29 February birth 0ms
+ ✓ lib/validate-account.test.ts > validateAccount > applies the same limit on 29 February 0ms
+ ✓ lib/validate-account.test.ts > validateAccount > needs a role 0ms
+ ✓ lib/validate-account.test.ts > validateAccount > resident > needs a street and a Calgary postal code 0ms
+ ✓ lib/validate-account.test.ts > validateAccount > resident > postal code "t2p 1j9" is valid: true 0ms
+ ✓ lib/validate-account.test.ts > validateAccount > resident > postal code "T2P1J9" is valid: true 0ms
+ ✓ lib/validate-account.test.ts > validateAccount > resident > postal code "M5V2T6" is valid: false 0ms
+ ✓ lib/validate-account.test.ts > validateAccount > resident > postal code "T2P1J" is valid: false 0ms
+ ✓ lib/validate-account.test.ts > validateAccount > resident > postal code "T2PIJ9" is valid: false 0ms
+ ✓ lib/validate-account.test.ts > validateAccount > resident > does not check the volunteer codes 0ms
+ ✓ lib/validate-account.test.ts > validateAccount > volunteer > does not need codes, and does not check the street 0ms
+ ✓ lib/validate-account.test.ts > validateAccount > volunteer > accepts spaced lowercase codes and ignores blank rows 0ms
+ ✓ lib/validate-account.test.ts > validateAccount > volunteer > names the row of a malformed code 0ms
+ ✓ lib/validate-account.test.ts > validateAccount > volunteer > names the row of a duplicate, even when it is written differently 0ms
+ ✓ lib/validate-account.test.ts > validateAccount > volunteer > allows 3 codes and not 4 0ms
+ ✓ lib/validate-account.test.ts > validateAccount > volunteer > does not check the resident address 0ms
+ ✓ lib/validate-account.test.ts > the address and code checks on their own > checks the street and the postal code 0ms
+ ✓ lib/validate-account.test.ts > the address and code checks on their own > checks the preferred codes, ignoring blank rows 0ms
+ ✓ mock/routes/rewards.test.ts > EcoPoints mock > seeds delivery and cancellation awards and returns the caller's totals 7ms
+ ✓ mock/routes/rewards.test.ts > EcoPoints mock > hides request details for cancellation awards and uses assignment ending time 1ms
+ ✓ mock/routes/rewards.test.ts > EcoPoints mock > gives 18 points for cancelling two items at three kg and avoids duplicate awards 1ms
+ ✓ mock/routes/rewards.test.ts > EcoPoints mock > gives no cancellation points when the volunteer owns the request 0ms
+ ✓ mock/routes/rewards.test.ts > EcoPoints mock > gives no award at or before the cancellation cutoff or after the window ends 0ms
+ ✓ mock/routes/rewards.test.ts > EcoPoints mock > keeps fractional points and totals without floating-point drift 0ms
+ ✓ mock/routes/rewards.test.ts > EcoPoints mock > adds new delivery awards for both roles, including self-delivery, only once 1ms
+ ✓ mock/routes/rewards.test.ts > EcoPoints mock > rejects anonymous requests 0ms
+ ✓ mock/routes/stats.test.ts > answers 200 with the R2 shape without a login 4ms
+ ✓ mock/routes/stats.test.ts > counts a delivered request 1ms
+ ✓ mock/routes/stats.test.ts > answers zeros and no waste types when nothing was delivered 1ms
+ ✓ lib/push.test.ts > unsubscribes in the browser and deletes the subscription by its endpoint 104ms
+ ✓ lib/push.test.ts > does nothing without a subscription 0ms
+ ✓ lib/push.test.ts > asks for permission first, so the click is still fresh, then registers and subscribes 1ms
+ ✓ lib/push.test.ts > unsubscribes the browser if saving the subscription to the server fails 1ms
+ ✓ lib/push.test.ts > registers nothing and posts nothing when the permission is not granted 0ms
+ ✓ mock/routes/push.test.ts > saves a valid subscription 2ms
+ ✓ mock/routes/push.test.ts > keeps one entry when the same endpoint is sent twice 1ms
+ ✓ mock/routes/push.test.ts > returns 400 with fields for a bad body 0ms
+ ✓ mock/routes/push.test.ts > returns 401 without a login 0ms
+ ✓ mock/routes/push.test.ts > removes a subscription on DELETE 0ms
+ ✓ mock/routes/push.test.ts > returns 204 for an unknown endpoint and 400 without one 0ms
+ ✓ app/tokens.test.ts > text text on bg is at least 4.5:1 1ms
+ ✓ app/tokens.test.ts > text text on surface-elevated is at least 4.5:1 0ms
+ ✓ app/tokens.test.ts > text text on surface is at least 4.5:1 0ms
+ ✓ app/tokens.test.ts > text-muted text on bg is at least 4.5:1 0ms
+ ✓ app/tokens.test.ts > text-muted text on surface-elevated is at least 4.5:1 0ms
+ ✓ app/tokens.test.ts > text-muted text on surface is at least 4.5:1 0ms
+ ✓ app/tokens.test.ts > text-muted text on neutral-100 is at least 4.5:1 0ms
+ ✓ app/tokens.test.ts > on-accent text on accent is at least 4.5:1 0ms
+ ✓ app/tokens.test.ts > on-accent text on accent-700 is at least 4.5:1 0ms
+ ✓ app/tokens.test.ts > accent-700 text on bg is at least 4.5:1 0ms
+ ✓ app/tokens.test.ts > accent-700 text on surface-elevated is at least 4.5:1 0ms
+ ✓ app/tokens.test.ts > on-moss text on accent-2-700 is at least 4.5:1 0ms
+ ✓ app/tokens.test.ts > on-moss text on accent-2-800 is at least 4.5:1 0ms
+ ✓ app/tokens.test.ts > on-moss text on accent-2-900 is at least 4.5:1 0ms
+ ✓ app/tokens.test.ts > on-danger text on danger is at least 4.5:1 0ms
+ ✓ app/tokens.test.ts > danger text on bg is at least 4.5:1 0ms
+ ✓ app/tokens.test.ts > danger text on surface-elevated is at least 4.5:1 0ms
+ ✓ app/tokens.test.ts > on-accent text on role-resident is at least 4.5:1 0ms
+ ✓ app/tokens.test.ts > on-moss text on role-volunteer is at least 4.5:1 0ms
+ ✓ app/tokens.test.ts > danger-800 text on danger-50 is at least 4.5:1 0ms
+ ✓ app/tokens.test.ts > accent-2-800 text on accent-2-100 is at least 4.5:1 0ms
+ ✓ app/tokens.test.ts > accent-800 text on warning-tint is at least 4.5:1 0ms
+ ✓ app/tokens.test.ts > text-muted text on info-tint is at least 4.5:1 0ms
+ ✓ app/tokens.test.ts > accent-2-900 text on accent-2-200 is at least 4.5:1 0ms
+ ✓ app/tokens.test.ts > accent-900 text on accent-200 is at least 4.5:1 0ms
+ ✓ app/tokens.test.ts > text text on neutral-300 is at least 4.5:1 0ms
+ ✓ app/tokens.test.ts > border-strong line on bg is at least 3:1 0ms
+ ✓ app/tokens.test.ts > border-strong line on surface-elevated is at least 3:1 0ms
+ ✓ app/tokens.test.ts > the role colours are the ones the badges and switcher were using 0ms
+ ✓ test/sw.test.ts > still shows a push when a window is focused, but quietly 6ms
+ ✓ test/sw.test.ts > shows the notification when no window is focused 7ms
+ ✓ test/sw.test.ts > shows a silent push with the same tag even when a window is focused 1ms
+ ✓ test/sw.test.ts > does nothing when the payload is not JSON 1ms
+ ✓ test/sw.test.ts > click focuses an open window and navigates it, or opens a new one 1ms
+ ✓ test/sw.test.ts > opens a new window when the tab cannot be focused or navigated 0ms
+ ✓ test/sw.test.ts > goes to the home page when the url is missing 0ms
+ ✓ test/sw.test.ts > does not follow a url on another site 0ms
+ ✓ test/sw.test.ts > keeps the path of a full url from our own site 0ms
+ ✓ mock/routes/terms.test.ts > serves the same terms id that creating a request checks 3ms
+ ✓ mock/routes/terms.test.ts > publishes a newer version when MOCK_TERMS_ID is set 1ms
+ ✓ mock/routes/demo.test.ts > answers 200 with a custom token for a new account with both roles, without a login 12ms
+ ✓ lib/types.test.ts > generated types include every allowed action 2ms
+ ✓ lib/auth.test.ts > deletes the push subscription on the server and unsubscribes in the browser 2ms
+ ✓ lib/auth.test.ts > still unsubscribes the browser when skipServer is true (deactivation or expiry) 0ms
+ ✓ lib/auth.test.ts > does nothing when there is no service worker or no subscription 0ms
+ ✓ lib/auth.test.ts > still unsubscribes the browser and only warns when the server call fails 1ms
+ ✓ lib/query-cache.test.ts > keeps the cache on the first sign-in of the tab, so a request already on its way is not cut off 1ms
+ ✓ lib/query-cache.test.ts > drops the cache when another person signs in 0ms
+ ✓ lib/query-cache.test.ts > drops the cache when the person signs out 0ms
+ ✓ lib/query-cache.test.ts > keeps the cache when the same person is reported again 0ms
+ ✓ mock/store.test.ts > currentUser > reads a bearer token and finds the demo account 3ms
+ ✓ mock/store.test.ts > currentUser > reads the session cookie 0ms
+ ✓ mock/store.test.ts > currentUser > takes the uid and roles from a JWT 0ms
+ ✓ mock/store.test.ts > currentUser > returns null without a token 0ms
+ ✓ mock/store.test.ts > sendError > sends the contract error format 0ms
+ ✓ mock/store.test.ts > sendError > puts field errors under details.fields 0ms
+ ✓ lib/field-messages.test.ts > turns a Request Service fragment into a sentence 1ms
+ ✓ lib/field-messages.test.ts > keeps a message that is already a sentence 0ms
+ ✓ lib/field-messages.test.ts > falls back to a general sentence for a fragment it does not know 0ms
+ ✓ lib/invalidate.test.ts > keysFor > REQUEST_CREATED 1ms
+ ✓ lib/invalidate.test.ts > keysFor > REQUEST_ASSIGNED_RESIDENT 0ms
+ ✓ lib/invalidate.test.ts > keysFor > ASSIGNMENT_CANCELLED_BY_VOLUNTEER_RESIDENT 0ms
+ ✓ lib/invalidate.test.ts > keysFor > NEW_MATCHING_REQUEST 0ms
+ ✓ lib/invalidate.test.ts > keysFor > REQUEST_DELIVERED_VOLUNTEER 0ms
+ ✓ lib/invalidate.test.ts > keysFor > ASSIGNMENT_CANCELLED_BY_RESIDENT_VOLUNTEER 0ms
+ ✓ lib/invalidate.test.ts > keysFor > ECOPOINTS_AWARDED_ON_DELIVERY_RESIDENT 0ms
+ ✓ lib/invalidate.test.ts > keysFor > ECOPOINTS_AWARDED_ON_DELIVERY_VOLUNTEER 0ms
+ ✓ lib/invalidate.test.ts > keysFor > ECOPOINTS_AWARDED_ON_ASSIGNMENT_CANCELLATION_VOLUNTEER 0ms
+ ✓ lib/invalidate.test.ts > keysFor > SOMETHING_NEW 0ms
+ ✓ lib/invalidate.test.ts > keysFor > only refreshes the bell for UNKNOWN_RESIDENT 0ms
+ ✓ lib/invalidate.test.ts > keysFor > only refreshes the bell for UNKNOWN_VOLUNTEER 0ms
+ ✓ lib/invalidate.test.ts > keysFor > only refreshes the bell for ECOPOINTS_UNKNOWN 0ms
+ ✓ lib/invalidate.test.ts > keysFor > leaves out the request detail when the notification has no request 0ms
+ ✓ app/reduced-motion.test.ts > switches animations and transitions off for every element and the dialog backdrop 1ms
+ ✓ app/reduced-motion.test.ts > leaves the dialog's own transitions to that one rule 0ms
+ ✓ lib/postal-code.test.ts > adds the space in the middle of a postal code 1ms
+
+ Test Files  93 passed (93)
+      Tests  1226 passed (1226)
+   Start at  10:11:51
+   Duration  26.04s (transform 5.66s, setup 18.52s, import 12.62s, tests 54.53s, environment 77.38s)
+
+
+--- npm run lint
+
+> frontend@0.1.0 lint
+> eslint
+
+exit code 0
+
+--- npx --no-install next typegen
+Generating route types...
+✓ Types generated successfully
+exit code 0
+
+--- npx --no-install tsc --noEmit
+exit code 0

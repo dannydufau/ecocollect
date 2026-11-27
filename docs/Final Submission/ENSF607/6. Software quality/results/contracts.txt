@@ -1,0 +1,58 @@
+Command: cd contracts && npm test
+Commit: 56785bf (main fac33fe plus backend/test/request/resident-cases.test.ts)
+Date: 2026-11-27 11:12 CST
+Environment: macOS, Node v24.9.0. Checks the OpenAPI and AsyncAPI files.
+
+
+> ecocollect-contracts@1.0.0 test
+> node --test test/*.test.js
+
+✔ every event in the README is in the spec, and nothing else (0.832625ms)
+✔ every event example is valid, with the right type, producer and version (400.124542ms)
+✔ each event is published on its routing key to ecocollect.events, persistent, by its producer (0.196875ms)
+✔ each consumer queue receives exactly the events the README gives it (0.188833ms)
+✔ every queue is a durable quorum queue that dead-letters on the 5th failure (0.110125ms)
+✔ no street address, notes or photo can travel in an event, SSE message or push (NFR03) (0.312ms)
+✔ every operation points at a channel and a message that exist (0.136208ms)
+✔ the message examples are all there (0.265375ms)
+✔ the user stream sends exactly the README messages (13.3), starting with ready (0.268167ms)
+✔ the public stream sends only the two README messages (13.5), with no user data (0.175875ms)
+✔ every browser-side example is valid (63.03475ms)
+✔ the notification types are exactly the README list (13.1) (0.076625ms)
+✔ PickupWindowInput takes a date and an hour from 0 to 23 (54.339583ms)
+✔ PickupWindowInput rejects a bad hour, a bad date or a missing field (55.038042ms)
+✔ PickupWindowInput has no windowId: the server assigns it when the window is saved (8.0005ms)
+✔ PickupWindow is a saved window: windowId is required, with the same date and hour rules (83.407334ms)
+✔ RequestStatus is exactly the seven states, with Missed as a final status (52.270375ms)
+✔ Timestamp is UTC with a Z, as the conventions say (49.302333ms)
+✔ PostalCode is a full Calgary code: uppercase, no space, starts with T (65.663209ms)
+✔ AssignmentStatus is exactly the six assignment states (24.342875ms)
+✔ Error has a snake_case code and a message, and validation details per field (41.607625ms)
+✔ Category has an id, a name and a waste type (19.557375ms)
+✔ AccountId is 3 to 50 lowercase letters, digits, _ or - (48.6135ms)
+✔ Decimal has at most 2 decimals and is never negative (49.913417ms)
+✔ Roles is one or both of resident and volunteer, without repeats (46.83225ms)
+✔ Address is a street and a Calgary postal code; city is only ever Calgary (26.65ms)
+✔ the spec files are plain ASCII, so they look the same in every editor and terminal (4.532625ms)
+✔ nothing in the specs talks about who or what wrote them (0.688834ms)
+✔ every path in the OpenAPI file is in the README (0.241709ms)
+✔ every event and SSE message in the AsyncAPI file is in the README (0.283083ms)
+✔ a facility must accept at least one category (35.026125ms)
+✔ Q2 documents unknown categories as a field validation error (13.316458ms)
+✔ every call in the README is in the spec, with its method and path, and nothing else (0.131125ms)
+✔ only the README no-login routes skip authentication, and every other call can answer 401 (0.482ms)
+✔ every example in the spec is valid against its schema (287.727583ms)
+✔ every 4xx answer has the shared error body, { error: { code, message } } (0.327792ms)
+✔ lists, notifications and public data never carry a street address, notes or a photo URL (NFR03) (0.196542ms)
+✔ operation ids are unique (0.083625ms)
+✔ the example on the event stream starts with the ready event, then a notification the other spec accepts (23.38575ms)
+✔ session: the token comes in the body and the cookie comes back (0.42225ms)
+✔ session: a Firebase failure is a 500, not a 401, so the frontend does not log the user out (0.106084ms)
+ℹ tests 41
+ℹ suites 0
+ℹ pass 41
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 864.145125
