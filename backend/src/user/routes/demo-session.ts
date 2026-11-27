@@ -15,7 +15,7 @@ const windowMs = 60_000;
 const sessionsPerWindow = 5;
 
 type Auth = Parameters<typeof setRoles>[0] & {
-  createUser(input: { uid: string; email: string; displayName: string }): Promise<unknown>;
+  createUser(input: { uid: string; email: string; displayName: string; emailVerified?: boolean }): Promise<unknown>;
   createCustomToken(uid: string): Promise<string>;
   deleteUser(uid: string): Promise<void>;
 };
@@ -123,7 +123,12 @@ export function register(app: Express, {
     const pool = database();
     const firebaseAuth = auth();
     const accountId = `demo-${randomUUID()}`;
-    await firebaseAuth.createUser({ uid: accountId, email: `${accountId}@demo.ecocollect.test`, displayName: 'Demo Visitor' });
+    await firebaseAuth.createUser({
+      uid: accountId,
+      email: `${accountId}@demo.ecocollect.test`,
+      displayName: 'Demo Visitor',
+      emailVerified: true,
+    });
     let customToken: string;
     try {
       await setRoles(firebaseAuth, accountId, roles);

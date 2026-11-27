@@ -11,9 +11,18 @@ vi.mock("@/lib/auth-context", () => ({ useAuth: vi.fn() }));
 
 const signIn = vi.fn();
 const signOut = vi.fn();
+const retryRoles = vi.fn();
 
 beforeEach(() => {
-    vi.mocked(useAuth).mockReturnValue({ user: null, roles: [], loading: false, signIn, signOut } as never);
+    vi.mocked(useAuth).mockReturnValue({
+        user: null,
+        roles: [],
+        loading: false,
+        verificationState: "checking",
+        signIn,
+        signOut,
+        retryRoles,
+    } as never);
 });
 
 afterEach(() => {
@@ -71,21 +80,61 @@ it("keeps the old messages for other errors", async () => {
 });
 
 it.each([[["resident"]], [["resident", "volunteer"]]])("goes to /choose-role after signing in with %j", async (roles) => {
-    signIn.mockResolvedValue(roles);
+    signIn.mockResolvedValue({ user: { uid: "u1" }, status: "verified", roles, emailVerified: true });
     render(<LoginPage />);
     submit();
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/choose-role"));
     expect(signIn).toHaveBeenCalledWith("a@b.ca", "secret12");
 });
 
+it("goes to /verify-email after signing in with an unverified account without signing out", async () => {
+    signIn.mockResolvedValue({ user: { uid: "u1" }, status: "unverified", roles: ["resident"], emailVerified: false });
+    render(<LoginPage />);
+    submit();
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/verify-email"));
+    expect(signOut).not.toHaveBeenCalled();
+});
+
+it("offers Retry instead of a generic sign-in error when token reading fails after Firebase sign-in", async () => {
+    signIn.mockResolvedValue({ user: { uid: "u1" }, status: "check-failed", roles: [], emailVerified: false });
+    const { rerender } = render(<LoginPage />);
+    submit();
+    await waitFor(() => expect(signIn).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText("Something went wrong. Please try again.")).not.toBeInTheDocument();
+
+    vi.mocked(useAuth).mockReturnValue({
+        user: { uid: "u1" },
+        roles: [],
+        loading: false,
+        verificationState: "check-failed",
+        signIn,
+        signOut,
+        retryRoles,
+    } as never);
+    rerender(<LoginPage />);
+    expect(screen.getByText(/You are signed in, but we could not verify your account status/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(retryRoles).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "Log out" })).toBeInTheDocument();
+    expect(router.replace).not.toHaveBeenCalled();
+});
+
 it("sends an already signed-in visitor to /choose-role", () => {
-    vi.mocked(useAuth).mockReturnValue({ user: { uid: "u1" }, roles: ["volunteer"], loading: false, signIn, signOut } as never);
+    vi.mocked(useAuth).mockReturnValue({
+        user: { uid: "u1" },
+        roles: ["volunteer"],
+        loading: false,
+        verificationState: "verified",
+        signIn,
+        signOut,
+        retryRoles,
+    } as never);
     render(<LoginPage />);
     expect(router.replace).toHaveBeenCalledWith("/choose-role");
 });
 
 it("signs out an account with no roles and says so", async () => {
-    signIn.mockResolvedValue([]);
+    signIn.mockResolvedValue({ user: { uid: "u1" }, status: "verified", roles: [], emailVerified: true });
     render(<LoginPage />);
     submit();
     expect(await screen.findByRole("alert")).toHaveTextContent("This account has no role assigned.");
@@ -94,7 +143,7 @@ it("signs out an account with no roles and says so", async () => {
 });
 
 it("is busy while signing in and does not sign in twice", async () => {
-    let finish: (roles: string[]) => void = () => {};
+    let finish: (result: { user: { uid: string }; status: "verified"; roles: string[]; emailVerified: boolean }) => void = () => {};
     signIn.mockReturnValue(new Promise((resolve) => { finish = resolve; }));
     render(<LoginPage />);
     submit();
@@ -102,13 +151,13 @@ it("is busy while signing in and does not sign in twice", async () => {
     expect(button).toBeDisabled();
     fireEvent.click(button);
     expect(signIn).toHaveBeenCalledTimes(1);
-    finish(["resident"]);
+    finish({ user: { uid: "u1" }, status: "verified", roles: ["resident"], emailVerified: true });
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/choose-role"));
 });
 
 it("leaves returnTo for the role page", async () => {
     sessionStorage.setItem("returnTo", "/resident/requests/r1");
-    signIn.mockResolvedValue(["resident"]);
+    signIn.mockResolvedValue({ user: { uid: "u1" }, status: "verified", roles: ["resident"], emailVerified: true });
     render(<LoginPage />);
     submit();
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/choose-role"));

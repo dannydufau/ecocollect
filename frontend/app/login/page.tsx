@@ -6,7 +6,8 @@ import { redirect, useRouter, useSearchParams } from "next/navigation";
 import { FirebaseError } from "firebase/app";
 import { useAuth } from "@/lib/auth-context";
 import { isDemo } from "@/lib/demo";
-import { Alert, Button, Field, PasswordInput, card, input, pageTitle, textLink } from "@/components/ui";
+import LogoutButton from "@/components/logout-button";
+import { Alert, Button, Field, PasswordInput, QueryError, card, input, pageTitle, textLink } from "@/components/ui";
 
 function errorMessage(err: unknown): string {
   if (err instanceof FirebaseError) {
@@ -36,7 +37,7 @@ function ExpiredNotice() {
 export default function LoginPage() {
   if (isDemo) redirect("/demo");
   const router = useRouter();
-  const { user, roles, loading, signIn, signOut } = useAuth();
+  const { user, roles, loading, verificationState, signIn, signOut, retryRoles } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
@@ -44,10 +45,15 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!loading && !submitting && user && roles.length > 0) {
+    if (loading || submitting || !user) return;
+    if (verificationState === "unverified") {
+      router.replace("/verify-email");
+      return;
+    }
+    if (verificationState === "verified" && roles.length > 0) {
       router.replace("/choose-role");
     }
-  }, [loading, submitting, user, roles, router]);
+  }, [loading, submitting, user, roles, verificationState, router]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -59,8 +65,16 @@ export default function LoginPage() {
     if (nextErrors.email || nextErrors.password) return;
     setSubmitting(true);
     try {
-      const userRoles = await signIn(email.trim(), password);
-      if (userRoles.length === 0) {
+      const result = await signIn(email.trim(), password);
+      if (result.status === "check-failed") {
+        // User is signed in to Firebase; the check-failed Retry card below handles recovery.
+        return;
+      }
+      if (result.status === "unverified") {
+        router.replace("/verify-email");
+        return;
+      }
+      if (result.roles.length === 0) {
         await signOut();
         setError("This account has no role assigned.");
         return;
@@ -71,6 +85,24 @@ export default function LoginPage() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (!loading && user && verificationState === "check-failed") {
+    return (
+      <main className="flex w-full min-w-0 flex-1 flex-col items-center justify-center gap-4 p-4 sm:p-8">
+        <section className={`${card} flex w-full max-w-[440px] min-w-0 flex-col gap-4`}>
+          <h1 className={pageTitle}>Sign in to EcoCollect</h1>
+          <QueryError
+            message="You are signed in, but we could not verify your account status. Check your connection and try again."
+            onRetry={() => void retryRoles()}
+          />
+          <div className="flex items-center justify-between gap-3 pt-1">
+            <Link href="/stats" className={`${textLink} text-sm`}>Community stats</Link>
+            <LogoutButton />
+          </div>
+        </section>
+      </main>
+    );
   }
 
   return (

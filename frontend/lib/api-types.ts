@@ -1155,7 +1155,24 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
-        /** @description Signed in, but missing the role this call needs, or the action belongs to someone else. */
+        /** @description Valid credentials, but the Firebase account's `email_verified` claim is not `true` (returned by `POST /api/session`, `GET /verify`, and protected routes via `forward_auth`). Keep the Firebase user signed in and route them to `/verify-email`. */
+        EmailVerificationRequired: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                /**
+                 * @example {
+                 *       "error": {
+                 *         "code": "email_verification_required",
+                 *         "message": "Verify your email address before continuing."
+                 *       }
+                 *     }
+                 */
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Signed in, but not allowed: `email_verification_required` from the gateway when the account's email is unverified, missing the role this call needs, or the action belongs to someone else. */
         Forbidden: {
             headers: {
                 [name: string]: unknown;
@@ -1224,6 +1241,7 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+            403: components["responses"]["EmailVerificationRequired"];
             /** @description Firebase or the server's own setup failed. The token was not at fault, so do not log the user out. */
             500: {
                 headers: {
@@ -1275,6 +1293,7 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["EmailVerificationRequired"];
             /** @description Firebase or the server setup failed: not the user's fault. */
             500: {
                 headers: {
@@ -1410,6 +1429,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["EmailVerificationRequired"];
             /** @description No profile for this account. */
             404: {
                 headers: {
@@ -1440,6 +1460,7 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["EmailVerificationRequired"];
             /** @description Owns an Open, Assigned or Collected request, or has an unfinished assignment. */
             409: {
                 headers: {
@@ -1557,6 +1578,7 @@ export interface operations {
             };
             400: components["responses"]["ValidationError"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["EmailVerificationRequired"];
             /** @description The role is already active, or the terms changed. */
             409: {
                 headers: {
@@ -1674,6 +1696,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["EmailVerificationRequired"];
         };
     };
     listFacilities: {
@@ -2005,6 +2028,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["EmailVerificationRequired"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -2434,6 +2458,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["EmailVerificationRequired"];
         };
     };
     openPublicEventStream: {
@@ -2506,7 +2531,9 @@ export interface operations {
                     };
                 };
             };
+            400: components["responses"]["ValidationError"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["EmailVerificationRequired"];
         };
     };
     markNotificationRead: {
@@ -2528,6 +2555,7 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["EmailVerificationRequired"];
             /** @description Not the caller's notification, or gone. */
             404: {
                 headers: {
@@ -2556,6 +2584,7 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["EmailVerificationRequired"];
         };
     };
     subscribePush: {
@@ -2590,6 +2619,7 @@ export interface operations {
             };
             400: components["responses"]["ValidationError"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["EmailVerificationRequired"];
         };
     };
     unsubscribePush: {
@@ -2621,6 +2651,7 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["EmailVerificationRequired"];
         };
     };
     getMyEcopoints: {
@@ -2669,6 +2700,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["EmailVerificationRequired"];
         };
     };
     getPublicStats: {

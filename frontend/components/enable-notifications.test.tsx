@@ -47,7 +47,7 @@ it("asks for permission, subscribes and posts the subscription", async () => {
     expect(requestPermission).toHaveBeenCalled();
     expect(subscribe).toHaveBeenCalledWith({ userVisibleOnly: true, applicationServerKey: new Uint8Array([1, 2, 3]) });
     expect(api.post).toHaveBeenCalledWith("/api/push/subscriptions", json);
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reconnect device notifications" })).toBeInTheDocument();
     expect(screen.getByText("You will get notifications on this device.")).toBeInTheDocument();
 });
 
@@ -69,14 +69,55 @@ it("shows the hint without a button when permission was already denied", async (
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
 });
 
-it("says On, with no button, when already subscribed", async () => {
-    const { requestPermission } = fakeBrowser({ permission: "granted", existing: { endpoint: json.endpoint } });
+it("says On and offers Reconnect device notifications when already subscribed", async () => {
+    const { requestPermission } = fakeBrowser({ permission: "granted", existing: { endpoint: json.endpoint, toJSON: () => json } });
     render(<EnableNotifications />);
 
     expect(await screen.findByText("On")).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("You will get notifications on this device.");
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reconnect device notifications" })).toBeInTheDocument();
     expect(requestPermission).not.toHaveBeenCalled();
+});
+
+it("re-registers an existing browser subscription when Reconnect device notifications is clicked, and surfaces retryable errors", async () => {
+    const { requestPermission } = fakeBrowser({ permission: "granted", existing: { endpoint: json.endpoint, toJSON: () => json } });
+    vi.mocked(api.post).mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce(undefined);
+    render(<EnableNotifications />);
+
+    const reconnectBtn = await screen.findByRole("button", { name: "Reconnect device notifications" });
+    await userEvent.click(reconnectBtn);
+    expect(api.post).toHaveBeenCalledWith("/api/push/subscriptions", json);
+    expect(await screen.findByRole("alert")).toHaveTextContent("We could not reconnect device notifications. Please try again.");
+    expect(screen.getByRole("button", { name: "Reconnect device notifications" })).toBeInTheDocument();
+
+    await userEvent.click(reconnectBtn);
+    expect(api.post).toHaveBeenCalledTimes(2);
+    expect(await screen.findByText("Device notifications reconnected.")).toBeInTheDocument();
+    expect(requestPermission).not.toHaveBeenCalled();
+});
+
+it("refreshes device state and offers Turn on device notifications when Reconnect finds the browser subscription disappeared", async () => {
+    let currentSub: unknown = { endpoint: json.endpoint, toJSON: () => json };
+    const requestPermission = vi.fn(async () => "granted");
+    vi.stubGlobal("Notification", { permission: "granted", requestPermission });
+    vi.stubGlobal("PushManager", class {});
+    const subscribe = vi.fn().mockResolvedValue({ toJSON: () => json });
+    const registration = { pushManager: { getSubscription: vi.fn(async () => currentSub), subscribe } };
+    Object.defineProperty(navigator, "serviceWorker", {
+        configurable: true,
+        value: { register: vi.fn(async () => registration), ready: Promise.resolve(registration), getRegistration: vi.fn(async () => registration) },
+    });
+
+    render(<EnableNotifications />);
+    const reconnectBtn = await screen.findByRole("button", { name: "Reconnect device notifications" });
+
+    // Browser subscription disappears before user clicks Reconnect.
+    currentSub = null;
+    await userEvent.click(reconnectBtn);
+
+    expect(api.post).not.toHaveBeenCalled();
+    expect(await screen.findByRole("button", { name: /Turn on device notifications/ })).toBeInTheDocument();
+    expect(screen.getByText(/turned off in this browser/i)).toBeInTheDocument();
 });
 
 const IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1";

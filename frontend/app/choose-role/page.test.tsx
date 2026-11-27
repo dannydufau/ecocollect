@@ -13,9 +13,16 @@ const setActiveRole = vi.fn();
 
 const signOut = vi.fn();
 
-function signedIn(roles: string[]) {
+function signedIn(roles: string[], verificationState = "verified") {
     vi.mocked(useAuth).mockReturnValue({
-        user: { uid: "u1" }, roles, activeRole: roles.length === 1 ? roles[0] : null, loading: false, setActiveRole, signOut,
+        user: { uid: "u1" },
+        roles,
+        activeRole: roles.length === 1 ? roles[0] : null,
+        loading: false,
+        verificationState,
+        setActiveRole,
+        signOut,
+        retryRoles: vi.fn(),
     } as never);
 }
 
@@ -143,7 +150,7 @@ it("still works when storage throws", () => {
 
 it("shows the signed-in email and role icons that add no text", () => {
     vi.mocked(useAuth).mockReturnValue({
-        user: { uid: "u1", email: "maya@example.com" }, roles: ["resident", "volunteer"], activeRole: null, loading: false, setActiveRole, signOut,
+        user: { uid: "u1", email: "maya@example.com" }, roles: ["resident", "volunteer"], activeRole: null, loading: false, verificationState: "verified", setActiveRole, signOut,
     } as never);
     render(<ChooseRolePage />);
     expect(screen.getByText("Signed in as maya@example.com")).toBeInTheDocument();

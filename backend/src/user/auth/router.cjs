@@ -28,6 +28,15 @@ function sendAuthError(res, err) {
   res.sendStatus(500);
 }
 
+function sendEmailVerificationRequired(res) {
+  return res.status(403).json({
+    error: {
+      code: 'email_verification_required',
+      message: 'Verify your email address before continuing.',
+    },
+  });
+}
+
 function readBearerToken(req) {
   return /^Bearer (.+)$/i.exec(req.headers.authorization ?? '')?.[1];
 }
@@ -39,13 +48,17 @@ function readSessionCookie(req) {
 function createAuthRouter(auth) {
   const router = express.Router();
 
-  // The ID token goes in the JSON body as { idToken }. Firebase checks it for us
-  // while creating the cookie, so a bad or stale token ends up as a 401 here.
+  // The ID token goes in the JSON body as { idToken }. Verify it with revocation
+  // checking and require email_verified === true before issuing the session cookie.
   router.post('/api/session', express.json(), async (req, res) => {
     const idToken = req.body?.idToken;
-    if (!idToken) return res.sendStatus(401);
+    if (typeof idToken !== 'string' || idToken.trim() === '') return res.sendStatus(401);
 
     try {
+      const decoded = await auth.verifyIdToken(idToken, true);
+      if (decoded.email_verified !== true) {
+        return sendEmailVerificationRequired(res);
+      }
       const cookie = await auth.createSessionCookie(idToken, { expiresIn: SESSION_MS });
       res.cookie(COOKIE_NAME, cookie, { ...COOKIE_OPTIONS, maxAge: SESSION_MS });
       res.sendStatus(204);
@@ -85,6 +98,10 @@ function createAuthRouter(auth) {
       const user = token
         ? await auth.verifyIdToken(token, true)
         : await auth.verifySessionCookie(cookie, true);
+
+      if (user.email_verified !== true) {
+        return sendEmailVerificationRequired(res);
+      }
 
       res.set({ 'X-User-Id': user.uid, 'X-User-Roles': [].concat(user.roles ?? []).join(',') });
       res.sendStatus(200);

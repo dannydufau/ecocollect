@@ -20,7 +20,7 @@ export default function RegisterPage() {
     if (isDemo) redirect("/demo");
     const router = useRouter();
     const queryClient = useQueryClient();
-    const { user, roles, loading, signIn } = useAuth();
+    const { user, roles, loading, verificationState, signIn, sendVerificationEmail } = useAuth();
     const [termsDocumentId, setTermsDocumentId] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [error, setError] = useState<string | null>(null);
@@ -29,8 +29,10 @@ export default function RegisterPage() {
 
     // A signed-in user has nothing to do here. Not while creating, the sign in after the create must not race this.
     useEffect(() => {
-        if (!loading && user && roles.length > 0 && !busy && !created) router.replace("/choose-role");
-    }, [loading, user, roles, busy, created, router]);
+        if (loading || !user || busy || created) return;
+        if (verificationState === "unverified" || verificationState === "check-failed") router.replace("/verify-email");
+        else if (verificationState === "verified" && roles.length > 0) router.replace("/choose-role");
+    }, [loading, user, roles, verificationState, busy, created, router]);
 
     async function create(values: AccountValues) {
         setBusy(true);
@@ -64,12 +66,25 @@ export default function RegisterPage() {
             setBusy(false);
             return;
         }
+        let result;
         try {
-            await signIn(email, values.password);
-            router.replace("/choose-role");
+            result = await signIn(email, values.password);
         } catch {
             setCreated(true);
             setBusy(false);
+            return;
+        }
+        if (result.status === "verified") {
+            router.replace("/choose-role");
+            return;
+        }
+        // Both "unverified" and "check-failed" mean Firebase sign-in succeeded for this newly created account.
+        // Send the verification email and continue to /verify-email (which offers Retry on check-failed).
+        try {
+            await sendVerificationEmail(result.user);
+            router.replace("/verify-email?sent=1");
+        } catch {
+            router.replace("/verify-email?sendError=1");
         }
     }
 

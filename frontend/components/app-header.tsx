@@ -139,7 +139,7 @@ function MoreSheet({ id, open, onClose, children }: { id: string; open: boolean;
 }
 
 export default function AppHeader() {
-    const { user, roles, activeRole, loading, setActiveRole } = useAuth();
+    const { user, roles, activeRole, loading, verificationState, setActiveRole } = useAuth();
     const pathname = usePathname();
     const router = useRouter();
     const moreId = useId();
@@ -157,6 +157,19 @@ export default function AppHeader() {
                         <span className="hidden sm:inline">Community stats</span>
                     </Link>
                     <Link href="/login" className={`${linkButton} whitespace-nowrap px-3 text-small sm:px-5 sm:text-base`}>Sign in</Link>
+                </div>
+            </Bar>
+        );
+    }
+    if (verificationState !== "verified" || pathname === "/verify-email") {
+        return (
+            <Bar home="/verify-email">
+                <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-4">
+                    <Link href="/stats" aria-label="Community stats" className={`${textLink} whitespace-nowrap text-small sm:text-base`}>
+                        <span className="sm:hidden">Stats</span>
+                        <span className="hidden sm:inline">Community stats</span>
+                    </Link>
+                    <LogoutButton />
                 </div>
             </Bar>
         );

@@ -13,18 +13,28 @@ const labels: Record<Role, { text: string; icon: ReactNode }> = {
 };
 
 function ChooseRoleContent() {
-    const { user, roles, loading, rolesError, setActiveRole, signOut, retryRoles } = useAuth();
+    const { user, roles, loading, rolesError, verificationState, setActiveRole, signOut, retryRoles } = useAuth();
     const router = useRouter();
     const need = useSearchParams().get("need");
     const needRole: Role | null = need === "resident" || need === "volunteer" ? need : null;
-    const ready = !loading && user !== null && roles.length > 0;
+    const checkFailed = rolesError || verificationState === "check-failed";
+    const ready = !loading && user !== null && verificationState === "verified" && roles.length > 0;
 
     useEffect(() => {
-        if (loading || ready || rolesError) return;
-        // An account with no roles can't use the app. Signing out makes user null and this runs again.
-        if (user) void signOut();
-        else router.replace("/login");
-    }, [loading, ready, rolesError, user, signOut, router]);
+        if (loading || ready || checkFailed) return;
+        if (!user) {
+            router.replace("/login");
+            return;
+        }
+        if (verificationState === "unverified") {
+            router.replace("/verify-email");
+            return;
+        }
+        if (verificationState === "verified") {
+            // An account with no roles can't use the app. Signing out makes user null and this runs again.
+            void signOut();
+        }
+    }, [loading, ready, checkFailed, user, verificationState, signOut, router]);
 
     function choose(role: Role) {
         const path = takeReturnTo();
@@ -39,7 +49,7 @@ function ChooseRoleContent() {
         router.push(`/${role}`);
     }
 
-    if (rolesError && user) {
+    if (checkFailed && user) {
         return (
             <main className="flex w-full min-w-0 flex-1 flex-col items-center justify-center p-4 sm:p-8">
                 <div className="flex w-full max-w-sm flex-col gap-4">

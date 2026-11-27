@@ -59,13 +59,14 @@ test('every call in the README is in the spec, with its method and path, and not
   }
 });
 
-test('only the README no-login routes skip authentication, and every other call can answer 401', () => {
+test('only the README no-login routes skip authentication, and every other call can answer 401 and 403', () => {
   for (const { route, method, op } of operations) {
     const open = Array.isArray(op.security) && op.security.length === 0;
     if (NO_LOGIN.has(`${method} ${route}`)) assert.ok(open, `${method} ${route} must not need a token`);
     else {
       assert.ok(!open, `${method} ${route} must be authenticated`);
       assert.ok(op.responses['401'], `${method} ${route} has no 401`);
+      assert.ok(op.responses['403'], `${method} ${route} has no 403`);
     }
   }
   assert.deepEqual(find('get', '/api/events').security, [{ sessionCookie: [] }], 'EventSource sends the cookie');
@@ -132,8 +133,12 @@ test('session: the token comes in the body and the cookie comes back', () => {
   const post = openapi.paths['/api/session'].post;
   assert.deepEqual(post.requestBody.content['application/json'].schema.required, ['idToken']);
   assert.ok(post.responses['204'].headers['Set-Cookie']);
-  for (const status of ['400', '401']) assert.ok(post.responses[status], `POST /api/session has no ${status}`);
+  for (const status of ['400', '401', '403']) assert.ok(post.responses[status], `POST /api/session has no ${status}`);
   assert.ok(openapi.paths['/api/session'].delete.responses['204']);
+  assert.equal(
+    openapi.components.responses.EmailVerificationRequired.content['application/json'].example.error.code,
+    'email_verification_required',
+  );
 });
 
 test('session: a Firebase failure is a 500, not a 401, so the frontend does not log the user out', () => {

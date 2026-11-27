@@ -17,8 +17,16 @@ HTMLDialogElement.prototype.close = function () { this.removeAttribute("open"); 
 
 const setActiveRole = vi.fn();
 
-function signedIn(roles: string[], activeRole: string | null = roles.length === 1 ? roles[0] : null) {
-    vi.mocked(useAuth).mockReturnValue({ user: { uid: "u1" }, roles, activeRole, loading: false, setActiveRole, signOut: vi.fn() } as never);
+function signedIn(roles: string[], activeRole: string | null = roles.length === 1 ? roles[0] : null, verificationState = "verified") {
+    vi.mocked(useAuth).mockReturnValue({
+        user: { uid: "u1" },
+        roles,
+        activeRole,
+        loading: false,
+        verificationState,
+        setActiveRole,
+        signOut: vi.fn(),
+    } as never);
 }
 
 // Both navs are in the page, CSS shows one of them, so each check looks inside the nav it is about
@@ -48,6 +56,16 @@ it("keeps the header bar in the same width as the pages", () => {
     signedIn(["resident"]);
     render(<AppHeader />);
     expect(screen.getByRole("banner").firstElementChild).toHaveClass(...pageWidth.split(" "), "px-4", "sm:px-8");
+});
+
+it("hides the notification bell and protected nav for an unverified user while keeping stats and Log out", () => {
+    pathname = "/verify-email";
+    signedIn(["resident"], "resident", "unverified");
+    render(<AppHeader />);
+    expect(document.querySelector("[data-slot='bell']")).toBeNull();
+    expect(screen.queryByRole("link", { name: "My requests" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Community stats" })).toHaveAttribute("href", "/stats");
+    expect(screen.getByRole("button", { name: "Log out" })).toBeInTheDocument();
 });
 
 it("shows the resident links", () => {

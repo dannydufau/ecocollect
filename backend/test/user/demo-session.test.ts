@@ -86,6 +86,7 @@ test('a failed database write removes the created Firebase user and withholds th
   assert.equal(response.status, 500);
   assert.equal((await response.json()).customToken, undefined);
   assert.deepEqual(auth.actions.map(([action]) => action), ['create', 'claims', 'token', 'delete']);
+  assert.equal(auth.actions[0][1].emailVerified, true);
   assert.equal(auth.actions[3][1], auth.actions[0][1].uid);
 });
 
@@ -110,7 +111,7 @@ test('the restricted role can persist a demo account, both roles and both terms 
     const uid = auth.actions[0][1].uid;
     assert.match(uid, /^demo-[a-f0-9-]{36}$/);
     assert.deepEqual(auth.actions, [
-      ['create', { uid, email: `${uid}@demo.ecocollect.test`, displayName: 'Demo Visitor' }],
+      ['create', { uid, email: `${uid}@demo.ecocollect.test`, displayName: 'Demo Visitor', emailVerified: true }],
       ['claims', uid, { roles: ['resident', 'volunteer'] }], ['token', uid],
     ]);
     const { rows: [profile] } = await pool.query(

@@ -10,7 +10,7 @@ What goes in and out of every component. No SQL schema: tables are named only to
   - `200` OK with a body, `201` created (the body is the new resource), `204` OK with no body.
   - `400` the request itself is invalid: a missing or badly formed field, or a value breaking a rule (window in the past, repeated `categoryId`, file too large). One entry per field in `details.fields`. Sending the same request again fails the same way.
   - `401` not signed in, or the token or session cookie is invalid or expired (returned by Caddy's `forward_auth`, 4.3). Sign in again.
-  - `403` signed in, but not allowed: the caller lacks the role the endpoint needs (a volunteer-only account calling Q4), or can see the request but the action belongs to someone else (a volunteer viewing an Open request calls Q9).
+  - `403` signed in, but not allowed: `email_verification_required` (valid credentials with an unverified email, returned by `POST /api/session`, `GET /verify`, and protected routes via `forward_auth` — keep the Firebase user signed in and route them to `/verify-email`), the caller lacks the role the endpoint needs (a volunteer-only account calling Q4), or can see the request but the action belongs to someone else (a volunteer viewing an Open request calls Q9).
   - `404` the resource doesn't exist, **or the caller isn't allowed to see it**. Both get the same answer (`request_unavailable` for requests), so the response never reveals that a hidden request exists (NFR03). Rule: if Q8 would return 404 for the caller, every other endpoint on that request returns 404 too, never 403.
   - `409` the request is valid, but the current state doesn't allow it (`not_open`, `already_assigned`, `window_ended`, `expired`, `terms_outdated`, …). The `code` says which state; the frontend refetches and shows the new state (16.13).
   - `500` unexpected server error. Nothing was saved (the transaction rolled back) and it's safe to retry.
@@ -90,10 +90,12 @@ What goes in and out of every component. No SQL schema: tables are named only to
 | # | Call | Input | Output | Notes |
 |---|---|---|---|---|
 | 3.1 | `signInWithEmailAndPassword` | email, password | Firebase user | Login, and right after `POST /api/accounts` succeeds |
-| 3.2 | `getIdTokenResult()` | – | ID token + `claims.roles` | Decide which role(s) to offer after login (FR02) |
+| 3.2 | `getIdTokenResult()` | – | ID token + `claims.roles` and `claims.email_verified` | Check verification and choose which roles to offer after login (FR02). Offer Retry if the token read fails |
 | 3.3 | `getIdToken()` / `getIdToken(true)` | – | ID token (~1 h) | Before each API request. Force refresh (`true`) after role activation, then `POST /api/session` again and reopen the `EventSource` |
 | 3.4 | `sendPasswordResetEmail` | email | – | Optional, frontend only |
 | 3.5 | `signOut` | – | – | First `DELETE /api/push/subscriptions` and `DELETE /api/session`, then `signOut` |
+| 3.6 | `sendEmailVerification(user)` | Current Firebase user | – | After registration and on explicit resend. The email link opens Firebase's hosted verification page |
+| 3.7 | `reload(user)`, then `getIdTokenResult(true)` | Current Firebase user | Fresh ID token and claims | On **I’ve verified**, recheck the account and start a protected session when `claims.email_verified === true` |
 
 There is no `createUserWithEmailAndPassword` in the frontend: it would give the user a random uid.
 
@@ -117,9 +119,9 @@ There is no `createUserWithEmailAndPassword` in the frontend: it would give the 
 
 | # | Method + path | Auth | Request | Success response | Errors | Notes |
 |---|---|---|---|---|---|---|
-| U1 | `POST /api/session` | none (ID token in body)| `{ idToken }` | `204`, `Set-Cookie: session=…; HttpOnly; Secure; SameSite=Lax` | 400, 401, 500 | Same as Oct 28. Exists only for SSE |
-| U2 | `DELETE /api/session` | Cookie | – | `204`, cookie cleared | – | |
-| U3 | `GET /verify` (internal) | Bearer or cookie | – | `200` + `X-User-Id`, `X-User-Roles` | 401, 500 | Bearer first, else cookie. Both checks reject disabled (deactivated) users |
+| U1 | `POST /api/session` | none (ID token in body)| `{ idToken }` | `204`, `Set-Cookie: session=…; HttpOnly; Secure; SameSite=Lax` | 400, 401, 403 `email_verification_required`, 500 | Verifies the ID token (with revocation check) and requires `email_verified === true` before issuing the cookie. Exists only for SSE |
+| U2 | `DELETE /api/session` | Cookie | – | `204`, cookie cleared | – | Works even for unverified accounts |
+| U3 | `GET /verify` (internal) | Bearer or cookie | – | `200` + `X-User-Id`, `X-User-Roles` | 401, 403 `email_verification_required`, 500 | Bearer first, else cookie. Both checks reject revoked/disabled users (`401`) and unverified emails (`403 email_verification_required`) |
 | U4 | `POST /api/accounts` | none | `{ username, email, password, firstName, lastName, publicName, dateOfBirth, role: "resident"\|"volunteer", address?: { street, postalCode }, preferredPostalCodes?: [..], termsDocumentId }` | `201 { accountId, roles }` | 400 validation (age < 18, birth date in the future, non-Calgary postal code, address missing for resident, > 3 or duplicate postal codes), 409 `username_taken` / `email_taken` / `terms_outdated` | FR01. See 7.1 for the steps. Then the frontend signs in (3.1) and calls U1; `termsDocumentId` must be the current UUID returned by U5. Check before database casts; malformed, unknown or outdated IDs return `409 terms_outdated` |
 | U5 | `GET /api/terms` | none | – | `200 { termsDocumentId, content, publishedAt }` | – | The current document. Needed before an account exists |
 | U6 | `GET /api/profile` | Bearer | – | `200 { accountId, email, firstName, lastName, publicName, dateOfBirth, roles, address: { street, city: "Calgary", postalCode } \| null, preferredPostalCodes: [..], createdAt }` | 401, 404 | Own profile only. `address` is null for volunteer-only accounts |
@@ -681,7 +683,7 @@ The page refetches U10 + R3 or R2. No other data travels on this stream.
 
 | # | Trigger | Action |
 |---|---|---|
-| 16.1 | Login succeeds | `POST /api/session`, open `EventSource('/api/events', { withCredentials: true })`, register the service worker |
+| 16.1 | Login succeeds | Check the ID token claims. For a verified user with a role, `POST /api/session`, open the private `EventSource('/api/events', { withCredentials: true })` and register the service worker. Send an unverified user to `/verify-email` while keeping their Firebase sign-in. Public streams remain available |
 | 16.2 | Any mutation succeeds | Invalidate what it changed (e.g. Q4 → `["requests","mine"]`, Q11 → `["requests","available"]`, `["requests","volunteer"]`, `["request", id]`) |
 | 16.3 | SSE `notification` | Always `["notifications"]`. Then by type: `REQUEST_CREATED` and `*_RESIDENT` request types → `["requests","mine"]`, `["request", requestId]`; `NEW_MATCHING_REQUEST` → `["requests","available"]`; `*_VOLUNTEER` request types → `["requests","volunteer"]`, `["request", requestId]`; `ECOPOINTS_*` → `["ecopoints"]` |
 | 16.4 | Other SSE messages | Section 13.3 |
@@ -689,9 +691,10 @@ The page refetches U10 + R3 or R2. No other data travels on this stream.
 | 16.6 | Service worker `push` | Always `showNotification(title, { body, tag, silent, data: { url } })`: Safari (including iPhone and iPad) cancels the push subscription after pushes that show no notification, and Chrome shows its own notice instead. When an EcoCollect tab is focused, `silent` is `true`, so it comes without sound or vibration (the page already shows it). A silent one replaces the old notification with the same tag quietly |
 | 16.7 | `notificationclick` | Focus or open `url`. If the request is gone, Q8's `404 request_unavailable` shows a friendly page |
 | 16.8 | Enable notifications (button) | Permission → `pushManager.subscribe()` with `NEXT_PUBLIC_VAPID_KEY` → N6. Must come from a click |
+| 16.8a | Reconnect device notifications (button) | Re-register the existing browser subscription with N6 without prompting for permission again. If the subscription is gone, refresh the device state and offer **Turn on device notifications** when supported. If registration fails, keep Reconnect available and show a retry error |
 | 16.9 | Volunteer opens available requests | Load U6 (cached). Non-empty `preferredPostalCodes` → Q6 with them; else Q6 without. The filter can be cleared |
 | 16.10 | Public profile / stats page | U10 + R3, or R2, then open `EventSource('/api/public/events?profile=…')` or `?stats` |
-| 16.11 | Role activated (U8) | `getIdToken(true)`, `POST /api/session`, reopen the `EventSource` (the hub reads roles when the stream opens) |
+| 16.11 | Role activated (U8) | Refresh the ID token and its claims. For a verified user, send the refreshed token in `POST /api/session` before reopening the private `EventSource`. The hub reads roles when the stream opens |
 | 16.12 | Request page receives a request detail | If `refreshAt` is not null, set a timer that invalidates `["request", id]` at `refreshAt`. Compute the delay from the server's time (the response's `Date` header), not the device clock, and wait at least 5 s so a fast device clock can't cause a refetch loop. Clear the timer when the page unmounts or the data refetches |
 | 16.13 | Any mutation returns `409` | Invalidate `["request", id]` and the list the user came from, and show a message for the `code`. The refetched request and its `allowedActions` show what is possible now. Examples: `window_ended` (Q10, or Q12 as the resident): "The pickup window has ended. Confirm the collection or report a missed pickup." (the cancel buttons give way to `confirm_collected` and `report_missed`); `expired` (Q9–Q11): "This request has expired."; `already_assigned` (Q11): "Another volunteer accepted this request first."; `terms_outdated`: reload the terms (U5) and ask for acknowledgement again. One `404` is a success: after a volunteer's Q12, `404 request_unavailable` means the cancel was saved and the request expired (Q12), so the frontend shows it as cancelled |
 | 16.14 | Page paths | Notification `url`s (13.1) and links use only these. The prefix sets the tab's active role when opened from a notification. `/resident/requests/<requestId>`: `REQUEST_CREATED`, `REQUEST_UPDATED_RESIDENT`, `REQUEST_ASSIGNED_RESIDENT`, `REQUEST_COLLECTED_RESIDENT`, `REQUEST_DELIVERED_RESIDENT`, `ASSIGNMENT_CANCELLED_BY_RESIDENT_RESIDENT`, `ASSIGNMENT_CANCELLED_BY_VOLUNTEER_RESIDENT`, `ASSIGNMENT_MISSED_RESIDENT`, `REQUEST_CANCELLED_RESIDENT`, `REQUEST_EXPIRED_RESIDENT`. `/volunteer/requests/<requestId>`: `NEW_MATCHING_REQUEST`, `REQUEST_ASSIGNED_VOLUNTEER`, `REQUEST_COLLECTED_VOLUNTEER`, `REQUEST_DELIVERED_VOLUNTEER`. `/volunteer/history`: `ASSIGNMENT_CANCELLED_BY_RESIDENT_VOLUNTEER`, `ASSIGNMENT_CANCELLED_BY_VOLUNTEER_VOLUNTEER`, `ASSIGNMENT_MISSED_VOLUNTEER`. `/ecopoints`: every `ECOPOINTS_*` type. Not used by notifications: `/profiles/<accountId>` (public profile, 16.10), `/stats` (public stats) |

@@ -10,8 +10,16 @@ vi.mock("@/lib/auth-context", () => ({ useAuth: vi.fn() }));
 const setActiveRole = vi.fn();
 const user = { uid: "u1" };
 
-function signedIn(roles: string[], activeRole: string | null = roles[0] ?? null) {
-    vi.mocked(useAuth).mockReturnValue({ user, roles, activeRole, loading: false, setActiveRole } as never);
+function signedIn(roles: string[], activeRole: string | null = roles[0] ?? null, verificationState = "verified") {
+    vi.mocked(useAuth).mockReturnValue({
+        user,
+        roles,
+        activeRole,
+        loading: false,
+        verificationState,
+        setActiveRole,
+        retryRoles: vi.fn(),
+    } as never);
 }
 
 beforeEach(() => window.history.pushState({}, "", "/"));
@@ -83,4 +91,20 @@ it("does not set the role when it already matches", () => {
     signedIn(["resident", "volunteer"], "volunteer");
     render(<RequireRole role="volunteer">page</RequireRole>);
     expect(setActiveRole).not.toHaveBeenCalled();
+});
+
+it("saves returnTo and redirects an unverified user to /verify-email", () => {
+    window.history.pushState({}, "", "/resident/requests/r1");
+    signedIn(["resident"], "resident", "unverified");
+    render(<RequireRole role="resident">page</RequireRole>);
+    expect(router.replace).toHaveBeenCalledWith("/verify-email");
+    expect(sessionStorage.getItem("returnTo")).toBe("/resident/requests/r1");
+    expect(screen.queryByText("page")).not.toBeInTheDocument();
+});
+
+it("shows Retry without redirecting when verification check failed", () => {
+    signedIn([], null, "check-failed");
+    render(<RequireRole role="resident">page</RequireRole>);
+    expect(router.replace).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
 });

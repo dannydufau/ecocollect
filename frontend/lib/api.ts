@@ -59,6 +59,7 @@ const friendlyMessages: Record<string, string> = {
     active_work: "You can't deactivate your account while you have requests or pickups in progress.",
     username_taken: "This username is already taken.",
     email_taken: "An account with this email already exists.",
+    email_verification_required: "Verify your email address before continuing.",
 };
 
 export const REQUEST_TIMEOUT_MS = 15_000;

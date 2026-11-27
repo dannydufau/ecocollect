@@ -30,7 +30,7 @@ export function fakeAuth(): Auth {
       current = {
         uid: accountId,
         getIdToken: async () => accountId,
-        getIdTokenResult: async () => ({ claims: { roles } }),
+        getIdTokenResult: async () => ({ claims: { roles, email_verified: true } }),
       } as unknown as User;
     })
     .catch((err) => console.warn("Could not load the test account", err));
