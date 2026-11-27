@@ -31,7 +31,7 @@ High-risk gaps in the event, notification and messaging paths get scripted cases
 | C3 | Each service checks on the server that the caller may act | Confidentiality, integrity | `backend/test/notification-list.test.js`, "N4 marks the caller's own notification read and tells their tabs; anyone else gets 404"; `backend/test/request/uploads.test.ts`, "item photo: 200 for a resident, in their folder; 403 for a volunteer; 400 for a gif" | Covered for notifications and uploads; other Request Service actions are tested in the FR cases |
 | C4 | Input is validated | Integrity | NFR04-N1; `backend/test/user/auth/session.test.cjs`, "POST /api/session returns 400 for a body that is not valid JSON"; the 400 cases in the Request Service tests | Covered |
 | C5 | File uploads are controlled | Integrity | `backend/test/request/uploads.test.ts`, the item photo and evidence tests (role, request and file type checks) | Covered |
-| C6 | Communication is encrypted in deployment | Confidentiality | NFR04-P1; `infra/caddy/testing/test.sh` runs every check against the gateway over HTTPS | Partly covered. Not yet scripted: traffic between services and RabbitMQ is plain AMQP on the internal Docker network; broker TLS is a planned follow-up. Risk: medium impact (internal network only), low likelihood |
+| C6 | Communication is encrypted in deployment | Confidentiality | NFR04-P1; `infra/caddy/testing/test.sh` runs every check against the gateway over HTTPS | Partly covered. Not yet scripted: traffic between services and RabbitMQ is plain AMQP on the internal Docker network; broker TLS is a planned follow-up; because the Notification Service reaches RabbitMQ only through the messaging module, encrypting its connection needs a code change in one file (`backend/src/messaging/connection.js`). Risk: medium impact (internal network only), low likelihood |
 
 ## Cases
 
@@ -46,7 +46,7 @@ High-risk gaps in the event, notification and messaging paths get scripted cases
 | 3 | Read the request the push service received | It is a POST with `Content-Encoding: aes128gcm` and a VAPID `Authorization` header signed with the server's key |
 | 4 | Search the received body for the title | The text is not there: only the browser can decrypt it |
 
-**Expected result:** every push is signed by the server and encrypted for the browser, so the push service relaying it cannot read it.
+**Expected result:** every push is signed by the server and encrypted for the browser, so the push service relaying it cannot read it. This is the contract's push rule (13.4): the payload is encrypted with the subscription keys.
 
 **Postcondition:** none (the fake service is closed).
 
@@ -63,7 +63,7 @@ High-risk gaps in the event, notification and messaging paths get scripted cases
 | 3 | POST a subscription whose endpoint is `http://postgres:5432/x` | 400: an endpoint must be HTTPS on a push-service host, so the server cannot be made to call an internal address |
 | 4 | POST a valid subscription as the user, then DELETE it | 201, then 204; the user has no subscriptions left |
 
-**Expected result:** only an authenticated user can register a push endpoint, and only a real push service's HTTPS address is accepted.
+**Expected result:** only an authenticated user can register a push endpoint, and only a real push service's HTTPS address is accepted. Steps 1, 2 and 4 are the contract's N6 and N7 (201, or 400 and 401; DELETE 204). Step 3 goes further than N6: the server later sends pushes to this address, so limiting it to push-service hosts stops it being pointed at an internal service (server-side request forgery).
 
 **Postcondition:** none (in-memory store).
 
