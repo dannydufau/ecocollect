@@ -182,6 +182,20 @@ async function deleteExpiredNotifications() {
   console.log(`[notification] cleanup: deleted ${deleted} expired notification${deleted === 1 ? '' : 's'}`);
 }
 
+/*
+ * A profile change (E15, from U7 or U8): tell the account's open tabs which fields changed, so
+ * they refetch the profile (and redo the sign-in when roles changed). Nothing is stored.
+ * A redelivered event sends it again, which only costs one more refetch.
+ */
+function sendProfileUpdated(envelope) {
+  const { accountId, changed } = envelope.data;
+  if (typeof accountId !== 'string' || accountId === '') throw new Error('ProfileUpdated without an accountId');
+  if (!Array.isArray(changed)) throw new Error('ProfileUpdated without a changed list');
+
+  const tabs = hub.send(accountId, 'profile-updated', { changed });
+  console.log(`[notification] profile-updated [${changed.join(', ')}] -> ${accountId} (${tabs} open tab${tabs === 1 ? '' : 's'})`);
+}
+
 const subscriber = startSubscriber({
   queue: queues.notification,
   url: process.env.RABBITMQ_URL,
@@ -203,6 +217,7 @@ const subscriber = startSubscriber({
     PointsAwardedDelivery: deliverAwardEvent(awardsEarned('delivery')),
     PointsAwardedCancellation: deliverAwardEvent(awardsEarned('cancellation')),
     NotificationCleanupRequested: deleteExpiredNotifications,
+    ProfileUpdated: sendProfileUpdated,
   },
 });
 
