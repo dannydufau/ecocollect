@@ -23,7 +23,7 @@ Existing tests are cited first. Following ISO/IEC/IEEE 29119 [2], the remaining 
 | F1 | Every eligible Volunteer sees the same Open requests; the only filter is the postal codes they choose | `backend/test/request/list-available.test.ts`, "200 in the contract shape, Open requests only; postalCodes filters on the pickup code". By design, the query (`requests.req_list_available`) receives only the chosen postal codes, never the caller's account, and orders by creation time. This is the contract's discovery rule (Q6): Available means Open and not yet expired, filtered only by the postal codes the Volunteer chooses, and it includes the Volunteer's own requests; NFR05-E1 | Covered |
 | F2 | Acceptance and assignment follow the same rules for everyone: the first valid accept wins, with one active assignment per request | `backend/test/request/accept.test.ts`, "201 with the detail as the assigned volunteer; a second volunteer then gets 409 already_assigned" | Covered, including accepts at the same moment: [NFR06-P2](NFR06-reliability.md). Explored in NFR05-E1 |
 | F3 | Delivery points come only from the request: Volunteer = 3 × quantity + 4 × weight (kg); the Resident gets exactly half | NFR05-P1 | Covered |
-| F4 | Cancellation points follow one rule: a late cancellation gives the Volunteer one award; an early cancellation, or cancelling one's own request, gives none | `backend/test/reward-handlers.test.js`, "late cancellation: one award for the volunteer", "early cancellation: no points", "cancellation of your own request: no points" | Covered |
+| F4 | Cancellation points follow one rule: when the Resident cancels an Assigned request within 24 hours of its selected window, the Volunteer gets one award; an earlier cancellation gives none, and so does cancelling one's own request (contract 12.4, events E6 and E12) | `backend/test/reward-handlers.test.js`, "late cancellation: one award for the volunteer", "early cancellation: no points", "cancellation of your own request: no points" | Covered |
 | F5 | No hidden priority or extra reward based on account identity or saved pickup regions | NFR05-N1 (EcoPoints); NFR05-E1 (discovery and acceptance) | Covered for EcoPoints; explored for discovery and acceptance |
 
 The rule "cancelling one's own request gives no points" (F4) compares the Volunteer with the Resident, so it does look at identity. It is an approved rule that applies the same way to every account, not a hidden preference.
@@ -54,7 +54,7 @@ The rule "cancelling one's own request gives no points" (F4) compares the Volunt
 | --- | --- | --- |
 | 1 | Build one delivery event (2 laptops, 5.0 kg) for four pairs of accounts: one with no saved regions, one with one, one with three, one with an empty list | – |
 | 2 | Pass each to the Reward Service's delivery handler | Every run gives the Volunteer 26 points and the Resident 13, by the same formulas |
-| 3 | Repeat with a late cancellation of the same assignment | Every run gives the Volunteer 26 points |
+| 3 | Repeat with the Resident cancelling the same assignment within 24 hours of its window | Every run gives the Volunteer 26 points |
 
 **Expected result:** the same delivery, or the same late cancellation, earns the same points whoever the accounts are and whatever regions they have saved.
 
