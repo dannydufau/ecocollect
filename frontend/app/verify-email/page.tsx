@@ -166,6 +166,9 @@ function VerifyEmailContent() {
                 </div>
 
                 <hr className="border-divider" />
+                <p className="text-small text-text-muted">
+                    <strong>Wrong email address?</strong> Log out, then select <strong>Create an account</strong> on the sign-in page. Register with the correct email and a different username.
+                </p>
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <Link href="/stats" className={`${textLink} text-small`}>Community stats</Link>
                     <LogoutButton />

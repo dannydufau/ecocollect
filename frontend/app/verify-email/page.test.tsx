@@ -89,6 +89,15 @@ it("shows an error and stays on the page when recheck fails", async () => {
     expect(router.replace).not.toHaveBeenCalled();
 });
 
+it("helps someone who entered the wrong address start over from sign-in", async () => {
+    render(<VerifyEmailPage />);
+    expect(screen.getByText("Wrong email address?")).toBeInTheDocument();
+    expect(screen.getByText(/register with the correct email and a different username/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Log out" }));
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/login"));
+    expect(signOut).toHaveBeenCalledOnce();
+});
+
 it("shows Retry without redirecting when verificationState is check-failed", () => {
     mockAuth({ verificationState: "check-failed", rolesError: true });
     render(<VerifyEmailPage />);
