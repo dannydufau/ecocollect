@@ -13,8 +13,9 @@ const { Pool } = require('pg');
 const { createHub } = require('./hub');
 const { createEventsRouter } = require('./events');
 const {
-  requestCreated, requestUpdated, requestAssigned, assignmentCancelledByResident, assignmentCancelledByVolunteer,
-  requestCancelled, requestExpired, replacements,
+  requestCreated, requestUpdated, requestAssigned, assignmentCollected, assignmentDelivered,
+  assignmentCancelledByResident, assignmentCancelledByVolunteer, assignmentMissed, requestCancelled, requestExpired,
+  replacements,
 } = require('./handlers');
 const { pushPayload, createWebPushSender } = require('./push');
 const { startSubscriber, queues } = require('../messaging');
@@ -147,9 +148,14 @@ const subscriber = startSubscriber({
     // Still Open, but the old NEW_MATCHING_REQUESTs describe the old details: matched volunteers get fresh ones.
     RequestUpdated: deliverRequestEvent(requestUpdated, { expiresMatching: true, availableRequestsChanged: true }),
     RequestAssigned: deliverRequestEvent(requestAssigned, { expiresMatching: true, availableRequestsChanged: true }),
-    // The request was Assigned, not Open; the E2 (reopened) or E10 that follows updates the available list.
+    // Assignment events: the request is past Open, so there is nothing to expire for matching
+    // volunteers and the available list doesn't change. On a cancel, the E2 (reopened) or E10
+    // that follows updates it; on a missed pickup with a reschedule, the new request's E1 does.
+    RequestAssignmentCollected: deliverRequestEvent(assignmentCollected, { expiresMatching: false, availableRequestsChanged: false }),
+    RequestAssignmentDelivered: deliverRequestEvent(assignmentDelivered, { expiresMatching: false, availableRequestsChanged: false }),
     RequestAssignmentCancelledResident: deliverRequestEvent(assignmentCancelledByResident, { expiresMatching: false, availableRequestsChanged: false }),
     RequestAssignmentCancelledVolunteer: deliverRequestEvent(assignmentCancelledByVolunteer, { expiresMatching: false, availableRequestsChanged: false }),
+    RequestAssignmentMissed: deliverRequestEvent(assignmentMissed, { expiresMatching: false, availableRequestsChanged: false }),
     RequestCancelled: deliverRequestEvent(requestCancelled, { expiresMatching: true, availableRequestsChanged: true }),
     RequestExpired: deliverRequestEvent(requestExpired, { expiresMatching: true, availableRequestsChanged: true }),
   },

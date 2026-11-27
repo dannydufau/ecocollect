@@ -35,6 +35,18 @@ const NOTIFICATION_TYPES = Object.freeze({
   REQUEST_ASSIGNED_VOLUNTEER: {
     title: 'You accepted a pickup', path: '/volunteer/requests/', push: false,
   },
+  REQUEST_COLLECTED_RESIDENT: {
+    title: 'You confirmed the pickup', path: '/resident/requests/', push: false,
+  },
+  REQUEST_COLLECTED_VOLUNTEER: {
+    title: 'Pickup confirmed', path: '/volunteer/requests/', push: true,
+  },
+  REQUEST_DELIVERED_RESIDENT: {
+    title: 'Items delivered', path: '/resident/requests/', push: true,
+  },
+  REQUEST_DELIVERED_VOLUNTEER: {
+    title: 'You recorded a delivery', path: '/volunteer/requests/', push: false,
+  },
   ASSIGNMENT_CANCELLED_BY_RESIDENT_RESIDENT: {
     title: 'You cancelled the pickup', path: '/resident/requests/', push: false,
   },
@@ -46,6 +58,12 @@ const NOTIFICATION_TYPES = Object.freeze({
   },
   ASSIGNMENT_CANCELLED_BY_VOLUNTEER_VOLUNTEER: {
     title: 'You cancelled a pickup', path: '/volunteer/history', push: false, endedAs: 'cancelled',
+  },
+  ASSIGNMENT_MISSED_RESIDENT: {
+    title: 'You reported a missed pickup', path: '/resident/requests/', push: false,
+  },
+  ASSIGNMENT_MISSED_VOLUNTEER: {
+    title: 'Pickup missed', path: '/volunteer/history', push: true, endedAs: 'marked as missed',
   },
   REQUEST_CANCELLED_RESIDENT: {
     title: 'Request cancelled', path: '/resident/requests/', push: false,
@@ -236,25 +254,36 @@ function assignmentOf(envelope, eventName) {
   return assignment;
 }
 
-// RequestAssignmentCancelledResident (E6): the resident cancelled, so the volunteer is pushed.
-function assignmentCancelledByResident(envelope) {
-  const request = snapshotOf(envelope, 'RequestAssignmentCancelledResident');
-  const { volunteerUid } = assignmentOf(envelope, 'RequestAssignmentCancelledResident');
-  return [
-    delivery(envelope, request.residentUid, 'ASSIGNMENT_CANCELLED_BY_RESIDENT_RESIDENT', request),
-    delivery(envelope, volunteerUid, 'ASSIGNMENT_CANCELLED_BY_RESIDENT_VOLUNTEER', request),
-  ];
+/*
+ * A handler for an assignment event: one notification for the resident and one for the
+ * assignment's volunteer. Who is pushed is set per type in NOTIFICATION_TYPES.
+ */
+function bothSides(eventName, residentType, volunteerType) {
+  return (envelope) => {
+    const request = snapshotOf(envelope, eventName);
+    const { volunteerUid } = assignmentOf(envelope, eventName);
+    return [
+      delivery(envelope, request.residentUid, residentType, request),
+      delivery(envelope, volunteerUid, volunteerType, request),
+    ];
+  };
 }
 
-// RequestAssignmentCancelledVolunteer (E7): the volunteer cancelled, so the resident is pushed.
-function assignmentCancelledByVolunteer(envelope) {
-  const request = snapshotOf(envelope, 'RequestAssignmentCancelledVolunteer');
-  const { volunteerUid } = assignmentOf(envelope, 'RequestAssignmentCancelledVolunteer');
-  return [
-    delivery(envelope, request.residentUid, 'ASSIGNMENT_CANCELLED_BY_VOLUNTEER_RESIDENT', request),
-    delivery(envelope, volunteerUid, 'ASSIGNMENT_CANCELLED_BY_VOLUNTEER_VOLUNTEER', request),
-  ];
-}
+// E4: the resident confirmed the collection, so the volunteer is pushed.
+const assignmentCollected = bothSides(
+  'RequestAssignmentCollected', 'REQUEST_COLLECTED_RESIDENT', 'REQUEST_COLLECTED_VOLUNTEER');
+// E5: the volunteer recorded the delivery, so the resident is pushed.
+const assignmentDelivered = bothSides(
+  'RequestAssignmentDelivered', 'REQUEST_DELIVERED_RESIDENT', 'REQUEST_DELIVERED_VOLUNTEER');
+// E6: the resident cancelled, so the volunteer is pushed.
+const assignmentCancelledByResident = bothSides(
+  'RequestAssignmentCancelledResident', 'ASSIGNMENT_CANCELLED_BY_RESIDENT_RESIDENT', 'ASSIGNMENT_CANCELLED_BY_RESIDENT_VOLUNTEER');
+// E7: the volunteer cancelled, so the resident is pushed.
+const assignmentCancelledByVolunteer = bothSides(
+  'RequestAssignmentCancelledVolunteer', 'ASSIGNMENT_CANCELLED_BY_VOLUNTEER_RESIDENT', 'ASSIGNMENT_CANCELLED_BY_VOLUNTEER_VOLUNTEER');
+// E8: the resident reported the pickup missed, so the volunteer is pushed.
+const assignmentMissed = bothSides(
+  'RequestAssignmentMissed', 'ASSIGNMENT_MISSED_RESIDENT', 'ASSIGNMENT_MISSED_VOLUNTEER');
 
 // RequestCancelled (E9): the resident cancelled, so they get a record and no push.
 function requestCancelled(envelope) {
@@ -293,6 +322,6 @@ function replacements(request, deliveries, expired) {
 }
 
 module.exports = {
-  requestCreated, requestUpdated, requestAssigned, assignmentCancelledByResident, assignmentCancelledByVolunteer,
-  requestCancelled, requestExpired, replacements, describe, describeEnded, SIGNAL, NOTIFICATION_TYPES, UPDATE_TITLES,
+  requestCreated, requestUpdated, requestAssigned, assignmentCollected, assignmentDelivered,
+  assignmentCancelledByResident, assignmentCancelledByVolunteer, assignmentMissed, requestCancelled, requestExpired, replacements, describe, describeEnded, SIGNAL, NOTIFICATION_TYPES, UPDATE_TITLES,
 };

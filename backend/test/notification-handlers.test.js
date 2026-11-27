@@ -9,7 +9,8 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
-  requestCreated, requestUpdated, assignmentCancelledByResident, assignmentCancelledByVolunteer, replacements, SIGNAL,
+  requestCreated, requestUpdated, assignmentCollected, assignmentDelivered,
+  assignmentCancelledByResident, assignmentCancelledByVolunteer, assignmentMissed, replacements, SIGNAL,
 } = require('../src/notification/handlers');
 const { notificationUuid } = require('../src/notification/ids');
 
@@ -212,4 +213,22 @@ test('E2: the resident gets a record titled by the reason; matched volunteers ge
   ]);
   assert.equal(requestUpdated(updated('reopened'))[0].notification.title, 'Request reopened');
   assert.throws(() => requestUpdated(updated('moved')), /unknown reason/);
+});
+
+test('E4, E5 and E8: one notification per side, pushed to the side that did not act', () => {
+  const summary = (out) => out.map(({ uid, push, notification: n }) => ({ uid, push, type: n.type, url: n.url }));
+  const resident = (type, push) => ({ uid: 'firebaseUid_abc', push, type, url: `/resident/requests/${REQUEST_ID}` });
+  const volunteer = (type, push, url = `/volunteer/requests/${REQUEST_ID}`) => ({ uid: 'firebaseUid_v1', push, type, url });
+
+  assert.deepEqual(summary(assignmentCollected(assignmentEnvelope('RequestAssignmentCollected'))), [
+    resident('REQUEST_COLLECTED_RESIDENT', false), volunteer('REQUEST_COLLECTED_VOLUNTEER', true),
+  ]);
+  assert.deepEqual(summary(assignmentDelivered(assignmentEnvelope('RequestAssignmentDelivered'))), [
+    resident('REQUEST_DELIVERED_RESIDENT', true), volunteer('REQUEST_DELIVERED_VOLUNTEER', false),
+  ]);
+  const missed = assignmentMissed(assignmentEnvelope('RequestAssignmentMissed'));
+  assert.deepEqual(summary(missed), [
+    resident('ASSIGNMENT_MISSED_RESIDENT', false), volunteer('ASSIGNMENT_MISSED_VOLUNTEER', true, '/volunteer/history'),
+  ]);
+  assert.equal(missed[1].notification.body, 'Your pickup on Nov 22, 14:00–15:00 was marked as missed');
 });
