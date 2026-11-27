@@ -273,7 +273,17 @@ function createNotificationStore(pool) {
     await pool.query('CALL notifications.mark_all_read($1)', [uid]);
   }
 
-  return { saveRequestNotifications, saveAwardNotifications, markPushed, listForAccount, markRead, markAllRead };
+  // Deletes every expired notification (E14); returns how many.
+  async function deleteExpired() {
+    // Procedure in db/notification/020_notification_delete.sql; NULL fills its OUT parameter.
+    const { rows } = await pool.query('CALL notifications.delete_expired_notifications(NULL)');
+    return rows[0].p_deleted;
+  }
+
+  return {
+    saveRequestNotifications, saveAwardNotifications, markPushed, listForAccount, markRead, markAllRead,
+    deleteExpired,
+  };
 }
 
 module.exports = { createNotificationStore };

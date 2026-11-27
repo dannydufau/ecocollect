@@ -173,6 +173,15 @@ function deliverAwardEvent(handler) {
   };
 }
 
+/*
+ * The daily cleanup (E14): delete every expired notification. Nothing is sent: open tabs
+ * already got notification-expired when each one expired. Running it twice does no harm.
+ */
+async function deleteExpiredNotifications() {
+  const deleted = await notifications.deleteExpired();
+  console.log(`[notification] cleanup: deleted ${deleted} expired notification${deleted === 1 ? '' : 's'}`);
+}
+
 const subscriber = startSubscriber({
   queue: queues.notification,
   url: process.env.RABBITMQ_URL,
@@ -193,6 +202,7 @@ const subscriber = startSubscriber({
     RequestExpired: deliverRequestEvent(requestExpired, { expiresMatching: true, availableRequestsChanged: true }),
     PointsAwardedDelivery: deliverAwardEvent(awardsEarned('delivery')),
     PointsAwardedCancellation: deliverAwardEvent(awardsEarned('cancellation')),
+    NotificationCleanupRequested: deleteExpiredNotifications,
   },
 });
 
