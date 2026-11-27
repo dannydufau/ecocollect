@@ -13,6 +13,4 @@ This submission uses EcoCollect's application database. Use a fresh test instanc
 
 Follow Section 4 once, then run Sections 5 and 6 on the same database. The diagrams and normalization write-up cover the 25 course relations. Outbox and processed-event tables support the application and are outside the course model.
 
-## Contribution evidence
 
-See the pull requests for the [conceptual model](https://github.com/dannydufau/ecocollect/pull/106), [logical model](https://github.com/dannydufau/ecocollect/pull/172), [normalization](https://github.com/dannydufau/ecocollect/pull/185), [physical SQL and review](https://github.com/dannydufau/ecocollect/pull/198), [query catalog](https://github.com/dannydufau/ecocollect/pull/443), and [database tests](https://github.com/dannydufau/ecocollect/pull/500).
