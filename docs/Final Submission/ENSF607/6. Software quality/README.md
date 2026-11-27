@@ -43,7 +43,6 @@ The [non-functional requirements](../2.%20Non-functional%20requirements/README.m
 | NFR04 | Security | [NFR04-security.md](cases/nfr/NFR04-security.md) | P1, N1 |
 | NFR05 | Fairness | [NFR05-fairness.md](cases/nfr/NFR05-fairness.md) | P1, N1, E1 (charter) |
 | NFR06 | Reliability | [NFR06-reliability.md](cases/nfr/NFR06-reliability.md) | P1, P2, N1 |
-| NFR07 | Portability and Reproducible Setup (from the team proposal) | In progress | – |
 
 ### NFR strategy
 
