@@ -9,27 +9,27 @@ The [functional requirements](../1.%20Functional%20Requirements/README.md) defin
 | FR01 | Account Registration | [accounts.md](cases/accounts.md) | Pass | Pass |
 | FR02 | User Login, Logout, and Role Selection | [accounts.md](cases/accounts.md) | Not run | Pass |
 | FR03 | Additional Role Activation | [accounts.md](cases/accounts.md) | Pass | Pass |
-| FR04 | Profile Management | [accounts.md](cases/accounts.md) | Not run | Not run |
+| FR04 | Profile Management | [accounts.md](cases/accounts.md) | Pass | Pass |
 | FR05 | Public User Profiles | [accounts.md](cases/accounts.md) | Pass | Pass |
 | FR06 | Create Pickup Requests | [resident-requests.md](cases/resident-requests.md) | Pass | Pass |
-| FR07 | Pickup Scheduling | [resident-requests.md](cases/resident-requests.md) | Not run | Pass |
+| FR07 | Pickup Scheduling | [resident-requests.md](cases/resident-requests.md) | Pass | Pass |
 | FR08 | Review and Confirm Pickup Requests | [resident-requests.md](cases/resident-requests.md) | Not run | Pass |
 | FR09 | View Resident Pickup Requests | [resident-requests.md](cases/resident-requests.md) | Pass | Pass |
 | FR10 | Edit Open Pickup Requests | [resident-requests.md](cases/resident-requests.md) | Pass | Pass |
 | FR11 | Cancel Pickup Requests | [resident-requests.md](cases/resident-requests.md) | Pass | Pass |
-| FR12 | Volunteer Request Discovery | [volunteer.md](cases/volunteer.md) | **No case yet** | **No case yet** |
-| FR13 | Accept Pickup Requests | [volunteer.md](cases/volunteer.md) | **No case yet** | **No case yet** |
-| FR14 | Cancel Volunteer Assignment | [volunteer.md](cases/volunteer.md) | **No case yet** | **No case yet** |
-| FR15 | Confirm Item Collection | [volunteer.md](cases/volunteer.md) | **No case yet** | **No case yet** |
-| FR16 | Report Missed Pickup | [volunteer.md](cases/volunteer.md) | **No case yet** | **No case yet** |
-| FR17 | Record Facility Delivery | [volunteer.md](cases/volunteer.md) | **No case yet** | **No case yet** |
-| FR18 | EcoPoints Calculation and Awarding | [points-expiry-stats.md](cases/points-expiry-stats.md) | **No case yet** | **No case yet** |
+| FR12 | Volunteer Request Discovery | [volunteer.md](cases/volunteer.md) | Pass | Pass |
+| FR13 | Accept Pickup Requests | [volunteer.md](cases/volunteer.md) | Pass | Pass |
+| FR14 | Cancel Volunteer Assignment | [volunteer.md](cases/volunteer.md) | Pass | Pass |
+| FR15 | Confirm Item Collection | [volunteer.md](cases/volunteer.md) | Pass | Pass |
+| FR16 | Report Missed Pickup | [volunteer.md](cases/volunteer.md) | Pass | Pass |
+| FR17 | Record Facility Delivery | [volunteer.md](cases/volunteer.md) | Pass | Pass |
+| FR18 | EcoPoints Calculation and Awarding | [points-expiry-stats.md](cases/points-expiry-stats.md) | Pass | Pass |
 | FR19 | In-App Notifications and Push Notifications | [notifications-demo.md](cases/notifications-demo.md) | Not run | Not run |
-| FR20 | Automatic Request Expiration | [points-expiry-stats.md](cases/points-expiry-stats.md) | **No case yet** | **No case yet** |
-| FR21 | Volunteer Pickup History | [volunteer.md](cases/volunteer.md) | **No case yet** | **No case yet** |
-| FR22 | Terms and Conditions, including Safety Guidelines | [accounts.md](cases/accounts.md) | Not run | Pass |
-| FR23 | Public Community Impact Statistics | [points-expiry-stats.md](cases/points-expiry-stats.md) | **No case yet** | **No case yet** |
-| FR24 | Interactive Demo Mode | [notifications-demo.md](cases/notifications-demo.md) | Not run | Not run |
+| FR20 | Automatic Request Expiration | [points-expiry-stats.md](cases/points-expiry-stats.md) | Pass | Pass |
+| FR21 | Volunteer Pickup History | [volunteer.md](cases/volunteer.md) | Pass | Pass |
+| FR22 | Terms and Conditions, including Safety Guidelines | [accounts.md](cases/accounts.md) | Pass | Pass |
+| FR23 | Public Community Impact Statistics | [points-expiry-stats.md](cases/points-expiry-stats.md) | Pass | Pass |
+| FR24 | Interactive Demo Mode | [notifications-demo.md](cases/notifications-demo.md) | Not run | Pass |
 
 ## Case format
 
@@ -60,11 +60,35 @@ The two backend rows overlap: the second repeats the first with the database cas
 
 ### Cases
 
-28 cases are written, for 14 of the 24 requirements: **18 pass and 10 are not run**. No written case failed. Each row that was not run says why; most need a browser, a running stack and Firebase test accounts. A passing supporting test does not make its case a pass.
+All 24 requirements have a positive and a negative case, 48 in total: **43 pass and 5 are not run**. No case failed.
 
-**10 requirements have no cases yet:** FR12, FR13, FR14, FR15, FR16, FR17, FR18, FR20, FR21, FR23. These are the volunteer cases and the points, expiry and statistics cases in [issue #474](https://github.com/dannydufau/ecocollect/issues/474), parts 1 and 2.
+| How the case was checked | Passed |
+| --- | --- |
+| Automated tests (FR15-N also has a team run) | 28 |
+| Team manual runs only | 15 |
 
-The Request Service cases call the real service and a real PostgreSQL database. The tests set the gateway's identity headers themselves and use a stand-in for ImageKit, so Caddy, Firebase and ImageKit are not part of those results.
+**Not run:**
+
+- **FR02-P:** signing out, then checking that protected pages need a new sign-in.
+- **FR08-P:** correcting a request on the review step before sending it.
+- **FR19-P and FR19-N:** notifications on the running stack, including web push.
+- **FR24-P:** needs a demo site with its own Firebase project.
+
+Each of these rows gives its reason. A passing supporting test does not make its case a pass.
+
+### Team manual runs
+
+The team ran 38 manual cases and marked all of them as passed. Their documents are saved as PDFs. Each one numbers its cases from TC001, so a case is named by its document and number.
+
+| Document | Cases | Screenshots |
+| --- | --- | --- |
+| [FR01–05 and FR11–15](results/manual/fr01-05-fr11-15.pdf), dated November 26 | 20 | Yes |
+| [FR06–10](results/manual/fr06-10.pdf) | 10 | Yes |
+| [FR20–23](results/manual/fr20-23.pdf) | 8 | No |
+
+These runs are separate from the saved run above and were not repeated for it, and the tested commit was not recorded. The case tables use some of these cases; the rest are extra checks. A password visible in the TC001 screenshot of the first document is blacked out in the saved copy.
+
+The automated Request Service cases call the real service and a real PostgreSQL database. The tests set the gateway's identity headers themselves and use a stand-in for ImageKit, so Caddy, Firebase and ImageKit are not part of those results.
 
 ## Run the suites
 
