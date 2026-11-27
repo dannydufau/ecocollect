@@ -94,6 +94,6 @@ Record one row per run. A planned case is not a pass until it has a row here.
 
 | Case | Date | Commit | Command or steps | Result |
 | --- | --- | --- | --- | --- |
-| NFR05-P1 | | | `npm test` in `backend/` | |
-| NFR05-N1 | | | `npm run test:nfr` in `backend/` | |
-| NFR05-E1 | | | Charter | |
+| NFR05-P1 | 2026-11-27 | `69c3679` | `npm test` in `backend/` | Pass (198 passed, 0 failed) |
+| NFR05-N1 | 2026-11-27 | `69c3679` | `npm run test:nfr` in `backend/` | Pass (6 passed, 0 failed) |
+| NFR05-E1 | – | – | Charter | Not run |

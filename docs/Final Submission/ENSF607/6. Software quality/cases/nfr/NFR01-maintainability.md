@@ -88,5 +88,5 @@ Record one row per run. A planned case is not a pass until it has a row here.
 
 | Case | Date | Commit | Command or steps | Result |
 | --- | --- | --- | --- | --- |
-| NFR01-P1, NFR01-P2 | 2026-11-26 | `f0300c7` | `npm run test:nfr` in `backend/` | Pass: both passed (4 passed, 0 failed in the run; the NFR06 database test was skipped, no database URL set) |
-| NFR01-N1 | 2026-11-26 | `f0300c7` | Steps above, on a scratch branch | Pass: with the planted import, NFR01-P1 failed and reported `reward -> user: backend/src/reward/handlers.js '../user/db/pool.ts'`; after the revert, it passed |
+| NFR01-P1, NFR01-P2 | 2026-11-27 | `69c3679` | `npm run test:nfr` in `backend/`, with `REQUEST_TEST_DATABASE_URL` set | Pass: both passed (6 passed, 0 failed in the run) |
+| NFR01-N1 | 2026-11-26 | `f0300c7` (before the rebase onto `main`; the test is unchanged since) | Steps above, on a scratch branch | Pass: with the planted import, NFR01-P1 failed and reported `reward -> user: backend/src/reward/handlers.js '../user/db/pool.ts'`; after the revert, it passed |

@@ -105,6 +105,6 @@ Record one row per run. A planned case is not a pass until it has a row here.
 
 | Case | Date | Commit | Command or steps | Result |
 | --- | --- | --- | --- | --- |
-| NFR06-P1, NFR06-N1, NFR06-N2 | | | `npm run test:integration` in `backend/` (needs Docker) | |
-| NFR06-P2 | | | `npm run test:nfr` in `backend/`, with `REQUEST_TEST_DATABASE_URL` set | |
-| Supporting tests | | | `npm test` in `backend/` (request and reward-store tests need their test databases) | |
+| NFR06-P1, NFR06-N1, NFR06-N2 | 2026-11-27 | `69c3679` | `npm run test:integration` in `backend/` (needs Docker) | Pass (10 passed, 0 failed) |
+| NFR06-P2 | 2026-11-27 | `69c3679` | `npm run test:nfr` in `backend/`, with `REQUEST_TEST_DATABASE_URL` set | Pass (6 passed, 0 failed) |
+| Supporting tests | 2026-11-27 | `69c3679` | `npm test` in `backend/` (request and reward-store tests need their test databases) | Pass (198 passed, 0 failed; 15 database tests skipped, no test database URL set) |

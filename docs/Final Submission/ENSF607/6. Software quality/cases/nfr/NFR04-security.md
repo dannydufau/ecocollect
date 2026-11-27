@@ -99,7 +99,7 @@ Record one row per run. A planned case is not a pass until it has a row here.
 
 | Case | Date | Commit | Command or steps | Result |
 | --- | --- | --- | --- | --- |
-| NFR04-P1, NFR04-N1, NFR04-P2 (steps 1–3) | 2026-11-27 | `47f65d1` | `npm test` in `backend/` | Pass (198 pass, 0 fail) |
+| NFR04-P1, NFR04-N1, NFR04-P2 (steps 1–3) | 2026-11-27 | `69c3679` | `npm test` in `backend/` | Pass (198 passed, 0 failed) |
 | NFR04-P2 (step 4) | 2026-11-27 | `94ccdbe` (the same TLS change before the rebase onto `main`; now `47f65d1`) | Docker stack with `docker-compose.tls.yml`; `rabbitmqctl list_connections` and the management UI | Pass: 1 of 8 connections on TLS 1.3 (the Notification Service, `172.18.0.8`), 7 plain; `consuming notification.events`, no connection error; events received over it |
 | NFR04-P2 (step 5) | | | `openssl s_client` | Not run |
-| Supporting: gateway | | | `./infra/caddy/testing/test.sh` (needs Docker) | |
+| Supporting: gateway | – | – | `./infra/caddy/testing/test.sh` (needs Docker) | Not run |

@@ -114,7 +114,7 @@ Record one row per run. A planned case is not a pass until it has a row here.
 | Case | Date | Commit | Command or steps | Result |
 | --- | --- | --- | --- | --- |
 | NFR02-P1 and the other automated evidence | 2026-11-26 | not recorded | `npm run e2e` in `frontend/` (Chromium) | 310 passed, 1 failed, 181 skipped. Every test cited above passed. The failure is a header-layout test not cited here, reported to the frontend team |
-| NFR02-N1 | | | `npm test` in `frontend/` | |
+| NFR02-N1 | 2026-11-27 | `69c3679` | `npx vitest run components/register-form.test.tsx` in `frontend/` | Pass (18 passed, 0 failed) |
 | Precondition: FR06-P, FR13-P | – | – | See `resident-requests.md` and `volunteer.md` | As recorded there |
-| NFR02-E1 | | | | |
+| NFR02-E1 | – | – | Charter | Not run |
 | User task test (optional) | – | – | – | Not run |
