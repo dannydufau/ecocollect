@@ -11,7 +11,6 @@ This folder contains the standalone EcoCollect database for ENSF 608. Start here
 | Sample data | [Course seed](<4. Physical model/seed.sql>) |
 | SQL operations and queries | [Query guide](<5. Database operations and queries/README.md>), [25 operations](<5. Database operations and queries/operations.sql>), and [saved query output](<5. Database operations and queries/results/operations.txt>) |
 | Database tests and results | [Application database test cases and run instructions](../../../backend/test/ensf608/README.md), [application SQL tests](../../../backend/test/ensf608/application.sql), and [saved application results](../../../backend/test/ensf608/results/application.txt) |
-| Contribution history | [ENSF 608 commit history](https://github.com/dannydufau/ecocollect/commits/main/docs/Final%20Submission/ENSF608) |
 
 ## Run the course database
 
