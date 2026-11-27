@@ -108,3 +108,45 @@ test('real terms lookup skips scheduled publications and breaks ties at the curr
     await pool.end();
   }
 });
+
+test('seeded version 3 terms are current while historical acceptances still resolve to version 2', {
+  skip: process.env.TEST_DATABASE_URL ? false : 'set TEST_DATABASE_URL to a scratch database loaded with the User scripts',
+}, async () => {
+  const pool = createPool(process.env.TEST_DATABASE_URL);
+  const client = await pool.connect();
+  try {
+    const current = await getCurrentTerms(client);
+    assert.equal(current.termsDocumentId, '00000001-0000-4000-8000-000000000003');
+    assert.match(current.content, /1\. TERMS OF USE/);
+    assert.match(current.content, /2\. SAFETY GUIDELINES/);
+    assert.match(current.content, /3\. PRIVACY NOTICE/);
+    assert.match(current.content, /4\. DEMO MODE/);
+    assert.match(current.content, /24-hour cutoff/);
+    assert.equal(/\[[A-Z0-9 _/-]+\]/.test(current.content), false, 'terms text must not contain unresolved placeholders');
+
+    await client.query('BEGIN');
+    const accountId = `hist-${randomUUID().slice(0, 8)}`;
+    const acceptanceId = randomUUID();
+    await client.query(
+      `INSERT INTO users.account VALUES ($1, 'Alex', 'Ng', 'Alex', '1990-01-01', now(), NULL)`,
+      [accountId],
+    );
+    await client.query(
+      `INSERT INTO users.terms_acceptance VALUES ($1, '00000001-0000-4000-8000-000000000002', $2, '2026-11-10T00:00:00Z', 'AT_RESIDENT_REGISTRATION_OR_ACTIVATION')`,
+      [acceptanceId, accountId],
+    );
+    const { rows } = await client.query(
+      `SELECT d.terms_document_id, d.content
+       FROM users.terms_acceptance a
+       JOIN users.terms_document d ON d.terms_document_id = a.terms_document_id
+       WHERE a.terms_acceptance_id = $1`,
+      [acceptanceId],
+    );
+    assert.equal(rows[0].terms_document_id, '00000001-0000-4000-8000-000000000002');
+    assert.equal(rows[0].content, 'EcoCollect terms version 2');
+  } finally {
+    await client.query('ROLLBACK').catch(() => {});
+    client.release();
+    await pool.end();
+  }
+});

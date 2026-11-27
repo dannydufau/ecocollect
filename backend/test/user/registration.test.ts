@@ -5,6 +5,7 @@ import type { AddressInfo } from 'node:net';
 import { test } from 'node:test';
 import express from 'express';
 import { createPool } from '../../src/user/db/pool.ts';
+import { getCurrentTerms } from '../../src/user/db/terms.ts';
 import { errorHandler } from '../../src/user/http/errors.ts';
 import { register } from '../../src/user/routes/accounts.ts';
 
@@ -164,10 +165,18 @@ test('registration persists residents, volunteers and terms without an outbox ev
   const auth = fakeAuth();
   const post = await start(t, pool, auth);
   try {
-    assert.deepEqual(await post({ ...resident, username: accounts[0] }), [201, { accountId: accounts[0], roles: ['resident'] }]);
+    const currentTermsId = (await getCurrentTerms(pool)).termsDocumentId;
+    assert.notEqual(currentTermsId, termsId, 'seeded database should have a newer current terms version than v2');
+
+    // Deliberate stale v2 submission is rejected with 409 terms_outdated.
+    const [staleStatus, staleBody] = await post({ ...resident, username: accounts[0], termsDocumentId: termsId });
+    assert.equal(staleStatus, 409);
+    assert.equal(staleBody.error.code, 'terms_outdated');
+
+    assert.deepEqual(await post({ ...resident, username: accounts[0], termsDocumentId: currentTermsId }), [201, { accountId: accounts[0], roles: ['resident'] }]);
     const { address, ...volunteer } = resident;
     assert.deepEqual(await post({
-      ...volunteer, username: accounts[1], role: 'volunteer', preferredPostalCodes: ['T2P1J9', 'T3A0A1'],
+      ...volunteer, username: accounts[1], role: 'volunteer', termsDocumentId: currentTermsId, preferredPostalCodes: ['T2P1J9', 'T3A0A1'],
     }), [201, { accountId: accounts[1], roles: ['volunteer'] }]);
     assert.deepEqual(auth.actions, ['create', 'resident', 'create', 'volunteer']);
     const { rows } = await pool.query(
@@ -183,9 +192,9 @@ test('registration persists residents, volunteers and terms without an outbox ev
     );
     assert.deepEqual(rows, [
       { account_id: accounts[0], public_name: resident.publicName, street: address.street, postal_code: address.postalCode,
-        volunteer: false, type: 'AT_RESIDENT_REGISTRATION_OR_ACTIVATION', terms_document_id: termsId, same_time: true, preferred: [] },
+        volunteer: false, type: 'AT_RESIDENT_REGISTRATION_OR_ACTIVATION', terms_document_id: currentTermsId, same_time: true, preferred: [] },
       { account_id: accounts[1], public_name: resident.publicName, street: null, postal_code: null,
-        volunteer: true, type: 'AT_VOLUNTEER_REGISTRATION_OR_ACTIVATION', terms_document_id: termsId, same_time: true, preferred: ['T2P1J9', 'T3A0A1'] },
+        volunteer: true, type: 'AT_VOLUNTEER_REGISTRATION_OR_ACTIVATION', terms_document_id: currentTermsId, same_time: true, preferred: ['T2P1J9', 'T3A0A1'] },
     ]);
     assert.equal((await pool.query('SELECT 1 FROM users.outbox WHERE aggregate_id = ANY($1::text[])', [accounts])).rowCount, 0);
   } finally {
