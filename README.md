@@ -8,9 +8,9 @@
    cp .env.example .env
    ```
 
-   Set `POSTGRES_PASSWORD` (use the same one in `DATABASE_URL`) and `RABBITMQ_PASSWORD` (letters, numbers, `_` and `-` only, they end up inside URLs), the Firebase web config (`NEXT_PUBLIC_FIREBASE_*`, from the Firebase console under Project settings), the ImageKit keys (`IMAGEKIT_*`, from the ImageKit dashboard under Developer options > API keys) and the push keys (`VAPID_*`, from `npx web-push generate-vapid-keys`; put the public key in `NEXT_PUBLIC_VAPID_KEY` too). Compose refuses to run any command while a required value is missing.
+   Set `POSTGRES_PASSWORD` (use the same one in `DATABASE_URL`) and `RABBITMQ_PASSWORD`, the Firebase web config (`NEXT_PUBLIC_FIREBASE_*`, from the Firebase console under Project settings), the ImageKit keys (`IMAGEKIT_*`, from the ImageKit dashboard under Developer options > API keys) and the push keys (`VAPID_*`, from `npx web-push generate-vapid-keys`; put the public key in `NEXT_PUBLIC_VAPID_KEY` too). Compose refuses to run any command while a required value is missing.
 
-   Each service has its own database login. For `USER`, `REQUEST`, `REWARD`, `CLEANUP` and `NOTIFICATION`, set `<NAME>_DB_PASSWORD` and use the same password in `<NAME>_DATABASE_URL`.
+   Each service has its own database login. For `USER`, `REQUEST`, `REWARD`, `CLEANUP` and `NOTIFICATION`, set `<NAME>_DB_PASSWORD` and use the same password in `<NAME>_DATABASE_URL`. Keep `RABBITMQ_PASSWORD` and all database passwords to letters, numbers, `_` and `-` (or URL-encode special characters inside `DATABASE_URL` and `<NAME>_DATABASE_URL`).
 
 2. Save the Firebase Admin key as `secrets/firebase-admin.json` (see [secrets/README.md](./secrets/README.md)). Compose mounts it only into the User Service. Never commit it.
 
@@ -24,10 +24,12 @@
    backend/scripts/cleanup/load-db.sh
    ```
 
-   The User Service script connects from your machine, so it needs `psql` 15 or newer and reads `DATABASE_URL` and `USER_DB_PASSWORD` from the shell. This loads them from `.env` for this one command:
+   The User Service script connects from your machine, so it needs `psql` 15 or newer and reads `DATABASE_URL` and `USER_DB_PASSWORD` from the shell. Pass only those two values from `.env`:
 
    ```bash
-   (set -a; . ./.env; set +a; bash backend/scripts/user/load-db.sh)
+   DATABASE_URL='postgres://ecocollect:<POSTGRES_PASSWORD>@localhost:5432/ecocollect' \
+   USER_DB_PASSWORD='<USER_DB_PASSWORD>' \
+   bash backend/scripts/user/load-db.sh
    ```
 
    See [backend/scripts/user/README.md](./backend/scripts/user/README.md) for what it does.

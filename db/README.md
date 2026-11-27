@@ -24,7 +24,7 @@ The rest isn't run automatically. Each service's `load-db.sh` in `backend/script
 |---|---|
 | Request | `010`, `011`, then everything in `db/request/` (operational tables, functions, role) |
 | Reward | `010` to `012`, then everything in `db/reward/` (outbox, processed events, role) |
-| Notification | `040`, then everything in `db/notification/` (procedures, role) |
+| Notification | `012`, `040`, then everything in `db/notification/` (procedures, role) |
 | Cleanup | `020` |
 | User | `005`, `030`, `031`. It needs `psql` 15 or newer on your machine |
 
