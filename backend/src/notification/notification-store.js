@@ -1,25 +1,68 @@
 'use strict';
 
 /*
- * Stored notifications (notifications.notification + request_notification), per the physical model.
+ * Stored notifications (notifications.notification + request_notification or award_notification),
+ * per the physical model.
  */
 
+/*
+ * An award notification's recipient isn't stored: it is found through the award (physical model).
+ *   volunteer award: award -> assignment -> the volunteer's terms acceptance -> account
+ *   resident award:  award -> assignment -> window -> request -> the request's terms acceptance -> account
+ * The joins, and the check that the award is for account $1 (same as in db/notification/010).
+ */
+const AWARD_RECIPIENT_JOINS = `
+  FROM notifications.award_notification an
+  JOIN notifications.notification n ON n.notification_id = an.notification_id
+  JOIN rewards.ecopoints_award ea ON ea.ecopoints_award_id = an.ecopoints_award_id
+  JOIN requests.assignment a ON a.assignment_id = ea.assignment_id
+  JOIN requests.pickup_window w ON w.pickup_window_id = a.pickup_window_id
+  JOIN requests.pickup_request r ON r.pickup_request_id = w.pickup_request_id
+  JOIN users.terms_acceptance vta ON vta.terms_acceptance_id = a.terms_acceptance_id
+  JOIN users.terms_acceptance rta ON rta.terms_acceptance_id = r.terms_acceptance_id
+  LEFT JOIN rewards.volunteer_award va ON va.ecopoints_award_id = an.ecopoints_award_id
+  LEFT JOIN rewards.resident_award ra ON ra.ecopoints_award_id = an.ecopoints_award_id`;
+const AWARD_IS_FOR_ACCOUNT = `
+  ((va.ecopoints_award_id IS NOT NULL AND vta.account_id = $1)
+    OR (ra.ecopoints_award_id IS NOT NULL AND rta.account_id = $1))`;
+
 function createNotificationStore(pool) {
+  // Claim the event and commit its database effects together. A failed handler
+  // rolls back the claim, so the broker can retry it.
+  async function processEvent(eventId, work = async () => true) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const claim = await client.query(
+        'INSERT INTO notifications.processed_events (event_id) VALUES ($1) ON CONFLICT DO NOTHING',
+        [eventId],
+      );
+      const result = claim.rowCount === 0 ? null : await work(client);
+      await client.query('COMMIT');
+      return result;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
   /*
    * Saves one request event's notifications and applies the expiry rules, in one transaction.
    *   rows:  [{ notificationId, type, createdAt, accountId }]
-   *   event: { pickupRequestId, requestSeq, transitionId, leavesOpen }
-   * Returns { saved, expired, stale }:
+   *   event: { pickupRequestId, requestSeq, transitionId, expiresMatching, update }
+   *          update: { reason, changed } for an E2, null for every other event
+   * Returns null for a repeat, or { saved, expired, stale }:
    *   saved:   ids that were new (a redelivered event saves nothing again)
    *   expired: [{ notificationId, accountId, replace }] that this event made stale;
    *            replace: it was pushed and is unread, so it may still be on the phone
    *   stale:   true if a later step of this request was already seen, saved already expired
    */
-  async function saveRequestNotifications(rows, { pickupRequestId, requestSeq, transitionId, leavesOpen }) {
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
-
+  function saveRequestNotifications(eventId, rows, {
+    pickupRequestId, requestSeq, transitionId, expiresMatching, update = null,
+  }) {
+    return processEvent(eventId, async (client) => {
       // An event older than one already seen for this request is late.
       const latest = await client.query(
         'SELECT max(request_seq) AS seq FROM notifications.request_event WHERE pickup_request_id = $1',
@@ -34,6 +77,22 @@ function createNotificationStore(pool) {
          ON CONFLICT (pickup_request_id, request_seq) DO NOTHING`,
         [pickupRequestId, requestSeq, transitionId],
       );
+
+      // An update event: save its reason, then one row per field an edit changed.
+      if (update) {
+        await client.query(
+          `INSERT INTO notifications.request_update_event (pickup_request_id, request_seq, reason)
+           VALUES ($1, $2, $3)
+           ON CONFLICT (pickup_request_id, request_seq) DO NOTHING`,
+          [pickupRequestId, requestSeq, update.reason],
+        );
+        await client.query(
+          `INSERT INTO notifications.request_changed_field (pickup_request_id, request_seq, field_name)
+           SELECT $1, $2, unnest($3::text[])
+           ON CONFLICT (pickup_request_id, request_seq, field_name) DO NOTHING`,
+          [pickupRequestId, requestSeq, update.changed],
+        );
+      }
 
       // Deactivated accounts get nothing (and an id with no account is skipped, not retried forever).
       const active = await client.query(
@@ -63,14 +122,19 @@ function createNotificationStore(pool) {
       }
 
       let expired = [];
-      if (!stale && saved.size > 0) {
+      if (!stale || expiresMatching) {
         /*
          * Each recipient's older notifications about this request from other user actions
          * (one action can send several events, and those notifications stay together).
-         * When the request leaves Open, every volunteer's NEW_MATCHING_REQUEST about it.
+         * When the request leaves Open, every volunteer's NEW_MATCHING_REQUEST about it
+         * expires even if this event arrived late (for example, RequestAssigned after
+         * RequestAssignmentCollected), while stale events never expire their own recipients'
+         * notifications from newer sequences.
          * Only lower request_seq, so a late event can never expire a newer one.
          */
-        const recipients = [...new Set(rows.map((r) => r.accountId))];
+        const recipients = stale
+          ? []
+          : [...new Set(rows.filter((r) => saved.has(r.notificationId)).map((r) => r.accountId))];
         const result = await client.query(
           `UPDATE notifications.notification n SET is_expired = true
            FROM notifications.request_notification rn
@@ -83,19 +147,60 @@ function createNotificationStore(pool) {
              AND ((rn.account_id = ANY($3) AND ev.transition_id <> $5) OR ($4 AND n.type = 'NEW_MATCHING_REQUEST'))
            RETURNING n.notification_id, rn.account_id,
              (n.pushed_at IS NOT NULL AND NOT n.is_read AND a.deactivated_at IS NULL) AS replace`,
-          [pickupRequestId, requestSeq, recipients, leavesOpen, transitionId],
+          [pickupRequestId, requestSeq, recipients, expiresMatching, transitionId],
         );
         expired = result.rows.map((r) => ({ notificationId: r.notification_id, accountId: r.account_id, replace: r.replace }));
       }
 
-      await client.query('COMMIT');
       return { saved, expired, stale };
-    } catch (err) {
-      await client.query('ROLLBACK');
-      throw err;
-    } finally {
-      client.release();
-    }
+    });
+  }
+
+  /*
+   * Saves one award event's notifications, in one transaction: a notification row and its
+   * award_notification row each. Award notifications never expire (13.2), so no expiry here.
+   *   rows: [{ notificationId, type, createdAt, accountId, awardId }]
+   * Skips a deactivated account, and an award the Reward Service didn't save (the event lists
+   * every award, also one the assignment already had, 15.4). Returns the new ids or null for a repeat.
+   */
+  function saveAwardNotifications(eventId, rows) {
+    return processEvent(eventId, async (client) => {
+
+      // Deactivated accounts get nothing.
+      const active = await client.query(
+        'SELECT account_id FROM users.account WHERE account_id = ANY($1) AND deactivated_at IS NULL',
+        [rows.map((r) => r.accountId)],
+      );
+      const activeIds = new Set(active.rows.map((r) => r.account_id));
+
+      // Only awards the Reward Service actually saved.
+      const awards = await client.query(
+        'SELECT ecopoints_award_id FROM rewards.ecopoints_award WHERE ecopoints_award_id = ANY($1::uuid[])',
+        [rows.map((r) => r.awardId)],
+      );
+      const savedAwards = new Set(awards.rows.map((r) => r.ecopoints_award_id));
+
+      const saved = new Set();
+      for (const row of rows) {
+        if (!activeIds.has(row.accountId) || !savedAwards.has(row.awardId)) continue;
+        const { rowCount } = await client.query(
+          `INSERT INTO notifications.notification
+             (notification_id, type, created_at, pushed_at, is_read, is_expired)
+           VALUES ($1, $2, $3, NULL, false, false)
+           ON CONFLICT (notification_id) DO NOTHING`,
+          [row.notificationId, row.type, row.createdAt],
+        );
+        if (rowCount === 0) continue;
+        await client.query(
+          `INSERT INTO notifications.award_notification (notification_id, ecopoints_award_id)
+           VALUES ($1, $2)`,
+          [row.notificationId, row.awardId],
+        );
+        saved.add(row.notificationId);
+      }
+
+      return saved;
+    });
   }
 
   // A push reached at least one of the recipient's browsers.
@@ -108,18 +213,40 @@ function createNotificationStore(pool) {
   }
 
   /*
-   * One page of the account's unexpired notifications, newest first, and its unread count.
-   * `before` (the last createdAt shown) gives the next page. It includes that time, because two
-   * notifications can share one (self-accept); the client drops the repeat by notificationId.
+   * One page of the account's unexpired notifications (request and award), newest first, and its
+   * unread count. `before` (the last createdAt shown) gives the next page. It includes that time,
+   * because two notifications can share one (self-accept); the client drops the repeat by notificationId.
    */
   async function listForAccount(uid, { before = null, limit = 30 } = {}) {
-    const { rows } = await pool.query(
+    // The account's request notifications: the recipient is stored.
+    const requestRows = await pool.query(
       `SELECT n.notification_id, n.type, n.created_at, n.is_read, rn.pickup_request_id,
-              r.quantity, c.name AS category_name, r.pickup_postal_code AS postal_code
+              r.quantity, c.name AS category_name, r.pickup_postal_code AS postal_code,
+              ue.reason AS update_reason, NULL AS ecopoints_award_id, NULL AS points,
+              ended.pickup_date, ended.start_hour
        FROM notifications.request_notification rn
        JOIN notifications.notification n ON n.notification_id = rn.notification_id
        JOIN requests.pickup_request r ON r.pickup_request_id = rn.pickup_request_id
        JOIN requests.item_category c ON c.category_id = r.category_id
+       -- the reason of an update event, for REQUEST_UPDATED_RESIDENT's title; null for other events
+       LEFT JOIN notifications.request_update_event ue
+         ON ue.pickup_request_id = rn.pickup_request_id AND ue.request_seq = rn.request_seq
+       LEFT JOIN LATERAL (
+         SELECT to_char(w.pickup_date, 'YYYY-MM-DD') AS pickup_date, w.start_hour
+         FROM requests.pickup_window w
+         JOIN requests.assignment a ON a.pickup_window_id = w.pickup_window_id
+         JOIN users.terms_acceptance ta ON ta.terms_acceptance_id = a.terms_acceptance_id
+         WHERE w.pickup_request_id = rn.pickup_request_id
+           AND ta.account_id = rn.account_id
+           AND a.ended_at <= n.created_at + interval '1 millisecond'
+           AND a.end_reason = CASE n.type
+             WHEN 'ASSIGNMENT_CANCELLED_BY_RESIDENT_VOLUNTEER' THEN 'Resident_Cancelled'
+             WHEN 'ASSIGNMENT_CANCELLED_BY_VOLUNTEER_VOLUNTEER' THEN 'Volunteer_Cancelled'
+             WHEN 'ASSIGNMENT_MISSED_VOLUNTEER' THEN 'Missed_Pickup'
+           END
+         ORDER BY a.ended_at DESC, a.assignment_id
+         LIMIT 1
+       ) ended ON true
        WHERE rn.account_id = $1
          AND NOT n.is_expired
          AND ($2::timestamptz IS NULL OR n.created_at <= $2)
@@ -127,15 +254,40 @@ function createNotificationStore(pool) {
        LIMIT $3`,
       [uid, before, limit],
     );
-    // Award notifications join here too once they're saved (UNION ALL, same columns).
-    const unread = await pool.query(
+    // The account's award notifications: the recipient is found through the award.
+    const awardRows = await pool.query(
+      `SELECT n.notification_id, n.type, n.created_at, n.is_read, r.pickup_request_id,
+              r.quantity, c.name AS category_name, r.pickup_postal_code AS postal_code,
+              NULL AS update_reason, an.ecopoints_award_id, ea.points,
+              to_char(w.pickup_date, 'YYYY-MM-DD') AS pickup_date, w.start_hour
+       ${AWARD_RECIPIENT_JOINS}
+       JOIN requests.item_category c ON c.category_id = r.category_id
+       WHERE ${AWARD_IS_FOR_ACCOUNT}
+         AND ($2::timestamptz IS NULL OR n.created_at <= $2)
+       ORDER BY n.created_at DESC, n.notification_id
+       LIMIT $3`,
+      [uid, before, limit],
+    );
+    // Merge both, newest first (ties by id, as in the queries), and keep one page.
+    const rows = [...requestRows.rows, ...awardRows.rows]
+      .sort((a, b) => b.created_at - a.created_at || (a.notification_id < b.notification_id ? -1 : 1))
+      .slice(0, limit);
+
+    // Unread: the request ones plus the award ones (award notifications never expire).
+    const unreadRequests = await pool.query(
       `SELECT count(*)::int AS n
        FROM notifications.request_notification rn
        JOIN notifications.notification n ON n.notification_id = rn.notification_id
        WHERE rn.account_id = $1 AND NOT n.is_expired AND NOT n.is_read`,
       [uid],
     );
-    return { rows, unreadCount: unread.rows[0].n };
+    const unreadAwards = await pool.query(
+      `SELECT count(*)::int AS n
+       ${AWARD_RECIPIENT_JOINS}
+       WHERE ${AWARD_IS_FOR_ACCOUNT} AND NOT n.is_read`,
+      [uid],
+    );
+    return { rows, unreadCount: unreadRequests.rows[0].n + unreadAwards.rows[0].n };
   }
 
   // Marks one of the account's notifications read; false if it isn't theirs or doesn't exist.
@@ -150,7 +302,26 @@ function createNotificationStore(pool) {
     await pool.query('CALL notifications.mark_all_read($1)', [uid]);
   }
 
-  return { saveRequestNotifications, markPushed, listForAccount, markRead, markAllRead };
+  // Deletes every expired notification (E14); returns how many.
+  function deleteExpired(eventId) {
+    return processEvent(eventId, async (client) => {
+      const { rows } = await client.query('CALL notifications.delete_expired_notifications(NULL)');
+      return rows[0].p_deleted;
+    });
+  }
+
+  // Deletes a deactivated account's notifications and push subscriptions (E16).
+  function deleteAccountData(eventId, uid) {
+    return processEvent(eventId, async (client) => {
+      const { rows } = await client.query('CALL notifications.delete_account_data($1, NULL, NULL)', [uid]);
+      return { notifications: rows[0].p_deleted_notifications, subscriptions: rows[0].p_deleted_subscriptions };
+    });
+  }
+
+  return {
+    processEvent, saveRequestNotifications, saveAwardNotifications, markPushed, listForAccount, markRead, markAllRead,
+    deleteExpired, deleteAccountData,
+  };
 }
 
 module.exports = { createNotificationStore };
