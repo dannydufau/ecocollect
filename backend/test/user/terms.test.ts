@@ -120,7 +120,7 @@ test('seeded version 3 terms are current while historical acceptances still reso
     assert.match(current.content, /1\. TERMS OF USE/);
     assert.match(current.content, /2\. SAFETY GUIDELINES/);
     assert.match(current.content, /3\. PRIVACY NOTICE/);
-    assert.match(current.content, /4\. DEMO MODE/);
+    assert.doesNotMatch(current.content, /DEMO MODE/i);
     assert.match(current.content, /24-hour cutoff/);
     assert.equal(/\[[A-Z0-9 _/-]+\]/.test(current.content), false, 'terms text must not contain unresolved placeholders');
 

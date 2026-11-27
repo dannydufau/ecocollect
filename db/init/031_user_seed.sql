@@ -63,13 +63,5 @@ How addresses and photos are protected
 
 Storage and account deactivation
 - Accounts authenticate through Firebase Authentication, operational records are stored in PostgreSQL, and uploaded photos are stored in ImageKit.
-- You can deactivate your account in Profile settings when you have no Open, Assigned, or Collected requests and no active or collected volunteer assignments. Historical completed records and terms acceptances are retained for system integrity.
-
-
-4. DEMO MODE
-
-When using EcoCollect in Demo Mode:
-- Use fictional addresses and sample photos only, and do not upload personal information.
-- Do not attempt real-world handoffs or recycling depot drop-offs from Demo Mode.
-- Demo Mode uses shared sample data and sample recycling facilities that may be reset.$terms$, '2026-11-27T00:00:00Z')
+- You can deactivate your account in Profile settings when you have no Open, Assigned, or Collected requests and no active or collected volunteer assignments. Historical completed records and terms acceptances are retained for system integrity.$terms$, '2026-11-27T00:00:00Z')
 ON CONFLICT (terms_document_id) DO NOTHING;
