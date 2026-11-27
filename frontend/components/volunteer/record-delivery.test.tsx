@@ -90,6 +90,33 @@ it("says which field Q15 refused, since the dialog has no input to show it next 
     expect(dialog).toHaveAttribute("open");
 });
 
+it("refreshes facilities and retains the uploaded photo when a chosen facility becomes unavailable", async () => {
+    vi.mocked(api.post)
+        .mockRejectedValueOnce(new ApiError(400, {
+            error: {
+                code: "validation_failed",
+                message: "Some fields are invalid.",
+                details: { fields: { facilityId: "does not accept this category" } },
+            },
+        }))
+        .mockResolvedValueOnce(request);
+    const dialog = openDialog();
+    fill(dialog);
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("This facility doesn't accept this category. Please choose another facility.");
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["facilities", "laptops"] });
+    // Stale facility was cleared, so confirm is disabled until a new facility is picked
+    expect(confirmButton(dialog)).toBeDisabled();
+    expect(confirmButton(dialog)).toHaveAccessibleDescription("Choose a facility.");
+
+    // Choosing another facility immediately re-enables confirm without re-uploading the photo
+    fireEvent.click(within(dialog).getByRole("button", { name: "Pick facility for laptops" }));
+    expect(confirmButton(dialog)).toBeEnabled();
+    fireEvent.click(confirmButton(dialog));
+    await waitFor(() => expect(dialog).not.toHaveAttribute("open"));
+    expect(api.post).toHaveBeenLastCalledWith("/api/requests/r1/assignment/delivery", { facilityId: "f1", evidencePhoto: { fileId: "file-9" } });
+});
+
 it.each([
     ["already_delivered", "This delivery has already been recorded."],
     ["not_collected", "Confirm the collection before recording a delivery."],

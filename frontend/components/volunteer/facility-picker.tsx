@@ -8,16 +8,55 @@ import { formatPostalCode } from "@/lib/postal-code";
 import { queryKeys } from "@/lib/query-keys";
 import type { Facility } from "@/lib/types";
 
+export function useFacilities(categoryId: string) {
+    return useQuery({
+        queryKey: queryKeys.facilities(categoryId),
+        queryFn: () => api.get<Facility[]>(`/api/facilities?categoryId=${encodeURIComponent(categoryId)}`),
+    });
+}
+
+function FacilityAddress({ facility }: { facility: Facility }) {
+    return (
+        <span className="flex items-start gap-1">
+            <MapPinIcon className="mt-0.5 size-4 flex-none" />
+            <span>
+                {facility.street}, Calgary <span className={identifier}>{formatPostalCode(facility.postalCode)}</span>
+            </span>
+        </span>
+    );
+}
+
+export function EligibleFacilities({ categoryId }: { categoryId: string }) {
+    const { data, isPending, isError, refetch, isFetching } = useFacilities(categoryId);
+
+    if (isPending) return <Spinner label="Loading facilities..." />;
+    if (isError) return (
+        <QueryError message="We could not load the facilities. Please try again." onRetry={() => void refetch()} busy={isFetching} />
+    );
+    if (data.length === 0) return <p className="text-small text-text-muted">No facility accepts this category right now.</p>;
+
+    return (
+        <ul className="divide-y divide-divider">
+            {data.map((facility) => (
+                <li key={facility.facilityId} className="space-y-1 py-3 first:pt-0 last:pb-0">
+                    <p className="font-semibold break-words">{facility.name}</p>
+                    <p className="text-small text-text-muted"><FacilityAddress facility={facility} /></p>
+                    {facility.specialInstructions && (
+                        <p className="text-small text-text-muted">{facility.specialInstructions}</p>
+                    )}
+                </li>
+            ))}
+        </ul>
+    );
+}
+
 export function FacilityPicker({ categoryId, value, onChange }: {
     categoryId: string;
     value: string | null;
     onChange: (facilityId: string) => void;
 }) {
     const name = useId();
-    const { data, isPending, isError, refetch, isFetching } = useQuery({
-        queryKey: queryKeys.facilities(categoryId),
-        queryFn: () => api.get<Facility[]>(`/api/facilities?categoryId=${encodeURIComponent(categoryId)}`),
-    });
+    const { data, isPending, isError, refetch, isFetching } = useFacilities(categoryId);
 
     if (isPending) return <Spinner label="Loading facilities..." />;
     if (isError) return (
@@ -31,7 +70,7 @@ export function FacilityPicker({ categoryId, value, onChange }: {
             {data.map(facility => (
                 <ChoiceCard key={facility.facilityId} name={name} value={facility.facilityId} tone="volunteer"
                     title={facility.name} checked={value === facility.facilityId} onChange={onChange}
-                    detail={<span className="flex items-start gap-1"><MapPinIcon className="mt-0.5 size-4 flex-none" /><span>{facility.street}, Calgary <span className={identifier}>{formatPostalCode(facility.postalCode)}</span></span></span>}
+                    detail={<FacilityAddress facility={facility} />}
                     note={facility.specialInstructions} />
             ))}
         </fieldset>

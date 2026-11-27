@@ -47,7 +47,19 @@ function show(detail: RequestDetail) {
     return screen.findByRole("heading", { level: 1 });
 }
 
-beforeEach(() => { vi.spyOn(api, "getWithMeta"); });
+beforeEach(() => {
+    vi.spyOn(api, "getWithMeta");
+    vi.spyOn(api, "get").mockResolvedValue([
+        {
+            facilityId: "f1",
+            name: "Sample electronics depot",
+            street: "10 Example Road SE",
+            postalCode: "T2P1J9",
+            specialInstructions: "Use the electronics drop-off area.",
+            acceptedCategoryIds: ["laptops"],
+        },
+    ]);
+});
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 it("shows an Open request without address, notes or resident, and an Accept button", async () => {
@@ -252,4 +264,25 @@ it("announces a status change that arrives from a refresh", async () => {
     expect(within(top).getByRole("status")).toBeEmptyDOMElement();
     act(() => { client.setQueryData(queryKeys.request("r1"), { data: active, serverDate: new Date("2026-11-16T18:05:00Z") }); });
     await waitFor(() => expect(within(top).getByRole("status")).toHaveTextContent("Status updated: Assigned."));
+});
+
+it("shows eligible recycling facilities on Assigned and Collected requests, but not Open or Delivered", async () => {
+    await show(active);
+    const section = await screen.findByRole("region", { name: "Eligible recycling facilities" });
+    expect(await within(section).findByText("Sample electronics depot")).toBeInTheDocument();
+    expect(within(section).getByText(/10 Example Road SE/)).toBeInTheDocument();
+    expect(within(section).getByText("Use the electronics drop-off area.")).toBeInTheDocument();
+    expect(api.get).toHaveBeenCalledWith("/api/facilities?categoryId=laptops");
+
+    cleanup();
+    await show(collected);
+    expect(await screen.findByRole("region", { name: "Eligible recycling facilities" })).toBeInTheDocument();
+
+    cleanup();
+    await show(open);
+    expect(screen.queryByRole("region", { name: "Eligible recycling facilities" })).not.toBeInTheDocument();
+
+    cleanup();
+    await show(delivered);
+    expect(screen.queryByRole("region", { name: "Eligible recycling facilities" })).not.toBeInTheDocument();
 });

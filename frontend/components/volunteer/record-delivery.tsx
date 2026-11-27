@@ -1,15 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import PhotoPicker from "@/components/photo-picker";
 import { Button, ConfirmDialog } from "@/components/ui";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import type { RecordDelivery as DeliveryBody, RequestDetail } from "@/lib/types";
 import { useRequestAction } from "@/lib/use-request";
 import { FacilityPicker } from "./facility-picker";
 
+function hasFacilityFieldError(err: unknown): boolean {
+    return err instanceof ApiError && err.status === 400 && "facilityId" in err.fields;
+}
+
 export default function RecordDelivery({ request, onDone }: { request: RequestDetail; onDone: (message: string) => void }) {
+    const queryClient = useQueryClient();
     const [open, setOpen] = useState(false);
     const [facilityId, setFacilityId] = useState<string | null>(null);
     const [fileId, setFileId] = useState<string | null>(null);
@@ -32,7 +38,15 @@ export default function RecordDelivery({ request, onDone }: { request: RequestDe
                 setOpen(false);
                 onDone("Delivery recorded. EcoPoints are on their way.");
             },
-            onError: () => setFailed(true),
+            onError: (err) => {
+                setFailed(true);
+                // If a facility became unavailable while the dialog was open, refresh eligible
+                // locations and clear the stale selection while keeping the uploaded photo intact.
+                if (hasFacilityFieldError(err)) {
+                    setFacilityId(null);
+                    void queryClient.invalidateQueries({ queryKey: queryKeys.facilities(request.category.categoryId) });
+                }
+            },
         });
     }
 

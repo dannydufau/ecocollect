@@ -11,6 +11,7 @@ import type { PickupWindow, RequestDetail } from "@/lib/types";
 import { useRequestDetail } from "@/lib/use-request";
 import AcceptRequest from "./accept-request";
 import CancelAssignment from "./cancel-assignment";
+import { EligibleFacilities } from "./facility-picker";
 import RecordDelivery from "./record-delivery";
 
 const cardStyle = `${card} min-w-0 space-y-3`;
@@ -129,6 +130,16 @@ export default function VolunteerRequestDetail({ requestId }: { requestId: strin
                     </div>}
                     {request.notes && <p className="whitespace-pre-wrap break-words"><span className="text-text-muted">Notes:</span> {request.notes}</p>}
                 </section>}
+
+                {(request.status === "Assigned" || request.status === "Collected") && assignment && (
+                    <section aria-labelledby="facilities-heading" className={cardStyle}>
+                        <h2 id="facilities-heading" className={cardTitle}>Eligible recycling facilities</h2>
+                        <p className="text-small text-text-muted">
+                            Drop off {request.category.name} at any eligible location below, then record your delivery with a photo.
+                        </p>
+                        <EligibleFacilities categoryId={request.category.categoryId} />
+                    </section>
+                )}
 
                 {request.delivery && <section aria-labelledby="delivery-heading" className={cardStyle}>
                     <h2 id="delivery-heading" className={cardTitle}>Delivery</h2>

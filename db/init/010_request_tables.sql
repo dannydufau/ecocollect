@@ -108,6 +108,7 @@ CREATE TABLE IF NOT EXISTS recycling_facility (
     street VARCHAR(255) NOT NULL,
     postal_code CHAR(6) NOT NULL,
     special_instructions TEXT NULL,
+    is_enabled BOOLEAN NOT NULL DEFAULT TRUE,
     CONSTRAINT recycling_facility_pk PRIMARY KEY (facility_id),
     CONSTRAINT recycling_facility_ck1 CHECK (TRIM(name) <> ''),
     CONSTRAINT recycling_facility_ck2 CHECK (TRIM(street) <> ''),
@@ -117,6 +118,7 @@ CREATE TABLE IF NOT EXISTS recycling_facility (
 CREATE TABLE IF NOT EXISTS facility_accepts (
     facility_id UUID NOT NULL,
     category_id TEXT NOT NULL,
+    is_enabled BOOLEAN NOT NULL DEFAULT TRUE,
     CONSTRAINT facility_accepts_pk PRIMARY KEY (facility_id, category_id),
     CONSTRAINT facility_accepts_fk1 FOREIGN KEY (category_id)
         REFERENCES item_category (category_id),
