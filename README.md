@@ -8,18 +8,29 @@
    cp .env.example .env
    ```
 
-   Set `POSTGRES_PASSWORD` and `RABBITMQ_PASSWORD` (letters, numbers, `_` and `-` only, they end up inside URLs), the Firebase web config (`NEXT_PUBLIC_FIREBASE_*`, from the Firebase console under Project settings) and the ImageKit keys (`IMAGEKIT_*`, from the ImageKit dashboard under Developer options > API keys).
+   Set `POSTGRES_PASSWORD` (use the same one in `DATABASE_URL`) and `RABBITMQ_PASSWORD` (letters, numbers, `_` and `-` only, they end up inside URLs), the Firebase web config (`NEXT_PUBLIC_FIREBASE_*`, from the Firebase console under Project settings), the ImageKit keys (`IMAGEKIT_*`, from the ImageKit dashboard under Developer options > API keys) and the push keys (`VAPID_*`, from `npx web-push generate-vapid-keys`; put the public key in `NEXT_PUBLIC_VAPID_KEY` too). Compose refuses to run any command while a required value is missing.
+
+   Each service has its own database login. For `USER`, `REQUEST`, `REWARD`, `CLEANUP` and `NOTIFICATION`, set `<NAME>_DB_PASSWORD` and use the same password in `<NAME>_DATABASE_URL`.
 
 2. Save the Firebase Admin key as `secrets/firebase-admin.json` (see [secrets/README.md](./secrets/README.md)). Compose mounts it only into the User Service. Never commit it.
 
-3. Set up the services' database objects (Postgres must be up: `docker compose up -d postgres`; it creates the tables from `db/init` on a new volume). Set `REQUEST_DB_PASSWORD` in `.env` and use the same password in `REQUEST_DATABASE_URL`, then load the Request Service's functions and login (rerun it after pulling new `db/request` files):
+3. Set up the database. On a new volume, Postgres creates the tables from `db/init`. These scripts then add each service's database objects and turn on its login (rerun them after pulling changes in `db/`):
 
    ```bash
+   docker compose up -d --wait postgres
    backend/scripts/request/load-db.sh
+   backend/scripts/reward/load-db.sh
+   backend/scripts/notification/load-db.sh
+   backend/scripts/cleanup/load-db.sh
    ```
 
-   and set up the User Service login as in [backend/scripts/user/README.md](./backend/scripts/user/README.md), then put the same password in `USER_DATABASE_URL` in `.env`.
-   Then set `NOTIFICATION_DB_PASSWORD` and `NOTIFICATION_DATABASE_URL` the same way and load the Notification Service's tables, functions and login: `backend/scripts/notification/load-db.sh`. Compose also needs the `VAPID_*` push keys in `.env` (see `.env.example`) before any command works.
+   The User Service script connects from your machine, so it needs `psql` 15 or newer and reads `DATABASE_URL` and `USER_DB_PASSWORD` from the shell. This loads them from `.env` for this one command:
+
+   ```bash
+   (set -a; . ./.env; set +a; bash backend/scripts/user/load-db.sh)
+   ```
+
+   See [backend/scripts/user/README.md](./backend/scripts/user/README.md) for what it does.
 
 4. Start it:
 
@@ -34,14 +45,16 @@
 | `caddy` | The gateway, the only way in. Checks the login, routes `/api/*`, serves the frontend. | <https://localhost> |
 | `frontend` | The Next.js app | through Caddy |
 | `user` | Accounts, profiles, terms, and the login check Caddy calls (`/verify`). The only service with the Firebase key. Same image as the backend, started with `src/user/index.ts`. | through Caddy |
-| `request` | Pickup requests from creation to delivery, their photos (ImageKit) and their events. Same image as the backend, started with `src/request/index.ts`. Its own database for now, see [backend/README.md](./backend/README.md#request-service-srcrequest). | through Caddy |
-| `notification` | Live updates: turns RabbitMQ events into signals on `/api/events`. Same image as the backend, started with `src/notification/index.js`. | through Caddy |
-| `postgres` | The database. Tables in `db/init` are created on the first start only, see [db/README.md](./db/README.md). | `localhost:5432` |
+| `request` | Pickup requests from creation to delivery, their photos (ImageKit) and their events. Same image as the backend, started with `src/request/index.ts`. See [backend/README.md](./backend/README.md#request-service-srcrequest). | through Caddy |
+| `notification` | Turns RabbitMQ events into stored notifications, live updates on `/api/events` and Web Push. Same image as the backend, started with `src/notification/index.js`. | through Caddy |
+| `reward` | EcoPoints and public statistics. Same image as the backend, started with `src/reward/index.js`. | through Caddy |
+| `cleanup` | Schedules request expiry and the daily notification cleanup. Same image as the backend, started with `src/cleanup/index.js`. | no HTTP |
+| `postgres` | The one database every service uses, each with its own login. Tables in `db/init` are created on the first start only, see [db/README.md](./db/README.md). | `localhost:5432` |
 | `rabbitmq` | The message broker | management UI <http://localhost:15672> |
 
 If your copy of the repo is in iCloud Drive (the Desktop or Documents folder with "Optimize Mac Storage" on), macOS can swap files for cloud placeholders, and the containers then fail to read them with `resource deadlock avoided`. The User Service can't read the Firebase key and Caddy can't read the Caddyfile. Keep the repo outside those folders, or open the files on your Mac first so they download: `cat secrets/firebase-admin.json infra/caddy/Caddyfile db/init/*.sql > /dev/null`.
 
-The seed script that creates the demo users isn't in Compose yet, it's still run by hand, see [scripts/seed/README.md](./scripts/seed/README.md).
+Create accounts on the app's sign-up page. The older seed script in [scripts/seed](./scripts/seed/README.md) still fills the October 28 tables, which the services no longer read, so the accounts it creates have no profile.
 
 ## Run one part on your machine
 
