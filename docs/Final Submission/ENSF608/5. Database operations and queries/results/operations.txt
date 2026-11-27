@@ -465,8 +465,8 @@ ORDER BY n.created_at DESC
 LIMIT 2;
            type           |          created_at           | is_read | request
 --------------------------+-------------------------------+---------+---------
- REQUEST_UPDATED_RESIDENT | 2026-11-27 04:00:25.356211+00 | t       | 0001
- REQUEST_EXPIRED_RESIDENT | 2026-11-26 16:00:25.356211+00 | f       | 0006
+ REQUEST_UPDATED_RESIDENT | 2026-11-27 04:47:41.199628+00 | t       | 0001
+ REQUEST_EXPIRED_RESIDENT | 2026-11-26 16:47:41.199628+00 | f       | 0006
 (2 rows)
 
 

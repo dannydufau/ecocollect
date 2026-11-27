@@ -18,12 +18,12 @@ Use a fresh database on a separate PostgreSQL server instance. Set `PGHOST`, `PG
 From the repository root in Bash:
 
 ```bash
-createdb ecocollect_608_test
-for file in db/init/*.sql db/request/*.sql backend/test/request/seed.sql backend/test/ensf608/scenario.sql; do
+createdb ecocollect_608_test || exit 1
+for file in db/init/{005,010,011,012,031,040}_*.sql db/request/*.sql backend/test/request/seed.sql backend/test/ensf608/scenario.sql; do
   psql -X -v ON_ERROR_STOP=1 -d ecocollect_608_test -f "$file" || exit 1
 done
 ```
 
-The numbered init scripts load in order. [011_request_seed.sql](../../../../db/init/011_request_seed.sql) adds item categories, recycling facilities, and their eligibility links. [031_user_seed.sql](../../../../db/init/031_user_seed.sql) adds the current terms document. The [Request seed](../../../../backend/test/request/seed.sql) adds sample accounts, requests, windows, assignments, and deliveries. It adjusts the sample terms dates to match the request timeline. The [ENSF 608 scenario](../../../../backend/test/ensf608/scenario.sql) adds awards, subscriptions, consumed events, and notifications for those fixtures.
+This loads the numbered scripts needed for the course database in order. The October 28 schema in `001_schema.sql` is skipped. [011_request_seed.sql](../../../../db/init/011_request_seed.sql) adds item categories, recycling facilities, and their eligibility links. [031_user_seed.sql](../../../../db/init/031_user_seed.sql) adds the current terms document. The [Request seed](../../../../backend/test/request/seed.sql) adds sample accounts, requests, windows, assignments, and deliveries. It adjusts the sample terms dates to match the request timeline. The [ENSF 608 scenario](../../../../backend/test/ensf608/scenario.sql) adds awards, subscriptions, consumed events, and notifications for those fixtures.
 
 Use the same database for [Section 5 queries](<../5. Database operations and queries/README.md>) and [Section 6 tests](../../../../backend/test/ensf608/README.md). Run both soon after seeding because the sample dates are relative to load time.
