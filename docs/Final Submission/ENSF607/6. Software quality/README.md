@@ -53,7 +53,6 @@ Run on 2026-11-27 at commit `f83c78d` (`474-test-results` merged with `main` at 
 
 The two backend rows overlap: the second repeats the first with the database cases switched on. The backend type check (`npm run typecheck`) and frontend lint and type checks (`npm run lint`, `npx next typegen`, `npx tsc --noEmit`) also passed (frontend checks are at the end of `frontend.txt`).
 
-- **Integration:** not rerun in this refresh because Docker and RabbitMQ were not running on this machine. The row above keeps the `56785bf` result; no service or integration code changed in `#502` or `#503`.
 - **The four frontend failures:** all four are Windows environment differences in `frontend` rather than requirement case failures (`app/style-guard.test.ts` expects forward-slash paths while `path.relative` returns backslashes on Windows, and three November 2026 time tests in `lib/time.test.ts`, `components/resident/status-history.test.tsx`, and `components/resident/windows-picker.test.tsx` are off by one hour under this Windows Node build's `America/Edmonton` time zone data). All 1226 frontend tests passed on macOS at `56785bf`, and no frontend files changed after that run.
 - **Not run:** the browser tests (`npm run e2e`).
 - **Environment:** packages were installed cleanly with `npm ci` in `contracts/`, `backend/`, and `frontend/` on Windows with Node `v24.22.1` and scratch PostgreSQL `18.6`.

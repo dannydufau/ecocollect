@@ -1,17 +1,18 @@
-Command: cd backend && node --test --test-concurrency=1 test/integration/*.test.js
-Commit: 56785bf (main fac33fe plus backend/test/request/resident-cases.test.ts)
-Date: 2026-11-27 11:12 CST
-Environment: macOS, Node v24.9.0. Scratch PostgreSQL 16.16 and RabbitMQ 4. This is the test command backend/scripts/test-integration.sh runs; the script itself was not used, because it manages the local Compose stack.
+﻿Command: cd backend && node --test --test-concurrency=1 test/integration/*.test.js
+Commit: f83c78d (474-test-results merged with main 6675302)
+Date: 2026-11-27 13:16 CST
+Environment: Windows, Node v24.22.1. Docker PostgreSQL 16.15 and RabbitMQ 4.4.0.
 
-✔ request events set and end a job, and a due job reaches the exchange (303.695333ms)
-✔ a RequestCreated reaches the resident and matched volunteers as signals, notifications and pushes (4424.045084ms)
-✔ the next page includes a notification saved at the same time as the last one shown (25.246125ms)
-✔ a later step expires older notifications from other actions, not from the same one (21.69325ms)
-✔ receives a RequestCreated published to the exchange (66.25925ms)
-✔ events published while the subscriber is stopped arrive after it restarts (106.549ms)
-✔ a message whose handler keeps failing is retried, then dead-lettered on the 5th failure (108.068958ms)
-✔ an unparseable message goes straight to the DLQ, without retries (108.875625ms)
-✔ User relay delivers a confirmed event to RabbitMQ and marks the row published (48.557583ms)
+
+✔ request events set and end a job, and a due job reaches the exchange (519.0785ms)
+✔ a RequestCreated reaches the resident and matched volunteers as signals, notifications and pushes (849.3596ms)
+✔ the next page includes a notification saved at the same time as the last one shown (64.9649ms)
+✔ a later step expires older notifications from other actions, not from the same one (76.3337ms)
+✔ receives a RequestCreated published to the exchange (148.916ms)
+✔ events published while the subscriber is stopped arrive after it restarts (177.185ms)
+✔ a message whose handler keeps failing is retried, then dead-lettered on the 5th failure (205.8825ms)
+✔ an unparseable message goes straight to the DLQ, without retries (202.8074ms)
+✔ User relay delivers a confirmed event to RabbitMQ and marks the row published (108.8737ms)
 ℹ tests 9
 ℹ suites 0
 ℹ pass 9
@@ -19,4 +20,4 @@ Environment: macOS, Node v24.9.0. Scratch PostgreSQL 16.16 and RabbitMQ 4. This 
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 5534.449125
+ℹ duration_ms 3213.8659
