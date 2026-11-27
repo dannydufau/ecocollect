@@ -50,7 +50,7 @@ ORDER BY status, resident_id;
 --    Rationale: sign-up creates the account, its resident role (with address) and the
 --               acceptance of the current terms, together or not at all.
 --    Citation:  FR01, FR22 · App: accounts.ts:69 saveRegistration (same tables)
---    Concepts:  transaction, INSERT ... VALUES, INSERT ... SELECT, CALL, 3-table join
+--    Concepts:  transaction, INSERT ... VALUES, INSERT ... SELECT, 3-table join
 BEGIN;
 
 -- a) The person.
@@ -69,10 +69,7 @@ FROM terms_document
 ORDER BY published_at DESC
 LIMIT 1;
 
--- d) Multi-row rules (e.g. each role needs its registration acceptance).
-
-
--- e) Show the new resident.
+-- d) Show the new resident and the recorded terms acceptance.
 SELECT a.account_id, a.public_name, r.postal_code, t.type,
        RIGHT(t.terms_document_id::text, 4) AS terms
 FROM account a
@@ -135,7 +132,7 @@ ROLLBACK;
 --               as history (is_active = FALSE), not deleted.
 --    Citation:  FR10, FR07 · App: 037_request_edit.sql:118 req_edit
 --    Concepts:  transaction, row lock (FOR UPDATE), UPDATE, INSERT ... SELECT,
---               business-rule check (CALL), ROLLBACK keeps the seed unchanged
+--               SELECT with the Request Service validation function, ROLLBACK
 BEGIN;
 
 -- a) Lock the request; a resident editing and a volunteer accepting can
@@ -165,7 +162,7 @@ UPDATE pickup_request
 SET request_seq = request_seq + 1
 WHERE pickup_request_id = '00000003-0000-4000-8000-000000000001';
 
--- e) Multi-row rules (1-3 active windows, distinct, inside the 30-day period).
+-- e) Run the Request Service's rule checks on the edited request.
 SELECT requests.check_request('00000003-0000-4000-8000-000000000001');
 
 -- f) Show the result.
@@ -185,7 +182,7 @@ ROLLBACK;
 --    Rationale: volunteers choose up to 3 postal codes to be notified about; removing
 --               one stops new-request notifications for that area.
 --    Citation:  FR04, FR01 (up to 3 preferred codes)
---    Concepts:  DELETE ... WHERE, AND, row lock (FOR UPDATE), CALL
+--    Concepts:  DELETE ... WHERE, AND, row lock (FOR UPDATE)
 BEGIN;
 
 -- a) Lock the volunteer: preferred-code changes lock the volunteer row
@@ -197,10 +194,7 @@ DELETE FROM volunteer_preferred_postal_code
 WHERE account_id = 'volunteer1'
   AND postal_code = 'T2T4M3';
 
--- c) Multi-row rules.
-
-
--- d) Show the remaining codes.
+-- c) Show the remaining codes.
 SELECT account_id, postal_code
 FROM volunteer_preferred_postal_code
 WHERE account_id = 'volunteer1'
@@ -215,7 +209,7 @@ ROLLBACK;
 --               rows are deleted before the notification itself (foreign-key order).
 --    Citation:  FR19 · Contract: E14 NotificationCleanupRequested (daily at 03:00 Calgary),
 --               13.2 "Expired notifications are deleted on NotificationCleanupRequested"
---    Concepts:  DELETE ... WHERE ... IN (subquery), foreign-key order, transaction, CALL
+--    Concepts:  DELETE ... WHERE ... IN (subquery), foreign-key order, transaction
 BEGIN;
 
 -- a) Before: notifications by state.
@@ -235,7 +229,7 @@ WHERE notification_id IN (SELECT notification_id FROM notification WHERE is_expi
 DELETE FROM notification
 WHERE is_expired;
 
--- e) After.
+-- d) After.
 SELECT is_expired, COUNT(*) AS notifications
 FROM notification
 GROUP BY is_expired
