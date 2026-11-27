@@ -100,22 +100,20 @@ export const trustPrinciples: readonly TrustPrinciple[] = [
     },
 ];
 
-const monitorCategory = acceptedCategories.find((category) => category.id === "monitors");
-if (!monitorCategory) {
-    throw new Error("Expected 'monitors' category in acceptedCategories");
-}
-const exampleQuantity = 1;
-const exampleWeightKg = exampleQuantity * monitorCategory.standardWeightKg;
-const exampleVolunteerPoints = 3 * exampleQuantity + 4 * exampleWeightKg;
+// Heading above the category table, counted from acceptedCategories.
+export const categoriesHeadingText = `${acceptedCategories.length} accepted categories`;
 
-// Worked EcoPoints example (FR18): 1 Monitor derived from the acceptedCategories row.
-// Verified against backend/src/reward/points.js by content.test.ts.
+// EcoPoints formulas, exactly as stored in rewards.ecopoints_award.formula
+// (VOLUNTEER_FORMULA and RESIDENT_FORMULA in backend/src/reward/points.js).
+export const volunteerFormulaText = "3 * quantity + 4 * estimatedWeightKg";
+export const residentFormulaText = "(3 * quantity + 4 * estimatedWeightKg) / 2";
+
+// Worked EcoPoints example for 1 Monitor. Update it when the formulas above
+// or the Monitors weight in db/init/011_request_seed.sql change.
 export const workedExample = {
-    categoryName: monitorCategory.name,
-    itemLabel: "1 × Monitor",
-    quantity: exampleQuantity,
-    standardWeightKg: monitorCategory.standardWeightKg,
-    estimatedWeightKg: exampleWeightKg,
-    volunteerPoints: exampleVolunteerPoints, // 23.00
-    residentPoints: exampleVolunteerPoints / 2, // 11.50
+    title: "1 × Monitor (5.00 kg)",
+    volunteerCalculation: "3 * 1 + 4 * 5.00",
+    volunteerPoints: "23.00 pts",
+    residentCalculation: "23.00 / 2",
+    residentPoints: "11.50 pts",
 } as const;

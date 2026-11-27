@@ -2,7 +2,15 @@ import Image from "next/image";
 import Link from "next/link";
 import { RoleBadge, StatusBadge, card, pageWidth, secondaryLinkButton, textLink } from "@/components/ui";
 import { ClosingActions, FooterAccountLink, HeroActions, ImpactSampleNote } from "@/components/about/about-cta";
-import { acceptedCategories, journeySteps, trustPrinciples, workedExample } from "@/components/about/content";
+import {
+    acceptedCategories,
+    categoriesHeadingText,
+    journeySteps,
+    residentFormulaText,
+    trustPrinciples,
+    volunteerFormulaText,
+    workedExample,
+} from "@/components/about/content";
 import RouteIllustration from "@/components/about/route-illustration";
 
 const sectionHeading = "text-[length:clamp(1.625rem,3vw,2.25rem)] font-bold leading-[1.18] tracking-[-0.01em]";
@@ -149,9 +157,9 @@ export default function AboutPage() {
                     </div>
 
                     <div className="grid gap-8 lg:grid-cols-12 lg:items-start lg:gap-10">
-                        {/* 9-category standard-weight ledger */}
+                        {/* Category standard-weight ledger */}
                         <div className="space-y-4 lg:col-span-6">
-                            <h3 className="text-lg font-semibold">Nine accepted categories</h3>
+                            <h3 className="text-lg font-semibold">{categoriesHeadingText}</h3>
                             <div className="overflow-hidden rounded-2xl border border-border bg-surface-elevated shadow-rest">
                                 <table className="w-full text-left text-small">
                                     <caption className="sr-only">Accepted e-waste categories and standard weights</caption>
@@ -186,33 +194,34 @@ export default function AboutPage() {
                             <div className="space-y-1">
                                 <p className={eyebrow}>Worked example</p>
                                 <h3 className="text-title font-bold">
-                                    {workedExample.itemLabel} ({workedExample.standardWeightKg.toFixed(2)} kg)
+                                    {workedExample.title}
                                 </h3>
                             </div>
 
                             <p className="text-small leading-relaxed text-text-muted">
                                 On successful delivery, Volunteer EcoPoints equal{" "}
-                                <strong className="font-semibold text-text">(3 × quantity) + (4 × estimated weight in kg)</strong>.
-                                Resident EcoPoints equal half of the volunteer’s points, with no rounding.
+                                <strong className="font-semibold text-text">{volunteerFormulaText}</strong> and Resident
+                                EcoPoints equal <strong className="font-semibold text-text">{residentFormulaText}</strong>,
+                                with no rounding.
                             </p>
 
                             <dl className="divide-y divide-divider border-y border-divider">
                                 <div className="flex flex-wrap items-center justify-between gap-2 py-3.5">
                                     <dt className="flex items-center gap-2 text-small">
                                         <RoleBadge role="volunteer" />
-                                        <span className="text-text-muted">(3 × 1) + (4 × 5.00)</span>
+                                        <span className="text-text-muted">{workedExample.volunteerCalculation}</span>
                                     </dt>
                                     <dd className="text-title font-bold tabular-nums text-text">
-                                        {workedExample.volunteerPoints.toFixed(2)} pts
+                                        {workedExample.volunteerPoints}
                                     </dd>
                                 </div>
                                 <div className="flex flex-wrap items-center justify-between gap-2 py-3.5">
                                     <dt className="flex items-center gap-2 text-small">
                                         <RoleBadge role="resident" />
-                                        <span className="text-text-muted">23.00 ÷ 2</span>
+                                        <span className="text-text-muted">{workedExample.residentCalculation}</span>
                                     </dt>
                                     <dd className="text-title font-bold tabular-nums text-text">
-                                        {workedExample.residentPoints.toFixed(2)} pts
+                                        {workedExample.residentPoints}
                                     </dd>
                                 </div>
                             </dl>
