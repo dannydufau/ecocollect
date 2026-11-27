@@ -383,3 +383,48 @@ it("shares an in-flight renewSession POST for the same account", async () => {
     });
     expect(api.post).toHaveBeenCalledTimes(1);
 });
+
+it("clears inFlightSession when a queued POST is skipped after an account switch so signing back in posts a fresh session", async () => {
+    const alice = fakeUser("alice", ["resident"], true);
+    const bob = fakeUser("bob", ["volunteer"], true);
+
+    let resolveAlicePost!: () => void;
+    vi.mocked(api.post).mockImplementationOnce(() => new Promise<undefined>((resolve) => {
+        resolveAlicePost = () => resolve(undefined);
+    })).mockResolvedValue(undefined);
+
+    const view = renderHook(() => useAuth(), { wrapper });
+    // 1. Alice starts a session POST (in flight).
+    fb.auth.currentUser = alice;
+    let aliceFirst!: Promise<void>;
+    act(() => { aliceFirst = listener(alice); });
+    await waitFor(() => expect(resolveAlicePost).toBeDefined());
+
+    // 2. Switch to Bob -> Bob's session POST is queued behind Alice's in-flight POST.
+    fb.auth.currentUser = bob;
+    let bobSkipped!: Promise<void>;
+    act(() => { bobSkipped = listener(bob); });
+
+    // 3. Switch away from Bob before Bob's queued POST runs, so Bob's queued POST returns false early.
+    fb.auth.currentUser = null;
+    let signedOut!: Promise<void>;
+    act(() => { signedOut = listener(null); });
+
+    await act(async () => {
+        resolveAlicePost();
+        await Promise.all([aliceFirst, bobSkipped, signedOut]);
+    });
+
+    // 4. Sign back into Bob: must NOT reuse the settled false promise; a fresh POST /api/session must succeed.
+    vi.mocked(api.post).mockClear();
+    fb.auth.currentUser = bob;
+    await act(async () => { await listener(bob); });
+    expect(api.post).toHaveBeenCalledTimes(1);
+    expect(api.post).toHaveBeenCalledWith("/api/session", { idToken: "token-bob" });
+
+    // Forced renewal for Bob also succeeds with a fresh POST.
+    let renewed = false;
+    await act(async () => { renewed = await view.result.current.renewSession(); });
+    expect(renewed).toBe(true);
+    expect(api.post).toHaveBeenCalledTimes(2);
+});

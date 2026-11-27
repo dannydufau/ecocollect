@@ -106,12 +106,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const run: Promise<boolean> = sessionChain.current
       .catch(() => {})
       .then(async () => {
-        if (auth.currentUser?.uid !== user.uid) return false;
-        // Contract 16.1: register the service worker at login (push permission stays on click, 16.8).
-        if (typeof navigator !== "undefined" && typeof navigator.serviceWorker?.register === "function") {
-          void navigator.serviceWorker.register("/sw.js").catch(() => {});
-        }
         try {
+          if (auth.currentUser?.uid !== user.uid) return false;
+          // Contract 16.1: register the service worker at login (push permission stays on click, 16.8).
+          if (typeof navigator !== "undefined" && typeof navigator.serviceWorker?.register === "function") {
+            void navigator.serviceWorker.register("/sw.js").catch(() => {});
+          }
           await startSession(user);
           if (auth.currentUser?.uid !== user.uid) {
             await cleanupSession();
