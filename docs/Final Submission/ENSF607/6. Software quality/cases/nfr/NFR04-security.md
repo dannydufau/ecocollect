@@ -99,7 +99,7 @@ Record one row per run. A planned case is not a pass until it has a row here.
 
 | Case | Date | Commit | Command or steps | Result |
 | --- | --- | --- | --- | --- |
-| NFR04-P1, NFR04-N1, NFR04-P2 (steps 1–3) | 2026-11-27 | `94ccdbe` | `npm test` in `backend/` | Pass (188 pass; 1 failure not related to NFR04: `NEXT_PUBLIC_DEMO` in `compose.test.js`, from #491) |
-| NFR04-P2 (step 4) | 2026-11-27 | `94ccdbe` | Docker stack with `docker-compose.tls.yml`; `rabbitmqctl list_connections` and the management UI | Pass: 1 of 8 connections on TLS 1.3 (the Notification Service, `172.18.0.8`), 7 plain; `consuming notification.events`, no connection error; events received over it |
+| NFR04-P1, NFR04-N1, NFR04-P2 (steps 1–3) | 2026-11-27 | `47f65d1` | `npm test` in `backend/` | Pass (198 pass, 0 fail) |
+| NFR04-P2 (step 4) | 2026-11-27 | `47f65d1` (run before the rebase onto `main`; same TLS files) | Docker stack with `docker-compose.tls.yml`; `rabbitmqctl list_connections` and the management UI | Pass: 1 of 8 connections on TLS 1.3 (the Notification Service, `172.18.0.8`), 7 plain; `consuming notification.events`, no connection error; events received over it |
 | NFR04-P2 (step 5) | | | `openssl s_client` | Not run |
 | Supporting: gateway | | | `./infra/caddy/testing/test.sh` (needs Docker) | |

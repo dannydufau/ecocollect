@@ -21,7 +21,7 @@ The criteria come from the requirement's wording and are named with the reliabil
 | R3 | No duplicate Volunteer assignments, including when Volunteers accept at the same moment | Integrity | NFR06-P2; `backend/test/request/accept.test.ts`, "201 with the detail as the assigned volunteer; a second volunteer then gets 409 already_assigned". By design, `requests.req_accept` locks the request row before checking it, so accepts on one request run one after another; the event is written in the same transaction (transactional outbox), so a refused accept publishes nothing | Covered. Was the highest-risk gap: high impact (two Volunteers sent to one pickup, double points), high likelihood (concurrent). Also NFR05-F2 |
 | R4 | No duplicate delivery records | Integrity | `backend/test/request/record-delivery.test.ts`, "404 for another volunteer; 409 not_collected; 400 without ImageKit; 200 after collection; then 409" (contract Q15: a second delivery gets `409 already_delivered`). The database allows one delivery per assignment (`delivery_uq1`, unique on `assignment_id`) | Covered |
 | R5 | No duplicate EcoPoints awards | Integrity | `backend/test/reward-store.test.js`, "a delivery is saved once, even if the event arrives twice" | Covered |
-| R6 | An event that arrives after a newer one for the same request is treated as history: it changes no current notification and alerts no one | Fault tolerance | NFR06-N2 | Covered for stored notifications. The step that sends nothing for a late event (`backend/src/notification/index.js`) is checked by reading the code, not by a test |
+| R6 | An event that arrives after a newer one for the same request is treated as history: it changes no newer notification and alerts no one | Fault tolerance | NFR06-N2; `backend/test/integration/notification.integration.test.js`, "a late RequestAssigned after RequestAssignmentCollected still expires older matching notices while suppressing its own" (nothing is sent for the late event) | Covered |
 
 ## Cases
 
@@ -84,14 +84,14 @@ The criteria come from the requirement's wording and are named with the reliabil
 | --- | --- | --- |
 | 1 | Save the notifications of a request's event with `requestSeq` 3 | They are saved as current; the event is not late |
 | 2 | Save the notifications of a different event for the same request with `requestSeq` 2, as if it arrived late | The event is reported as late |
-| 3 | Check what the late event expired | Nothing |
+| 3 | Check what the late event expired | Nothing: there is nothing older than it here, and it never expires the newer ones |
 | 4 | Read both events' notifications | The newer ones are still current; the late ones are saved already expired |
 
-**Expected result:** an event that arrives after a newer one is kept as history and can't expire or replace newer notifications. The Notification Service then sends no signal, notification or push for it. This is the contract's ordering rule (section 11): order by `requestSeq`, not by arrival; a lower `requestSeq` is stored as already expired, with no SSE notification and no push.
+**Expected result:** an event that arrives after a newer one is kept as history and can't expire or replace newer notifications. It can still expire notices older than itself (a late `RequestAssigned` still removes an old "New pickup near you"). The Notification Service then sends no signal, notification or push for it. This is the contract's ordering rule (section 11): order by `requestSeq`, not by arrival; a lower `requestSeq` is stored as already expired, with no SSE notification and no push.
 
 **Postcondition:** the test removes the accounts, request and notifications it created.
 
-**Verification:** `backend/test/integration/notification.integration.test.js`, "a late event is saved already expired and expires nothing newer". Checked once by making the store treat every event as current: the test failed at step 2, then passed again with the rule restored.
+**Verification:** `backend/test/integration/notification.integration.test.js`, "a late event is saved already expired and expires nothing newer". Checked once by making the store treat every event as current: the test failed at step 2, then passed again with the rule restored. Supporting: "a late RequestAssigned after RequestAssignmentCollected still expires older matching notices while suppressing its own" (same file) checks the older-notice side and that nothing is sent.
 
 ## References
 
