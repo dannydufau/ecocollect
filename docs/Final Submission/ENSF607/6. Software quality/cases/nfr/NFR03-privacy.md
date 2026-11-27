@@ -55,7 +55,7 @@ Supporting evidence for C5 (not scripted here):
 | 3 | Read each delivery's SSE signal | It has only `requestId` and `type` |
 | 4 | Search each delivery's stored notification for the four private values | None of them appears |
 
-**Expected result:** whatever an event carries, the SSE signals and notifications built from it contain no address, name or photo link.
+**Expected result:** whatever an event carries, the SSE signals and notifications built from it contain no address, name or photo link. The contract rules out these fields from every event, SSE message and push (checked on the specs by `contracts/test/asyncapi.test.js`); this case checks the running code.
 
 **Postcondition:** none (no database or broker used).
 
@@ -71,7 +71,7 @@ Supporting evidence for C5 (not scripted here):
 | 2 | Pass it to `pushPayload` | The payload has exactly `notificationId`, `title`, `body`, `url`, `tag` and `silent` |
 | 3 | Repeat with a notification about an award | The tag is `award-<id>` instead of `request-<id>` |
 
-**Expected result:** the push sent to a browser's push service carries only a fixed set of fields, so no other field can travel with it.
+**Expected result:** the push sent to a browser's push service carries only a fixed set of fields, so no other field can travel with it. These are the payload fields of the contract's push rule (13.4).
 
 **Postcondition:** none.
 
@@ -88,7 +88,7 @@ Supporting evidence for C5 (not scripted here):
 | 3 | As the Resident, confirm the pickup; read it as the assigned Volunteer | The address is hidden again; the photo is still shown |
 | 4 | As the Volunteer, record the delivery with an evidence photo; read it as the Resident, the delivering Volunteer and another Volunteer | The Resident and the delivering Volunteer see the evidence; the other Volunteer gets 404 `request_unavailable` |
 
-**Expected result:** at every step, the address, the item photo and the delivery evidence reach only the people the requirement names.
+**Expected result:** at every step, the address, the item photo and the delivery evidence reach only the people the requirement names. This is the contract's request detail rule (Q8 and its viewer table): the address only while the assignment is Active, the photo for the owner, the assigned Volunteer and any Volunteer while Open, the evidence for the owner and the delivering Volunteer, and `404 request_unavailable` for everyone else.
 
 **Postcondition:** one extra Delivered request stays in the test database; the seeded data is unchanged.
 
