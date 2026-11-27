@@ -46,4 +46,7 @@ Rehearse in staging (with a test Firebase project) using two accounts — Accoun
    - Protected routes redirect to `/verify-email` while keeping the Firebase user signed in.
    - After push reconciliation removes Account B's `notifications.push_subscription` row, new push delivery stops for Account B.
 4. Open Account B's Firebase verification link (testing from another device/browser), then click **I’ve verified** in the original browser session:
-   - Confirm Account B's session is created, protected actions work, private `/api/events` opens, and **Reconnect device notifications** restores push delivery without re-prompting.
+   - Confirm Account B's session is created, protected actions work, and private `/api/events` opens.
+   - Verify **both** push recovery paths:
+     - **Path A (local cleanup ran while unverified):** Because confirmed-unverified browser sessions attempt to unsubscribe locally, the UI typically shows **Turn on device notifications**. Click it, confirm the browser re-subscribes and registers via `POST /api/push/subscriptions`, and verify push delivery resumes.
+     - **Path B (browser subscription survived while server row was removed):** On a verified session where the browser still holds an existing `PushSubscription` (e.g., an offline tab or after server-side row removal) and the UI shows push as **On**, click **Reconnect device notifications**. Confirm it re-registers the existing browser subscription via `POST /api/push/subscriptions` without re-prompting, shows confirmation, and restores push delivery.

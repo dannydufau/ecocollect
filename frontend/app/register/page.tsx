@@ -30,7 +30,7 @@ export default function RegisterPage() {
     // A signed-in user has nothing to do here. Not while creating, the sign in after the create must not race this.
     useEffect(() => {
         if (loading || !user || busy || created) return;
-        if (verificationState === "unverified") router.replace("/verify-email");
+        if (verificationState === "unverified" || verificationState === "check-failed") router.replace("/verify-email");
         else if (verificationState === "verified" && roles.length > 0) router.replace("/choose-role");
     }, [loading, user, roles, verificationState, busy, created, router]);
 
@@ -66,23 +66,22 @@ export default function RegisterPage() {
             setBusy(false);
             return;
         }
-        let signedInUser;
-        let emailVerified = false;
+        let result;
         try {
-            const result = await signIn(email, values.password);
-            signedInUser = result.user;
-            emailVerified = result.emailVerified;
+            result = await signIn(email, values.password);
         } catch {
             setCreated(true);
             setBusy(false);
             return;
         }
-        if (emailVerified) {
+        if (result.status === "verified") {
             router.replace("/choose-role");
             return;
         }
+        // Both "unverified" and "check-failed" mean Firebase sign-in succeeded for this newly created account.
+        // Send the verification email and continue to /verify-email (which offers Retry on check-failed).
         try {
-            await sendVerificationEmail(signedInUser);
+            await sendVerificationEmail(result.user);
             router.replace("/verify-email?sent=1");
         } catch {
             router.replace("/verify-email?sendError=1");

@@ -106,7 +106,7 @@ it("keeps submit disabled until the terms are accepted", async () => {
 it("posts a resident account with the terms, signs in, sends verification email, and goes to /verify-email", async () => {
     const newUser = { uid: "riley_1", email: "riley@example.com" };
     vi.mocked(api.post).mockResolvedValue({ accountId: "riley_1", roles: ["resident"] });
-    signIn.mockResolvedValue({ user: newUser, roles: ["resident"], emailVerified: false });
+    signIn.mockResolvedValue({ user: newUser, status: "unverified", roles: ["resident"], emailVerified: false });
     renderWithClient(<RegisterPage />);
     fillResident();
     await acceptTerms();
@@ -121,10 +121,23 @@ it("posts a resident account with the terms, signs in, sends verification email,
     expect(sendVerificationEmail).toHaveBeenCalledWith(newUser);
 });
 
+it("still sends verification email and routes to /verify-email when token reading fails after registration sign-in", async () => {
+    const newUser = { uid: "riley_1", email: "riley@example.com" };
+    vi.mocked(api.post).mockResolvedValue({ accountId: "riley_1", roles: ["resident"] });
+    signIn.mockResolvedValue({ user: newUser, status: "check-failed", roles: [], emailVerified: false });
+    renderWithClient(<RegisterPage />);
+    fillResident();
+    await acceptTerms();
+    submit();
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/verify-email?sent=1"));
+    expect(sendVerificationEmail).toHaveBeenCalledWith(newUser);
+    expect(screen.queryByText(/could not sign you in/i)).not.toBeInTheDocument();
+});
+
 it("still navigates to /verify-email?sendError=1 when sending the verification email fails after sign-in", async () => {
     const newUser = { uid: "riley_1", email: "riley@example.com" };
     vi.mocked(api.post).mockResolvedValue({ accountId: "riley_1", roles: ["resident"] });
-    signIn.mockResolvedValue({ user: newUser, roles: ["resident"], emailVerified: false });
+    signIn.mockResolvedValue({ user: newUser, status: "unverified", roles: ["resident"], emailVerified: false });
     sendVerificationEmail.mockRejectedValueOnce(new Error("smtp down"));
     renderWithClient(<RegisterPage />);
     fillResident();
@@ -136,7 +149,7 @@ it("still navigates to /verify-email?sendError=1 when sending the verification e
 
 it("posts a volunteer account with only the filled postal codes", async () => {
     vi.mocked(api.post).mockResolvedValue({ accountId: "riley_1", roles: ["volunteer"] });
-    signIn.mockResolvedValue({ user: { uid: "riley_1" }, roles: ["volunteer"], emailVerified: true });
+    signIn.mockResolvedValue({ user: { uid: "riley_1" }, status: "verified", roles: ["volunteer"], emailVerified: true });
     renderWithClient(<RegisterPage />);
     fillAbout();
     fireEvent.click(screen.getByRole("radio", { name: "Collect and deliver items (Volunteer)" }));

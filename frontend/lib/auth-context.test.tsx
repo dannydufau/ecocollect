@@ -341,3 +341,45 @@ it("recheckVerification reloads the user, force-refreshes token, starts session,
     expect(result.current.verificationState).toBe("verified");
     expect(api.post).toHaveBeenCalledWith("/api/session", { idToken: "token-u1" });
 });
+
+it("signIn returns check-failed instead of throwing when Firebase auth succeeds but token reading fails", async () => {
+    const user = fakeUser("u1", ["resident"], true);
+    user.getIdTokenResult.mockRejectedValue(new Error("offline"));
+    fb.signInWithEmailAndPassword.mockImplementation(async () => {
+        fb.auth.currentUser = user;
+        return { user };
+    });
+    const { result } = await mount();
+    let signInResult: { status: string } | undefined;
+    await act(async () => { signInResult = await result.current.signIn("a@b.ca", "secret1"); });
+    expect(signInResult?.status).toBe("check-failed");
+    expect(result.current.user).toBe(user);
+    expect(result.current.verificationState).toBe("check-failed");
+    expect(api.post).not.toHaveBeenCalled();
+});
+
+it("shares an in-flight renewSession POST for the same account", async () => {
+    const user = fakeUser("u1", ["resident"], true);
+    const { result } = await mount(user);
+    vi.mocked(api.post).mockClear();
+
+    let resolvePost!: () => void;
+    vi.mocked(api.post).mockImplementationOnce(() => new Promise<undefined>((resolve) => {
+        resolvePost = () => resolve(undefined);
+    }));
+
+    let p1!: Promise<boolean>;
+    let p2!: Promise<boolean>;
+    act(() => {
+        p1 = result.current.renewSession();
+        p2 = result.current.renewSession();
+    });
+    await waitFor(() => expect(resolvePost).toBeDefined());
+    expect(api.post).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+        resolvePost();
+        expect(await Promise.all([p1, p2])).toEqual([true, true]);
+    });
+    expect(api.post).toHaveBeenCalledTimes(1);
+});

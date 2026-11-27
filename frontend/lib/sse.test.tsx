@@ -223,46 +223,46 @@ it("leaves no timer after unmount or sign-out", () => {
     expect(vi.getTimerCount()).toBe(0);
 });
 
-it("opens a new stream after the browser gave up, waiting longer each time and starting over once it opens", () => {
+it("opens a new stream after the browser gave up, waiting longer each time and starting over once it opens", async () => {
     vi.useFakeTimers();
     mount();
     const closed = (source: FakeSource) => { source.readyState = FakeSource.CLOSED; act(() => source.onerror?.()); };
 
     closed(FakeSource.all[0]);
-    act(() => { vi.advanceTimersByTime(4_999); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(4_999); });
     expect(FakeSource.all).toHaveLength(1);
-    act(() => { vi.advanceTimersByTime(1); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(1); });
     expect(FakeSource.all).toHaveLength(2);
     expect(FakeSource.all[0].close).toHaveBeenCalledTimes(1);
 
     closed(FakeSource.all[1]);
-    act(() => { vi.advanceTimersByTime(9_999); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(9_999); });
     expect(FakeSource.all).toHaveLength(2);
-    act(() => { vi.advanceTimersByTime(1); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(1); });
     expect(FakeSource.all).toHaveLength(3);
 
     act(() => FakeSource.all[2].onopen?.());
     closed(FakeSource.all[2]);
-    act(() => { vi.advanceTimersByTime(5_000); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(5_000); });
     expect(FakeSource.all).toHaveLength(4);
 });
 
-it("never waits more than 30 s between tries", () => {
+it("never waits more than 30 s between tries", async () => {
     vi.useFakeTimers();
     mount();
     for (let i = 0; i < 6; i++) {
         const source = FakeSource.all[i];
         source.readyState = FakeSource.CLOSED;
         act(() => source.onerror?.());
-        act(() => { vi.advanceTimersByTime(30_000); });
+        await act(async () => { await vi.advanceTimersByTimeAsync(30_000); });
     }
     expect(FakeSource.all).toHaveLength(7);
     const last = FakeSource.all[6];
     last.readyState = FakeSource.CLOSED;
     act(() => last.onerror?.());
-    act(() => { vi.advanceTimersByTime(29_999); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(29_999); });
     expect(FakeSource.all).toHaveLength(7);
-    act(() => { vi.advanceTimersByTime(1); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(1); });
     expect(FakeSource.all).toHaveLength(8);
 });
 
@@ -303,13 +303,53 @@ it("reopens when the account's roles change", () => {
     expect(FakeSource.all[0].close).toHaveBeenCalledTimes(1);
 });
 
-it("routes session renewal through auth-context when the stream closes and reopens after backoff", () => {
+it("routes session renewal through auth-context when the stream closes and reopens after backoff", async () => {
     vi.useFakeTimers();
     mount();
     FakeSource.all[0].readyState = FakeSource.CLOSED;
     act(() => FakeSource.all[0].onerror?.());
     expect(renewSession).toHaveBeenCalledTimes(1);
-    act(() => { vi.advanceTimersByTime(5_000); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(5_000); });
+    expect(FakeSource.all).toHaveLength(2);
+});
+
+it("does not reopen the stream when session renewal fails, and retries renewal with backoff", async () => {
+    vi.useFakeTimers();
+    renewSession.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    mount();
+    FakeSource.all[0].readyState = FakeSource.CLOSED;
+    act(() => FakeSource.all[0].onerror?.());
+    expect(renewSession).toHaveBeenCalledTimes(1);
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(5_000); });
+    // First renewal failed: stream must NOT reopen yet, and a fresh renewal starts for the next backoff.
+    expect(FakeSource.all).toHaveLength(1);
+    expect(renewSession).toHaveBeenCalledTimes(2);
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(9_999); });
+    expect(FakeSource.all).toHaveLength(1);
+    await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+    expect(FakeSource.all).toHaveLength(2);
+});
+
+it("waits for a slow session renewal that takes longer than the backoff timer before reopening", async () => {
+    vi.useFakeTimers();
+    let resolveRenewal!: (ok: boolean) => void;
+    renewSession.mockReturnValueOnce(new Promise<boolean>((resolve) => { resolveRenewal = resolve; }));
+    mount();
+    FakeSource.all[0].readyState = FakeSource.CLOSED;
+    act(() => FakeSource.all[0].onerror?.());
+    expect(renewSession).toHaveBeenCalledTimes(1);
+
+    // Backoff timer elapses while renewal is still in flight: no doomed stream is opened.
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+    expect(FakeSource.all).toHaveLength(1);
+
+    // Once renewal completes with true, the stream opens immediately.
+    await act(async () => {
+        resolveRenewal(true);
+        await Promise.resolve();
+    });
     expect(FakeSource.all).toHaveLength(2);
 });
 

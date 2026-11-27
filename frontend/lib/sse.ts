@@ -46,9 +46,30 @@ export function useEventStream() {
         const source = new EventSource("/api/events", { withCredentials: true });
         let timer: ReturnType<typeof setInterval> | undefined;
         let retry: ReturnType<typeof setTimeout> | undefined;
+        let disposed = false;
         const stopTimer = () => {
             clearInterval(timer);
             timer = undefined;
+        };
+        const scheduleReconnect = () => {
+            if (disposed || retry !== undefined) return;
+            const wait = retryDelay.current;
+            retryDelay.current = Math.min(retryDelay.current * 2, RETRY_MAX);
+            const timerDone = new Promise<void>((resolve) => {
+                retry = setTimeout(() => {
+                    retry = undefined;
+                    resolve();
+                }, wait);
+            });
+            const renewed = latest.current.renewSession().catch(() => false);
+            void Promise.all([timerDone, renewed]).then(([, ok]) => {
+                if (disposed) return;
+                if (ok) {
+                    setOpened((count) => count + 1);
+                } else {
+                    scheduleReconnect();
+                }
+            });
         };
         const invalidate = (queryKey: readonly unknown[]) => queryClient.invalidateQueries({ queryKey });
 
@@ -105,15 +126,15 @@ export function useEventStream() {
             if (failures.current >= 2) setDelayed(true);
             timer ??= setInterval(() => invalidate(queryKeys.notifications), 30_000);
             // After a non-200 answer (a 502 while the service restarts, or a 401 when the initial session call failed)
-            // the browser gives up for good (issue #59), so refresh the session cookie and open a new stream later
+            // the browser gives up for good (issue #59). Wait for a successful session renewal AND backoff before reopening;
+            // if renewal fails, schedule a fresh session POST with backoff instead of opening a doomed stream.
             if (source.readyState === EventSource.CLOSED && retry === undefined) {
-                void latest.current.renewSession().catch(() => false);
-                retry = setTimeout(() => setOpened((count) => count + 1), retryDelay.current);
-                retryDelay.current = Math.min(retryDelay.current * 2, RETRY_MAX);
+                scheduleReconnect();
             }
         };
 
         return () => {
+            disposed = true;
             stopTimer();
             clearTimeout(retry);
             source.close();

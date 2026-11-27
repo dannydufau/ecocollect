@@ -29,11 +29,10 @@ import { dropCacheIfUserChanged } from "@/lib/query-cache";
 
 export type VerificationState = "checking" | "check-failed" | "unverified" | "verified";
 
-export type SignInResult = {
-  user: User;
-  roles: Role[];
-  emailVerified: boolean;
-};
+export type SignInResult =
+  | { user: User; status: "verified"; roles: Role[]; emailVerified: true }
+  | { user: User; status: "unverified"; roles: Role[]; emailVerified: false }
+  | { user: User; status: "check-failed"; roles: Role[]; emailVerified: false };
 
 type AuthState = {
   user: User | null;
@@ -96,11 +95,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const sessionActiveUid = useRef<string | null>(null);
 
   function ensureSession(user: User, { force = false } = {}): Promise<boolean> {
+    // Always share an in-flight POST /api/session for the same account.
+    if (inFlightSession.current?.uid === user.uid) {
+      return inFlightSession.current.promise;
+    }
     if (!force && sessionActiveUid.current === user.uid) {
       return Promise.resolve(true);
-    }
-    if (!force && inFlightSession.current?.uid === user.uid) {
-      return inFlightSession.current.promise;
     }
 
     const run: Promise<boolean> = sessionChain.current
@@ -276,11 +276,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signIn(email: string, password: string): Promise<SignInResult> {
     const { user } = await signInWithEmailAndPassword(auth, email, password);
-    const { roles, emailVerified } = await getTokenState(user);
-    if (emailVerified && roles.length > 0 && auth.currentUser?.uid === user.uid) {
+    let roles: Role[];
+    let emailVerified: boolean;
+    try {
+      const tokenState = await getTokenState(user);
+      roles = tokenState.roles;
+      emailVerified = tokenState.emailVerified;
+    } catch {
+      if (auth.currentUser?.uid === user.uid) {
+        setState({
+          user,
+          roles: [],
+          activeRole: null,
+          loading: false,
+          rolesError: true,
+          verificationState: "check-failed",
+        });
+      }
+      return { user, status: "check-failed", roles: [], emailVerified: false };
+    }
+    if (!emailVerified) {
+      return { user, status: "unverified", roles, emailVerified: false };
+    }
+    if (roles.length > 0 && auth.currentUser?.uid === user.uid) {
       await ensureSession(user);
     }
-    return { user, roles, emailVerified };
+    return { user, status: "verified", roles, emailVerified: true };
   }
 
   // README 3.5: push subscription first, then the session cookie, then Firebase. The cached lists go in the listener.
