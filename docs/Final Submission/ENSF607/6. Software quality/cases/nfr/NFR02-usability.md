@@ -37,7 +37,7 @@ The automated tests run with `npm run e2e` (Playwright) and `npm test` (Vitest) 
 
 ## Setup for E1
 
-It runs the frontend against the mock API, so they need no Docker, Firebase or database. From `frontend/`, after `npm ci`:
+It runs the frontend against the mock API, so it needs no Docker, Firebase or database. From `frontend/`, after `npm ci`:
 
 ```bash
 npm run mock      # mock API on http://127.0.0.1:3101 (terminal 1)
@@ -113,7 +113,7 @@ Record one row per run. A planned case is not a pass until it has a row here.
 
 | Case | Date | Commit | Command or steps | Result |
 | --- | --- | --- | --- | --- |
-| NFR02-P1 and the other automated evidence | 2026-11-26 | `<commit>` | `npm run e2e` in `frontend/` (Chromium) | 310 passed, 1 failed, 181 skipped. Every test cited above passed. The failure is a header-layout test not cited here, reported to the frontend team |
+| NFR02-P1 and the other automated evidence | 2026-11-26 | not recorded | `npm run e2e` in `frontend/` (Chromium) | 310 passed, 1 failed, 181 skipped. Every test cited above passed. The failure is a header-layout test not cited here, reported to the frontend team |
 | NFR02-N1 | | | `npm test` in `frontend/` | |
 | Precondition: FR06-P, FR13-P | – | – | See `resident-requests.md` and `volunteer.md` | As recorded there |
 | NFR02-E1 | | | | |

@@ -31,7 +31,7 @@ The criteria come from the requirement's wording and are named with the reliabil
 
 | # | Action | Expected result |
 | --- | --- | --- |
-| 1 | Publish a `RequestCreated` for a new request, with one matched Volunteer listening | The Resident and the Volunteer each get their notification; three notification rows are saved for the request |
+| 1 | Publish a `RequestCreated` for a new request, with two matched Volunteers, one of them listening | The Resident and the listening Volunteer each get their notification live; three notification rows are saved for the request (one for the offline Volunteer) |
 | 2 | Publish the same event again, as RabbitMQ does on a redelivery | – |
 | 3 | Publish a `RequestCreated` for a second request | The Volunteer's open tab receives the second request's notification next, with nothing in between |
 | 4 | Count the notification rows for the first request | Still three |
@@ -82,9 +82,9 @@ The criteria come from the requirement's wording and are named with the reliabil
 
 | # | Action | Expected result |
 | --- | --- | --- |
-| 1 | Save the notifications of a request's event with `requestSeq` 3 | They are saved as current; the event is not late |
+| 1 | Save a "New pickup near you" notification for a request's event with `requestSeq` 3 | It is saved as current; the event is not late |
 | 2 | Save the notifications of a different event for the same request with `requestSeq` 2, as if it arrived late | The event is reported as late |
-| 3 | Check what the late event expired | Nothing: there is nothing older than it here, and it never expires the newer ones |
+| 3 | Check what the late event expired | Nothing: a late event may still expire an older "New pickup near you", but never the newer one |
 | 4 | Read both events' notifications | The newer ones are still current; the late ones are saved already expired |
 
 **Expected result:** an event that arrives after a newer one is kept as history and can't expire or replace newer notifications. It can still expire notices older than itself (a late `RequestAssigned` still removes an old "New pickup near you"). The Notification Service then sends no signal, notification or push for it. This is the contract's ordering rule (section 11): order by `requestSeq`, not by arrival; a lower `requestSeq` is stored as already expired, with no SSE notification and no push.

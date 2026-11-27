@@ -54,13 +54,13 @@ High-risk gaps in the event, notification and messaging paths get scripted cases
 
 ### NFR04-P2: The Notification Service's connection to RabbitMQ is encrypted (C6, basic flow)
 
-**Preconditions:** a checkout of the #505 branch; `npm ci` run in `backend/`. For steps 4 and 5, Docker and `infra/rabbitmq/gen-certs.sh` run once.
+**Preconditions:** a checkout of `main`; `npm ci` run in `backend/`. For steps 4 and 5, Docker and `infra/rabbitmq/gen-certs.sh` run once.
 
 | # | Action | Expected result |
 | --- | --- | --- |
 | 1 | Open a connection to an `amqps://` URL with the CA file set | The connection trusts only certificates signed by that CA |
 | 2 | Open a connection to a plain `amqp://` URL | Nothing extra is passed: the other services connect as before |
-| 3 | Read the merged Compose settings of `docker-compose.tls.yml` | Only `notification` and `rabbitmq` change: the Notification Service uses `amqps://…@rabbitmq:5671` with the CA mounted; RabbitMQ keeps 5672 and adds a TLS listener on 5671 |
+| 3 | Read the override file `docker-compose.tls.yml` and `infra/rabbitmq/tls.conf` | Only `notification` and `rabbitmq` change: the Notification Service uses `amqps://…@rabbitmq:5671` with the CA mounted; RabbitMQ keeps 5672 and adds a TLS listener on 5671 |
 | 4 | Start the stack with `docker compose -f docker-compose.yml -f docker-compose.tls.yml up --build`, then run `docker compose exec rabbitmq rabbitmqctl list_connections peer_host ssl ssl_protocol` (or open the management UI's Connections tab) | Only the Notification Service's connection shows TLS (`true`, `tlsv1.3`); the other services' connections are plain. Its log shows `[subscriber] consuming notification.events` and no connection error |
 | 5 | From the host, run `openssl s_client -connect localhost:5671 -CAfile infra/rabbitmq/certs/ca.pem`, then again with a different CA file | Verify return code 0 (ok), then a verify error: a certificate not signed by our CA is not trusted |
 
@@ -100,6 +100,6 @@ Record one row per run. A planned case is not a pass until it has a row here.
 | Case | Date | Commit | Command or steps | Result |
 | --- | --- | --- | --- | --- |
 | NFR04-P1, NFR04-N1, NFR04-P2 (steps 1–3) | 2026-11-27 | `47f65d1` | `npm test` in `backend/` | Pass (198 pass, 0 fail) |
-| NFR04-P2 (step 4) | 2026-11-27 | `47f65d1` (run before the rebase onto `main`; same TLS files) | Docker stack with `docker-compose.tls.yml`; `rabbitmqctl list_connections` and the management UI | Pass: 1 of 8 connections on TLS 1.3 (the Notification Service, `172.18.0.8`), 7 plain; `consuming notification.events`, no connection error; events received over it |
+| NFR04-P2 (step 4) | 2026-11-27 | `94ccdbe` (the same TLS change before the rebase onto `main`; now `47f65d1`) | Docker stack with `docker-compose.tls.yml`; `rabbitmqctl list_connections` and the management UI | Pass: 1 of 8 connections on TLS 1.3 (the Notification Service, `172.18.0.8`), 7 plain; `consuming notification.events`, no connection error; events received over it |
 | NFR04-P2 (step 5) | | | `openssl s_client` | Not run |
 | Supporting: gateway | | | `./infra/caddy/testing/test.sh` (needs Docker) | |

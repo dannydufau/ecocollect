@@ -54,6 +54,7 @@ test('RequestCreated: private fields never reach a signal or a notification', ()
     streetAddress: '123 Secret St',
     unitNumber: '4B',
     residentName: 'Jane Doe',
+    photoUrl: 'https://ik.imagekit.io/ecocollect/secret.jpg',
   }));
 
   for (const { signal, notification } of out) {

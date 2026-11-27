@@ -24,5 +24,5 @@ openssl x509 -req -in server.csr -CA ca.pem -CAkey ca.key -CAcreateserial -days 
 rm server.csr server.ext ca.srl
 
 chmod 644 server.key   # read by the rabbitmq user inside the container
-chmod 600 ca.key       # only needed to sign; never mounted
+chmod 600 ca.key       # only needed to sign; 600, so the container's rabbitmq user can't read it
 echo "certificates written to $dir"

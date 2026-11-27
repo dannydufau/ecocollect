@@ -704,11 +704,14 @@ test('award, cleanup and deactivation events commit once and refresh the right s
   await waitFor(() => framesIn(reconnectedStats, 'stats-updated').length === 1, 'stats refresh for an inactive award recipient');
   assert.deepEqual(await personalList(), []);
 });
+
 // A late event (lower requestSeq than one already saved) is history: saved already expired,
-// it expires nothing, and the service then sends no signal, notification or push for it.
+// it expires nothing newer, and the service then sends no signal, notification or push for it.
+// The newer notice is a "New pickup near you", the one kind a late event may still expire,
+// so only the requestSeq order keeps it current.
 test('a late event is saved already expired and expires nothing newer', { skip }, () =>
   withStore(async ({ db, save }) => {
-    const newer = await save(3, randomUUID(), 'REQUEST_UPDATED_RESIDENT');
+    const newer = await save(3, randomUUID(), 'NEW_MATCHING_REQUEST');
     const late = await save(2, randomUUID(), 'REQUEST_CANCELLED_RESIDENT');
     assert.equal(newer.stale, false);
     assert.equal(late.stale, true);
@@ -722,4 +725,3 @@ test('a late event is saved already expired and expires nothing newer', { skip }
     for (const id of newer.saved) assert.equal(expired[id], false, 'the newer notification stays current');
     for (const id of late.saved) assert.equal(expired[id], true, 'the late notification is saved expired');
   }));
-  
