@@ -122,6 +122,15 @@ The API and event contracts live at the repo root: `contracts/openapi.yaml` (eve
 
 Times are shown in Calgary time (`lib/time.ts`). Postal codes are sent as `T2P1J9` and shown as `T2P 1J9`.
 
+## Category catalogue maintenance
+
+`CategoryPicker` (`components/resident/category-picker.tsx`) loads its options from `/api/categories`. `CATEGORY_ALIASES` in that file is a hardcoded map of optional everyday search terms keyed by `categoryId` — it does not define or duplicate the catalogue. Any category without aliases remains searchable by its `name` and `wasteType`.
+
+When adding a new category:
+1. Add the category and its sample facility acceptance mapping in `db/init/011_request_seed.sql`.
+2. Add the category to the mock catalogue in `frontend/mock/fixtures.mjs`.
+3. Optionally add everyday search terms for the new `categoryId` in `CATEGORY_ALIASES` (`frontend/components/resident/category-picker.tsx`).
+
 ## Baseline
 
 `baseline-js.json` records 19 route budgets measured with Node 24.18.0, Next.js 16.4.6 and Turbopack. Gzip sizes change slightly between Node versions, so compare with the same Node. The size check reads the build's route diagnostics and sums each route's distinct first-load chunks in raw and gzip bytes. To compare with the recorded build, build in a clean checkout without local environment files, using the placeholders below and no other `NEXT_PUBLIC_*` settings. Next.js embeds these values in the browser bundle.

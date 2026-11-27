@@ -68,6 +68,25 @@ describe("CategoryPicker", () => {
         expect(screen.queryByRole("option", { name: "Printers" })).not.toBeInTheDocument();
     });
 
+    it("keeps a category with no hardcoded aliases searchable by name and waste type", async () => {
+        const withUnaliased = [
+            ...categories,
+            { categoryId: "gaming-consoles", name: "Gaming Consoles", wasteType: "Entertainment", standardWeightKg: 3.5 },
+        ];
+        vi.mocked(api.get).mockResolvedValue(withUnaliased);
+        renderWithClient(<CategoryPicker value="" onChange={vi.fn()} />);
+        const search = await screen.findByLabelText("Search categories");
+
+        await userEvent.type(search, "console");
+        expect(screen.getByRole("option", { name: "Gaming Consoles" })).toBeInTheDocument();
+        expect(screen.queryByRole("option", { name: "Phones" })).not.toBeInTheDocument();
+
+        await userEvent.clear(search);
+        await userEvent.type(search, "entertainment");
+        expect(screen.getByRole("option", { name: "Gaming Consoles" })).toBeInTheDocument();
+        expect(screen.queryByRole("option", { name: "Monitors" })).not.toBeInTheDocument();
+    });
+
     it("keeps the currently chosen option visible even when the search query no longer matches it", async () => {
         vi.mocked(api.get).mockResolvedValue(categories);
         const onChange = vi.fn();

@@ -13,8 +13,9 @@ export type Category = {
     standardWeightKg: number;
 };
 
-// Common everyday terms keyed by categoryId so residents can search naturally
-// without duplicating the server catalogue.
+// Optional everyday search terms keyed by categoryId. /api/categories supplies
+// the actual options; categories with no entry here remain searchable by name
+// and wasteType. See frontend/README.md#category-catalogue-maintenance.
 const CATEGORY_ALIASES: Record<string, readonly string[]> = {
     laptops: ["notebook", "macbook", "chromebook", "pc", "computer"],
     desktops: ["tower", "pc", "workstation", "computer"],
