@@ -61,10 +61,10 @@ High-risk gaps in the event, notification and messaging paths get scripted cases
 | 1 | Open a connection to an `amqps://` URL with the CA file set | The connection trusts only certificates signed by that CA |
 | 2 | Open a connection to a plain `amqp://` URL | Nothing extra is passed: the other services connect as before |
 | 3 | Read the merged Compose settings of `docker-compose.tls.yml` | Only `notification` and `rabbitmq` change: the Notification Service uses `amqps://…@rabbitmq:5671` with the CA mounted; RabbitMQ keeps 5672 and adds a TLS listener on 5671 |
-| 4 | Start the stack with `docker compose -f docker-compose.yml -f docker-compose.tls.yml up --build`, then cause an event (for example, create a request) | The Notification Service logs connect without errors, and the signal or notification still arrives |
+| 4 | Start the stack with `docker compose -f docker-compose.yml -f docker-compose.tls.yml up --build`, then run `docker compose exec rabbitmq rabbitmqctl list_connections peer_host ssl ssl_protocol` (or open the management UI's Connections tab) | Only the Notification Service's connection shows TLS (`true`, `tlsv1.3`); the other services' connections are plain. Its log shows `[subscriber] consuming notification.events` and no connection error |
 | 5 | From the host, run `openssl s_client -connect localhost:5671 -CAfile infra/rabbitmq/certs/ca.pem`, then again with a different CA file | Verify return code 0 (ok), then a verify error: a certificate not signed by our CA is not trusted |
 
-**Expected result:** with the TLS Compose file, events reach the Notification Service over an encrypted connection, it accepts only the broker certificate signed by our CA, and the other services are unchanged.
+**Expected result:** with the TLS Compose file, the Notification Service receives events over an encrypted connection, it accepts only the broker certificate signed by our CA, and the other services are unchanged.
 
 **Postcondition:** `docker compose down` (the certificates stay in `infra/rabbitmq/certs/`, which git ignores).
 
@@ -99,6 +99,7 @@ Record one row per run. A planned case is not a pass until it has a row here.
 
 | Case | Date | Commit | Command or steps | Result |
 | --- | --- | --- | --- | --- |
-| NFR04-P1, NFR04-N1, NFR04-P2 (steps 1–3) | | | `npm test` in `backend/` | |
-| NFR04-P2 (steps 4–5) | | | Docker stack with `docker-compose.tls.yml`; `openssl s_client` | |
+| NFR04-P1, NFR04-N1, NFR04-P2 (steps 1–3) | 2026-11-27 | `94ccdbe` | `npm test` in `backend/` | Pass (188 pass; 1 failure not related to NFR04: `NEXT_PUBLIC_DEMO` in `compose.test.js`, from #491) |
+| NFR04-P2 (step 4) | 2026-11-27 | `94ccdbe` | Docker stack with `docker-compose.tls.yml`; `rabbitmqctl list_connections` and the management UI | Pass: 1 of 8 connections on TLS 1.3 (the Notification Service, `172.18.0.8`), 7 plain; `consuming notification.events`, no connection error; events received over it |
+| NFR04-P2 (step 5) | | | `openssl s_client` | Not run |
 | Supporting: gateway | | | `./infra/caddy/testing/test.sh` (needs Docker) | |
