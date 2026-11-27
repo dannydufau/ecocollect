@@ -1,0 +1,32 @@
+PostgreSQL 18.6
+Application schema from db/init and db/request, with backend/test/request/seed.sql.
+
+Run 1
+BEGIN
+DO
+ROLLBACK
+DO
+psql:backend/test/ensf608/application.sql:120: NOTICE:  PASS APP01: 25 course tables, 100 columns, 25 primary keys and 30 validated foreign keys
+psql:backend/test/ensf608/application.sql:120: NOTICE:  PASS APP02: delivery join returned two deliveries and 5.60 kg estimated
+psql:backend/test/ensf608/application.sql:120: NOTICE:  PASS APP03: phones are accepted at two facilities and the first facility accepts eight categories
+psql:backend/test/ensf608/application.sql:120: NOTICE:  PASS APP04: valid award and notification saved and joined across schemas
+psql:backend/test/ensf608/application.sql:120: NOTICE:  PASS APP05: an unknown award was rejected by award_notification_fk2 (23503)
+psql:backend/test/ensf608/application.sql:120: NOTICE:  PASS APP06: duplicate facility/category pair rejected (23505)
+psql:backend/test/ensf608/application.sql:120: NOTICE:  PASS APP07: zero quantity and missing public name rejected (23514, 23502)
+psql:backend/test/ensf608/application.sql:120: NOTICE:  PASS APP08: read state changed, notification was removed, and award history remained
+psql:backend/test/ensf608/application.sql:134: NOTICE:  PASS APP09: rollback removed the test award
+
+Run 2
+BEGIN
+DO
+ROLLBACK
+DO
+psql:backend/test/ensf608/application.sql:120: NOTICE:  PASS APP01: 25 course tables, 100 columns, 25 primary keys and 30 validated foreign keys
+psql:backend/test/ensf608/application.sql:120: NOTICE:  PASS APP02: delivery join returned two deliveries and 5.60 kg estimated
+psql:backend/test/ensf608/application.sql:120: NOTICE:  PASS APP03: phones are accepted at two facilities and the first facility accepts eight categories
+psql:backend/test/ensf608/application.sql:120: NOTICE:  PASS APP04: valid award and notification saved and joined across schemas
+psql:backend/test/ensf608/application.sql:120: NOTICE:  PASS APP05: an unknown award was rejected by award_notification_fk2 (23503)
+psql:backend/test/ensf608/application.sql:120: NOTICE:  PASS APP06: duplicate facility/category pair rejected (23505)
+psql:backend/test/ensf608/application.sql:120: NOTICE:  PASS APP07: zero quantity and missing public name rejected (23514, 23502)
+psql:backend/test/ensf608/application.sql:120: NOTICE:  PASS APP08: read state changed, notification was removed, and award history remained
+psql:backend/test/ensf608/application.sql:134: NOTICE:  PASS APP09: rollback removed the test award

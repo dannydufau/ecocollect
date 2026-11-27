@@ -10,7 +10,7 @@ This folder contains the standalone EcoCollect database for ENSF 608. Start here
 | Physical database and setup | [Setup guide](<4. Physical model/README.md>), [tables and constraints](<4. Physical model/tables.sql>), and [transaction procedures](<4. Physical model/transactions.sql>) |
 | Sample data | [Course seed](<4. Physical model/seed.sql>) |
 | SQL operations and queries | [Query guide](<5. Database operations and queries/README.md>), [25 operations](<5. Database operations and queries/operations.sql>), and [saved query output](<5. Database operations and queries/results/operations.txt>) |
-| Database tests and results | [Test cases and run instructions](<4. Physical model/README.md#database-test-cases-and-results>), [SQL tests](<4. Physical model/tests.sql>), [concurrency tests](<4. Physical model/verify_concurrency.py>), and [saved results](<4. Physical model/results/database-tests.txt>) |
+| Database tests and results | [Application database test cases and run instructions](../../../backend/test/ensf608/README.md), [application SQL tests](../../../backend/test/ensf608/application.sql), and [saved application results](../../../backend/test/ensf608/results/application.txt) |
 | Contribution history | [ENSF 608 commit history](https://github.com/dannydufau/ecocollect/commits/main/docs/Final%20Submission/ENSF608) |
 
 ## Run the course database
@@ -40,4 +40,4 @@ The application stores the 25 course relations in four schemas. Use the existing
 
 The 608 diagrams and normalization write-up cover these course relations. Operational tables such as outboxes and processed-event records are outside the model.
 
-See the [application database guide](../../../db/README.md) and [backend guide](../../../backend/README.md) for the service setup and tests. The Section 5 catalog and the course verification commands above currently use the standalone schema. Use the application database for Sections 5 and 6 once the catalog, fixtures, and tests have been updated and their results saved.
+See the [application database guide](../../../db/README.md) and [backend guide](../../../backend/README.md) for service setup and tests. The Section 6 suite runs against the application database using the existing Request test seed. The Section 5 catalog and the standalone commands above still use the course schema.
