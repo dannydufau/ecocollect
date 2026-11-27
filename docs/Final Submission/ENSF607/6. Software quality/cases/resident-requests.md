@@ -15,4 +15,4 @@
 
 ## Verification results
 
-The automated results come from the run on 2026-11-27 at `56785bf` (`main` at `fac33fe` plus the resident case tests). See the [totals](../README.md#results) and the [saved outputs](../results/). Rows marked as a team run link to a document in [results/manual/](../results/manual/). Those runs are separate from this one and their tested commit was not recorded.
+The automated results come from the run on 2026-11-27 at `f83c78d` (`474-test-results` merged with `main` at `6675302`). See the [totals](../README.md#results) and the [saved outputs](../results/). Rows marked as a team run link to a document in [results/manual/](../results/manual/). Those runs are separate from this one and their tested commit was not recorded.

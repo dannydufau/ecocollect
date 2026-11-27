@@ -41,22 +41,22 @@ The five files in `cases/` share the same columns, ending with **Result**: Pass,
 
 ## Results
 
-Run on 2026-11-27 at commit `56785bf`: `main` at `fac33fe` plus [`resident-cases.test.ts`](../../../../backend/test/request/resident-cases.test.ts). Each saved file starts with its command, commit, date and environment.
+Run on 2026-11-27 at commit `f83c78d` (`474-test-results` merged with `main` at `6675302`). Each saved file starts with its command, commit, date and environment.
 
 | Suite | Passed | Failed | Skipped | Saved output |
 | --- | --- | --- | --- | --- |
-| Backend, no database | 180 | 1 | 16 | [backend.txt](results/backend.txt) |
-| Backend with the database tests | 246 | 1 | 1 | [database.txt](results/database.txt) |
+| Backend, no database | 182 | 0 | 15 | [backend.txt](results/backend.txt) |
+| Backend with the database tests | 248 | 0 | 0 | [database.txt](results/database.txt) |
 | Integration (PostgreSQL and RabbitMQ) | 9 | 0 | 0 | [integration.txt](results/integration.txt) |
-| Frontend (93 test files) | 1226 | 0 | 0 | [frontend.txt](results/frontend.txt) |
+| Frontend (93 test files) | 1222 | 4 | 0 | [frontend.txt](results/frontend.txt) |
 | API contracts | 41 | 0 | 0 | [contracts.txt](results/contracts.txt) |
 
-The two backend rows overlap: the second repeats the first with the database cases switched on. Frontend lint and the type check also passed (see the end of `frontend.txt`).
+The two backend rows overlap: the second repeats the first with the database cases switched on. The backend type check (`npm run typecheck`) and frontend lint and type checks (`npm run lint`, `npx next typegen`, `npx tsc --noEmit`) also passed (frontend checks are at the end of `frontend.txt`).
 
-- **The one failure**, in both backend runs: “the frontend gets every NEXT_PUBLIC_ value as a build arg, in Compose and in its Dockerfile”. `frontend/.env.example` is missing `NEXT_PUBLIC_DEMO=false`. It is a settings check, not a requirement case. [PR #502](https://github.com/dannydufau/ecocollect/pull/502) adds the line and was not merged when this ran.
-- **The one skip with a database:** the eighteenth-birthday midnight check, because this Node version has older Calgary time zone data.
-- **Not run:** the browser tests (`npm run e2e`) and the backend type check (`npm run typecheck`, TypeScript was not installed on the machine).
-- **Environment:** packages were not reinstalled with `npm ci`. The installed versions matched the lockfiles; the backend's came from the app's Docker image and lack only type definitions.
+- **Integration:** not rerun in this refresh because Docker and RabbitMQ were not running on this machine. The row above keeps the `56785bf` result; no service or integration code changed in `#502` or `#503`.
+- **The four frontend failures:** all four are Windows environment differences in `frontend` rather than requirement case failures (`app/style-guard.test.ts` expects forward-slash paths while `path.relative` returns backslashes on Windows, and three November 2026 time tests in `lib/time.test.ts`, `components/resident/status-history.test.tsx`, and `components/resident/windows-picker.test.tsx` are off by one hour under this Windows Node build's `America/Edmonton` time zone data). All 1226 frontend tests passed on macOS at `56785bf`, and no frontend files changed after that run.
+- **Not run:** the browser tests (`npm run e2e`).
+- **Environment:** packages were installed cleanly with `npm ci` in `contracts/`, `backend/`, and `frontend/` on Windows with Node `v24.22.1` and scratch PostgreSQL `18.6`.
 
 ### Cases
 
@@ -64,7 +64,7 @@ All 24 requirements have a positive and a negative case, 48 in total: **43 pass 
 
 | How the case was checked | Passed |
 | --- | --- |
-| Automated tests (FR15-N also has a team run) | 28 |
+| Automated tests (FR15-N and FR22-P also have team runs) | 28 |
 | Team manual runs only | 15 |
 
 **Not run:**
