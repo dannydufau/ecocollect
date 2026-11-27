@@ -7,13 +7,13 @@ The [functional requirements](../1.%20Functional%20Requirements/README.md) defin
 | ID | Functional requirement | Case file | Positive | Negative |
 | --- | --- | --- | --- | --- |
 | FR01 | Account Registration | [accounts.md](cases/accounts.md) | Pass | Pass |
-| FR02 | User Login, Logout, and Role Selection | [accounts.md](cases/accounts.md) | Not run | Pass |
+| FR02 | User Login, Logout, and Role Selection | [accounts.md](cases/accounts.md) | Pass | Pass |
 | FR03 | Additional Role Activation | [accounts.md](cases/accounts.md) | Pass | Pass |
 | FR04 | Profile Management | [accounts.md](cases/accounts.md) | Pass | Pass |
 | FR05 | Public User Profiles | [accounts.md](cases/accounts.md) | Pass | Pass |
 | FR06 | Create Pickup Requests | [resident-requests.md](cases/resident-requests.md) | Pass | Pass |
 | FR07 | Pickup Scheduling | [resident-requests.md](cases/resident-requests.md) | Pass | Pass |
-| FR08 | Review and Confirm Pickup Requests | [resident-requests.md](cases/resident-requests.md) | Not run | Pass |
+| FR08 | Review and Confirm Pickup Requests | [resident-requests.md](cases/resident-requests.md) | Pass | Pass |
 | FR09 | View Resident Pickup Requests | [resident-requests.md](cases/resident-requests.md) | Pass | Pass |
 | FR10 | Edit Open Pickup Requests | [resident-requests.md](cases/resident-requests.md) | Pass | Pass |
 | FR11 | Cancel Pickup Requests | [resident-requests.md](cases/resident-requests.md) | Pass | Pass |
@@ -59,17 +59,15 @@ The two backend rows overlap: the second repeats the first with the database cas
 
 ### Cases
 
-All 24 requirements have a positive and a negative case, 48 in total: **43 pass and 5 are not run**. No case failed.
+All 24 requirements have a positive and a negative case, 48 in total: **45 pass and 3 are not run**. No case failed.
 
 | How the case was checked | Passed |
 | --- | --- |
 | Automated tests (FR15-N and FR22-P also have team runs) | 28 |
-| Team manual runs only | 15 |
+| Manual runs (15 team runs, 2 local Compose browser runs) | 17 |
 
 **Not run:**
 
-- **FR02-P:** signing out, then checking that protected pages need a new sign-in.
-- **FR08-P:** correcting a request on the review step before sending it.
 - **FR19-P and FR19-N:** notifications on the running stack, including web push.
 - **FR24-P:** needs a demo site with its own Firebase project.
 
