@@ -1,7 +1,7 @@
 -- Request Service reference data, needed in every database: the item categories,
 -- the recycling facilities and which categories each facility accepts (Q1, Q2,
--- contract 17.4). Copied from the 608 seed (docs/Final Submission/ENSF608/
--- 4. Physical model/seed.sql), with the same ids. Every category has at least one
+-- contract 17.4). This seed is also used by the ENSF 608 test database.
+-- Every category has at least one
 -- accepting facility (Q2). ON CONFLICT DO NOTHING: safe to run again.
 
 INSERT INTO requests.item_category (category_id, name, waste_type, standard_weight_kg) VALUES

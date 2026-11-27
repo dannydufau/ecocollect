@@ -1,7 +1,7 @@
 -- Created in "requests"; course tables are named without a schema (see 020).
 -- Request Service read functions for the reference lists:
 -- Q1 categories, Q2 facilities. Called by TypeScript, one call each.
--- Needs the 608 physical model's tables.sql loaded first (load-db.sh does that).
+-- Requires the Request tables from db/init/010_request_tables.sql.
 --
 -- The output columns of RETURNS TABLE are also PL/pgSQL variables, so every
 -- column in the queries is qualified with its table alias to avoid "ambiguous"

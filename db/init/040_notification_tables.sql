@@ -99,7 +99,7 @@ CREATE TABLE IF NOT EXISTS notifications.award_notification (
         REFERENCES notifications.notification (notification_id)
 );
 
--- Also apply the foreign key when upgrading an existing database.
+-- Apply the award reference on both fresh databases and existing volumes.
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -111,7 +111,8 @@ BEGIN
             ADD CONSTRAINT award_notification_fk2 FOREIGN KEY (ecopoints_award_id)
             REFERENCES rewards.ecopoints_award (ecopoints_award_id);
     END IF;
-END $$;
+END;
+$$;
 
 -- Independent of notification retention: cleanup must not make a replay look new.
 CREATE TABLE IF NOT EXISTS notifications.processed_events (

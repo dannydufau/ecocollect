@@ -1,18 +1,16 @@
 # Database operations and queries
 
-25 SQL operations on the [physical model](<../4. Physical model/README.md>), grouped by the section 5 category table. `operations.sql` has the operations; `results/operations.txt` has their output.
+The [25 SQL operations](operations.sql) use the application schemas and the sample data loaded in [Section 4](<../4. Physical model/README.md>). Use the same test database as the [Section 6 suite](../../../../backend/test/ensf608/README.md).
 
-## Run
+From the repository root in Bash:
 
-On a fresh database, from this folder:
-
-```sh
-createdb ecocollect608
-psql -X -v ON_ERROR_STOP=1 -d ecocollect608 -f "../4. Physical model/tables.sql" \
-  -f "../4. Physical model/transactions.sql" -f "../4. Physical model/seed.sql"
-psql -X -a -v ON_ERROR_STOP=1 -d ecocollect608 -f operations.sql > results/operations.txt 2>&1
+```bash
+psql -X -a -v ON_ERROR_STOP=1 -d ecocollect_608_test \
+  -f "docs/Final Submission/ENSF608/5. Database operations and queries/operations.sql"
 ```
 
-Run it right after seeding, because seed dates are relative to load time.
+The write examples roll back. The catalog creates a helper schema for its status view and two demonstration procedures, then removes that schema after the last operation. Run the catalog shortly after loading the date-relative seed.
 
-Writes run inside `BEGIN … ROLLBACK`, so the data is unchanged afterwards. The view `request_current_status` and the procedures `mark_all_read` and `mark_read` stay in the database, and rerunning the file is safe.
+If a run stops on an error, fix the reported error and use a new test database for the retry. Follow the Section 4 setup with an unused database name and pass that same name to `psql -d` above. A failed run can leave the `ensf608_queries` helper schema in the previous test database.
+
+See the [saved output](results/operations.txt) for the actual results.

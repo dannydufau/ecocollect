@@ -115,9 +115,3 @@ The system shall display terms and conditions, including safety guidelines, and 
 #### FR23 - Public Community Impact Statistics
 
 The system shall display community impact statistics on a publicly accessible page calculated from successfully recorded Delivered requests for which EcoPoints were awarded.
-
-### Interactive Demo Mode
-
-#### FR24 - Interactive Demo Mode
-
-The system shall provide a publicly accessible Demo Mode that demonstrates the principal Resident and Volunteer workflows using predefined sample data without requiring account registration or login. Demo Mode shall operate in an isolated environment, and actions performed within it shall not create, modify, or delete production data.

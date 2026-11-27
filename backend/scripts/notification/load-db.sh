@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Loads the Notification Service's tables (db/init/040_notification_tables.sql), then its
+# Loads the Reward tables required by the Notification foreign keys, then the Notification tables,
 # procedures and login (every db/notification/*.sql file, in name order) into the Compose
 # database "ecocollect", then sets the login's password.
 # Nothing is dropped except the procedures themselves, so it is safe to run again after every pull.
@@ -48,7 +48,7 @@ psql_in() {
 
 # Postgres runs db/init only on a new volume, so the tables are loaded here too (IF NOT EXISTS).
 shopt -s nullglob
-for f in "$ROOT"/db/init/040_notification_tables.sql "$ROOT"/db/notification/*.sql; do
+for f in "$ROOT"/db/init/012_reward_tables.sql "$ROOT"/db/init/040_notification_tables.sql "$ROOT"/db/notification/*.sql; do
   echo "load-db: ${f#"$ROOT"/}"
   psql_in < "$f"
 done
