@@ -8,7 +8,7 @@
 const express = require('express');
 
 const { gatewayUser } = require('../api/requests/user');
-const { describe, describeEnded, NOTIFICATION_TYPES, UPDATE_TITLES } = require('./handlers');
+const { describe, describeAward, describeEnded, NOTIFICATION_TYPES, UPDATE_TITLES } = require('./handlers');
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
@@ -21,10 +21,23 @@ function fail(res, status, code, message, details) {
 // A stored row in the Notification shape; title, body and url are built here.
 function present(row) {
   const t = NOTIFICATION_TYPES[row.type];
-  return {
+  const common = {
     notificationId: row.notification_id,
     type: row.type,
     requestId: row.pickup_request_id,
+    isRead: row.is_read,
+    // Keep the milliseconds: the client sends this back as `before`, and a page must end exactly here.
+    createdAt: row.created_at.toISOString(),
+  };
+
+  // An award notification: same title and body as the live message, opening the EcoPoints page.
+  if (row.ecopoints_award_id) {
+    const { title, body } = describeAward(row.type, row.points, { quantity: row.quantity, categoryName: row.category_name });
+    return { ...common, awardId: row.ecopoints_award_id, title, body, url: t?.path ?? '/' };
+  }
+
+  return {
+    ...common,
     awardId: null,
     // An update's title depends on its reason (edited or reopened), like the live message.
     title: (row.type === 'REQUEST_UPDATED_RESIDENT' && UPDATE_TITLES[row.update_reason]) || t?.title || 'Notification',
@@ -34,9 +47,6 @@ function present(row) {
       ? describeEnded(t.endedAs)
       : describe({ quantity: row.quantity, categoryName: row.category_name, postalCode: row.postal_code }),
     url: t ? (t.endedAs ? t.path : `${t.path}${row.pickup_request_id}`) : '/',
-    isRead: row.is_read,
-    // Keep the milliseconds: the client sends this back as `before`, and a page must end exactly here.
-    createdAt: row.created_at.toISOString(),
   };
 }
 

@@ -65,6 +65,16 @@ const NOTIFICATION_TYPES = Object.freeze({
   ASSIGNMENT_MISSED_VOLUNTEER: {
     title: 'Pickup missed', path: '/volunteer/history', push: true, endedAs: 'marked as missed',
   },
+  // Award types: always pushed, and they open the EcoPoints page (no id). See awardsEarned().
+  ECOPOINTS_AWARDED_ON_DELIVERY_RESIDENT: {
+    title: 'EcoPoints earned', path: '/ecopoints', push: true,
+  },
+  ECOPOINTS_AWARDED_ON_DELIVERY_VOLUNTEER: {
+    title: 'EcoPoints earned', path: '/ecopoints', push: true,
+  },
+  ECOPOINTS_AWARDED_ON_ASSIGNMENT_CANCELLATION_VOLUNTEER: {
+    title: 'EcoPoints earned', path: '/ecopoints', push: true,
+  },
   REQUEST_CANCELLED_RESIDENT: {
     title: 'Request cancelled', path: '/resident/requests/', push: false,
   },
@@ -285,6 +295,75 @@ const assignmentCancelledByVolunteer = bothSides(
 const assignmentMissed = bothSides(
   'RequestAssignmentMissed', 'ASSIGNMENT_MISSED_RESIDENT', 'ASSIGNMENT_MISSED_VOLUNTEER');
 
+// Award notification type, by the event's kind and the award's earnedAs.
+const AWARD_TYPES = Object.freeze({
+  delivery: {
+    resident: 'ECOPOINTS_AWARDED_ON_DELIVERY_RESIDENT',
+    volunteer: 'ECOPOINTS_AWARDED_ON_DELIVERY_VOLUNTEER',
+  },
+  cancellation: {
+    volunteer: 'ECOPOINTS_AWARDED_ON_ASSIGNMENT_CANCELLATION_VOLUNTEER',
+  },
+});
+
+// Points as text: 26.00 -> '26', 13.50 -> '13.5' (NUMERIC(23,2) in the database).
+function formatPoints(points) {
+  return String(Number(Number(points).toFixed(2)));
+}
+
+/*
+ * The title and body of an award notification. A cancellation award names no request
+ * details: the volunteer's assignment ended, so they can no longer open the request (Q8).
+ */
+function describeAward(type, points, request) {
+  const text = formatPoints(points);
+  const title = `You earned ${text} ${text === '1' ? 'EcoPoint' : 'EcoPoints'}`;
+  if (type === AWARD_TYPES.cancellation.volunteer) return { title, body: 'For a pickup cancelled late' };
+  const { quantity, categoryName } = request;
+  return { title, body: quantity && categoryName ? `For ${quantity} * ${categoryName} delivered` : 'For a delivery' };
+}
+
+/*
+ * PointsAwardedDelivery (E11, kind 'delivery') and PointsAwardedCancellation (E12, kind
+ * 'cancellation'): one pushed notification per award, to the award's account.
+ * Throws without the ids or awards, or for an award the kind doesn't have, so the subscriber retries.
+ */
+function awardsEarned(kind) {
+  const eventName = kind === 'delivery' ? 'PointsAwardedDelivery' : 'PointsAwardedCancellation';
+  return (envelope) => {
+    const data = envelope?.data ?? {};
+    if (typeof envelope.eventId !== 'string' || envelope.eventId === '') throw new Error(`${eventName} without an eventId`);
+    if (typeof data.requestId !== 'string' || data.requestId === '') throw new Error(`${eventName} without a requestId`);
+    if (!Array.isArray(data.awards) || data.awards.length === 0) throw new Error(`${eventName} without awards`);
+
+    return data.awards.map((award) => {
+      const type = AWARD_TYPES[kind][award?.earnedAs];
+      if (!type) throw new Error(`${eventName} with an award earned as ${award?.earnedAs}`);
+      if (typeof award.awardId !== 'string' || award.awardId === '' || typeof award.accountId !== 'string' || award.accountId === '') {
+        throw new Error(`${eventName} with an award without its awardId or accountId`);
+      }
+      const { title, body } = describeAward(type, award.points, data);
+      return {
+        uid: award.accountId,
+        awardId: award.awardId,
+        signal: null,
+        notification: {
+          // One notification per award (award_notification_uq1), so its id comes from the award.
+          notificationId: notificationUuid(award.awardId, award.accountId, type),
+          type,
+          requestId: data.requestId,
+          awardId: award.awardId,
+          title,
+          body,
+          url: NOTIFICATION_TYPES[type].path,
+          createdAt: envelope.occurredAt,
+        },
+        push: NOTIFICATION_TYPES[type].push,
+      };
+    });
+  };
+}
+
 // RequestCancelled (E9): the resident cancelled, so they get a record and no push.
 function requestCancelled(envelope) {
   const request = snapshotOf(envelope, 'RequestCancelled');
@@ -323,5 +402,6 @@ function replacements(request, deliveries, expired) {
 
 module.exports = {
   requestCreated, requestUpdated, requestAssigned, assignmentCollected, assignmentDelivered,
-  assignmentCancelledByResident, assignmentCancelledByVolunteer, assignmentMissed, requestCancelled, requestExpired, replacements, describe, describeEnded, SIGNAL, NOTIFICATION_TYPES, UPDATE_TITLES,
+  assignmentCancelledByResident, assignmentCancelledByVolunteer, assignmentMissed, requestCancelled, requestExpired,
+  awardsEarned, describeAward, replacements, describe, describeEnded, SIGNAL, NOTIFICATION_TYPES, UPDATE_TITLES,
 };

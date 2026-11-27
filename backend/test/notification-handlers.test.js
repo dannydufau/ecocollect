@@ -10,7 +10,7 @@ const assert = require('node:assert/strict');
 
 const {
   requestCreated, requestUpdated, assignmentCollected, assignmentDelivered,
-  assignmentCancelledByResident, assignmentCancelledByVolunteer, assignmentMissed, replacements, SIGNAL,
+  assignmentCancelledByResident, assignmentCancelledByVolunteer, assignmentMissed, awardsEarned, replacements, SIGNAL,
 } = require('../src/notification/handlers');
 const { notificationUuid } = require('../src/notification/ids');
 
@@ -231,4 +231,36 @@ test('E4, E5 and E8: one notification per side, pushed to the side that did not 
     resident('ASSIGNMENT_MISSED_RESIDENT', false), volunteer('ASSIGNMENT_MISSED_VOLUNTEER', true, '/volunteer/history'),
   ]);
   assert.equal(missed[1].notification.body, 'Your pickup on Nov 22, 14:00–15:00 was marked as missed');
+});
+
+test('E11 and E12: one pushed notification per award, opening the EcoPoints page', () => {
+  const awardEnvelope = (type, awards) => ({
+    eventId: EVENT_ID, type, version: 1, occurredAt: '2026-11-20T10:00:00Z',
+    data: { requestId: REQUEST_ID, assignmentId: 'as_1', categoryName: 'Computers/Laptops', quantity: 2, estimatedWeightKg: 5, awards },
+  });
+  const summary = (out) => out.map(({ uid, awardId, push, notification: n }) => ({ uid, awardId, push, type: n.type, title: n.title, body: n.body, url: n.url }));
+
+  const delivery = awardsEarned('delivery')(awardEnvelope('PointsAwardedDelivery', [
+    { awardId: 'aw_1', accountId: 'firebaseUid_v1', earnedAs: 'volunteer', points: 26, formula: 'f' },
+    { awardId: 'aw_2', accountId: 'firebaseUid_abc', earnedAs: 'resident', points: '13.50', formula: 'f' },
+  ]));
+  assert.deepEqual(summary(delivery), [
+    { uid: 'firebaseUid_v1', awardId: 'aw_1', push: true, type: 'ECOPOINTS_AWARDED_ON_DELIVERY_VOLUNTEER',
+      title: 'You earned 26 EcoPoints', body: 'For 2 * Computers/Laptops delivered', url: '/ecopoints' },
+    { uid: 'firebaseUid_abc', awardId: 'aw_2', push: true, type: 'ECOPOINTS_AWARDED_ON_DELIVERY_RESIDENT',
+      title: 'You earned 13.5 EcoPoints', body: 'For 2 * Computers/Laptops delivered', url: '/ecopoints' },
+  ]);
+
+  const cancellation = awardsEarned('cancellation')(awardEnvelope('PointsAwardedCancellation', [
+    { awardId: 'aw_3', accountId: 'firebaseUid_v1', earnedAs: 'volunteer', points: 8, formula: 'f' },
+  ]));
+  assert.deepEqual(summary(cancellation), [
+    { uid: 'firebaseUid_v1', awardId: 'aw_3', push: true, type: 'ECOPOINTS_AWARDED_ON_ASSIGNMENT_CANCELLATION_VOLUNTEER',
+      title: 'You earned 8 EcoPoints', body: 'For a pickup cancelled late', url: '/ecopoints' },
+  ]);
+
+  // A cancellation award is only ever the volunteer's.
+  assert.throws(() => awardsEarned('cancellation')(awardEnvelope('PointsAwardedCancellation', [
+    { awardId: 'aw_4', accountId: 'firebaseUid_abc', earnedAs: 'resident', points: 4, formula: 'f' },
+  ])), /earned as resident/);
 });

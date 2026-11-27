@@ -15,7 +15,7 @@ const { createEventsRouter } = require('./events');
 const {
   requestCreated, requestUpdated, requestAssigned, assignmentCollected, assignmentDelivered,
   assignmentCancelledByResident, assignmentCancelledByVolunteer, assignmentMissed, requestCancelled, requestExpired,
-  replacements,
+  awardsEarned, replacements,
 } = require('./handlers');
 const { pushPayload, createWebPushSender } = require('./push');
 const { startSubscriber, queues } = require('../messaging');
@@ -140,6 +140,39 @@ function deliverRequestEvent(handler, { expiresMatching, availableRequestsChange
   };
 }
 
+/*
+ * One award event (E11, E12): save each award's notification, then send it to the account's
+ * open tabs and push it. Award notifications never expire and don't change the available list.
+ * The subscriber acks after this returns, so a failed save is retried; a redelivered event sends nothing.
+ */
+function deliverAwardEvent(handler) {
+  return async (envelope) => {
+    const deliveries = handler(envelope);
+    const saved = await notifications.saveAwardNotifications(
+      deliveries.map(({ uid, awardId, notification }) => ({
+        notificationId: notification.notificationId,
+        type: notification.type,
+        createdAt: notification.createdAt,
+        accountId: uid,
+        awardId,
+      })),
+    );
+
+    for (const { uid, notification, push } of deliveries) {
+      if (!saved.has(notification.notificationId)) continue;
+      const tabs = hub.send(uid, 'notification', notification, notification.notificationId);
+      console.log(`[notification] ${notification.type} award ${notification.awardId} -> ${uid} (${tabs} open tab${tabs === 1 ? '' : 's'})`);
+
+      // Best-effort and not awaited, as for request events.
+      if (push) {
+        pushSender.send(uid, pushPayload(notification))
+          .then((delivered) => delivered > 0 && notifications.markPushed(notification.notificationId))
+          .catch((err) => console.warn(`[push] failed for ${uid}: ${err.message}`));
+      }
+    }
+  };
+}
+
 const subscriber = startSubscriber({
   queue: queues.notification,
   url: process.env.RABBITMQ_URL,
@@ -158,6 +191,8 @@ const subscriber = startSubscriber({
     RequestAssignmentMissed: deliverRequestEvent(assignmentMissed, { expiresMatching: false, availableRequestsChanged: false }),
     RequestCancelled: deliverRequestEvent(requestCancelled, { expiresMatching: true, availableRequestsChanged: true }),
     RequestExpired: deliverRequestEvent(requestExpired, { expiresMatching: true, availableRequestsChanged: true }),
+    PointsAwardedDelivery: deliverAwardEvent(awardsEarned('delivery')),
+    PointsAwardedCancellation: deliverAwardEvent(awardsEarned('cancellation')),
   },
 });
 
