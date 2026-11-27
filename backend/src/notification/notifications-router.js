@@ -8,10 +8,22 @@
 const express = require('express');
 
 const { gatewayUser } = require('../api/requests/user');
-const { describe, NOTIFICATION_TYPES } = require('./handlers');
+const { describe, describeAward, describeEnded, NOTIFICATION_TYPES, UPDATE_TITLES } = require('./handlers');
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
+const TIMESTAMP = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?Z$/;
+
+function isValidUtcTimestamp(value) {
+  if (typeof value !== 'string') return false;
+  const match = TIMESTAMP.exec(value);
+  if (!match) return false;
+  const [, year, month, day, hour, minute, second] = match.map(Number);
+  if (month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || minute > 59 || second > 59) return false;
+  const parsed = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+  return parsed.getUTCFullYear() === year
+    && parsed.getUTCMonth() === month - 1
+    && parsed.getUTCDate() === day;
+}
 
 // Error body: { error: { code, message } }.
 function fail(res, status, code, message, details) {
@@ -21,18 +33,33 @@ function fail(res, status, code, message, details) {
 // A stored row in the Notification shape; title, body and url are built here.
 function present(row) {
   const t = NOTIFICATION_TYPES[row.type];
-  return {
+  const common = {
     notificationId: row.notification_id,
     type: row.type,
     requestId: row.pickup_request_id,
-    awardId: null,
-    title: t?.title ?? 'Notification',
-    // Same text as the live message. A request can only change while Open, which expires these.
-    body: describe({ quantity: row.quantity, categoryName: row.category_name, postalCode: row.postal_code }),
-    url: t ? `${t.path}${row.pickup_request_id}` : '/',
     isRead: row.is_read,
     // Keep the milliseconds: the client sends this back as `before`, and a page must end exactly here.
     createdAt: row.created_at.toISOString(),
+  };
+
+  const window = row.pickup_date ? { date: row.pickup_date, startHour: row.start_hour } : undefined;
+
+  // An award notification opens the EcoPoints page.
+  if (row.ecopoints_award_id) {
+    const { title, body } = describeAward(row.type, row.points, { quantity: row.quantity, categoryName: row.category_name, window });
+    return { ...common, awardId: row.ecopoints_award_id, title, body, url: t?.path ?? '/' };
+  }
+
+  return {
+    ...common,
+    awardId: null,
+    // An update's title depends on its reason (edited or reopened), like the live message.
+    title: (row.type === 'REQUEST_UPDATED_RESIDENT' && UPDATE_TITLES[row.update_reason]) || t?.title || 'Notification',
+    // Same text as the live message. A request can only change while Open, which expires these.
+    body: t?.endedAs
+      ? describeEnded(t.endedAs, window)
+      : describe({ quantity: row.quantity, categoryName: row.category_name, postalCode: row.postal_code }),
+    url: t ? (t.endedAs ? t.path : `${t.path}${row.pickup_request_id}`) : '/',
   };
 }
 
@@ -43,13 +70,13 @@ function createNotificationsRouter({ notifications, hub }) {
   // Newest first, never expired; page with `before` (the createdAt of the last one shown, included).
   router.get('/api/notifications', async (req, res) => {
     const { before, limit } = req.query;
-    if (before !== undefined && !(typeof before === 'string' && TIMESTAMP.test(before))) {
-      return fail(res, 400, 'invalid_before', 'before must be a UTC timestamp like 2026-10-28T16:15:00Z',
+    if (before !== undefined && !isValidUtcTimestamp(before)) {
+      return fail(res, 400, 'validation_failed', 'before must be a UTC timestamp like 2026-10-28T16:15:00Z',
         { fields: { before: 'must be a UTC timestamp like 2026-10-28T16:15:00Z' } });
     }
     const n = limit === undefined ? 30 : Number(limit);
     if (!Number.isInteger(n) || n < 1 || n > 100) {
-      return fail(res, 400, 'invalid_limit', 'limit must be a whole number from 1 to 100',
+      return fail(res, 400, 'validation_failed', 'limit must be a whole number from 1 to 100',
         { fields: { limit: 'must be a whole number from 1 to 100' } });
     }
     try {
