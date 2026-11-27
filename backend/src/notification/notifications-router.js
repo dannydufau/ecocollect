@@ -11,7 +11,19 @@ const { gatewayUser } = require('../api/requests/user');
 const { describe, describeAward, describeEnded, NOTIFICATION_TYPES, UPDATE_TITLES } = require('./handlers');
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
+const TIMESTAMP = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?Z$/;
+
+function isValidUtcTimestamp(value) {
+  if (typeof value !== 'string') return false;
+  const match = TIMESTAMP.exec(value);
+  if (!match) return false;
+  const [, year, month, day, hour, minute, second] = match.map(Number);
+  if (month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || minute > 59 || second > 59) return false;
+  const parsed = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+  return parsed.getUTCFullYear() === year
+    && parsed.getUTCMonth() === month - 1
+    && parsed.getUTCDate() === day;
+}
 
 // Error body: { error: { code, message } }.
 function fail(res, status, code, message, details) {
@@ -58,7 +70,7 @@ function createNotificationsRouter({ notifications, hub }) {
   // Newest first, never expired; page with `before` (the createdAt of the last one shown, included).
   router.get('/api/notifications', async (req, res) => {
     const { before, limit } = req.query;
-    if (before !== undefined && !(typeof before === 'string' && TIMESTAMP.test(before))) {
+    if (before !== undefined && !isValidUtcTimestamp(before)) {
       return fail(res, 400, 'validation_failed', 'before must be a UTC timestamp like 2026-10-28T16:15:00Z',
         { fields: { before: 'must be a UTC timestamp like 2026-10-28T16:15:00Z' } });
     }

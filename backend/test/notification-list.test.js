@@ -74,8 +74,13 @@ test('N3 lists the caller\'s notifications in the contract shape, with the unrea
   });
 
   assert.deepEqual(await (await call('', 'uid_other')).json(), { unreadCount: 0, notifications: [] });
-  // A 400 names the bad field.
-  for (const [query, field] of [['?limit=0', 'limit'], ['?before=yesterday', 'before']]) {
+  // A 400 names the bad field (including impossible calendar dates that match the UTC format).
+  for (const [query, field] of [
+    ['?limit=0', 'limit'],
+    ['?before=yesterday', 'before'],
+    ['?before=2026-13-01T00:00:00Z', 'before'],
+    ['?before=2026-02-30T00:00:00Z', 'before'],
+  ]) {
     const bad = await call(query, 'uid_v1');
     assert.equal(bad.status, 400);
     const { error } = await bad.json();

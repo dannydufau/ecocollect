@@ -116,20 +116,19 @@ function deliverRequestEvent(handler, { expiresMatching, availableRequestsChange
 
     if (stale) {
       console.log(`[notification] ${envelope.type} ${requestId} seq ${requestSeq} is late: saved expired, not sent`);
-      return;
-    }
+    } else {
+      for (const { uid, signal, notification, push } of deliveries) {
+        if (!saved.has(notification.notificationId)) continue;
+        if (signal) hub.send(uid, 'signal', signal);
+        const tabs = hub.send(uid, 'notification', notification, notification.notificationId);
+        console.log(`[notification] ${notification.type} ${requestId} -> ${uid} (${tabs} open tab${tabs === 1 ? '' : 's'})`);
 
-    for (const { uid, signal, notification, push } of deliveries) {
-      if (!saved.has(notification.notificationId)) continue;
-      if (signal) hub.send(uid, 'signal', signal);
-      const tabs = hub.send(uid, 'notification', notification, notification.notificationId);
-      console.log(`[notification] ${notification.type} ${requestId} -> ${uid} (${tabs} open tab${tabs === 1 ? '' : 's'})`);
-
-      // Best-effort and not awaited: a failed push must not redeliver the event (and its SSE frames).
-      if (push) {
-        pushSender.send(uid, pushPayload(notification))
-          .then((delivered) => delivered > 0 && notifications.markPushed(notification.notificationId))
-          .catch((err) => console.warn(`[push] failed for ${uid}: ${err.message}`));
+        // Best-effort and not awaited: a failed push must not redeliver the event (and its SSE frames).
+        if (push) {
+          pushSender.send(uid, pushPayload(notification))
+            .then((delivered) => delivered > 0 && notifications.markPushed(notification.notificationId))
+            .catch((err) => console.warn(`[push] failed for ${uid}: ${err.message}`));
+        }
       }
     }
 
@@ -142,7 +141,7 @@ function deliverRequestEvent(handler, { expiresMatching, availableRequestsChange
       hub.send(uid, 'notification-expired', { notificationIds, requestId, tag: `request-${requestId}` });
     }
 
-    for (const { uid, notification } of replacements(request, deliveries, expired)) {
+    for (const { uid, notification } of replacements(request, stale ? [] : deliveries, expired)) {
       pushSender.send(uid, { ...pushPayload(notification), silent: true })
         .catch((err) => console.warn(`[push] replacing failed for ${uid}: ${err.message}`));
     }

@@ -122,14 +122,19 @@ function createNotificationStore(pool) {
       }
 
       let expired = [];
-      if (!stale) {
+      if (!stale || expiresMatching) {
         /*
          * Each recipient's older notifications about this request from other user actions
          * (one action can send several events, and those notifications stay together).
-         * When the request leaves Open, every volunteer's NEW_MATCHING_REQUEST about it.
+         * When the request leaves Open, every volunteer's NEW_MATCHING_REQUEST about it
+         * expires even if this event arrived late (for example, RequestAssigned after
+         * RequestAssignmentCollected), while stale events never expire their own recipients'
+         * notifications from newer sequences.
          * Only lower request_seq, so a late event can never expire a newer one.
          */
-        const recipients = [...new Set(rows.filter((r) => saved.has(r.notificationId)).map((r) => r.accountId))];
+        const recipients = stale
+          ? []
+          : [...new Set(rows.filter((r) => saved.has(r.notificationId)).map((r) => r.accountId))];
         const result = await client.query(
           `UPDATE notifications.notification n SET is_expired = true
            FROM notifications.request_notification rn

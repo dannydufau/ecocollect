@@ -489,6 +489,93 @@ test('a later step expires older notifications from other actions, not from the 
     );
   }));
 
+test('a late RequestAssigned after RequestAssignmentCollected still expires older matching notices while suppressing its own', { skip }, async () => {
+  const service = await startService();
+  const pushService = await startPushService();
+  const resident = `it-lr-${randomUUID()}`;
+  const assignedVol = `it-lv-${randomUUID()}`;
+  const unmatchedVol = `it-lu-${randomUUID()}`;
+  const accounts = [resident, assignedVol, unmatchedVol];
+  const db = new Pool({ connectionString: URL_DB });
+  const tabs = [];
+  const requestId = randomUUID();
+  const request = {
+    requestId,
+    residentUid: resident,
+    categoryId: 'laptops',
+    categoryName: 'Computers/Laptops',
+    quantity: 1,
+    postalCode: 'T2P1J9',
+  };
+  try {
+    await addAccounts(db, accounts);
+    await addRequest(db, requestId, resident, 1);
+    const unmatchedTab = await openTab(service.url, unmatchedVol, 'volunteer');
+    const assignedTab = await openTab(service.url, assignedVol, 'volunteer');
+    tabs.push(unmatchedTab, assignedTab);
+
+    // 1. RequestCreated (seq 1): unmatchedVol receives NEW_MATCHING_REQUEST.
+    await publish({
+      eventId: randomUUID(), type: 'RequestCreated', version: 2,
+      occurredAt: new Date().toISOString(),
+      data: {
+        request: { ...request, requestSeq: 1, transitionId: randomUUID(), status: 'Open' },
+        matchedVolunteerUids: [unmatchedVol, assignedVol],
+      },
+    });
+    await waitFor(() => notificationsIn(unmatchedTab).length === 1, 'unmatchedVol NEW_MATCHING_REQUEST');
+    const matchingNotifId = notificationsIn(unmatchedTab)[0].data.notificationId;
+
+    const assignment = {
+      assignmentId: randomUUID(),
+      volunteerUid: assignedVol,
+      window: { windowId: randomUUID(), date: '2026-11-22', startHour: 14 },
+    };
+
+    // 2. RequestAssignmentCollected (seq 3) arrives before RequestAssigned (seq 2).
+    await publish({
+      eventId: randomUUID(), type: 'RequestAssignmentCollected', version: 1,
+      occurredAt: new Date().toISOString(),
+      data: {
+        request: { ...request, requestSeq: 3, transitionId: randomUUID(), status: 'Collected' },
+        assignment,
+      },
+    });
+    await waitFor(() => notificationsIn(assignedTab).some((n) => n.data.type === 'REQUEST_COLLECTED_VOLUNTEER'), 'seq 3 collected notification');
+
+    // 3. Late RequestAssigned (seq 2): stale, so its own notifications are NOT sent,
+    //    but unmatchedVol's older NEW_MATCHING_REQUEST (seq 1 < 2) MUST expire.
+    await publish({
+      eventId: randomUUID(), type: 'RequestAssigned', version: 1,
+      occurredAt: new Date().toISOString(),
+      data: {
+        request: { ...request, requestSeq: 2, transitionId: randomUUID(), status: 'Assigned' },
+        assignment,
+      },
+    });
+    await waitFor(
+      () => framesIn(unmatchedTab, 'notification-expired').some((f) => f.data.notificationIds.includes(matchingNotifId)),
+      'unmatchedVol to receive notification-expired for the old matching notice',
+    );
+
+    // unmatchedVol's list no longer shows "New pickup near you".
+    const unmatchedList = await (await fetch(service.notificationsUrl, { headers: { 'X-User-Id': unmatchedVol } })).json();
+    assert.deepEqual(unmatchedList.notifications, []);
+
+    // assignedVol never received a live REQUEST_ASSIGNED_VOLUNTEER, and still has seq 3 Collected active.
+    assert.ok(!notificationsIn(assignedTab).some((n) => n.data.type === 'REQUEST_ASSIGNED_VOLUNTEER'));
+    const assignedList = await (await fetch(service.notificationsUrl, { headers: { 'X-User-Id': assignedVol } })).json();
+    assert.equal(assignedList.notifications.length, 1);
+    assert.equal(assignedList.notifications[0].type, 'REQUEST_COLLECTED_VOLUNTEER');
+  } finally {
+    tabs.forEach((t) => t.close());
+    pushService.close();
+    await stopService(service);
+    await removeAccounts(db, accounts);
+    await db.end();
+  }
+});
+
 test('award, cleanup and deactivation events commit once and refresh the right streams', { skip }, async (t) => {
   const db = new Pool({ connectionString: URL_DB });
   const uid = `it-award-${randomUUID()}`;
