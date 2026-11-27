@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { uploadPhoto } from "@/lib/upload/upload-photo";
@@ -6,7 +6,7 @@ import PhotoPicker from "./photo-picker";
 
 vi.mock("@/lib/upload/upload-photo", () => ({ uploadPhoto: vi.fn() }));
 
-const photo = (name = "a.jpg") => new File(["x"], name, { type: "image/jpeg" });
+const photo = (name = "a.jpg", type = "image/jpeg") => new File(["x"], name, { type });
 
 // Returns a promise and the function that settles it, to control when an upload ends
 function deferred() {
@@ -19,8 +19,9 @@ function setup() {
     const onUploaded = vi.fn();
     const onClear = vi.fn();
     const view = render(<PhotoPicker purpose="item_photo" onUploaded={onUploaded} onClear={onClear} />);
-    const input = screen.getByLabelText("Photo") as HTMLInputElement;
-    return { onUploaded, onClear, input, view };
+    const cameraInput = screen.getByLabelText("Take photo") as HTMLInputElement;
+    const chooseInput = screen.getByLabelText("Choose photo") as HTMLInputElement;
+    return { onUploaded, onClear, cameraInput, chooseInput, view };
 }
 
 let urls = 0;
@@ -34,13 +35,26 @@ beforeEach(() => {
 // Vitest does not clean the page between tests by itself
 afterEach(cleanup);
 
-it("shows a preview, uploads the file and calls onUploaded", async () => {
+it("exposes Take photo with rear camera capture and Choose photo without capture", () => {
+    const { cameraInput, chooseInput } = setup();
+    expect(cameraInput).toHaveAttribute("type", "file");
+    expect(cameraInput).toHaveAttribute("accept", "image/jpeg,image/png,image/webp");
+    expect(cameraInput).toHaveAttribute("capture", "environment");
+    expect(cameraInput).toHaveClass("sr-only");
+
+    expect(chooseInput).toHaveAttribute("type", "file");
+    expect(chooseInput).toHaveAttribute("accept", "image/jpeg,image/png,image/webp");
+    expect(chooseInput).not.toHaveAttribute("capture");
+    expect(chooseInput).toHaveClass("sr-only");
+});
+
+it("shows a preview, uploads the file from Choose photo and calls onUploaded", async () => {
     const upload = deferred();
     vi.mocked(uploadPhoto).mockReturnValue(upload.promise);
-    const { onUploaded, input } = setup();
+    const { onUploaded, chooseInput } = setup();
 
     const file = photo();
-    await userEvent.upload(input, file);
+    await userEvent.upload(chooseInput, file);
     expect(screen.getByRole("img", { name: "Photo of the items" })).toHaveAttribute("src", "blob:1");
     expect(screen.getByText("Uploading...")).toBeInTheDocument();
     expect(uploadPhoto).toHaveBeenCalledWith(file, { purpose: "item_photo", requestId: undefined, signal: expect.any(AbortSignal) });
@@ -51,33 +65,73 @@ it("shows a preview, uploads the file and calls onUploaded", async () => {
     expect(onUploaded).toHaveBeenCalledWith("f1", "blob:1");
 });
 
-it("draws the drop area on the raised surface with a dashed strong border", () => {
-    const { input } = setup();
-    expect(input.closest("label")).toHaveClass("bg-surface-elevated", "border-dashed", "border-border-strong", "hover:bg-surface");
-    expect(input.closest("label")).not.toHaveClass("bg-white");
+it("uploads a file captured through Take photo through the same upload path", async () => {
+    vi.mocked(uploadPhoto).mockResolvedValue("f-cam");
+    const { onUploaded, cameraInput } = setup();
+
+    const file = photo("camera.jpg");
+    await userEvent.upload(cameraInput, file);
+    expect(await screen.findByText("Uploaded")).toBeInTheDocument();
+    expect(uploadPhoto).toHaveBeenCalledWith(file, { purpose: "item_photo", requestId: undefined, signal: expect.any(AbortSignal) });
+    expect(onUploaded).toHaveBeenCalledWith("f-cam", "blob:1");
 });
 
-it("shows the hint", () => {
+it("leaves the current preview and uploaded ID intact if the user cancels either picker", async () => {
+    vi.mocked(uploadPhoto).mockResolvedValue("f1");
+    const { onUploaded, onClear, cameraInput, chooseInput } = setup();
+
+    await userEvent.upload(cameraInput, photo("first.jpg"));
+    expect(await screen.findByText("Uploaded")).toBeInTheDocument();
+    expect(onUploaded).toHaveBeenCalledTimes(1);
+
+    // Simulate cancelling the file picker (change event with empty files)
+    fireEvent.change(chooseInput, { target: { files: [] } });
+    fireEvent.change(cameraInput, { target: { files: [] } });
+
+    expect(onClear).not.toHaveBeenCalled();
+    expect(uploadPhoto).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("img", { name: "Photo of the items" })).toHaveAttribute("src", "blob:1");
+    expect(screen.getByText("Uploaded")).toBeInTheDocument();
+});
+
+it("draws the drop area on the raised surface with a dashed strong border", () => {
+    const { cameraInput } = setup();
+    const container = cameraInput.closest("div.border-dashed");
+    expect(container).toHaveClass("bg-surface-elevated", "border-dashed", "border-border-strong");
+    expect(container).not.toHaveClass("bg-white");
+});
+
+it("shows the privacy and EXIF hints", () => {
     setup();
     expect(screen.getByText("No house numbers, faces, mail or documents in the photo. JPEG, PNG or WEBP, up to 10 MB.")).toBeInTheDocument();
+    expect(screen.getByText("Location and EXIF data are removed automatically.")).toBeInTheDocument();
 });
 
-it("shows the error and does not call onUploaded when the upload fails", async () => {
-    vi.mocked(uploadPhoto).mockRejectedValue(new Error("The photo could not be uploaded, try again"));
-    const { onUploaded, input } = setup();
+it("shows the error and keeps Choose photo available as fallback when camera returns an unsupported file", async () => {
+    vi.mocked(uploadPhoto)
+        .mockRejectedValueOnce(new Error("Please choose a JPEG, PNG or WebP photo."))
+        .mockResolvedValueOnce("f-gallery");
+    const { onUploaded, cameraInput, chooseInput } = setup();
 
-    await userEvent.upload(input, photo());
-    expect(await screen.findByRole("alert")).toHaveTextContent("The photo could not be uploaded, try again");
+    // Unsupported format (e.g. HEIC) selected via camera
+    fireEvent.change(cameraInput, { target: { files: [photo("phone.heic", "image/heic")] } });
+    expect(await screen.findByRole("alert")).toHaveTextContent("Please choose a JPEG, PNG or WebP photo.");
     expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
     expect(onUploaded).not.toHaveBeenCalled();
+
+    // Gallery fallback still works immediately
+    await userEvent.upload(chooseInput, photo("gallery.jpg"));
+    expect(await screen.findByText("Uploaded")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(onUploaded).toHaveBeenCalledWith("f-gallery", "blob:2");
 });
 
 it("uploads the same file again on Retry", async () => {
     vi.mocked(uploadPhoto).mockRejectedValueOnce(new Error("down")).mockResolvedValueOnce("f1");
-    const { onUploaded, input } = setup();
+    const { onUploaded, chooseInput } = setup();
 
     const file = photo();
-    await userEvent.upload(input, file);
+    await userEvent.upload(chooseInput, file);
     await userEvent.click(await screen.findByRole("button", { name: "Retry" }));
     expect(await screen.findByText("Uploaded")).toBeInTheDocument();
     expect(uploadPhoto).toHaveBeenCalledTimes(2);
@@ -85,65 +139,57 @@ it("uploads the same file again on Retry", async () => {
     expect(onUploaded).toHaveBeenCalledWith("f1", "blob:1");
 });
 
-it("clears an old error when a new file is chosen", async () => {
-    vi.mocked(uploadPhoto).mockRejectedValueOnce(new Error("down")).mockReturnValue(new Promise(() => {}));
-    const { input } = setup();
-
-    await userEvent.upload(input, photo());
-    expect(await screen.findByRole("alert")).toBeInTheDocument();
-    await userEvent.upload(input, photo("b.jpg"));
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-});
-
-it("clears the old photo as soon as another one is chosen, so a failed second upload leaves no id behind", async () => {
+it("clears the old photo as soon as a replacement is selected from the other input", async () => {
     vi.mocked(uploadPhoto).mockResolvedValueOnce("f1").mockRejectedValueOnce(new Error("The photo could not be uploaded, try again"));
-    const { onUploaded, onClear, input } = setup();
-    await userEvent.upload(input, photo("a.jpg"));
+    const { onUploaded, onClear, cameraInput, chooseInput } = setup();
+    await userEvent.upload(cameraInput, photo("a.jpg"));
     await screen.findByText("Uploaded");
     expect(onClear).not.toHaveBeenCalled();
-    await userEvent.upload(input, photo("b.jpg"));
+
+    await userEvent.upload(chooseInput, photo("b.jpg"));
     expect(onClear).toHaveBeenCalledTimes(1);
     await screen.findByText("The photo could not be uploaded, try again");
     expect(onUploaded).toHaveBeenCalledTimes(1);
 });
 
-it("calls onClear on Remove and lets the same file be chosen again", async () => {
+it("calls onClear on Remove and lets the same file be chosen again from either input", async () => {
     vi.mocked(uploadPhoto).mockResolvedValue("f1");
-    const { onClear, onUploaded, input } = setup();
+    const { onClear, onUploaded, cameraInput, chooseInput } = setup();
 
     const file = photo();
-    await userEvent.upload(input, file);
+    await userEvent.upload(cameraInput, file);
     await userEvent.click(await screen.findByRole("button", { name: "Remove photo" }));
     expect(onClear).toHaveBeenCalledTimes(1);
-    expect(input.value).toBe("");
+    expect(cameraInput.value).toBe("");
+    expect(chooseInput.value).toBe("");
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
 
-    await userEvent.upload(input, file);
+    await userEvent.upload(cameraInput, file);
     await screen.findByText("Uploaded");
     expect(onUploaded).toHaveBeenCalledTimes(2);
 });
 
 it("Remove can be reached with Tab and used with Enter", async () => {
     vi.mocked(uploadPhoto).mockResolvedValue("f1");
-    const { onClear, input } = setup();
+    const { onClear, chooseInput } = setup();
 
-    await userEvent.upload(input, photo());
+    await userEvent.upload(chooseInput, photo());
     await screen.findByText("Uploaded");
-    input.focus();
+    chooseInput.focus();
     await userEvent.tab();
     expect(screen.getByRole("button", { name: "Remove photo" })).toHaveFocus();
     await userEvent.keyboard("{Enter}");
     expect(onClear).toHaveBeenCalled();
 });
 
-it("ignores the first upload when a second file is chosen before it ends", async () => {
+it("ignores the first upload when a replacement is chosen from the other input before it ends", async () => {
     const first = deferred();
     const second = deferred();
     vi.mocked(uploadPhoto).mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
-    const { onUploaded, input } = setup();
+    const { onUploaded, cameraInput, chooseInput } = setup();
 
-    await userEvent.upload(input, photo());
-    await userEvent.upload(input, photo("b.jpg"));
+    await userEvent.upload(cameraInput, photo());
+    await userEvent.upload(chooseInput, photo("b.jpg"));
     second.resolve("f2");
     await screen.findByText("Uploaded");
     first.resolve("f1");
@@ -157,9 +203,9 @@ it("does not call onUploaded when unmounted during an upload", async () => {
     const upload = deferred();
     vi.mocked(uploadPhoto).mockReturnValue(upload.promise);
     const errors = vi.spyOn(console, "error");
-    const { onUploaded, input, view } = setup();
+    const { onUploaded, chooseInput, view } = setup();
 
-    await userEvent.upload(input, photo());
+    await userEvent.upload(chooseInput, photo());
     view.unmount();
     upload.resolve("f1");
     await upload.promise;
@@ -170,46 +216,39 @@ it("does not call onUploaded when unmounted during an upload", async () => {
 
 it("revokes the object URL on unmount", async () => {
     vi.mocked(uploadPhoto).mockReturnValue(new Promise(() => {}));
-    const { input, view } = setup();
+    const { chooseInput, view } = setup();
 
-    await userEvent.upload(input, photo());
+    await userEvent.upload(chooseInput, photo());
     view.unmount();
     expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:1");
 });
 
-it("adds (optional) to the label when the photo is optional", () => {
+it("marks the fieldset legend as optional when optional is true", () => {
     render(<PhotoPicker purpose="item_photo" optional onUploaded={vi.fn()} onClear={vi.fn()} />);
-    expect(screen.getByLabelText("Photo (optional)")).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Photo (optional)" })).toBeInTheDocument();
 });
 
 it("calls the delivery preview Delivery photo", async () => {
     vi.mocked(uploadPhoto).mockResolvedValue("f1");
     render(<PhotoPicker purpose="delivery_evidence" requestId="r1" onUploaded={vi.fn()} onClear={vi.fn()} />);
-    await userEvent.upload(screen.getByLabelText("Photo"), photo());
+    await userEvent.upload(screen.getByLabelText("Take photo"), photo());
     expect(screen.getByRole("img", { name: "Delivery photo" })).toBeInTheDocument();
 });
 
-it("moves focus back to the file input after Remove", async () => {
+it("moves focus back to the input that was used after Remove", async () => {
     vi.mocked(uploadPhoto).mockResolvedValue("f1");
-    const { input } = setup();
-    await userEvent.upload(input, photo());
+    const { cameraInput } = setup();
+    await userEvent.upload(cameraInput, photo());
     await userEvent.click(await screen.findByRole("button", { name: "Remove photo" }));
-    expect(input).toHaveFocus();
+    expect(cameraInput).toHaveFocus();
 });
 
-it("shows the location note and a hidden input inside a dashed label with a camera icon", () => {
-    const { input } = setup();
-    expect(screen.getByText("Location and EXIF data are removed automatically.")).toBeInTheDocument();
-    expect(input).toHaveClass("sr-only");
-    const label = input.closest("label")!;
-    expect(label).toHaveClass("border-dashed", "has-[:focus-visible]:outline-3");
-    expect(label.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
-});
-
-it("can be reached with the keyboard", async () => {
-    const { input } = setup();
+it("can reach both Take photo and Choose photo with the keyboard", async () => {
+    const { cameraInput, chooseInput } = setup();
     await userEvent.tab();
-    expect(input).toHaveFocus();
+    expect(cameraInput).toHaveFocus();
+    await userEvent.tab();
+    expect(chooseInput).toHaveFocus();
 });
 
 it("reports upload busy state and lets the user cancel a hung upload", async () => {
@@ -221,7 +260,7 @@ it("reports upload busy state and lets the user cancel a hung upload", async () 
         return upload.promise;
     });
     render(<PhotoPicker purpose="item_photo" onUploaded={vi.fn()} onClear={vi.fn()} onBusyChange={onBusyChange} />);
-    await userEvent.upload(screen.getByLabelText("Photo"), photo());
+    await userEvent.upload(screen.getByLabelText("Take photo"), photo());
     expect(onBusyChange).toHaveBeenLastCalledWith(true);
     expect(screen.getByRole("button", { name: "Cancel upload" })).toBeInTheDocument();
 

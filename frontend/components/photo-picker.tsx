@@ -4,6 +4,10 @@ import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { Alert, Button, CameraIcon } from "@/components/ui";
 import { uploadPhoto } from "@/lib/upload/upload-photo";
 
+const ACCEPT = "image/jpeg,image/png,image/webp";
+const actionLabel =
+    "soft-transition inline-flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-full border border-neutral-600 bg-bg px-4 py-2 font-semibold text-text hover:bg-surface active:bg-accent-200 has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent-700";
+
 type Props = {
     purpose: "item_photo" | "delivery_evidence";
     requestId?: string;
@@ -18,7 +22,9 @@ export default function PhotoPicker({ purpose, requestId, optional = false, onUp
     const [preview, setPreview] = useState<string | null>(null);
     const [status, setStatus] = useState<"idle" | "uploading" | "done" | "error">("idle");
     const [error, setError] = useState("");
-    const input = useRef<HTMLInputElement>(null);
+    const cameraInput = useRef<HTMLInputElement>(null);
+    const chooseInput = useRef<HTMLInputElement>(null);
+    const lastSource = useRef<"camera" | "choose">("choose");
     // Each upload gets a number, so an old or unmounted upload's answer is ignored
     const attempt = useRef(0);
     const controller = useRef<AbortController | null>(null);
@@ -42,6 +48,11 @@ export default function PhotoPicker({ purpose, requestId, optional = false, onUp
         };
     }, []);
 
+    function resetInputs() {
+        if (cameraInput.current) cameraInput.current.value = "";
+        if (chooseInput.current) chooseInput.current.value = "";
+    }
+
     async function upload(chosen: File, previewUrl: string) {
         controller.current?.abort();
         const ctrl = new AbortController();
@@ -61,9 +72,13 @@ export default function PhotoPicker({ purpose, requestId, optional = false, onUp
         }
     }
 
-    function choose(e: ChangeEvent<HTMLInputElement>) {
+    function choose(source: "camera" | "choose", e: ChangeEvent<HTMLInputElement>) {
         const chosen = e.target.files?.[0];
+        // If the user cancelled the picker, keep any current preview and uploaded ID in place.
         if (!chosen) return;
+        lastSource.current = source;
+        // Clear the input value so the same file can be chosen again after removal or retry.
+        e.target.value = "";
         // The form still holds the id of the photo uploaded before. If this one fails it must not be sent.
         if (status === "done") onClear();
         setFile(chosen);
@@ -80,22 +95,44 @@ export default function PhotoPicker({ purpose, requestId, optional = false, onUp
         setPreview(null);
         setStatus("idle");
         setError("");
-        // lets the same file be chosen again
-        if (input.current) input.current.value = "";
-        input.current?.focus();
+        resetInputs();
+        (lastSource.current === "camera" ? cameraInput.current : chooseInput.current)?.focus();
         onClear();
     }
 
     return (
-        <div className="flex max-w-full flex-col gap-2">
-            <div className="relative">
-                <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-border-strong bg-surface-elevated px-4 pb-8 pt-3 text-center font-semibold hover:bg-surface has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent-700">
-                    <CameraIcon className="size-6" />
-                    <span>Photo{optional && <span className="font-normal text-text-muted"> (optional)</span>}</span>
-                    <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" onChange={choose} className="sr-only" />
-                </label>
-                {/* Outside the label so the input's name stays just "Photo" */}
-                <span aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-2.5 text-center text-sm text-text-muted">{file ? "Choose another file" : "Choose a file"}</span>
+        <fieldset className="flex max-w-full flex-col gap-2">
+            <legend className="font-semibold">
+                Photo{optional && <> <span className="font-normal text-text-muted">(optional)</span></>}
+            </legend>
+            <div className="flex flex-col gap-2.5 rounded-xl border-2 border-dashed border-border-strong bg-surface-elevated p-3.5 sm:p-4">
+                <div className="flex flex-col gap-2 sm:flex-row">
+                    <label className={actionLabel}>
+                        <CameraIcon className="size-5 shrink-0" />
+                        <span>Take photo</span>
+                        <input
+                            ref={cameraInput}
+                            type="file"
+                            accept={ACCEPT}
+                            capture="environment"
+                            onChange={(e) => choose("camera", e)}
+                            className="sr-only"
+                        />
+                    </label>
+                    <label className={actionLabel}>
+                        <span>Choose photo</span>
+                        <input
+                            ref={chooseInput}
+                            type="file"
+                            accept={ACCEPT}
+                            onChange={(e) => choose("choose", e)}
+                            className="sr-only"
+                        />
+                    </label>
+                </div>
+                <p className="text-center text-small text-text-muted">
+                    {file ? "Take or choose another photo to replace this one." : "Take a photo with your camera or choose an image from your device."}
+                </p>
             </div>
             <p className="text-sm text-text-muted">No house numbers, faces, mail or documents in the photo. JPEG, PNG or WEBP, up to 10 MB.</p>
             <p className="text-sm text-text-muted">Location and EXIF data are removed automatically.</p>
@@ -121,6 +158,6 @@ export default function PhotoPicker({ purpose, requestId, optional = false, onUp
                     <Button variant="secondary" onClick={() => upload(file, preview)}>Retry</Button>
                 </div>
             )}
-        </div>
+        </fieldset>
     );
 }
