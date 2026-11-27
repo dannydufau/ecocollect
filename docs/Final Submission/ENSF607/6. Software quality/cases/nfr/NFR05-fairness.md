@@ -26,7 +26,7 @@ Existing tests are cited first. Following ISO/IEC/IEEE 29119 [2], the remaining 
 | F4 | Cancellation points follow one rule: when the Resident cancels an Assigned request within 24 hours of its selected window, the Volunteer gets one award; an earlier cancellation gives none, and so does cancelling one's own request (contract 12.4 and 15.2, events E6 and E12) | `backend/test/reward-handlers.test.js`, "late cancellation: one award for the volunteer", "early cancellation: no points", "cancellation of your own request: no points" | Covered |
 | F5 | No hidden priority or extra reward based on account identity or saved pickup regions | NFR05-N1 (EcoPoints); NFR05-E1 (discovery and acceptance) | Covered for EcoPoints; explored for discovery and acceptance |
 
-The rule "cancelling one's own request gives no points" (F4) compares the Volunteer with the Resident, so it does look at identity. It is an approved rule that applies the same way to every account, not a hidden preference.
+The rule "cancelling one's own request gives no points" (F4) compares the Volunteer with the Resident, so it does look at identity. It is an approved rule that applies the same way to every account, not a hidden preference. Self-delivery works the other way: an account with both roles that delivers its own request earns both awards (26 + 13 = 39 for the contract example). This is also an approved rule (BR11, BR55), applied the same way to every account with both roles.
 
 ## Cases
 
@@ -66,19 +66,32 @@ The rule "cancelling one's own request gives no points" (F4) compares the Volunt
 
 ### NFR05-E1: Fairness of discovery and acceptance across saved regions
 
-Explore request discovery and acceptance as Volunteers with a matching saved region, a different saved region and no saved region, using fairness conditions F1, F2 and F5, to identify unequal treatment, such as who learns about a request first and who can accept it.
+Explore request discovery and acceptance as Volunteers with a matching saved region, a different saved region and no saved region, using fairness conditions F1, F2 and F5, to find any priority based on saved pickup regions that the contract and the app do not state.
 
 | | |
 | --- | --- |
-| **Goal** | Find whether a Volunteer's saved region, or lack of one, gives an advantage that the rules do not state |
+| **Goal** | Find whether a Volunteer's saved region, or a request's postal code, changes who can find a request, where it is listed, or who can accept it, in a way the rules do not state |
 | **Time** | Min. 30 min, max. 60 min |
-| **Setup** | The full stack (`docker compose up`); three Volunteer accounts: one whose saved region matches a new request's postal code, one with a different region, one with none; one Resident |
-| **Focus** | Create a request as the Resident; note which Volunteers get a push, an in-app notification and a live list update, and when; have the Volunteers accept in different orders; compare what each one can see and do |
+| **Setup** | The full stack (`docker compose up`); one Resident; three Volunteers: **A** saved the postal code of the first request, **B** saved a different code, **C** saved none |
+| **Focus** | (1) Who hears first: create a request in A's code; note who gets a push, an in-app notification and a live list update. (2) Order: create requests in A's code, B's code and a code no one saved, a few minutes apart; check A's and B's filtered lists and C's list. (3) Same view: B clears the filter; compare B's list with C's. (4) Same acceptance: B or C accepts a request in A's code before A does; then A tries |
 | **Bugs** | |
 | **Notes** | |
 | **Improvements** | |
 
-Record each finding with the accounts involved, the condition it bears on (F1, F2 or F5), and what happened. A known question to check: pushes go only to the Volunteers listed in the event's `matchedVolunteerUids` (contract event E1, matched by exact postal code), and the first valid accept wins, so matched Volunteers may learn about requests first.
+Expected, because the rules state it:
+
+- Only A gets the push and the notification (event E1, `matchedVolunteerUids`: exact postal-code match, on purpose). The profile page says a Volunteer with no saved codes gets no new-request notifications.
+- Every list is newest first (Q6, `GET /api/requests`): filtered lists show only their codes, and C's list shows every area. The request in the code no one saved is in C's list.
+- B's list without the filter is the same as C's: the same requests in the same order (contract 16.9: the list can always be browsed without the filter). Two differences are expected: expired requests are hidden, and a Volunteer's own requests are included.
+- B's or C's accept succeeds; A then gets `409 already_assigned` (Q11).
+
+Record as a bug, with the accounts involved and the condition it bears on (F1, F2 or F5):
+
+- A request a Volunteer looks for and cannot find, including after clearing the filter.
+- Any list not in creation order, for example the request in the code no one saved placed after newer requests. The cause does not need to be known: a different order means an unstated rule.
+- An accept that behaves differently depending on the request's postal code or the Volunteer's saved codes.
+
+A request in a code no one saved reaches Volunteers only when they browse, and sinks as newer requests arrive. Both follow stated rules, so record any effect on its chance of being taken under Improvements, not Bugs.
 
 ## References
 
