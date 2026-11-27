@@ -20,7 +20,7 @@ export default function RegisterPage() {
     if (isDemo) redirect("/demo");
     const router = useRouter();
     const queryClient = useQueryClient();
-    const { user, roles, loading, signIn } = useAuth();
+    const { user, roles, loading, verificationState, signIn, sendVerificationEmail } = useAuth();
     const [termsDocumentId, setTermsDocumentId] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [error, setError] = useState<string | null>(null);
@@ -29,8 +29,10 @@ export default function RegisterPage() {
 
     // A signed-in user has nothing to do here. Not while creating, the sign in after the create must not race this.
     useEffect(() => {
-        if (!loading && user && roles.length > 0 && !busy && !created) router.replace("/choose-role");
-    }, [loading, user, roles, busy, created, router]);
+        if (loading || !user || busy || created) return;
+        if (verificationState === "unverified") router.replace("/verify-email");
+        else if (verificationState === "verified" && roles.length > 0) router.replace("/choose-role");
+    }, [loading, user, roles, verificationState, busy, created, router]);
 
     async function create(values: AccountValues) {
         setBusy(true);
@@ -64,12 +66,26 @@ export default function RegisterPage() {
             setBusy(false);
             return;
         }
+        let signedInUser;
+        let emailVerified = false;
         try {
-            await signIn(email, values.password);
-            router.replace("/choose-role");
+            const result = await signIn(email, values.password);
+            signedInUser = result.user;
+            emailVerified = result.emailVerified;
         } catch {
             setCreated(true);
             setBusy(false);
+            return;
+        }
+        if (emailVerified) {
+            router.replace("/choose-role");
+            return;
+        }
+        try {
+            await sendVerificationEmail(signedInUser);
+            router.replace("/verify-email?sent=1");
+        } catch {
+            router.replace("/verify-email?sendError=1");
         }
     }
 

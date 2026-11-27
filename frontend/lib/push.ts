@@ -48,3 +48,19 @@ export async function unsubscribe(): Promise<void> {
     await subscription.unsubscribe();
     await api.delete("/api/push/subscriptions", { endpoint: subscription.endpoint });
 }
+
+// Re-registers the existing browser push subscription with the server without prompting again.
+// Useful when the browser still has a subscription but the server row was removed.
+export async function reconnectPush(): Promise<void> {
+    const registration = await navigator.serviceWorker.getRegistration();
+    const subscription = await registration?.pushManager.getSubscription();
+    if (!subscription) {
+        throw new Error("No browser push subscription found.");
+    }
+    const { endpoint, keys, expirationTime } = subscription.toJSON();
+    await api.post("/api/push/subscriptions", {
+        endpoint,
+        keys: { p256dh: keys?.p256dh, auth: keys?.auth },
+        expirationTime,
+    });
+}

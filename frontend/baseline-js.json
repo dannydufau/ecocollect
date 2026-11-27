@@ -1,78 +1,82 @@
 {
   "/": {
-    "raw": 672354,
-    "gzip": 203813
+    "raw": 676210,
+    "gzip": 204941
   },
   "/_not-found": {
-    "raw": 671936,
-    "gzip": 203493
+    "raw": 675792,
+    "gzip": 204621
   },
   "/choose-role": {
-    "raw": 674301,
-    "gzip": 204619
+    "raw": 678315,
+    "gzip": 205807
   },
   "/demo": {
-    "raw": 673797,
-    "gzip": 204583
+    "raw": 677653,
+    "gzip": 205707
   },
   "/ecopoints": {
-    "raw": 676288,
-    "gzip": 205561
+    "raw": 680651,
+    "gzip": 206875
   },
   "/forgot-password": {
-    "raw": 673986,
-    "gzip": 204617
+    "raw": 677842,
+    "gzip": 205747
   },
   "/login": {
-    "raw": 675010,
-    "gzip": 204982
+    "raw": 679035,
+    "gzip": 206172
   },
   "/notifications": {
-    "raw": 679220,
-    "gzip": 206632
+    "raw": 683583,
+    "gzip": 207953
   },
   "/profile": {
-    "raw": 695617,
-    "gzip": 211663
+    "raw": 700867,
+    "gzip": 213144
   },
   "/profiles/[accountId]": {
-    "raw": 675711,
-    "gzip": 205144
+    "raw": 679567,
+    "gzip": 206275
   },
   "/register": {
-    "raw": 684749,
-    "gzip": 208326
+    "raw": 688876,
+    "gzip": 209549
   },
   "/resident": {
-    "raw": 676933,
-    "gzip": 205861
+    "raw": 681294,
+    "gzip": 207207
   },
   "/resident/requests/[id]": {
-    "raw": 714773,
-    "gzip": 216597
+    "raw": 719134,
+    "gzip": 217960
   },
   "/resident/requests/[id]/edit": {
-    "raw": 697488,
-    "gzip": 212705
+    "raw": 701849,
+    "gzip": 214057
   },
   "/resident/requests/new": {
-    "raw": 699875,
-    "gzip": 212923
+    "raw": 704236,
+    "gzip": 214281
   },
   "/stats": {
-    "raw": 675690,
-    "gzip": 205061
+    "raw": 679546,
+    "gzip": 206186
+  },
+  "/verify-email": {
+    "raw": 680237,
+    "gzip": 206408
   },
   "/volunteer": {
-    "raw": 680471,
-    "gzip": 207192
+    "raw": 684832,
+    "gzip": 208552
   },
   "/volunteer/history": {
-    "raw": 677029,
-    "gzip": 205942
+    "raw": 681390,
+    "gzip": 207293
   },
   "/volunteer/requests/[id]": {
-    "raw": 698600,
-    "gzip": 212285
+    "raw": 702961,
+    "gzip": 213666
   }
 }

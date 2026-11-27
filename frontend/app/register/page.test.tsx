@@ -16,12 +16,21 @@ vi.mock("@/lib/api", async (importOriginal) => ({
 }));
 
 const signIn = vi.fn();
+const sendVerificationEmail = vi.fn();
 const terms = (id: string) => ({ termsDocumentId: id, content: "Some terms", publishedAt: "2026-11-01T00:00:00.000Z" });
 const termsBox = "I have read and accept the terms and safety guidelines";
 const conflict = (code: string) => new ApiError(409, { error: { code, message: code } });
 
 beforeEach(() => {
-    vi.mocked(useAuth).mockReturnValue({ user: null, roles: [], loading: false, signIn } as never);
+    vi.mocked(useAuth).mockReturnValue({
+        user: null,
+        roles: [],
+        loading: false,
+        verificationState: "checking",
+        signIn,
+        sendVerificationEmail,
+    } as never);
+    sendVerificationEmail.mockResolvedValue(undefined);
     vi.mocked(api.get).mockResolvedValue(terms("terms_3"));
 });
 
@@ -94,25 +103,40 @@ it("keeps submit disabled until the terms are accepted", async () => {
     expect(screen.getByRole("button", { name: "Create account" })).toBeEnabled();
 });
 
-it("posts a resident account with the terms, signs in and goes to /choose-role", async () => {
+it("posts a resident account with the terms, signs in, sends verification email, and goes to /verify-email", async () => {
+    const newUser = { uid: "riley_1", email: "riley@example.com" };
     vi.mocked(api.post).mockResolvedValue({ accountId: "riley_1", roles: ["resident"] });
-    signIn.mockResolvedValue(["resident"]);
+    signIn.mockResolvedValue({ user: newUser, roles: ["resident"], emailVerified: false });
     renderWithClient(<RegisterPage />);
     fillResident();
     await acceptTerms();
     submit();
-    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/choose-role"));
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/verify-email?sent=1"));
     expect(api.post).toHaveBeenCalledWith("/api/accounts", {
         username: "riley_1", email: "riley@example.com", password: "secret1", firstName: "Riley", lastName: "Resident",
         publicName: "Riley R.", dateOfBirth: "1995-03-14", role: "resident",
         address: { street: "123 4 Ave SW", postalCode: "T2P1J9" }, termsDocumentId: "terms_3",
     });
     expect(signIn).toHaveBeenCalledWith("riley@example.com", "secret1");
+    expect(sendVerificationEmail).toHaveBeenCalledWith(newUser);
+});
+
+it("still navigates to /verify-email?sendError=1 when sending the verification email fails after sign-in", async () => {
+    const newUser = { uid: "riley_1", email: "riley@example.com" };
+    vi.mocked(api.post).mockResolvedValue({ accountId: "riley_1", roles: ["resident"] });
+    signIn.mockResolvedValue({ user: newUser, roles: ["resident"], emailVerified: false });
+    sendVerificationEmail.mockRejectedValueOnce(new Error("smtp down"));
+    renderWithClient(<RegisterPage />);
+    fillResident();
+    await acceptTerms();
+    submit();
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/verify-email?sendError=1"));
+    expect(screen.queryByText(/could not sign you in/i)).not.toBeInTheDocument();
 });
 
 it("posts a volunteer account with only the filled postal codes", async () => {
     vi.mocked(api.post).mockResolvedValue({ accountId: "riley_1", roles: ["volunteer"] });
-    signIn.mockResolvedValue(["volunteer"]);
+    signIn.mockResolvedValue({ user: { uid: "riley_1" }, roles: ["volunteer"], emailVerified: true });
     renderWithClient(<RegisterPage />);
     fillAbout();
     fireEvent.click(screen.getByRole("radio", { name: "Collect and deliver items (Volunteer)" }));
@@ -166,7 +190,14 @@ it("also shows the alert when a 400 names a field the form does not have", async
 });
 
 it("sends a signed-in user to /choose-role", () => {
-    vi.mocked(useAuth).mockReturnValue({ user: { uid: "u1" }, roles: ["resident"], loading: false, signIn } as never);
+    vi.mocked(useAuth).mockReturnValue({
+        user: { uid: "u1" },
+        roles: ["resident"],
+        loading: false,
+        verificationState: "verified",
+        signIn,
+        sendVerificationEmail,
+    } as never);
     renderWithClient(<RegisterPage />);
     expect(router.replace).toHaveBeenCalledWith("/choose-role");
 });

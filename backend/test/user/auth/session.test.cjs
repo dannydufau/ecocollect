@@ -4,13 +4,22 @@ const { startServer } = require('./helpers.cjs');
 
 const FIVE_DAYS_SECONDS = 5 * 24 * 60 * 60;
 
-// Stands in for Firebase: "good-token" and "session-cookie-value" are accepted.
+// Stands in for Firebase: "good-token" (verified), "unverified-token", and "session-cookie-value" are accepted.
 function fakeAuth() {
   const calls = [];
+  const verifyCalls = [];
   const revoked = [];
   return {
     calls,
+    verifyCalls,
     revoked,
+    async verifyIdToken(idToken, checkRevoked) {
+      verifyCalls.push([idToken, checkRevoked]);
+      if (idToken === 'good-token') return { uid: 'user-1', email_verified: true };
+      if (idToken === 'unverified-token') return { uid: 'user-unverified', email_verified: false };
+      if (idToken === 'missing-claim-token') return { uid: 'user-unverified' };
+      throw Object.assign(new Error('bad token'), { code: 'auth/invalid-id-token' });
+    },
     async createSessionCookie(idToken, options) {
       calls.push({ idToken, options });
       if (idToken !== 'good-token') {
@@ -22,7 +31,7 @@ function fakeAuth() {
       if (cookie !== 'session-cookie-value') {
         throw Object.assign(new Error('bad cookie'), { code: 'auth/argument-error' });
       }
-      return { uid: 'user-1' };
+      return { uid: 'user-1', email_verified: true };
     },
     async revokeRefreshTokens(uid) {
       revoked.push(uid);
@@ -56,7 +65,24 @@ test('POST /api/session swaps a good ID token for a secure cookie', async (t) =>
   assert.match(cookie, /Secure/);
   assert.match(cookie, /SameSite=Lax/);
   assert.match(cookie, new RegExp(`Max-Age=${FIVE_DAYS_SECONDS}`));
+  assert.strictEqual(auth.verifyCalls.length, 1);
+  assert.deepStrictEqual(auth.verifyCalls[0], ['good-token', true]);
   assert.strictEqual(auth.calls[0].options.expiresIn, FIVE_DAYS_SECONDS * 1000);
+});
+
+test('POST /api/session returns 403 email_verification_required for an unverified token and sets no cookie', async (t) => {
+  const auth = fakeAuth();
+  const server = await startServer(auth);
+  t.after(server.close);
+
+  for (const idToken of ['unverified-token', 'missing-claim-token']) {
+    const res = await postSession(server, { idToken });
+    assert.strictEqual(res.status, 403);
+    assert.strictEqual(res.headers.getSetCookie().length, 0);
+    const body = await res.json();
+    assert.strictEqual(body.error.code, 'email_verification_required');
+  }
+  assert.strictEqual(auth.calls.length, 0);
 });
 
 test('POST /api/session returns 401 for an invalid or stale token', async (t) => {
@@ -96,7 +122,10 @@ test('POST /api/session returns 400 for a body that is not valid JSON', async (t
 
 test('POST /api/session returns 500 when Firebase fails for another reason', async (t) => {
   t.mock.method(console, 'error', () => { });
-  const auth = { createSessionCookie: async () => { throw new Error('network down'); } };
+  const auth = {
+    verifyIdToken: async () => ({ uid: 'user-1', email_verified: true }),
+    createSessionCookie: async () => { throw new Error('network down'); },
+  };
   const server = await startServer(auth);
   t.after(server.close);
 
@@ -108,6 +137,7 @@ test('POST /api/session returns 500 when Firebase fails for another reason', asy
 test('POST /api/session returns 500 when Firebase itself reports an internal error', async (t) => {
   t.mock.method(console, 'error', () => { });
   const auth = {
+    verifyIdToken: async () => ({ uid: 'user-1', email_verified: true }),
     createSessionCookie: async () => {
       throw Object.assign(new Error('firebase is down'), { code: 'auth/internal-error' });
     },

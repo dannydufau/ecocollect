@@ -8,12 +8,16 @@ import { AuthProvider, useAuth } from "./auth-context";
 const fb = vi.hoisted(() => ({
     auth: { currentUser: null as unknown },
     onAuthStateChanged: vi.fn(),
+    reload: vi.fn(),
+    sendEmailVerification: vi.fn(),
     signInWithEmailAndPassword: vi.fn(),
     signOut: vi.fn(),
 }));
 vi.mock("@/lib/firebase", () => ({ auth: fb.auth }));
 vi.mock("firebase/auth", () => ({
     onAuthStateChanged: fb.onAuthStateChanged,
+    reload: fb.reload,
+    sendEmailVerification: fb.sendEmailVerification,
     signInWithEmailAndPassword: fb.signInWithEmailAndPassword,
     signOut: fb.signOut,
 }));
@@ -22,8 +26,13 @@ vi.mock("@/lib/api", () => ({ api: { post: vi.fn(), delete: vi.fn() } }));
 let listener: (user: unknown) => Promise<void>;
 let calls: string[];
 
-function fakeUser(uid: string, roles: string[]) {
-    return { uid, getIdToken: vi.fn().mockResolvedValue(`token-${uid}`), getIdTokenResult: vi.fn().mockResolvedValue({ claims: { roles } }) };
+function fakeUser(uid: string, roles: string[], emailVerified = true) {
+    return {
+        uid,
+        email: `${uid}@example.com`,
+        getIdToken: vi.fn().mockResolvedValue(`token-${uid}`),
+        getIdTokenResult: vi.fn().mockResolvedValue({ claims: { roles, email_verified: emailVerified } }),
+    };
 }
 function wrapper({ children }: { children: ReactNode }) {
     const client = new QueryClient();
@@ -45,6 +54,8 @@ beforeEach(() => {
     sessionStorage.clear();
     fb.auth.currentUser = null;
     fb.onAuthStateChanged.mockReset().mockImplementation((_auth, callback) => { listener = callback; return () => {}; });
+    fb.reload.mockReset().mockResolvedValue(undefined);
+    fb.sendEmailVerification.mockReset().mockResolvedValue(undefined);
     fb.signInWithEmailAndPassword.mockReset();
     fb.signOut.mockReset().mockImplementation(async () => { calls.push("firebase signOut"); });
     vi.mocked(api.post).mockReset().mockResolvedValue(undefined);
@@ -62,9 +73,10 @@ it("signIn reads the roles and posts the id token to the session route once", as
         return { user };
     });
     const { result } = await mount();
-    let roles: string[] = [];
-    await act(async () => { roles = await result.current.signIn("a@b.ca", "secret1"); });
-    expect(roles).toEqual(["resident"]);
+    let signInResult: { roles: string[]; emailVerified: boolean } | undefined;
+    await act(async () => { signInResult = await result.current.signIn("a@b.ca", "secret1"); });
+    expect(signInResult?.roles).toEqual(["resident"]);
+    expect(signInResult?.emailVerified).toBe(true);
     expect(fb.signInWithEmailAndPassword).toHaveBeenCalledWith(fb.auth, "a@b.ca", "secret1");
     await waitFor(() => expect(result.current.user).toBe(user));
     expect(api.post).toHaveBeenCalledTimes(1);
@@ -165,10 +177,10 @@ it("refreshRoles asks for a new token and starts the session again", async () =>
     const { result } = await mount(user);
     expect(api.post).toHaveBeenCalledTimes(1);
 
-    user.getIdTokenResult.mockResolvedValue({ claims: { roles: ["resident", "volunteer"] } });
+    user.getIdTokenResult.mockResolvedValue({ claims: { roles: ["resident", "volunteer"], email_verified: true } });
     let roles: string[] = [];
     await act(async () => { roles = await result.current.refreshRoles(); });
-    expect(user.getIdToken).toHaveBeenCalledWith(true);
+    expect(user.getIdTokenResult).toHaveBeenCalledWith(true);
     expect(roles).toEqual(["resident", "volunteer"]);
     expect(result.current.roles).toEqual(["resident", "volunteer"]);
     expect(result.current.activeRole).toBe("resident");
@@ -180,7 +192,9 @@ it("refreshRoles drops the answer when another account signed in meanwhile", asy
     const bob = fakeUser("bob", ["volunteer"]);
     const { result } = await mount(alice);
     let release = () => {};
-    alice.getIdToken.mockReturnValueOnce(new Promise<string>((resolve) => { release = () => resolve("fresh"); }));
+    alice.getIdTokenResult.mockReturnValueOnce(new Promise((resolve) => {
+        release = () => resolve({ claims: { roles: ["resident", "volunteer"], email_verified: true } });
+    }));
     let refresh!: Promise<string[]>;
     act(() => { refresh = result.current.refreshRoles(); });
     fb.auth.currentUser = bob;
@@ -214,4 +228,116 @@ it("refreshRoles does nothing when nobody is signed in", async () => {
 it("useAuth outside the provider says what is wrong", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     expect(() => renderHook(() => useAuth())).toThrow("useAuth must be used inside AuthProvider");
+});
+
+it("sets verificationState to check-failed on token-read failure without removing push subscriptions", async () => {
+    const unsubscribe = vi.fn().mockResolvedValue(true);
+    vi.stubGlobal("navigator", {
+        serviceWorker: {
+            getRegistration: async () => ({ pushManager: { getSubscription: async () => ({ endpoint: "https://push.example/abc", unsubscribe }) } }),
+        },
+    });
+    const user = fakeUser("u1", ["resident"]);
+    user.getIdTokenResult.mockRejectedValueOnce(new Error("offline"));
+    const { result } = await mount(user);
+    expect(result.current.user).toBe(user);
+    expect(result.current.verificationState).toBe("check-failed");
+    expect(result.current.rolesError).toBe(true);
+    expect(unsubscribe).not.toHaveBeenCalled();
+    expect(api.delete).not.toHaveBeenCalled();
+    expect(api.post).not.toHaveBeenCalled();
+});
+
+it("publishes unverified state immediately while local push cleanup is delayed, and aborts cleanup on account switch", async () => {
+    let releaseReg!: (reg: unknown) => void;
+    const unsubscribe = vi.fn().mockResolvedValue(true);
+    vi.stubGlobal("navigator", {
+        serviceWorker: {
+            getRegistration: () => new Promise((resolve) => { releaseReg = resolve; }),
+        },
+    });
+    const unverifiedUser = fakeUser("unv", ["resident"], false);
+    const { result } = await mount(unverifiedUser);
+    // Signed-in unverified state is published even though getRegistration is still pending.
+    expect(result.current.loading).toBe(false);
+    expect(result.current.user).toBe(unverifiedUser);
+    expect(result.current.verificationState).toBe("unverified");
+
+    // Account switches to a verified user before the delayed cleanup finishes.
+    const verifiedUser = fakeUser("ver", ["resident"], true);
+    fb.auth.currentUser = verifiedUser;
+    await act(async () => { await listener(verifiedUser); });
+    releaseReg({ pushManager: { getSubscription: async () => ({ endpoint: "https://push.example/new", unsubscribe }) } });
+    await act(async () => { await Promise.resolve(); });
+    expect(unsubscribe).not.toHaveBeenCalled();
+});
+
+it("cleans up when an account switches during an in-flight session POST so the old cookie cannot linger", async () => {
+    const alice = fakeUser("alice", ["resident"], true);
+    const bob = fakeUser("bob", ["volunteer"], true);
+    let resolveAlicePost!: () => void;
+    vi.mocked(api.post).mockImplementationOnce((_path, body) => new Promise<undefined>((resolve) => {
+        resolveAlicePost = () => {
+            calls.push(`POST /api/session ${(body as { idToken: string }).idToken}`);
+            resolve(undefined);
+        };
+    })).mockImplementation(async (_path, body) => {
+        calls.push(`POST /api/session ${(body as { idToken: string }).idToken}`);
+    });
+
+    const view = renderHook(() => useAuth(), { wrapper });
+    fb.auth.currentUser = alice;
+    let aliceListener!: Promise<void>;
+    act(() => { aliceListener = listener(alice); });
+    await waitFor(() => expect(resolveAlicePost).toBeDefined());
+
+    // Switch to Bob while Alice's POST is still in flight.
+    fb.auth.currentUser = bob;
+    let bobListener!: Promise<void>;
+    act(() => { bobListener = listener(bob); });
+
+    await act(async () => {
+        resolveAlicePost();
+        await Promise.all([aliceListener, bobListener]);
+    });
+
+    // Alice's stale POST is followed by DELETE /api/session, then Bob's POST runs last.
+    expect(calls).toEqual([
+        "POST /api/session token-alice",
+        "DELETE /api/session",
+        "POST /api/session token-bob",
+    ]);
+    expect(view.result.current.user).toBe(bob);
+});
+
+it("makes a fresh POST /api/session on renewSession after an initial session failure", async () => {
+    const user = fakeUser("u1", ["resident"], true);
+    vi.mocked(api.post)
+        .mockRejectedValueOnce(new Error("temporary 502"))
+        .mockResolvedValueOnce(undefined);
+
+    const { result } = await mount(user);
+    expect(api.post).toHaveBeenCalledTimes(1);
+
+    let renewed = false;
+    await act(async () => { renewed = await result.current.renewSession(); });
+    expect(renewed).toBe(true);
+    expect(api.post).toHaveBeenCalledTimes(2);
+    expect(api.post).toHaveBeenLastCalledWith("/api/session", { idToken: "token-u1" });
+});
+
+it("recheckVerification reloads the user, force-refreshes token, starts session, and marks verified", async () => {
+    const user = fakeUser("u1", ["resident"], false);
+    const { result } = await mount(user);
+    expect(result.current.verificationState).toBe("unverified");
+    expect(api.post).not.toHaveBeenCalled();
+
+    user.getIdTokenResult.mockResolvedValueOnce({ claims: { roles: ["resident"], email_verified: true } });
+    let outcome: "verified" | "unverified" = "unverified";
+    await act(async () => { outcome = await result.current.recheckVerification(); });
+    expect(fb.reload).toHaveBeenCalledWith(user);
+    expect(user.getIdTokenResult).toHaveBeenCalledWith(true);
+    expect(outcome).toBe("verified");
+    expect(result.current.verificationState).toBe("verified");
+    expect(api.post).toHaveBeenCalledWith("/api/session", { idToken: "token-u1" });
 });

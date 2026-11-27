@@ -5,7 +5,7 @@ const { startServer } = require('./helpers.cjs');
 const invalid = () => Object.assign(new Error('rejected'), { code: 'auth/invalid-id-token' });
 
 // Stands in for Firebase: "good-token" and "good-cookie" are valid, everything else is not.
-function fakeAuth(claims = { roles: ['resident'] }) {
+function fakeAuth(claims = { roles: ['resident'], email_verified: true }) {
   const calls = [];
   return {
     calls,
@@ -27,7 +27,7 @@ function verify(server, headers) {
 }
 
 test('a valid bearer token returns 200 with the user headers', async (t) => {
-  const auth = fakeAuth({ roles: ['resident', 'volunteer'] });
+  const auth = fakeAuth({ roles: ['resident', 'volunteer'], email_verified: true });
   const server = await startServer(auth);
   t.after(server.close);
 
@@ -92,13 +92,45 @@ test('returns 401 for a rejected session cookie', async (t) => {
 });
 
 test('a user without a roles claim gets an empty roles header', async (t) => {
-  const server = await startServer(fakeAuth({}));
+  const server = await startServer(fakeAuth({ email_verified: true }));
   t.after(server.close);
 
   const res = await verify(server, { Authorization: 'Bearer good-token' });
 
   assert.strictEqual(res.status, 200);
   assert.strictEqual(res.headers.get('X-User-Roles'), '');
+});
+
+test('returns 403 email_verification_required for an unverified bearer token', async (t) => {
+  const server = await startServer(fakeAuth({ roles: ['resident'], email_verified: false }));
+  t.after(server.close);
+
+  const res = await verify(server, { Authorization: 'Bearer good-token' });
+
+  assert.strictEqual(res.status, 403);
+  assert.strictEqual(res.headers.get('X-User-Id'), null);
+  assert.strictEqual((await res.json()).error.code, 'email_verification_required');
+});
+
+test('returns 403 email_verification_required for an unverified session cookie', async (t) => {
+  const server = await startServer(fakeAuth({ roles: ['resident'], email_verified: false }));
+  t.after(server.close);
+
+  const res = await verify(server, { Cookie: 'session=good-cookie' });
+
+  assert.strictEqual(res.status, 403);
+  assert.strictEqual(res.headers.get('X-User-Id'), null);
+  assert.strictEqual((await res.json()).error.code, 'email_verification_required');
+});
+
+test('returns 403 email_verification_required when email_verified claim is missing', async (t) => {
+  const server = await startServer(fakeAuth({ roles: ['resident'] }));
+  t.after(server.close);
+
+  const res = await verify(server, { Authorization: 'Bearer good-token' });
+
+  assert.strictEqual(res.status, 403);
+  assert.strictEqual((await res.json()).error.code, 'email_verification_required');
 });
 
 test('returns 500 when Firebase fails for another reason', async (t) => {

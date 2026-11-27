@@ -6,7 +6,6 @@ import { useAuth } from "@/lib/auth-context";
 import { useEventStream } from "./sse";
 
 vi.mock("@/lib/auth-context", () => ({ useAuth: vi.fn() }));
-vi.mock("@/lib/auth", () => ({ startSession: vi.fn().mockResolvedValue(undefined) }));
 
 // A fake EventSource that remembers how it was opened and lets the test send events
 class FakeSource {
@@ -25,14 +24,29 @@ class FakeSource {
 let client: QueryClient;
 let signOut: ReturnType<typeof vi.fn>;
 let refreshRoles: ReturnType<typeof vi.fn>;
+let renewSession: ReturnType<typeof vi.fn>;
 let getNotifications: ReturnType<typeof vi.fn>;
 let shown: { tag: string; close: ReturnType<typeof vi.fn> }[];
 
-function signedIn(roles = ["resident"]) {
-    vi.mocked(useAuth).mockReturnValue({ user: { uid: "u1" }, roles, signOut, refreshRoles } as unknown as ReturnType<typeof useAuth>);
+function signedIn(roles = ["resident"], verificationState: "verified" | "unverified" | "check-failed" = "verified") {
+    vi.mocked(useAuth).mockReturnValue({
+        user: { uid: "u1" },
+        roles,
+        verificationState,
+        signOut,
+        refreshRoles,
+        renewSession,
+    } as unknown as ReturnType<typeof useAuth>);
 }
 function signedOut() {
-    vi.mocked(useAuth).mockReturnValue({ user: null, roles: [], signOut, refreshRoles } as unknown as ReturnType<typeof useAuth>);
+    vi.mocked(useAuth).mockReturnValue({
+        user: null,
+        roles: [],
+        verificationState: "checking",
+        signOut,
+        refreshRoles,
+        renewSession,
+    } as unknown as ReturnType<typeof useAuth>);
 }
 function mount() {
     const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
@@ -49,6 +63,7 @@ beforeEach(() => {
     vi.spyOn(client, "invalidateQueries").mockResolvedValue();
     signOut = vi.fn().mockResolvedValue(undefined);
     refreshRoles = vi.fn().mockResolvedValue([]);
+    renewSession = vi.fn().mockResolvedValue(true);
     shown = [
         { tag: "request-r1", close: vi.fn() },
         { tag: "award-a1", close: vi.fn() },
@@ -72,10 +87,14 @@ it("opens one stream with the cookie when signed in", () => {
     expect(FakeSource.all[0].init).toEqual({ withCredentials: true });
 });
 
-it("opens no stream when signed out or without a role", () => {
+it("opens no stream when signed out, unverified, check-failed, or without a role", () => {
     signedOut();
     mount();
-    vi.mocked(useAuth).mockReturnValue({ user: { uid: "u1" }, roles: [], signOut, refreshRoles } as unknown as ReturnType<typeof useAuth>);
+    signedIn(["resident"], "unverified");
+    mount();
+    signedIn(["resident"], "check-failed");
+    mount();
+    signedIn([], "verified");
     mount();
     expect(FakeSource.all).toHaveLength(0);
 });
@@ -282,6 +301,16 @@ it("reopens when the account's roles change", () => {
     view.rerender();
     expect(FakeSource.all).toHaveLength(2);
     expect(FakeSource.all[0].close).toHaveBeenCalledTimes(1);
+});
+
+it("routes session renewal through auth-context when the stream closes and reopens after backoff", () => {
+    vi.useFakeTimers();
+    mount();
+    FakeSource.all[0].readyState = FakeSource.CLOSED;
+    act(() => FakeSource.all[0].onerror?.());
+    expect(renewSession).toHaveBeenCalledTimes(1);
+    act(() => { vi.advanceTimersByTime(5_000); });
+    expect(FakeSource.all).toHaveLength(2);
 });
 
 it("ignores a bad JSON message and unknown events", () => {

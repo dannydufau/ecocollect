@@ -5,13 +5,26 @@ import type { Role } from "@/lib/types";
 
 export type { Role };
 
+export type TokenState = {
+    roles: Role[];
+    emailVerified: boolean;
+};
+
+export async function getTokenState(user: User, forceRefresh = false): Promise<TokenState> {
+    const result = await user.getIdTokenResult(forceRefresh);
+    const rawRoles = result.claims.roles;
+    const roles = Array.isArray(rawRoles)
+        ? rawRoles.filter((role): role is Role => role === "resident" || role === "volunteer")
+        : [];
+    return {
+        roles,
+        emailVerified: result.claims.email_verified === true,
+    };
+}
+
 export async function getRoles(user: User): Promise<Role[]> {
-    const result = await user.getIdTokenResult();
-    const roles = result.claims.roles;
-    if (!Array.isArray(roles)) {
-        return [];
-    }
-    return roles.filter((role): role is Role => role === "resident" || role === "volunteer");
+    const { roles } = await getTokenState(user);
+    return roles;
 }
 
 export function homeFor(roles: Role[]): string {
@@ -27,12 +40,16 @@ export function homeFor(roles: Role[]): string {
     return "/login";
 }
 
-export async function startSession(): Promise<void> {
-    const user = auth.currentUser;
-    if (!user) {
-        return;
+export async function startSession(userOrToken?: User | string): Promise<void> {
+    let idToken: string | undefined;
+    if (typeof userOrToken === "string") {
+        idToken = userOrToken;
+    } else {
+        const user = userOrToken ?? auth.currentUser;
+        if (!user) return;
+        idToken = await user.getIdToken();
     }
-    const idToken = await user.getIdToken();
+    if (!idToken) return;
     await api.post("/api/session", { idToken });
 }
 

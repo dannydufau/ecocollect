@@ -1,6 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { startSession } from "@/lib/auth";
 import { useAuth } from "@/lib/auth-context";
 import { keysFor } from "@/lib/invalidate";
 import { queryKeys } from "@/lib/query-keys";
@@ -26,21 +25,21 @@ async function closeShown(tags: string[] | null) {
     } catch {}
 }
 
-// README 13.3 and 16.5: one stream per tab while signed in with a role
+// README 13.3 and 16.5: one stream per tab while signed in, verified, and with a role
 export function useEventStream() {
-    const { user, roles, signOut, refreshRoles } = useAuth();
+    const { user, roles, verificationState, signOut, refreshRoles, renewSession } = useAuth();
     const queryClient = useQueryClient();
     const [opened, setOpened] = useState(0);
     const [delayed, setDelayed] = useState(false);
     // How long to wait before opening the stream again after the browser gave up on it
     const retryDelay = useRef(RETRY_FIRST);
     const failures = useRef(0);
-    const uid = user && roles.length > 0 ? user.uid : null;
+    const uid = user && verificationState === "verified" && roles.length > 0 ? user.uid : null;
     const roleList = roles.join(",");
 
-    // signOut and refreshRoles are new on every render, the stream should not reopen for that
-    const latest = useRef({ signOut, refreshRoles });
-    useEffect(() => { latest.current = { signOut, refreshRoles }; });
+    // signOut, refreshRoles and renewSession are new on every render, the stream should not reopen for that
+    const latest = useRef({ signOut, refreshRoles, renewSession });
+    useEffect(() => { latest.current = { signOut, refreshRoles, renewSession }; });
 
     useEffect(() => {
         if (!uid || typeof EventSource === "undefined") return;
@@ -108,7 +107,7 @@ export function useEventStream() {
             // After a non-200 answer (a 502 while the service restarts, or a 401 when the initial session call failed)
             // the browser gives up for good (issue #59), so refresh the session cookie and open a new stream later
             if (source.readyState === EventSource.CLOSED && retry === undefined) {
-                void startSession().catch(() => {});
+                void latest.current.renewSession().catch(() => false);
                 retry = setTimeout(() => setOpened((count) => count + 1), retryDelay.current);
                 retryDelay.current = Math.min(retryDelay.current * 2, RETRY_MAX);
             }

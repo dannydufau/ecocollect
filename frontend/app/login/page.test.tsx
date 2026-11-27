@@ -13,7 +13,14 @@ const signIn = vi.fn();
 const signOut = vi.fn();
 
 beforeEach(() => {
-    vi.mocked(useAuth).mockReturnValue({ user: null, roles: [], loading: false, signIn, signOut } as never);
+    vi.mocked(useAuth).mockReturnValue({
+        user: null,
+        roles: [],
+        loading: false,
+        verificationState: "checking",
+        signIn,
+        signOut,
+    } as never);
 });
 
 afterEach(() => {
@@ -71,21 +78,36 @@ it("keeps the old messages for other errors", async () => {
 });
 
 it.each([[["resident"]], [["resident", "volunteer"]]])("goes to /choose-role after signing in with %j", async (roles) => {
-    signIn.mockResolvedValue(roles);
+    signIn.mockResolvedValue({ user: { uid: "u1" }, roles, emailVerified: true });
     render(<LoginPage />);
     submit();
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/choose-role"));
     expect(signIn).toHaveBeenCalledWith("a@b.ca", "secret12");
 });
 
+it("goes to /verify-email after signing in with an unverified account without signing out", async () => {
+    signIn.mockResolvedValue({ user: { uid: "u1" }, roles: ["resident"], emailVerified: false });
+    render(<LoginPage />);
+    submit();
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/verify-email"));
+    expect(signOut).not.toHaveBeenCalled();
+});
+
 it("sends an already signed-in visitor to /choose-role", () => {
-    vi.mocked(useAuth).mockReturnValue({ user: { uid: "u1" }, roles: ["volunteer"], loading: false, signIn, signOut } as never);
+    vi.mocked(useAuth).mockReturnValue({
+        user: { uid: "u1" },
+        roles: ["volunteer"],
+        loading: false,
+        verificationState: "verified",
+        signIn,
+        signOut,
+    } as never);
     render(<LoginPage />);
     expect(router.replace).toHaveBeenCalledWith("/choose-role");
 });
 
 it("signs out an account with no roles and says so", async () => {
-    signIn.mockResolvedValue([]);
+    signIn.mockResolvedValue({ user: { uid: "u1" }, roles: [], emailVerified: true });
     render(<LoginPage />);
     submit();
     expect(await screen.findByRole("alert")).toHaveTextContent("This account has no role assigned.");
@@ -94,7 +116,7 @@ it("signs out an account with no roles and says so", async () => {
 });
 
 it("is busy while signing in and does not sign in twice", async () => {
-    let finish: (roles: string[]) => void = () => {};
+    let finish: (result: { user: { uid: string }; roles: string[]; emailVerified: boolean }) => void = () => {};
     signIn.mockReturnValue(new Promise((resolve) => { finish = resolve; }));
     render(<LoginPage />);
     submit();
@@ -102,13 +124,13 @@ it("is busy while signing in and does not sign in twice", async () => {
     expect(button).toBeDisabled();
     fireEvent.click(button);
     expect(signIn).toHaveBeenCalledTimes(1);
-    finish(["resident"]);
+    finish({ user: { uid: "u1" }, roles: ["resident"], emailVerified: true });
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/choose-role"));
 });
 
 it("leaves returnTo for the role page", async () => {
     sessionStorage.setItem("returnTo", "/resident/requests/r1");
-    signIn.mockResolvedValue(["resident"]);
+    signIn.mockResolvedValue({ user: { uid: "u1" }, roles: ["resident"], emailVerified: true });
     render(<LoginPage />);
     submit();
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/choose-role"));

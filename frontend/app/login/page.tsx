@@ -36,7 +36,7 @@ function ExpiredNotice() {
 export default function LoginPage() {
   if (isDemo) redirect("/demo");
   const router = useRouter();
-  const { user, roles, loading, signIn, signOut } = useAuth();
+  const { user, roles, loading, verificationState, signIn, signOut } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
@@ -44,10 +44,15 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!loading && !submitting && user && roles.length > 0) {
+    if (loading || submitting || !user) return;
+    if (verificationState === "unverified") {
+      router.replace("/verify-email");
+      return;
+    }
+    if (verificationState === "verified" && roles.length > 0) {
       router.replace("/choose-role");
     }
-  }, [loading, submitting, user, roles, router]);
+  }, [loading, submitting, user, roles, verificationState, router]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -59,7 +64,11 @@ export default function LoginPage() {
     if (nextErrors.email || nextErrors.password) return;
     setSubmitting(true);
     try {
-      const userRoles = await signIn(email.trim(), password);
+      const { roles: userRoles, emailVerified } = await signIn(email.trim(), password);
+      if (!emailVerified) {
+        router.replace("/verify-email");
+        return;
+      }
       if (userRoles.length === 0) {
         await signOut();
         setError("This account has no role assigned.");

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Alert, BellIcon, Button } from "@/components/ui";
-import { isSubscribed, needsHomeScreen, pushSupported, subscribe } from "@/lib/push";
+import { isSubscribed, needsHomeScreen, pushSupported, reconnectPush, subscribe } from "@/lib/push";
 
 type View = "checking" | "on" | "unsupported" | "home-screen" | "button" | "blocked" | "no-key";
 
@@ -19,6 +19,8 @@ export default function EnableNotifications() {
     const vapidKey = process.env.NEXT_PUBLIC_VAPID_KEY ?? "";
     const [view, setView] = useState<View>("checking");
     const [busy, setBusy] = useState(false);
+    const [reconnecting, setReconnecting] = useState(false);
+    const [reconnectStatus, setReconnectStatus] = useState<"idle" | "ok" | "error">("idle");
     const [error, setError] = useState("");
 
     useEffect(() => {
@@ -41,8 +43,38 @@ export default function EnableNotifications() {
         }
     }
 
+    async function handleReconnect() {
+        setReconnecting(true);
+        setReconnectStatus("idle");
+        try {
+            await reconnectPush();
+            setReconnectStatus("ok");
+        } catch {
+            setReconnectStatus("error");
+        } finally {
+            setReconnecting(false);
+        }
+    }
+
     if (view === "checking") return null;
-    if (view === "on") return <p role="status" className="flex flex-wrap items-center gap-2"><BellIcon className="size-5" /><strong>On</strong><span>You will get notifications on this device.</span></p>;
+    if (view === "on") {
+        return (
+            <div className="space-y-2">
+                <p role="status" className="flex flex-wrap items-center gap-2">
+                    <BellIcon className="size-5" />
+                    <strong>On</strong>
+                    <span>You will get notifications on this device.</span>
+                </p>
+                <Button variant="secondary" size="sm" onClick={() => void handleReconnect()} busy={reconnecting} busyLabel="Reconnecting...">
+                    Reconnect device notifications
+                </Button>
+                {reconnectStatus === "ok" && <Alert variant="info">Device notifications reconnected.</Alert>}
+                {reconnectStatus === "error" && (
+                    <Alert variant="error">We could not reconnect device notifications. Please try again.</Alert>
+                )}
+            </div>
+        );
+    }
     if (view === "unsupported") return <p role="status">This browser does not support device notifications.</p>;
     if (view === "home-screen") return <Alert variant="info">
         On iPhone and iPad, notifications work when EcoCollect is on your Home Screen. Tap the Share button, then Add to Home Screen,
