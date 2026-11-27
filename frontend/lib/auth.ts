@@ -8,6 +8,7 @@ export type { Role };
 export type TokenState = {
     roles: Role[];
     emailVerified: boolean;
+    token?: string;
 };
 
 export async function getTokenState(user: User, forceRefresh = false): Promise<TokenState> {
@@ -19,6 +20,7 @@ export async function getTokenState(user: User, forceRefresh = false): Promise<T
     return {
         roles,
         emailVerified: result.claims.email_verified === true,
+        token: typeof result.token === "string" ? result.token : undefined,
     };
 }
 

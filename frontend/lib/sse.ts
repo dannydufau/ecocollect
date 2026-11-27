@@ -67,6 +67,8 @@ export function useEventStream() {
                 if (ok) {
                     setOpened((count) => count + 1);
                 } else {
+                    failures.current += 1;
+                    if (failures.current >= 2) setDelayed(true);
                     scheduleReconnect();
                 }
             });

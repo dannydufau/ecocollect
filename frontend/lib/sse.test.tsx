@@ -313,23 +313,53 @@ it("routes session renewal through auth-context when the stream closes and reope
     expect(FakeSource.all).toHaveLength(2);
 });
 
-it("does not reopen the stream when session renewal fails, and retries renewal with backoff", async () => {
+it("does not reopen the stream when session renewal fails, shows delayed warning, retries with backoff, and clears warning on open", async () => {
     vi.useFakeTimers();
-    renewSession.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
-    mount();
+    renewSession
+        .mockResolvedValueOnce(false)
+        .mockResolvedValueOnce(false)
+        .mockResolvedValueOnce(true);
+    const { result } = mount();
     FakeSource.all[0].readyState = FakeSource.CLOSED;
     act(() => FakeSource.all[0].onerror?.());
     expect(renewSession).toHaveBeenCalledTimes(1);
+    expect(result.current.delayed).toBe(false);
 
+    // First renewal fails after 5s backoff: delayed warning turns on, no replacement stream opens, fresh attempt starts.
     await act(async () => { await vi.advanceTimersByTimeAsync(5_000); });
-    // First renewal failed: stream must NOT reopen yet, and a fresh renewal starts for the next backoff.
+    expect(result.current.delayed).toBe(true);
     expect(FakeSource.all).toHaveLength(1);
     expect(renewSession).toHaveBeenCalledTimes(2);
 
-    await act(async () => { await vi.advanceTimersByTimeAsync(9_999); });
+    // Second renewal fails after 10s backoff: delayed stays on, still no replacement stream, 3rd attempt starts.
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+    expect(result.current.delayed).toBe(true);
+    expect(FakeSource.all).toHaveLength(1);
+    expect(renewSession).toHaveBeenCalledTimes(3);
+
+    // Third renewal succeeds after 20s backoff: replacement stream opens, and onopen clears delayed warning.
+    await act(async () => { await vi.advanceTimersByTimeAsync(19_999); });
     expect(FakeSource.all).toHaveLength(1);
     await act(async () => { await vi.advanceTimersByTimeAsync(1); });
     expect(FakeSource.all).toHaveLength(2);
+    act(() => FakeSource.all[1].onopen?.());
+    expect(result.current.delayed).toBe(false);
+});
+
+it("cancels an in-flight renewal retry sequence cleanly on unmount", async () => {
+    vi.useFakeTimers();
+    let resolveRenewal!: (ok: boolean) => void;
+    renewSession.mockReturnValueOnce(new Promise<boolean>((resolve) => { resolveRenewal = resolve; }));
+    const view = mount();
+    FakeSource.all[0].readyState = FakeSource.CLOSED;
+    act(() => FakeSource.all[0].onerror?.());
+    view.unmount();
+    await act(async () => {
+        resolveRenewal(true);
+        await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(FakeSource.all).toHaveLength(1);
+    expect(vi.getTimerCount()).toBe(0);
 });
 
 it("waits for a slow session renewal that takes longer than the backoff timer before reopening", async () => {

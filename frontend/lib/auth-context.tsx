@@ -25,6 +25,7 @@ import {
   startSession,
   type Role,
 } from "@/lib/auth";
+import { runLocalPushCleanup } from "@/lib/push";
 import { dropCacheIfUserChanged } from "@/lib/query-cache";
 
 export type VerificationState = "checking" | "check-failed" | "unverified" | "verified";
@@ -90,18 +91,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Ordered session queue: serializes POST /api/session and DELETE /api/session across
   // sign-out and account switches so a late POST cannot leave an old cookie active.
+  // Queued entries are bound to both uid and the token they will send so a role refresh
+  // with a newer token is never coalesced into an in-flight POST carrying an older token.
   const sessionChain = useRef<Promise<unknown>>(Promise.resolve());
-  const inFlightSession = useRef<{ uid: string; promise: Promise<boolean> } | null>(null);
-  const sessionActiveUid = useRef<string | null>(null);
+  const inFlightSession = useRef<{ uid: string; token: string | null; promise: Promise<boolean> } | null>(null);
+  const sessionActive = useRef<{ uid: string; token: string } | null>(null);
 
-  function ensureSession(user: User, { force = false } = {}): Promise<boolean> {
-    // Always share an in-flight POST /api/session for the same account.
-    if (inFlightSession.current?.uid === user.uid) {
+  function ensureSession(user: User, { force = false, idToken }: { force?: boolean; idToken?: string } = {}): Promise<boolean> {
+    // Share an in-flight POST for the same account only when it carries an equivalent token.
+    if (
+      inFlightSession.current?.uid === user.uid &&
+      (!idToken || inFlightSession.current.token === idToken)
+    ) {
       return inFlightSession.current.promise;
     }
-    if (!force && sessionActiveUid.current === user.uid) {
+    if (
+      !force &&
+      sessionActive.current?.uid === user.uid &&
+      (!idToken || sessionActive.current.token === idToken)
+    ) {
       return Promise.resolve(true);
     }
+
+    const entry: { uid: string; token: string | null; promise: Promise<boolean> } = {
+      uid: user.uid,
+      token: idToken ?? null,
+      promise: Promise.resolve(false),
+    };
 
     const run: Promise<boolean> = sessionChain.current
       .catch(() => {})
@@ -112,18 +128,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (typeof navigator !== "undefined" && typeof navigator.serviceWorker?.register === "function") {
             void navigator.serviceWorker.register("/sw.js").catch(() => {});
           }
-          await startSession(user);
+          const tokenToSend = idToken ?? (await user.getIdToken());
+          entry.token = tokenToSend;
+          if (auth.currentUser?.uid !== user.uid) return false;
+          await startSession(tokenToSend);
           if (auth.currentUser?.uid !== user.uid) {
             await cleanupSession();
             return false;
           }
-          sessionActiveUid.current = user.uid;
+          sessionActive.current = { uid: user.uid, token: tokenToSend };
           return true;
         } catch (err) {
           // The app works without the cookie, but live updates (SSE) do not.
           // Do not cache failure: the next retry must make a fresh POST /api/session.
           console.warn("Could not start the session", err);
-          if (sessionActiveUid.current === user.uid) sessionActiveUid.current = null;
+          if (sessionActive.current?.uid === user.uid) sessionActive.current = null;
           return false;
         } finally {
           if (inFlightSession.current?.promise === run) {
@@ -132,44 +151,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       });
 
+    entry.promise = run;
     sessionChain.current = run;
-    inFlightSession.current = { uid: user.uid, promise: run };
+    inFlightSession.current = entry;
     return run;
   }
 
   function endSession(): Promise<void> {
-    sessionActiveUid.current = null;
+    sessionActive.current = null;
     const run = sessionChain.current
       .catch(() => {})
       .then(async () => {
         await cleanupSession();
-        sessionActiveUid.current = null;
+        sessionActive.current = null;
       });
     sessionChain.current = run;
     return run;
   }
 
-  // Best-effort local push cleanup guarded against account switches / newer auth epochs.
+  // Best-effort local push cleanup guarded against account switches / newer auth epochs
+  // and coordinated with push subscribe/reconnect via push.ts.
   function cleanupLocalPushGuarded(epoch: number, expectedUid: string | null) {
-    void (async () => {
-      if (authEpoch.current !== epoch) return;
-      if ((auth.currentUser?.uid ?? null) !== expectedUid) return;
-      let subscription: PushSubscription | null | undefined;
-      try {
-        const registration = await navigator.serviceWorker?.getRegistration();
-        subscription = await registration?.pushManager.getSubscription();
-      } catch (err) {
-        console.warn("Could not read the push subscription", err);
-        return;
-      }
-      if (!subscription) return;
-      if (authEpoch.current !== epoch || (auth.currentUser?.uid ?? null) !== expectedUid) return;
-      try {
-        await subscription.unsubscribe?.();
-      } catch (err) {
-        console.warn("Could not unsubscribe browser push", err);
-      }
-    })();
+    void runLocalPushCleanup(() => authEpoch.current === epoch && (auth.currentUser?.uid ?? null) === expectedUid);
   }
 
   useEffect(() => {
@@ -192,7 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!user) {
         // signOut below already did this. It is still needed when Firebase ends the login by itself (expired token).
-        if (sessionActiveUid.current || inFlightSession.current) {
+        if (sessionActive.current || inFlightSession.current) {
           await endSession();
         }
         storeRole(null);
@@ -310,7 +313,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function signOut({ skipServer = false } = {}) {
     authEpoch.current += 1;
     if (skipServer) {
-      sessionActiveUid.current = null;
+      sessionActive.current = null;
       await removePushSubscription({ skipServer: true });
     } else {
       await removePushSubscription({ skipServer: state.verificationState !== "verified" });
@@ -323,10 +326,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function refreshRoles(): Promise<Role[]> {
     const user = auth.currentUser;
     if (!user) return [];
-    const { roles, emailVerified } = await getTokenState(user, true);
+    const { roles, emailVerified, token } = await getTokenState(user, true);
     // Somebody else may have signed in while we waited, these roles are not theirs
     if (auth.currentUser?.uid !== user.uid) return [];
-    if (emailVerified && roles.length > 0) await ensureSession(user, { force: true });
+    if (emailVerified && roles.length > 0) {
+      const refreshedToken = token ?? (await user.getIdToken());
+      if (auth.currentUser?.uid !== user.uid) return [];
+      await ensureSession(user, { force: true, idToken: refreshedToken });
+    }
     if (auth.currentUser?.uid !== user.uid) return [];
     setState((current) => ({
       ...current,
@@ -393,7 +400,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user) return "unverified";
     await reload(user);
     if (auth.currentUser?.uid !== user.uid) return "unverified";
-    const { roles, emailVerified } = await getTokenState(user, true);
+    const { roles, emailVerified, token } = await getTokenState(user, true);
     if (auth.currentUser?.uid !== user.uid) return "unverified";
     if (!emailVerified) {
       setState((current) => ({
@@ -408,7 +415,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return "unverified";
     }
     if (roles.length > 0) {
-      await ensureSession(user, { force: true });
+      const refreshedToken = token ?? (await user.getIdToken());
+      if (auth.currentUser?.uid !== user.uid) return "unverified";
+      await ensureSession(user, { force: true, idToken: refreshedToken });
     }
     if (auth.currentUser?.uid !== user.uid) return "unverified";
     setState((current) => ({

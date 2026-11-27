@@ -21,6 +21,7 @@ export default function EnableNotifications() {
     const [busy, setBusy] = useState(false);
     const [reconnecting, setReconnecting] = useState(false);
     const [reconnectStatus, setReconnectStatus] = useState<"idle" | "ok" | "error">("idle");
+    const [notice, setNotice] = useState("");
     const [error, setError] = useState("");
 
     useEffect(() => {
@@ -32,9 +33,13 @@ export default function EnableNotifications() {
     async function turnOn() {
         setBusy(true);
         setError("");
+        setNotice("");
         try {
             const permission = await subscribe(vapidKey);
-            if (permission === "granted") setView("on");
+            if (permission === "granted") {
+                setReconnectStatus("idle");
+                setView("on");
+            }
             if (permission === "denied") setView("blocked");
         } catch {
             setError("We could not turn on notifications. Please try again.");
@@ -46,8 +51,17 @@ export default function EnableNotifications() {
     async function handleReconnect() {
         setReconnecting(true);
         setReconnectStatus("idle");
+        setNotice("");
         try {
-            await reconnectPush();
+            const outcome = await reconnectPush();
+            if (outcome === "missing") {
+                const next = await firstView(vapidKey);
+                setView(next);
+                if (next === "button") {
+                    setNotice("Device notifications were turned off in this browser. Turn them on again below.");
+                }
+                return;
+            }
             setReconnectStatus("ok");
         } catch {
             setReconnectStatus("error");
@@ -87,6 +101,7 @@ export default function EnableNotifications() {
     </div>;
     return (
         <div className="space-y-2">
+            {notice && <Alert variant="info">{notice}</Alert>}
             <Button variant="secondary" onClick={turnOn} busy={busy} busyLabel="Turning on..."><span className="inline-flex items-center gap-2"><BellIcon className="size-5" />Turn on device notifications</span></Button>
             {error && <Alert variant="error">{error}</Alert>}
         </div>

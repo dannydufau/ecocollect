@@ -3,6 +3,7 @@ import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { api } from "@/lib/api";
+import { subscribe } from "@/lib/push";
 import { AuthProvider, useAuth } from "./auth-context";
 
 const fb = vi.hoisted(() => ({
@@ -400,10 +401,10 @@ it("clears inFlightSession when a queued POST is skipped after an account switch
     act(() => { aliceFirst = listener(alice); });
     await waitFor(() => expect(resolveAlicePost).toBeDefined());
 
-    // 2. Switch to Bob -> Bob's session POST is queued behind Alice's in-flight POST.
+    // 2. Switch to Bob -> let Bob's token read finish and his session request enter the queue behind Alice's pending POST.
     fb.auth.currentUser = bob;
     let bobSkipped!: Promise<void>;
-    act(() => { bobSkipped = listener(bob); });
+    await act(async () => { bobSkipped = listener(bob); });
 
     // 3. Switch away from Bob before Bob's queued POST runs, so Bob's queued POST returns false early.
     fb.auth.currentUser = null;
@@ -427,4 +428,123 @@ it("clears inFlightSession when a queued POST is skipped after an account switch
     await act(async () => { renewed = await view.result.current.renewSession(); });
     expect(renewed).toBe(true);
     expect(api.post).toHaveBeenCalledTimes(2);
+});
+
+it("queues a second session POST with the refreshed token when refreshRoles runs while an older-token POST is still in flight", async () => {
+    const user = fakeUser("u1", ["resident"], true);
+    user.getIdToken.mockResolvedValue("token-old");
+
+    const postedTokens: string[] = [];
+    let releaseFirstPost!: () => void;
+    vi.mocked(api.post)
+        .mockImplementationOnce((_path, body) => new Promise<undefined>((resolve) => {
+            releaseFirstPost = () => {
+                postedTokens.push((body as { idToken: string }).idToken);
+                resolve(undefined);
+            };
+        }))
+        .mockImplementation(async (_path, body) => {
+            postedTokens.push((body as { idToken: string }).idToken);
+        });
+
+    const view = renderHook(() => useAuth(), { wrapper });
+    fb.auth.currentUser = user;
+    let initialMount!: Promise<void>;
+    act(() => { initialMount = listener(user); });
+    await waitFor(() => expect(releaseFirstPost).toBeDefined());
+
+    // While the old-token POST is still open, role refresh returns a brand-new token.
+    user.getIdTokenResult.mockResolvedValueOnce({
+        token: "token-fresh",
+        claims: { roles: ["resident", "volunteer"], email_verified: true },
+    });
+    user.getIdToken.mockResolvedValue("token-fresh");
+
+    let refreshPromise!: Promise<string[]>;
+    act(() => { refreshPromise = view.result.current.refreshRoles(); });
+
+    await act(async () => {
+        releaseFirstPost();
+        await Promise.all([initialMount, refreshPromise]);
+    });
+
+    expect(postedTokens).toEqual(["token-old", "token-fresh"]);
+    expect(view.result.current.roles).toEqual(["resident", "volunteer"]);
+});
+
+it("coordinates an already-started unsubscribe() with the next account's push subscribe so late cleanup cannot undo registration", async () => {
+    const events: string[] = [];
+    let releaseUnsubscribe!: () => void;
+    const oldSub = {
+        endpoint: "https://push.example/old",
+        unsubscribe: vi.fn(() => {
+            events.push("old.unsubscribe:start");
+            return new Promise<boolean>((resolve) => {
+                releaseUnsubscribe = () => {
+                    events.push("old.unsubscribe:end");
+                    resolve(true);
+                };
+            });
+        }),
+    };
+    const newSubJson = { endpoint: "https://push.example/bob", keys: { p256dh: "p", auth: "a" }, expirationTime: null };
+    const newSub = { endpoint: newSubJson.endpoint, toJSON: () => newSubJson, unsubscribe: vi.fn() };
+    let activeSub: unknown = oldSub;
+
+    const registration = {
+        pushManager: {
+            getSubscription: vi.fn(async () => activeSub),
+            subscribe: vi.fn(async () => {
+                events.push("bob.subscribe");
+                activeSub = newSub;
+                return newSub;
+            }),
+        },
+    };
+    vi.stubGlobal("Notification", { permission: "default", requestPermission: vi.fn(async () => "granted") });
+    vi.stubGlobal("PushManager", class {});
+    vi.stubGlobal("navigator", {
+        serviceWorker: {
+            register: vi.fn(async () => registration),
+            ready: Promise.resolve(registration),
+            getRegistration: vi.fn(async () => registration),
+        },
+    });
+    vi.mocked(api.post).mockImplementation(async (path, body) => {
+        if (path === "/api/push/subscriptions") {
+            events.push(`POST push ${(body as { endpoint: string }).endpoint}`);
+        }
+    });
+
+    // 1. Unverified Alice signs in -> local push cleanup starts oldSub.unsubscribe() (held pending).
+    const alice = fakeUser("alice", ["resident"], false);
+    const view = await mount(alice);
+    await waitFor(() => expect(releaseUnsubscribe).toBeDefined());
+    expect(view.result.current.verificationState).toBe("unverified");
+
+    // 2. Verified Bob signs in while Alice's unsubscribe() is still pending.
+    //    Bob's sign-in state is published immediately (not blocked by cleanup).
+    const bob = fakeUser("bob", ["volunteer"], true);
+    fb.auth.currentUser = bob;
+    await act(async () => { await listener(bob); });
+    expect(view.result.current.user).toBe(bob);
+    expect(view.result.current.verificationState).toBe("verified");
+
+    // 3. Bob enables push while Alice's unsubscribe() is still pending.
+    const bobSubscribePromise = subscribe("AQID");
+    await Promise.resolve();
+    // Bob's browser subscribe must wait for Alice's in-flight unsubscribe() to finish.
+    expect(registration.pushManager.subscribe).not.toHaveBeenCalled();
+
+    // 4. Release Alice's unsubscribe(): Bob's subscribe and server POST run afterwards.
+    releaseUnsubscribe();
+    await bobSubscribePromise;
+
+    expect(events).toEqual([
+        "old.unsubscribe:start",
+        "old.unsubscribe:end",
+        "bob.subscribe",
+        "POST push https://push.example/bob",
+    ]);
+    expect(activeSub).toBe(newSub);
 });
