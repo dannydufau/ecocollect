@@ -20,7 +20,7 @@ Existing tests are cited first. Following ISO/IEC/IEEE 29119 [2], the remaining 
 
 High-risk gaps in the event, notification and messaging paths get scripted cases; other gaps are listed with their rating as not yet scripted.
 
-**Scope:** this file scripts the Notification Service's push path: NFR04-P1 (pushes are signed and encrypted) and NFR04-N1 (the push subscription endpoint rejects unauthenticated and unsafe requests). It is chosen because it carries the highest impact on the scale: it is the only place the system sends user data to an outside service, and the only place it accepts an address that the server will then call. Every other claim is listed with the evidence that exists, or as not yet scripted with its risk.
+**Scope:** this file scripts the Notification Service's push path: NFR04-P1 (pushes are signed and encrypted) and NFR04-N1 (the push subscription endpoint rejects unauthenticated and unsafe requests). It is chosen because it carries the highest impact on the scale: it is the only place the system sends user data to an outside service, and the only place it accepts an address that the server will then call. NFR04-P2 adds the Notification Service's connection to RabbitMQ, encrypted when the stack is started with the TLS Compose file. Every other claim is listed with the evidence that exists, or as not yet scripted with its risk.
 
 ## Criteria and evidence
 
@@ -31,7 +31,7 @@ High-risk gaps in the event, notification and messaging paths get scripted cases
 | C3 | Each service checks on the server that the caller may act | Confidentiality, integrity | `backend/test/notification-list.test.js`, "N4 marks the caller's own notification read and tells their tabs; anyone else gets 404"; `backend/test/request/uploads.test.ts`, "item photo: 200 for a resident, in their folder; 403 for a volunteer; 400 for a gif" | Covered for notifications and uploads; other Request Service actions are tested in the FR cases |
 | C4 | Input is validated | Integrity | NFR04-N1; `backend/test/user/auth/session.test.cjs`, "POST /api/session returns 400 for a body that is not valid JSON"; the 400 cases in the Request Service tests | Covered |
 | C5 | File uploads are controlled | Integrity | `backend/test/request/uploads.test.ts`, the item photo and evidence tests (role, request and file type checks) | Covered |
-| C6 | Communication is encrypted in deployment | Confidentiality | NFR04-P1; `infra/caddy/testing/test.sh` runs every check against the gateway over HTTPS | Partly covered. Not yet scripted: traffic between services and RabbitMQ is plain AMQP on the internal Docker network; broker TLS is a planned follow-up; because the Notification Service reaches RabbitMQ only through the messaging module, encrypting its connection needs a code change in one file (`backend/src/messaging/connection.js`). Risk: medium impact (internal network only), low likelihood |
+| C6 | Communication is encrypted in deployment | Confidentiality | NFR04-P1; NFR04-P2; `infra/caddy/testing/test.sh` runs every check against the gateway over HTTPS | Partly covered. The Notification Service's connection to RabbitMQ uses TLS when the stack is started with `docker-compose.tls.yml` (opt-in; development certificates from `infra/rabbitmq/gen-certs.sh`). Not yet covered: the other services still use plain AMQP on the internal Docker network, and the default stack does not use TLS. Each could switch the same way, since every connection is opened in `backend/src/messaging/connection.js`, except the Request Service's relay, which has its own connection. Risk: medium impact (internal network only), low likelihood |
 
 ## Cases
 
@@ -51,6 +51,24 @@ High-risk gaps in the event, notification and messaging paths get scripted cases
 **Postcondition:** none (the fake service is closed).
 
 **Verification:** `backend/test/notification-push.test.js`, "the sender POSTs a signed, encrypted push to each of the user's browsers".
+
+### NFR04-P2: The Notification Service's connection to RabbitMQ is encrypted (C6, basic flow)
+
+**Preconditions:** a checkout of the #505 branch; `npm ci` run in `backend/`. For steps 4 and 5, Docker and `infra/rabbitmq/gen-certs.sh` run once.
+
+| # | Action | Expected result |
+| --- | --- | --- |
+| 1 | Open a connection to an `amqps://` URL with the CA file set | The connection trusts only certificates signed by that CA |
+| 2 | Open a connection to a plain `amqp://` URL | Nothing extra is passed: the other services connect as before |
+| 3 | Read the merged Compose settings of `docker-compose.tls.yml` | Only `notification` and `rabbitmq` change: the Notification Service uses `amqps://…@rabbitmq:5671` with the CA mounted; RabbitMQ keeps 5672 and adds a TLS listener on 5671 |
+| 4 | Start the stack with `docker compose -f docker-compose.yml -f docker-compose.tls.yml up --build`, then cause an event (for example, create a request) | The Notification Service logs connect without errors, and the signal or notification still arrives |
+| 5 | From the host, run `openssl s_client -connect localhost:5671 -CAfile infra/rabbitmq/certs/ca.pem`, then again with a different CA file | Verify return code 0 (ok), then a verify error: a certificate not signed by our CA is not trusted |
+
+**Expected result:** with the TLS Compose file, events reach the Notification Service over an encrypted connection, it accepts only the broker certificate signed by our CA, and the other services are unchanged.
+
+**Postcondition:** `docker compose down` (the certificates stay in `infra/rabbitmq/certs/`, which git ignores).
+
+**Verification:** steps 1–3: `backend/test/broker-tls.test.js` ("an amqps URL with a CA file trusts only that CA; otherwise nothing changes", "openConnection passes the CA to amqplib", "the TLS override moves only the Notification Service to amqps on 5671, with our CA"). Steps 4–5: manual, on the Docker stack.
 
 ### NFR04-N1: The push subscription endpoint rejects unauthenticated and unsafe requests (C2, C4, alternate flow)
 
@@ -81,5 +99,6 @@ Record one row per run. A planned case is not a pass until it has a row here.
 
 | Case | Date | Commit | Command or steps | Result |
 | --- | --- | --- | --- | --- |
-| NFR04-P1, NFR04-N1 | | | `npm test` in `backend/` | |
+| NFR04-P1, NFR04-N1, NFR04-P2 (steps 1–3) | | | `npm test` in `backend/` | |
+| NFR04-P2 (steps 4–5) | | | Docker stack with `docker-compose.tls.yml`; `openssl s_client` | |
 | Supporting: gateway | | | `./infra/caddy/testing/test.sh` (needs Docker) | |
