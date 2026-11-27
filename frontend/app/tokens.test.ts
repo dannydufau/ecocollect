@@ -50,6 +50,7 @@ const text: [string, string][] = [
   ["on-accent", "accent"], ["on-accent", "accent-700"],
   ["accent-700", "bg"], ["accent-700", "surface-elevated"],
   ["on-moss", "accent-2-700"], ["on-moss", "accent-2-800"], ["on-moss", "accent-2-900"],
+  ["accent-2-200", "accent-2-900"],
   ["on-danger", "danger"],
   ["danger", "bg"], ["danger", "surface-elevated"],
   ["on-accent", "role-resident"], ["on-moss", "role-volunteer"],

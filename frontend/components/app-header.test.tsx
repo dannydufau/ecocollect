@@ -156,11 +156,12 @@ it("shows a role tag and no switcher for one role", () => {
     expect(screen.queryByRole("group", { name: "Active role" })).not.toBeInTheDocument();
 });
 
-it("shows the brand, stats and sign in when signed out", () => {
+it("shows the brand, about, stats and sign in when signed out", () => {
     pathname = "/stats";
     vi.mocked(useAuth).mockReturnValue({ user: null, roles: [], activeRole: null, loading: false, setActiveRole } as never);
     render(<AppHeader />);
     expect(screen.getByRole("link", { name: "EcoCollect" })).toHaveAttribute("href", "/login");
+    expect(screen.getByRole("link", { name: "About" })).toHaveAttribute("href", "/about");
     expect(screen.getByRole("link", { name: "Community stats" })).toHaveAttribute("href", "/stats");
     expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/login");
     expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
@@ -198,6 +199,7 @@ it("uses a bottom bar with three short links and a More menu below 960px", () =>
     const { more, menu } = openMore();
     expect(more).toHaveAttribute("aria-expanded", "true");
     expect(within(menu).queryByRole("link", { name: "Notifications" })).not.toBeInTheDocument();
+    expect(within(menu).getByRole("link", { name: "About" })).toHaveAttribute("href", "/about");
     expect(within(menu).getByRole("link", { name: "Profile" })).toBeInTheDocument();
     expect(within(menu).getByRole("link", { name: "Community stats" })).toHaveAttribute("href", "/stats");
     expect(within(menu).getByRole("button", { name: "Log out" })).toBeInTheDocument();
@@ -286,10 +288,11 @@ it("switches between the top nav and the bottom bar with CSS at 960px", () => {
     expect(accountButton().parentElement!.parentElement).toHaveClass("hidden", "min-[960px]:block");
 });
 
-it("puts Community stats, Profile and Log out in the Account menu on the wide header", () => {
+it("puts About, Community stats, Profile and Log out in the Account menu on the wide header", () => {
     signedIn(["volunteer"]);
     render(<AppHeader />);
     const { menu } = openAccount();
+    expect(within(menu).getByRole("link", { name: "About" })).toHaveAttribute("href", "/about");
     expect(within(menu).getByRole("link", { name: "Community stats" })).toHaveAttribute("href", "/stats");
     expect(within(menu).getByRole("link", { name: "Profile" })).toHaveAttribute("href", "/profile");
     expect(within(menu).getByRole("button", { name: "Log out" })).toBeInTheDocument();

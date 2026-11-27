@@ -79,6 +79,7 @@ async function startService() {
   return {
     child, lines, exited,
     url: `${base}/api/events`,
+    publicEventsUrl: `${base}/api/public/events`,
     subscriptionsUrl: `${base}/api/push/subscriptions`,
     notificationsUrl: `${base}/api/notifications`,
   };
@@ -90,9 +91,9 @@ async function stopService(service) {
 }
 
 // A browser tab: opens the stream as a signed-in user (as Caddy would, via X-User-Id).
-async function openTab(url, uid) {
+async function openTab(url, uid, roles = '') {
   const abort = new AbortController();
-  const res = await fetch(url, { headers: { 'X-User-Id': uid }, signal: abort.signal });
+  const res = await fetch(url, { headers: uid ? { 'X-User-Id': uid, 'X-User-Roles': roles } : {}, signal: abort.signal });
   const tab = { res, text: '', close: () => abort.abort() };
   (async () => {
     const decoder = new TextDecoder();
@@ -275,7 +276,7 @@ test('a RequestCreated reaches the resident and matched volunteers as signals, n
     await addAccounts(db, subscribers);
     await db.query('UPDATE users.account SET deactivated_at = now() WHERE account_id = $1', [deactivated]);
     const residentTab = await openTab(service.url, resident);
-    const volunteerTab = await openTab(service.url, volunteer);
+    const volunteerTab = await openTab(service.url, volunteer, 'volunteer');
     const bystanderTab = await openTab(service.url, bystander); // connected, but not a recipient
     tabs.push(residentTab, volunteerTab, bystanderTab);
     // Everyone has push on, so the test shows who it goes to.
@@ -404,6 +405,34 @@ test('a RequestCreated reaches the resident and matched volunteers as signals, n
     const after = await (await fetch(service.notificationsUrl, asVolunteer)).json();
     assert.ok(!after.notifications.some((n) => n.type === 'NEW_MATCHING_REQUEST' && n.requestId === requestId));
     assert.ok(after.notifications.some((n) => n.type === 'REQUEST_ASSIGNED_VOLUNTEER' && n.requestId === requestId));
+
+    // X2 still expires the second request's matching notice if cancellation saves nothing.
+    await db.query('UPDATE users.account SET deactivated_at = now() WHERE account_id = $1', [resident]);
+    const request = {
+      requestId: secondId, requestSeq: 3, transitionId: randomUUID(), status: 'Cancelled',
+      residentUid: resident, categoryName: 'Computers/Laptops', quantity: 1, postalCode: 'T2P1J9',
+    };
+    await publish({
+      eventId: randomUUID(), type: 'RequestCancelled', version: 1,
+      occurredAt: new Date().toISOString(), data: { request },
+    });
+    await waitFor(() => framesIn(volunteerTab, 'notification-expired').length === 2, 'expiry without a new recipient');
+    const availableUpdates = () => framesIn(volunteerTab, 'available-requests-changed')
+      .filter(({ data }) => data.requestId === secondId);
+    assert.equal(availableUpdates().length, 2);
+
+    // E3 arrives late after E9. It still invalidates the list without sending the assigned notice.
+    await publish({
+      eventId: randomUUID(), type: 'RequestAssigned', version: 1,
+      occurredAt: new Date().toISOString(),
+      data: {
+        request: { ...request, requestSeq: 2, transitionId: randomUUID(), status: 'Assigned' },
+        assignment: { volunteerUid: volunteer },
+      },
+    });
+    await waitFor(() => availableUpdates().length === 3, 'the late assignment to invalidate the available list');
+    const refreshed = await (await fetch(service.notificationsUrl, asVolunteer)).json();
+    assert.ok(!refreshed.notifications.some((n) => n.requestId === secondId));
   } finally {
     tabs.forEach((t) => t.close());
     pushService.close();
@@ -423,8 +452,9 @@ async function withStore(run) {
   const save = (requestSeq, transitionId, ...types) => {
     const createdAt = new Date().toISOString();
     return store.saveRequestNotifications(
+      randomUUID(),
       types.map((type) => ({ notificationId: randomUUID(), type, createdAt, accountId: uid })),
-      { pickupRequestId: requestId, requestSeq, transitionId, leavesOpen: true },
+      { pickupRequestId: requestId, requestSeq, transitionId, expiresMatching: true },
     );
   };
   try {
@@ -458,3 +488,219 @@ test('a later step expires older notifications from other actions, not from the 
       new Set([...first.saved, ...sameAction.saved]),
     );
   }));
+
+test('a late RequestAssigned after RequestAssignmentCollected still expires older matching notices while suppressing its own', { skip }, async () => {
+  const service = await startService();
+  const pushService = await startPushService();
+  const resident = `it-lr-${randomUUID()}`;
+  const assignedVol = `it-lv-${randomUUID()}`;
+  const unmatchedVol = `it-lu-${randomUUID()}`;
+  const accounts = [resident, assignedVol, unmatchedVol];
+  const db = new Pool({ connectionString: URL_DB });
+  const tabs = [];
+  const requestId = randomUUID();
+  const request = {
+    requestId,
+    residentUid: resident,
+    categoryId: 'laptops',
+    categoryName: 'Computers/Laptops',
+    quantity: 1,
+    postalCode: 'T2P1J9',
+  };
+  try {
+    await addAccounts(db, accounts);
+    await addRequest(db, requestId, resident, 1);
+    const unmatchedTab = await openTab(service.url, unmatchedVol, 'volunteer');
+    const assignedTab = await openTab(service.url, assignedVol, 'volunteer');
+    tabs.push(unmatchedTab, assignedTab);
+
+    // 1. RequestCreated (seq 1): unmatchedVol receives NEW_MATCHING_REQUEST.
+    await publish({
+      eventId: randomUUID(), type: 'RequestCreated', version: 2,
+      occurredAt: new Date().toISOString(),
+      data: {
+        request: { ...request, requestSeq: 1, transitionId: randomUUID(), status: 'Open' },
+        matchedVolunteerUids: [unmatchedVol, assignedVol],
+      },
+    });
+    await waitFor(() => notificationsIn(unmatchedTab).length === 1, 'unmatchedVol NEW_MATCHING_REQUEST');
+    const matchingNotifId = notificationsIn(unmatchedTab)[0].data.notificationId;
+
+    const assignment = {
+      assignmentId: randomUUID(),
+      volunteerUid: assignedVol,
+      window: { windowId: randomUUID(), date: '2026-11-22', startHour: 14 },
+    };
+
+    // 2. RequestAssignmentCollected (seq 3) arrives before RequestAssigned (seq 2).
+    await publish({
+      eventId: randomUUID(), type: 'RequestAssignmentCollected', version: 1,
+      occurredAt: new Date().toISOString(),
+      data: {
+        request: { ...request, requestSeq: 3, transitionId: randomUUID(), status: 'Collected' },
+        assignment,
+      },
+    });
+    await waitFor(() => notificationsIn(assignedTab).some((n) => n.data.type === 'REQUEST_COLLECTED_VOLUNTEER'), 'seq 3 collected notification');
+
+    // 3. Late RequestAssigned (seq 2): stale, so its own notifications are NOT sent,
+    //    but unmatchedVol's older NEW_MATCHING_REQUEST (seq 1 < 2) MUST expire.
+    await publish({
+      eventId: randomUUID(), type: 'RequestAssigned', version: 1,
+      occurredAt: new Date().toISOString(),
+      data: {
+        request: { ...request, requestSeq: 2, transitionId: randomUUID(), status: 'Assigned' },
+        assignment,
+      },
+    });
+    await waitFor(
+      () => framesIn(unmatchedTab, 'notification-expired').some((f) => f.data.notificationIds.includes(matchingNotifId)),
+      'unmatchedVol to receive notification-expired for the old matching notice',
+    );
+
+    // unmatchedVol's list no longer shows "New pickup near you".
+    const unmatchedList = await (await fetch(service.notificationsUrl, { headers: { 'X-User-Id': unmatchedVol } })).json();
+    assert.deepEqual(unmatchedList.notifications, []);
+
+    // assignedVol never received a live REQUEST_ASSIGNED_VOLUNTEER, and still has seq 3 Collected active.
+    assert.ok(!notificationsIn(assignedTab).some((n) => n.data.type === 'REQUEST_ASSIGNED_VOLUNTEER'));
+    const assignedList = await (await fetch(service.notificationsUrl, { headers: { 'X-User-Id': assignedVol } })).json();
+    assert.equal(assignedList.notifications.length, 1);
+    assert.equal(assignedList.notifications[0].type, 'REQUEST_COLLECTED_VOLUNTEER');
+  } finally {
+    tabs.forEach((t) => t.close());
+    pushService.close();
+    await stopService(service);
+    await removeAccounts(db, accounts);
+    await db.end();
+  }
+});
+
+test('award, cleanup and deactivation events commit once and refresh the right streams', { skip }, async (t) => {
+  const db = new Pool({ connectionString: URL_DB });
+  const uid = `it-award-${randomUUID()}`;
+  const requestId = randomUUID();
+  const assignmentId = randomUUID();
+  const windowId = randomUUID();
+  const acceptanceId = randomUUID();
+  const awardId = randomUUID();
+  const ids = [];
+  const envelope = (type, data) => {
+    const eventId = randomUUID();
+    ids.push(eventId);
+    return { eventId, type, data, version: 1, occurredAt: new Date().toISOString() };
+  };
+  let service = await startService();
+  t.after(async () => {
+    await stopService(service);
+    try {
+      await db.query('CALL notifications.delete_account_data($1, NULL, NULL)', [uid]);
+      await db.query('DELETE FROM notifications.processed_events WHERE event_id = ANY($1)', [ids]);
+      await db.query('DELETE FROM notifications.request_event WHERE pickup_request_id = $1', [requestId]);
+      await db.query('DELETE FROM rewards.volunteer_award WHERE ecopoints_award_id = $1', [awardId]);
+      await db.query('DELETE FROM rewards.ecopoints_award WHERE ecopoints_award_id = $1', [awardId]);
+      await db.query('DELETE FROM requests.assignment WHERE assignment_id = $1', [assignmentId]);
+      await db.query('DELETE FROM requests.pickup_window WHERE pickup_window_id = $1', [windowId]);
+      await removeAccounts(db, [uid]);
+    } finally {
+      await db.end();
+    }
+  });
+  const pushService = await startPushService();
+  t.after(() => pushService.close());
+  const personalList = async () => (await (await fetch(service.notificationsUrl, {
+    headers: { 'X-User-Id': uid },
+  })).json()).notifications;
+  const processed = async (event) => (await db.query(
+    'SELECT 1 FROM notifications.processed_events WHERE event_id = $1', [event.eventId],
+  )).rowCount === 1;
+
+  await addAccounts(db, [uid]);
+  await addRequest(db, requestId, uid, 2);
+  await db.query(
+    `INSERT INTO users.terms_acceptance (terms_acceptance_id, terms_document_id, account_id, accepted_at, type)
+     SELECT $1, terms_document_id, account_id, now(), 'AT_VOLUNTEER_ACCEPTANCE'
+     FROM users.terms_acceptance WHERE account_id = $2`, [acceptanceId, uid],
+  );
+  await db.query(
+    `INSERT INTO requests.pickup_window VALUES ($1, $2, '2026-11-28', 6, false)`, [windowId, requestId],
+  );
+  await db.query(
+    `INSERT INTO requests.assignment (assignment_id, pickup_window_id, terms_acceptance_id, accepted_at, ended_at, end_reason)
+     VALUES ($1, $2, $3, now(), now(), 'Resident_Cancelled')`, [assignmentId, windowId, acceptanceId],
+  );
+  await db.query('INSERT INTO rewards.ecopoints_award VALUES ($1, $2, 26, $3)', [awardId, assignmentId, 'test formula']);
+  await db.query('INSERT INTO rewards.volunteer_award VALUES ($1)', [awardId]);
+
+  const tab = await openTab(service.url, uid);
+  const stats = await openTab(`${service.publicEventsUrl}?stats`);
+  t.after(tab.close);
+  t.after(stats.close);
+  await subscribe(service, pushService, uid);
+
+  const award = envelope('PointsAwardedCancellation', {
+    requestId, assignmentId, awards: [{ awardId, accountId: uid, earnedAs: 'volunteer', points: 26 }],
+  });
+  await publish(award);
+  await waitFor(() => framesIn(stats, 'stats-updated').length === 1, 'stats refresh after award');
+  const [savedAward] = await personalList();
+  assert.equal(savedAward.awardId, awardId);
+  assert.equal(savedAward.body, 'For a pickup on Nov 28, 06:00–07:00 cancelled late');
+
+  await publish(envelope('RequestAssignmentCancelledResident', {
+    request: {
+      requestId, requestSeq: 2, transitionId: randomUUID(), status: 'Cancelled', residentUid: uid,
+      categoryName: 'Computers/Laptops', quantity: 2, postalCode: 'T2P1J9',
+    },
+    assignment: { assignmentId, volunteerUid: uid, window: { date: '2026-11-28', startHour: 6 } },
+  }));
+  await waitFor(() => notificationsIn(tab).length === 3, 'both sides of the cancellation');
+  const cancelled = (await personalList()).find((n) => n.type === 'ASSIGNMENT_CANCELLED_BY_RESIDENT_VOLUNTEER');
+  assert.equal(cancelled.body, 'Your pickup on Nov 28, 06:00–07:00 was cancelled');
+  const residentNotice = (await personalList()).find((n) => n.type === 'ASSIGNMENT_CANCELLED_BY_RESIDENT_RESIDENT');
+
+  const cleanup = envelope('NotificationCleanupRequested', {});
+  const expire = (id) => db.query('UPDATE notifications.notification SET is_expired = true WHERE notification_id = $1', [id]);
+  const exists = async (id) => (await db.query(
+    'SELECT 1 FROM notifications.notification WHERE notification_id = $1', [id],
+  )).rowCount === 1;
+  await expire(cancelled.notificationId);
+  await publish(cleanup);
+  await waitFor(() => processed(cleanup), 'cleanup commit');
+  assert.equal(await exists(cancelled.notificationId), false);
+
+  // The replay must skip even after a restart, while an unrelated notification is now expired.
+  tab.close();
+  stats.close();
+  await stopService(service);
+  service = await startService();
+  await expire(residentNotice.notificationId);
+  const reconnected = await openTab(service.url, uid);
+  const reconnectedStats = await openTab(`${service.publicEventsUrl}?stats`);
+  t.after(reconnected.close);
+  t.after(reconnectedStats.close);
+  await publish(cleanup);
+  await publish(award);
+  const profile = envelope('ProfileUpdated', { accountId: uid, changed: ['publicName'] });
+  await publish(profile);
+  await publish(profile);
+  const barrier = envelope('ProfileUpdated', { accountId: uid, changed: ['roles'] });
+  await publish(barrier);
+  await waitFor(() => framesIn(reconnected, 'profile-updated').some(({ data }) => data.changed.includes('roles')), 'profile barrier');
+  assert.deepEqual(framesIn(reconnected, 'profile-updated').map(({ data }) => data.changed), [['publicName'], ['roles']]);
+  assert.equal(await exists(residentNotice.notificationId), true);
+  assert.deepEqual(framesIn(reconnectedStats, 'stats-updated'), []);
+
+  await db.query('UPDATE users.account SET deactivated_at = now() WHERE account_id = $1', [uid]);
+  const deactivate = envelope('AccountDeactivated', { accountId: uid });
+  await publish(deactivate);
+  await waitFor(() => framesIn(reconnected, 'account-deactivated').length === 1, 'account deactivation');
+  assert.deepEqual(await personalList(), []);
+  assert.equal(await exists(savedAward.notificationId), false);
+  assert.equal((await db.query('SELECT 1 FROM notifications.push_subscription WHERE account_id = $1', [uid])).rowCount, 0);
+
+  const inactiveAward = envelope('PointsAwardedCancellation', award.data);
+  await publish(inactiveAward);
+  await waitFor(() => framesIn(reconnectedStats, 'stats-updated').length === 1, 'stats refresh for an inactive award recipient');
+  assert.deepEqual(await personalList(), []);
+});

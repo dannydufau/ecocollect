@@ -3,7 +3,8 @@
 /*
  * Connection hub, an Observer: tabs attach (add) and detach (remove), and send() notifies
  * every open tab of one user, so callers never track connections themselves.
- * uid -> Set of open SSE responses (one per tab). In memory only.
+ * uid -> Set of open SSE responses (one per tab), and each tab's roles for sendToRole().
+ * In memory only.
  * A response is anything with write() and writableEnded, so tests can use fakes.
  */
 
@@ -20,18 +21,23 @@ function frame(event, data, id) {
 // A factory, so each test gets a fresh hub.
 function createHub() {
   const byUid = new Map();
+  // res -> the roles the gateway gave when that tab connected (X-User-Roles).
+  // A role change makes the frontend reconnect, so a tab's roles never go stale.
+  const rolesOf = new Map();
 
-  function add(uid, res) {
+  function add(uid, res, roles = []) {
     let set = byUid.get(uid);
     if (!set) {
       set = new Set();
       byUid.set(uid, set);
     }
     set.add(res);
+    rolesOf.set(res, roles);
   }
 
   // Drops the user once their last tab is gone, so the map doesn't grow.
   function remove(uid, res) {
+    rolesOf.delete(res);
     const set = byUid.get(uid);
     if (!set) return;
     set.delete(res);
@@ -53,6 +59,43 @@ function createHub() {
     return written;
   }
 
+  // Writes one frame to every open tab that connected with this role, whoever its user is.
+  // Returns how many tabs got it.
+  function sendToRole(role, event, data) {
+    const text = frame(event, data);
+    let written = 0;
+    for (const [res, roles] of rolesOf) {
+      // A tab closing right now: skip it; its 'close' handler removes it.
+      if (res.writableEnded) continue;
+      if (!roles.includes(role)) continue;
+      res.write(text);
+      written += 1;
+    }
+    return written;
+  }
+
+  /*
+   * Writes one last frame to every open tab of this user, then ends those tabs and forgets the user
+   * (a deactivated account, E16). Returns how many tabs got it. Each tab's 'close' handler still
+   * calls remove(), which then finds nothing left to do.
+   */
+  function closeUser(uid, event, data) {
+    const set = byUid.get(uid);
+    if (!set) return 0;
+    const text = frame(event, data);
+    let closed = 0;
+    for (const res of set) {
+      rolesOf.delete(res);
+      // A tab closing right now: skip it.
+      if (res.writableEnded) continue;
+      res.write(text);
+      res.end();
+      closed += 1;
+    }
+    byUid.delete(uid);
+    return closed;
+  }
+
   // Shutdown: end every stream so browsers reconnect and refetch.
   function closeAll() {
     for (const set of byUid.values()) {
@@ -61,6 +104,7 @@ function createHub() {
       }
     }
     byUid.clear();
+    rolesOf.clear();
   }
 
   // Counts, for logs and tests.
@@ -70,7 +114,7 @@ function createHub() {
     return { users: byUid.size, connections };
   }
 
-  return { add, remove, send, closeAll, stats };
+  return { add, remove, send, sendToRole, closeUser, closeAll, stats };
 }
 
 module.exports = { createHub, frame };

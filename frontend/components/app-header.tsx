@@ -23,6 +23,7 @@ const roleLinks: Record<Role, NavLink[]> = {
     ],
 };
 const ecoPoints: NavLink = { href: "/ecopoints", label: "EcoPoints", short: "Points", icon: LeafIcon };
+const about: NavLink = { href: "/about", label: "About" };
 const profile: NavLink = { href: "/profile", label: "Profile" };
 const stats: NavLink = { href: "/stats", label: "Community stats" };
 const roleNames: Record<Role, string> = { resident: "Resident", volunteer: "Volunteer" };
@@ -152,7 +153,10 @@ export default function AppHeader() {
         return (
             <Bar>
                 <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-4">
-                    <Link href="/stats" aria-label="Community stats" className={`${textLink} whitespace-nowrap text-small sm:text-base`}>
+                    <Link href="/about" aria-current={pathname === "/about" ? "page" : undefined} className={`${textLink} whitespace-nowrap text-small sm:text-base`}>
+                        About
+                    </Link>
+                    <Link href="/stats" aria-label="Community stats" aria-current={pathname === "/stats" ? "page" : undefined} className={`${textLink} whitespace-nowrap text-small sm:text-base`}>
                         <span className="sm:hidden">Stats</span>
                         <span className="hidden sm:inline">Community stats</span>
                     </Link>
@@ -171,7 +175,7 @@ export default function AppHeader() {
         ecoPoints,
     ];
     // Only the longest matching link is the current page, so /resident/requests/new does not also mark /resident
-    const current = [...middle, profile, stats]
+    const current = [...middle, about, profile, stats]
         .filter((link) => pathname === link.href || pathname.startsWith(`${link.href}/`))
         .sort((a, b) => b.href.length - a.href.length)[0];
 
@@ -225,13 +229,13 @@ export default function AppHeader() {
                     <div className="hidden min-[960px]:block">{switcher}</div>
                     {roleTag}
                     <NotificationBell />
-                    <div className="hidden min-[960px]:block"><AccountMenu pathname={pathname} links={[stats, profile]} current={current} /></div>
+                    <div className="hidden min-[960px]:block"><AccountMenu pathname={pathname} links={[about, stats, profile]} current={current} /></div>
                 </div>
             </Bar>
             <nav aria-label="Mobile" className="fixed inset-x-0 bottom-0 z-10 border-t border-divider bg-bg pb-[env(safe-area-inset-bottom)] min-[960px]:hidden">
                 <MoreSheet id={moreId} open={moreOpen} onClose={() => closeMore(true)}>
                     {switcher}
-                    {navLinks([...middle.slice(3), stats, profile], topLink)}
+                    {navLinks([...middle.slice(3), about, stats, profile], topLink)}
                     <LogoutButton />
                 </MoreSheet>
                 <div className="mx-auto grid max-w-3xl grid-cols-4">
