@@ -23,6 +23,7 @@ const { createPushRouter } = require('./push-router');
 const { createSubscriptionStore } = require('./subscriptions');
 const { createNotificationStore } = require('./notification-store');
 const { createNotificationsRouter } = require('./notifications-router');
+const { createPublicEventsRouter } = require('./public-events');
 
 const vapid = {
   subject: process.env.VAPID_SUBJECT,
@@ -49,6 +50,9 @@ pool.on('error', (err) => console.error(`[db] ${err.message}`));
 // One hub per process: the route adds and removes tabs, deliveries write to them.
 const hub = createHub();
 
+// A second hub for the public pages' streams, keyed by what each page watches (a profile or the stats).
+const publicHub = createHub();
+
 // Browsers' push subscriptions (notifications.push_subscription).
 const subscriptions = createSubscriptionStore(pool);
 const pushSender = createWebPushSender({ vapid, subscriptions });
@@ -56,10 +60,11 @@ const pushSender = createWebPushSender({ vapid, subscriptions });
 // Stored notifications (notifications.notification + request_notification).
 const notifications = createNotificationStore(pool);
 
-// HTTP: SSE (N1), push subscriptions (N6, N7) and the notification list (N3-N5)
+// HTTP: SSE (N1), the public stream (N2), push subscriptions (N6, N7) and the notification list (N3-N5)
 
 const app = express();
 app.use(createEventsRouter(hub));
+app.use(createPublicEventsRouter(publicHub));
 app.use(createPushRouter({ subscriptions }));
 app.use(createNotificationsRouter({ notifications, hub }));
 
@@ -247,6 +252,7 @@ async function shutdown(signalName) {
   stopping = true;
   console.log(`[notification] ${signalName}: shutting down`);
   hub.closeAll();
+  publicHub.closeAll();
   // Leave the broker. Our queue stays: events published meanwhile wait in it.
   await subscriber.stop();
   await pool.end();
