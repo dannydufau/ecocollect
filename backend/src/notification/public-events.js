@@ -23,8 +23,8 @@ function profileKey(accountId) {
 }
 
 // Error body: { error: { code, message, details } }, as in notifications-router.js.
-function fail(res, code, message, fields) {
-  return res.status(400).json({ error: { code, message, details: { fields } } });
+function fail(res, message, fields) {
+  return res.status(400).json({ error: { code: 'validation_failed', message, details: { fields } } });
 }
 
 /**
@@ -45,13 +45,13 @@ function createPublicEventsRouter(publicHub, { heartbeatMs = DEFAULT_HEARTBEAT_M
     // 1. Exactly one of the two.
     if (wantsProfile === wantsStats) {
       const problem = 'use exactly one of profile or stats';
-      return fail(res, 'invalid_stream', `Open the stream with ${problem}.`, { profile: problem, stats: problem });
+      return fail(res, `Open the stream with ${problem}.`, { profile: problem, stats: problem });
     }
 
     // 2. A profile must be one account id (a repeated ?profile= arrives as an array).
     const profileIsValid = typeof profile === 'string' && ACCOUNT_ID.test(profile);
     if (wantsProfile && !profileIsValid) {
-      return fail(res, 'invalid_profile', 'profile must be an account id.', { profile: 'must be an account id' });
+      return fail(res, 'profile must be an account id.', { profile: 'must be an account id' });
     }
 
     const key = wantsProfile ? profileKey(profile) : STATS_KEY;

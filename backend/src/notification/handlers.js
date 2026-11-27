@@ -110,7 +110,7 @@ function describeWindow({ date, startHour }) {
 }
 
 /*
- * The body of a type with endedAs. The stored list has no window (pass none) and says
+ * The body of a type with endedAs. If the window is unavailable, it says
  * only "Your pickup was cancelled"; either way it names no request details.
  */
 function describeEnded(endedAs, window) {
@@ -318,7 +318,12 @@ function formatPoints(points) {
 function describeAward(type, points, request) {
   const text = formatPoints(points);
   const title = `You earned ${text} ${text === '1' ? 'EcoPoint' : 'EcoPoints'}`;
-  if (type === AWARD_TYPES.cancellation.volunteer) return { title, body: 'For a pickup cancelled late' };
+  if (type === AWARD_TYPES.cancellation.volunteer) {
+    const body = request.window
+      ? `For a pickup on ${describeWindow(request.window)} cancelled late`
+      : 'For a pickup cancelled late';
+    return { title, body };
+  }
   const { quantity, categoryName } = request;
   return { title, body: quantity && categoryName ? `For ${quantity} * ${categoryName} delivered` : 'For a delivery' };
 }

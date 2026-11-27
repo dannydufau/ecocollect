@@ -78,7 +78,9 @@ test('N3 lists the caller\'s notifications in the contract shape, with the unrea
   for (const [query, field] of [['?limit=0', 'limit'], ['?before=yesterday', 'before']]) {
     const bad = await call(query, 'uid_v1');
     assert.equal(bad.status, 400);
-    assert.deepEqual(Object.keys((await bad.json()).error.details.fields), [field]);
+    const { error } = await bad.json();
+    assert.equal(error.code, 'validation_failed');
+    assert.deepEqual(Object.keys(error.details.fields), [field]);
   }
 });
 

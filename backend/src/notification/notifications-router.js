@@ -30,9 +30,11 @@ function present(row) {
     createdAt: row.created_at.toISOString(),
   };
 
-  // An award notification: same title and body as the live message, opening the EcoPoints page.
+  const window = row.pickup_date ? { date: row.pickup_date, startHour: row.start_hour } : undefined;
+
+  // An award notification opens the EcoPoints page.
   if (row.ecopoints_award_id) {
-    const { title, body } = describeAward(row.type, row.points, { quantity: row.quantity, categoryName: row.category_name });
+    const { title, body } = describeAward(row.type, row.points, { quantity: row.quantity, categoryName: row.category_name, window });
     return { ...common, awardId: row.ecopoints_award_id, title, body, url: t?.path ?? '/' };
   }
 
@@ -42,9 +44,8 @@ function present(row) {
     // An update's title depends on its reason (edited or reopened), like the live message.
     title: (row.type === 'REQUEST_UPDATED_RESIDENT' && UPDATE_TITLES[row.update_reason]) || t?.title || 'Notification',
     // Same text as the live message. A request can only change while Open, which expires these.
-    // An ended assignment names no request details; the list has no window, so it says less.
     body: t?.endedAs
-      ? describeEnded(t.endedAs)
+      ? describeEnded(t.endedAs, window)
       : describe({ quantity: row.quantity, categoryName: row.category_name, postalCode: row.postal_code }),
     url: t ? (t.endedAs ? t.path : `${t.path}${row.pickup_request_id}`) : '/',
   };
@@ -58,12 +59,12 @@ function createNotificationsRouter({ notifications, hub }) {
   router.get('/api/notifications', async (req, res) => {
     const { before, limit } = req.query;
     if (before !== undefined && !(typeof before === 'string' && TIMESTAMP.test(before))) {
-      return fail(res, 400, 'invalid_before', 'before must be a UTC timestamp like 2026-10-28T16:15:00Z',
+      return fail(res, 400, 'validation_failed', 'before must be a UTC timestamp like 2026-10-28T16:15:00Z',
         { fields: { before: 'must be a UTC timestamp like 2026-10-28T16:15:00Z' } });
     }
     const n = limit === undefined ? 30 : Number(limit);
     if (!Number.isInteger(n) || n < 1 || n > 100) {
-      return fail(res, 400, 'invalid_limit', 'limit must be a whole number from 1 to 100',
+      return fail(res, 400, 'validation_failed', 'limit must be a whole number from 1 to 100',
         { fields: { limit: 'must be a whole number from 1 to 100' } });
     }
     try {

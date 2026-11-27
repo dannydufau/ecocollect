@@ -95,7 +95,8 @@ function deliverRequestEvent(handler, { expiresMatching, availableRequestsChange
     const update = envelope.type === 'RequestUpdated'
       ? { reason: envelope.data.reason, changed: envelope.data.changed ?? [] }
       : null;
-    const { saved, expired, stale } = await notifications.saveRequestNotifications(
+    const result = await notifications.saveRequestNotifications(
+      envelope.eventId,
       deliveries.map(({ uid, notification }) => ({
         notificationId: notification.notificationId,
         type: notification.type,
@@ -104,15 +105,18 @@ function deliverRequestEvent(handler, { expiresMatching, availableRequestsChange
       })),
       { pickupRequestId: requestId, requestSeq, transitionId, expiresMatching, update },
     );
-    if (stale) {
-      console.log(`[notification] ${envelope.type} ${requestId} seq ${requestSeq} is late: saved expired, not sent`);
-      return;
-    }
+    if (result === null) return;
+    const { saved, expired, stale } = result;
 
     // Tell every volunteer tab to refetch its available list, matched or not (contract 13.3).
     if (availableRequestsChanged) {
       const tabs = hub.sendToRole('volunteer', 'available-requests-changed', { requestId });
       console.log(`[notification] available-requests-changed ${requestId} -> ${tabs} volunteer tab${tabs === 1 ? '' : 's'}`);
+    }
+
+    if (stale) {
+      console.log(`[notification] ${envelope.type} ${requestId} seq ${requestSeq} is late: saved expired, not sent`);
+      return;
     }
 
     for (const { uid, signal, notification, push } of deliveries) {
@@ -161,6 +165,7 @@ function deliverAwardEvent(handler) {
   return async (envelope) => {
     const deliveries = handler(envelope);
     const saved = await notifications.saveAwardNotifications(
+      envelope.eventId,
       deliveries.map(({ uid, awardId, notification }) => ({
         notificationId: notification.notificationId,
         type: notification.type,
@@ -169,6 +174,8 @@ function deliverAwardEvent(handler) {
         awardId,
       })),
     );
+
+    if (saved === null) return;
 
     for (const { uid, notification, push } of deliveries) {
       if (!saved.has(notification.notificationId)) continue;
@@ -183,40 +190,34 @@ function deliverAwardEvent(handler) {
       }
     }
 
-    // Each account whose award was saved, once (self-delivery gives one account two awards).
-    const awardedAccounts = new Set();
-    for (const { uid, notification } of deliveries) {
-      if (saved.has(notification.notificationId)) awardedAccounts.add(uid);
-    }
-    for (const uid of awardedAccounts) sendPublicProfileUpdated(uid);
+    for (const uid of new Set(deliveries.map(({ uid }) => uid))) sendPublicProfileUpdated(uid);
 
-    // The totals changed: tell the stats page to refetch.
-    if (awardedAccounts.size > 0) {
-      const pages = publicHub.send(STATS_KEY, 'stats-updated', {});
-      console.log(`[notification] stats-updated -> ${pages} public page${pages === 1 ? '' : 's'}`);
-    }
+    const pages = publicHub.send(STATS_KEY, 'stats-updated', {});
+    console.log(`[notification] stats-updated -> ${pages} public page${pages === 1 ? '' : 's'}`);
   };
 }
 
 /*
  * The daily cleanup (E14): delete every expired notification. Nothing is sent: open tabs
- * already got notification-expired when each one expired. Running it twice does no harm.
+ * already got notification-expired when each one expired.
  */
-async function deleteExpiredNotifications() {
-  const deleted = await notifications.deleteExpired();
+async function deleteExpiredNotifications({ eventId }) {
+  const deleted = await notifications.deleteExpired(eventId);
+  if (deleted === null) return;
   console.log(`[notification] cleanup: deleted ${deleted} expired notification${deleted === 1 ? '' : 's'}`);
 }
 
 /*
  * A profile change (E15, from U7 or U8): tell the account's open tabs which fields changed, so
- * they refetch the profile (and redo the sign-in when roles changed). Nothing is stored.
+ * they refetch the profile (and redo the sign-in when roles changed).
  * A change to the public name or roles also makes the account's public profile page refetch.
- * A redelivered event sends it again, which only costs one more refetch.
  */
-function sendProfileUpdated(envelope) {
+async function sendProfileUpdated(envelope) {
   const { accountId, changed } = envelope.data;
   if (typeof accountId !== 'string' || accountId === '') throw new Error('ProfileUpdated without an accountId');
   if (!Array.isArray(changed)) throw new Error('ProfileUpdated without a changed list');
+
+  if (!(await notifications.processEvent(envelope.eventId))) return;
 
   const tabs = hub.send(accountId, 'profile-updated', { changed });
   console.log(`[notification] profile-updated [${changed.join(', ')}] -> ${accountId} (${tabs} open tab${tabs === 1 ? '' : 's'})`);
@@ -237,7 +238,8 @@ async function handleDeactivatedAccount(envelope) {
   const { accountId } = envelope.data;
   if (typeof accountId !== 'string' || accountId === '') throw new Error('AccountDeactivated without an accountId');
 
-  const deleted = await notifications.deleteAccountData(accountId);
+  const deleted = await notifications.deleteAccountData(envelope.eventId, accountId);
+  if (deleted === null) return;
   const tabs = hub.closeUser(accountId, 'account-deactivated', {});
   console.log(`[notification] account-deactivated ${accountId}: deleted ${deleted.notifications} notifications`
     + ` and ${deleted.subscriptions} push subscriptions, closed ${tabs} open tab${tabs === 1 ? '' : 's'}`);

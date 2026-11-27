@@ -7,8 +7,7 @@
 -- Only request notifications expire (award notifications never do), so only they are deleted.
 -- Then it deletes the request events nothing needs any more: an event is kept while a notification
 -- still points at it (X1 reads its transition_id), and each request's newest event is always kept
--- (its request_seq tells a late event apart, rule X3). An older event redelivered after its row is
--- gone is still seen as late: its notifications are saved expired and deleted on the next run.
+-- (its request_seq tells a late event apart, rule X3). Replays are tracked in processed_events.
 -- p_deleted tells the caller how many notifications were deleted.
 DROP PROCEDURE IF EXISTS notifications.delete_expired_notifications(INTEGER);
 

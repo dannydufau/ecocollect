@@ -52,15 +52,17 @@ test('a profile page opens a stream: ready first, and sends for that profile rea
 test('a stream without exactly one valid profile or stats gets 400 and is never opened', async () => {
   const { publicHub, url, stop } = await startServer();
   try {
-    for (const [query, code] of [
-      ['', 'invalid_stream'],                            // neither
-      ['?profile=danny&stats', 'invalid_stream'],        // both
-      ['?profile=Danny!', 'invalid_profile'],            // not an account id
-      ['?profile=danny&profile=sam', 'invalid_profile'], // two profiles
+    for (const [query, fields] of [
+      ['', ['profile', 'stats']],                            // neither
+      ['?profile=danny&stats', ['profile', 'stats']],        // both
+      ['?profile=Danny!', ['profile']],            // not an account id
+      ['?profile=danny&profile=sam', ['profile']], // two profiles
     ]) {
       const res = await fetch(url + query);
       assert.equal(res.status, 400, query);
-      assert.equal((await res.json()).error.code, code, query);
+      const { error } = await res.json();
+      assert.equal(error.code, 'validation_failed', query);
+      assert.deepEqual(Object.keys(error.details.fields), fields, query);
     }
     assert.deepEqual(publicHub.stats(), { users: 0, connections: 0 }, 'no watcher was added');
   } finally {
