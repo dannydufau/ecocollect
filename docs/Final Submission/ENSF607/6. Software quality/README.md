@@ -39,7 +39,7 @@ The [non-functional requirements](../2.%20Non-functional%20requirements/README.m
 | --- | --- | --- | --- |
 | NFR01 | Maintainability | [NFR01-maintainability.md](cases/nfr/NFR01-maintainability.md) | P1, P2, N1 |
 | NFR02 | Usability | [NFR02-usability.md](cases/nfr/NFR02-usability.md) | P1, N1, E1 (charter) |
-| NFR03 | Privacy | [NFR03-privacy.md](cases/nfr/NFR03-privacy.md) | P1, P2 |
+| NFR03 | Privacy | [NFR03-privacy.md](cases/nfr/NFR03-privacy.md) | P1, P2, P3 |
 | NFR04 | Security | [NFR04-security.md](cases/nfr/NFR04-security.md) | P1, N1 |
 | NFR05 | Fairness | [NFR05-fairness.md](cases/nfr/NFR05-fairness.md) | P1, N1, E1 (charter) |
 | NFR06 | Reliability | [NFR06-reliability.md](cases/nfr/NFR06-reliability.md) | P1, P2, N1 |
@@ -69,7 +69,7 @@ Run the following commands from the repository root in Bash. Use the Node versio
 (cd backend && npm ci && npm run test:nfr)
 ```
 
-`npm run test:nfr` runs the new tests in `backend/test/nfr/`. They are also part of `npm test`. The concurrency test (NFR06-P2) needs the Request Service's test database: run `backend/scripts/request/load-db.sh --test` and set `REQUEST_TEST_DATABASE_URL` (see `backend/test/request/db.ts`). Without the variable it is skipped, like the other request tests; with it set but the database down, it fails. The other cases cite existing tests in their own suites; each file's Results table names the command.
+`npm run test:nfr` runs the new tests in `backend/test/nfr/`. They are also part of `npm test`. The database tests (NFR03-P3, NFR06-P2) need the Request Service's test database: run `backend/scripts/request/load-db.sh --test` and set `REQUEST_TEST_DATABASE_URL` (see `backend/test/request/db.ts`). Without the variable they are skipped, like the other request tests; with it set but the database down, they fail. The other cases cite existing tests in their own suites; each file's Results table names the command.
 
 ### Backend
 
