@@ -3,7 +3,6 @@
 import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import pg from 'pg';
 import { fakePhotos } from '../../src/request/imagekit/fake.ts';
 import { skipDb, testAdminDatabaseUrl } from './db.ts';
@@ -99,7 +98,7 @@ describe('facility eligibility and catalogue validation', { skip: skipDb }, () =
       await client.query('ROLLBACK');
 
       // Repeatable live catalogue upgrade runs twice cleanly and inserts Calgary Eco Centres disabled.
-      const sql = readFileSync(resolve(__dirname, '../../scripts/request/load-live-catalogue.sql'), 'utf8');
+      const sql = readFileSync(new URL('../../scripts/request/load-live-catalogue.sql', import.meta.url), 'utf8');
       await client.query(sql);
       await client.query(sql);
 
