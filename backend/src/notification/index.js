@@ -23,7 +23,7 @@ const { createPushRouter } = require('./push-router');
 const { createSubscriptionStore } = require('./subscriptions');
 const { createNotificationStore } = require('./notification-store');
 const { createNotificationsRouter } = require('./notifications-router');
-const { createPublicEventsRouter } = require('./public-events');
+const { createPublicEventsRouter, profileKey, STATS_KEY } = require('./public-events');
 
 const vapid = {
   subject: process.env.VAPID_SUBJECT,
@@ -145,9 +145,16 @@ function deliverRequestEvent(handler, { expiresMatching, availableRequestsChange
   };
 }
 
+// Tells the public pages watching this account's profile to refetch it (13.5).
+function sendPublicProfileUpdated(accountId) {
+  const pages = publicHub.send(profileKey(accountId), 'public-profile-updated', { accountId });
+  console.log(`[notification] public-profile-updated ${accountId} -> ${pages} public page${pages === 1 ? '' : 's'}`);
+}
+
 /*
  * One award event (E11, E12): save each award's notification, then send it to the account's
  * open tabs and push it. Award notifications never expire and don't change the available list.
+ * The public profile page of each awarded account and the stats page then refetch.
  * The subscriber acks after this returns, so a failed save is retried; a redelivered event sends nothing.
  */
 function deliverAwardEvent(handler) {
@@ -175,6 +182,19 @@ function deliverAwardEvent(handler) {
           .catch((err) => console.warn(`[push] failed for ${uid}: ${err.message}`));
       }
     }
+
+    // Each account whose award was saved, once (self-delivery gives one account two awards).
+    const awardedAccounts = new Set();
+    for (const { uid, notification } of deliveries) {
+      if (saved.has(notification.notificationId)) awardedAccounts.add(uid);
+    }
+    for (const uid of awardedAccounts) sendPublicProfileUpdated(uid);
+
+    // The totals changed: tell the stats page to refetch.
+    if (awardedAccounts.size > 0) {
+      const pages = publicHub.send(STATS_KEY, 'stats-updated', {});
+      console.log(`[notification] stats-updated -> ${pages} public page${pages === 1 ? '' : 's'}`);
+    }
   };
 }
 
@@ -190,6 +210,7 @@ async function deleteExpiredNotifications() {
 /*
  * A profile change (E15, from U7 or U8): tell the account's open tabs which fields changed, so
  * they refetch the profile (and redo the sign-in when roles changed). Nothing is stored.
+ * A change to the public name or roles also makes the account's public profile page refetch.
  * A redelivered event sends it again, which only costs one more refetch.
  */
 function sendProfileUpdated(envelope) {
@@ -199,11 +220,16 @@ function sendProfileUpdated(envelope) {
 
   const tabs = hub.send(accountId, 'profile-updated', { changed });
   console.log(`[notification] profile-updated [${changed.join(', ')}] -> ${accountId} (${tabs} open tab${tabs === 1 ? '' : 's'})`);
+
+  // Only the public name and roles show on the public profile page.
+  const publicProfileChanged = changed.includes('publicName') || changed.includes('roles');
+  if (publicProfileChanged) sendPublicProfileUpdated(accountId);
 }
 
 /*
  * A deactivated account (E16, from U9): delete its notifications and push subscriptions, then
  * send account-deactivated to its open tabs and close them (the frontend signs out).
+ * Its public profile page refetches too, and finds the profile gone.
  * Database first: if the delete fails the event is retried, and nothing was sent yet.
  * Later events skip the account, because the store reads its deactivated_at.
  */
@@ -215,6 +241,7 @@ async function handleDeactivatedAccount(envelope) {
   const tabs = hub.closeUser(accountId, 'account-deactivated', {});
   console.log(`[notification] account-deactivated ${accountId}: deleted ${deleted.notifications} notifications`
     + ` and ${deleted.subscriptions} push subscriptions, closed ${tabs} open tab${tabs === 1 ? '' : 's'}`);
+  sendPublicProfileUpdated(accountId);
 }
 
 const subscriber = startSubscriber({
