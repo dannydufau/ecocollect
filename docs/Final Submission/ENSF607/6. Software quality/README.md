@@ -2,13 +2,13 @@
 
 ## Functional requirement coverage
 
-The [functional requirements](../1.%20Functional%20Requirements/README.md) define the behavior under test. Each row below points to the file where the positive and negative cases belong. The last two columns are the results from the [run below](#results).
+The [functional requirements](../1.%20Functional%20Requirements/README.md) define the behavior under test. Each row below points to the file where the positive and negative cases belong. The last two columns are the results of the [manual testing](#results).
 
 | ID | Functional requirement | Case file | Positive | Negative |
 | --- | --- | --- | --- | --- |
 | FR01 | Account Registration | [accounts.md](cases/accounts.md) | Pass | Pass |
 | FR02 | User Login, Logout, and Role Selection | [accounts.md](cases/accounts.md) | Pass | Pass |
-| FR03 | Additional Role Activation | [accounts.md](cases/accounts.md) | Pass | Pass |
+| FR03 | Additional Role Activation | [accounts.md](cases/accounts.md) | Pass | Not run |
 | FR04 | Profile Management | [accounts.md](cases/accounts.md) | Pass | Pass |
 | FR05 | Public User Profiles | [accounts.md](cases/accounts.md) | Pass | Pass |
 | FR06 | Create Pickup Requests | [resident-requests.md](cases/resident-requests.md) | Pass | Pass |
@@ -16,62 +16,57 @@ The [functional requirements](../1.%20Functional%20Requirements/README.md) defin
 | FR08 | Review and Confirm Pickup Requests | [resident-requests.md](cases/resident-requests.md) | Pass | Pass |
 | FR09 | View Resident Pickup Requests | [resident-requests.md](cases/resident-requests.md) | Pass | Pass |
 | FR10 | Edit Open Pickup Requests | [resident-requests.md](cases/resident-requests.md) | Pass | Pass |
-| FR11 | Cancel Pickup Requests | [resident-requests.md](cases/resident-requests.md) | Pass | Pass |
+| FR11 | Cancel Pickup Requests | [resident-requests.md](cases/resident-requests.md) | Pass | Not run |
 | FR12 | Volunteer Request Discovery | [volunteer.md](cases/volunteer.md) | Pass | Pass |
-| FR13 | Accept Pickup Requests | [volunteer.md](cases/volunteer.md) | Pass | Pass |
-| FR14 | Cancel Volunteer Assignment | [volunteer.md](cases/volunteer.md) | Pass | Pass |
+| FR13 | Accept Pickup Requests | [volunteer.md](cases/volunteer.md) | Pass | Not run |
+| FR14 | Cancel Volunteer Assignment | [volunteer.md](cases/volunteer.md) | Pass | Not run |
 | FR15 | Confirm Item Collection | [volunteer.md](cases/volunteer.md) | Pass | Pass |
-| FR16 | Report Missed Pickup | [volunteer.md](cases/volunteer.md) | Pass | Pass |
-| FR17 | Record Facility Delivery | [volunteer.md](cases/volunteer.md) | Pass | Pass |
+| FR16 | Report Missed Pickup | [volunteer.md](cases/volunteer.md) | Not run | Not run |
+| FR17 | Record Facility Delivery | [volunteer.md](cases/volunteer.md) | Pass | Not run |
 | FR18 | EcoPoints Calculation and Awarding | [points-expiry-stats.md](cases/points-expiry-stats.md) | Pass | Pass |
 | FR19 | In-App Notifications and Push Notifications | [notifications-demo.md](cases/notifications-demo.md) | Not run | Not run |
 | FR20 | Automatic Request Expiration | [points-expiry-stats.md](cases/points-expiry-stats.md) | Pass | Pass |
 | FR21 | Volunteer Pickup History | [volunteer.md](cases/volunteer.md) | Pass | Pass |
-| FR22 | Terms and Conditions, including Safety Guidelines | [accounts.md](cases/accounts.md) | Pass | Pass |
+| FR22 | Terms and Conditions, including Safety Guidelines | [accounts.md](cases/accounts.md) | Not run | Pass |
 | FR23 | Public Community Impact Statistics | [points-expiry-stats.md](cases/points-expiry-stats.md) | Pass | Pass |
-| FR24 | Interactive Demo Mode | [notifications-demo.md](cases/notifications-demo.md) | Not run | Pass |
 
 ## Case format
 
 Use two IDs per requirement. For example, `FR01-P` is a positive case that checks the expected result of valid use, and `FR01-N` is a negative case that checks the expected rejection or constraint. Add more cases with a numeric suffix such as `FR01-N2` if needed.
 
-Record the setup, input, and steps for each case. State the expected result, including the status code, displayed message, or persistent state when relevant. In the **Verification** column, give the automated test file and test name, or label the case **Manual** and include reproducible steps. Keep observed results with the run evidence so a planned case is never counted as a pass.
+Record the setup, input, and steps for each case. State the expected result, including the status code, displayed message, or persistent state when relevant. All cases are run by hand. In the **Verification** column, say how the case was run and link its evidence. Keep observed results with the run evidence so a planned case is never counted as a pass.
 
 The five files in `cases/` share the same columns, ending with **Result**: Pass, Fail with the reason, or Not run with the reason. Add case rows to the file listed in the coverage index.
 
 ## Results
 
-Run on 2026-11-27 at commit `f83c78d` (`474-test-results` merged with `main` at `6675302`). Each saved file starts with its command, commit, date and environment.
+All testing is manual. The 23 requirements have a positive and a negative case, 46 in total: **36 pass and 10 are not run**. No case failed.
 
-| Suite | Passed | Failed | Skipped | Saved output |
-| --- | --- | --- | --- | --- |
-| Backend, no database | 182 | 0 | 15 | [backend.txt](results/backend.txt) |
-| Backend with the database tests | 248 | 0 | 0 | [database.txt](results/database.txt) |
-| Integration (PostgreSQL and RabbitMQ) | 9 | 0 | 0 | [integration.txt](results/integration.txt) |
-| Frontend (93 test files) | 1222 | 4 | 0 | [frontend.txt](results/frontend.txt) |
-| API contracts | 41 | 0 | 0 | [contracts.txt](results/contracts.txt) |
-
-The two backend rows overlap: the second repeats the first with the database cases switched on. The backend type check (`npm run typecheck`) and frontend lint and type checks (`npm run lint`, `npx next typegen`, `npx tsc --noEmit`) also passed (frontend checks are at the end of `frontend.txt`).
-
-- **The four frontend failures:** all four are Windows environment differences in `frontend` rather than requirement case failures (`app/style-guard.test.ts` expects forward-slash paths while `path.relative` returns backslashes on Windows, and three November 2026 time tests in `lib/time.test.ts`, `components/resident/status-history.test.tsx`, and `components/resident/windows-picker.test.tsx` are off by one hour under this Windows Node build's `America/Edmonton` time zone data). All 1226 frontend tests passed on macOS at `56785bf`, and no frontend files changed after that run.
-- **Not run:** the browser tests (`npm run e2e`).
-- **Environment:** packages were installed cleanly with `npm ci` in `contracts/`, `backend/`, and `frontend/` on Windows with Node `v24.22.1` and scratch PostgreSQL `18.6`.
-
-### Cases
-
-All 24 requirements have a positive and a negative case, 48 in total: **45 pass and 3 are not run**. No case failed.
-
-| How the case was checked | Passed |
+| How the case was run | Passed |
 | --- | --- |
-| Automated tests (FR15-N and FR22-P also have team runs) | 28 |
-| Manual runs (15 team runs, 2 local Compose browser runs) | 17 |
+| Team manual runs | 34 |
+| Browser runs on the local Compose stack (FR02-P and FR08-P) | 2 |
 
 **Not run:**
 
-- **FR19-P and FR19-N:** notifications on the running stack, including web push.
-- **FR24-P:** needs a demo site with its own Firebase project.
+| Cases | Still needed |
+| --- | --- |
+| FR03-N | An account with both roles |
+| FR11-N, FR16-P | An accepted, uncollected request whose window has ended |
+| FR16-N | An accepted request before its window ends |
+| FR13-N | Two volunteer accounts |
+| FR14-N | A Collected request |
+| FR17-N | An Assigned request |
+| FR19-P, FR19-N | Web push in Chrome with a trusted certificate |
+| FR22-P | Three screens tried with the terms box unticked: role activation, request review and pickup acceptance |
 
-Each of these rows gives its reason. A passing supporting test does not make its case a pass.
+### Database and event flows
+
+These cases check behaviour that depends on events between the services and on stored data:
+
+- **FR20-P and FR20-N:** a request expires, or stays Open, with no user action.
+- **FR18-P and FR23-P:** after a delivery, the EcoPoints awarded and the community statistics change.
+- **FR19-P and FR19-N (not run):** a request event creates notifications. FR19-N also checks the notification tables.
 
 ### Team manual runs
 
@@ -83,49 +78,14 @@ The team ran 38 manual cases and marked all of them as passed. Their documents a
 | [FR06–10](results/manual/fr06-10.pdf) | 10 | Yes |
 | [FR20–23](results/manual/fr20-23.pdf) | 8 | No |
 
-These runs are separate from the saved run above and were not repeated for it, and the tested commit was not recorded. The case tables use some of these cases; the rest are extra checks. A password visible in the TC001 screenshot of the first document is blacked out in the saved copy.
+The tested commit was not recorded for these runs or for the two local Compose runs, which also have no screenshots. The case tables use some of the team cases; the rest are extra checks. A password visible in the TC001 screenshot of the first document is blacked out in the saved copy.
 
-The automated Request Service cases call the real service and a real PostgreSQL database. The tests set the gateway's identity headers themselves and use a stand-in for ImageKit, so Caddy, Firebase and ImageKit are not part of those results.
+## Run the cases
 
-## Run the suites
+1. Start the app with Docker Compose as in the [project README](../../../../README.md), using Firebase test accounts.
+2. Follow **Setup and steps** and compare what happens with **Expected result**.
+3. Set **Result** to Pass, or Fail with the reason. Note the date and commit, and save screenshots.
 
-Run from the repository root in Bash, with Node 22.18 or newer. Run `npm ci` in `backend/`, `frontend/` and `contracts/` first; some backend tests load packages from `contracts/`.
+For FR11-N and FR16, accept a request before its window starts. Check FR16-N before the window ends, then FR11-N and FR16-P after it ends, in that order.
 
-### Backend, frontend and contracts
-
-```bash
-(cd backend && npm test)
-(cd frontend && npm test)
-(cd frontend && npm run lint && npx next typegen && npx tsc --noEmit)
-(cd contracts && npm test)
-```
-
-Without a database URL, the backend skips its database cases.
-
-### Database
-
-Use a throwaway PostgreSQL 16 server: the SQL creates server-wide logins, and the tests write data. Set `SCRATCH` to an admin connection without a database name, for example `postgres://postgres:your_password@localhost:55432`. Run the tests soon after loading, because the sample dates are relative to load time. To run again, use a new server or new database names.
-
-```bash
-load() { db=$1; shift; psql -X -q -v ON_ERROR_STOP=1 "$SCRATCH/postgres" -c "CREATE DATABASE $db"; for f in "$@"; do psql -X -q -v ON_ERROR_STOP=1 "$SCRATCH/$db" -f "$f" > /dev/null || return 1; done; }
-load q607_shared db/init/*.sql db/request/*.sql db/reward/*.sql db/notification/*.sql backend/test/reward-seed.sql
-load q607_request db/init/*.sql db/request/*.sql backend/test/request/seed.sql
-load q607_profile db/init/*.sql
-(cd backend && TEST_DATABASE_URL="$SCRATCH/q607_shared" REQUEST_TEST_DATABASE_URL="$SCRATCH/q607_request" PROFILE_EDIT_TEST_DATABASE_URL="$SCRATCH/q607_profile" npm test)
-```
-
-To check one case, run its test by name with the same URL, for example:
-
-```bash
-(cd backend && REQUEST_TEST_DATABASE_URL="$SCRATCH/q607_request" node --test --test-name-pattern="FR10-P" test/request/resident-cases.test.ts)
-```
-
-### Integration
-
-With the local Compose environment set up as in the [project README](../../../../README.md), run:
-
-```bash
-bash backend/scripts/test-integration.sh
-```
-
-It starts Compose's RabbitMQ and PostgreSQL, so use a development setup. The saved run used the test command at the end of the script, against throwaway containers, to leave the local setup alone.
+For FR19, set the Web Push keys in `.env` (see `.env.example`), use a certificate the browser trusts, and use normal Chrome profiles. Push does not work in Incognito.
