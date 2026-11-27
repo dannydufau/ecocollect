@@ -424,7 +424,7 @@ async function withStore(run) {
     const createdAt = new Date().toISOString();
     return store.saveRequestNotifications(
       types.map((type) => ({ notificationId: randomUUID(), type, createdAt, accountId: uid })),
-      { pickupRequestId: requestId, requestSeq, transitionId, leavesOpen: true },
+      { pickupRequestId: requestId, requestSeq, transitionId, expiresMatching: true },
     );
   };
   try {

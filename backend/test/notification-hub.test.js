@@ -112,3 +112,26 @@ test('frame is one SSE message, with an id line only when given', () => {
   );
   assert.throws(() => frame('notification', {}, 'n_1\nevent: fake'), /one line/);
 });
+
+test('sendToRole reaches every open tab with that role, across users, and no other tab', () => {
+  const hub = createHub();
+  const volunteer = fakeRes();
+  const both = fakeRes();
+  const resident = fakeRes();
+  const closing = fakeRes();
+  closing.writableEnded = true;
+  hub.add('firebaseUid_v1', volunteer, ['volunteer']);
+  hub.add('firebaseUid_v2', both, ['resident', 'volunteer']);
+  hub.add('firebaseUid_r1', resident, ['resident']);
+  hub.add('firebaseUid_v3', closing, ['volunteer']);
+
+  const data = { requestId: signal.requestId };
+  assert.equal(hub.sendToRole('volunteer', 'available-requests-changed', data), 2);
+  assert.deepEqual(volunteer.written, [frame('available-requests-changed', data)]);
+  assert.deepEqual(both.written, [frame('available-requests-changed', data)]);
+  assert.deepEqual(resident.written, [], 'a resident-only tab must not get it');
+  assert.deepEqual(closing.written, [], 'a closing tab is skipped');
+
+  hub.remove('firebaseUid_v1', volunteer);
+  assert.equal(hub.sendToRole('volunteer', 'available-requests-changed', data), 1, 'a removed tab is gone');
+});

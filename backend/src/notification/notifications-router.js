@@ -8,7 +8,7 @@
 const express = require('express');
 
 const { gatewayUser } = require('../api/requests/user');
-const { describe, NOTIFICATION_TYPES } = require('./handlers');
+const { describe, describeEnded, NOTIFICATION_TYPES, UPDATE_TITLES } = require('./handlers');
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
@@ -26,10 +26,14 @@ function present(row) {
     type: row.type,
     requestId: row.pickup_request_id,
     awardId: null,
-    title: t?.title ?? 'Notification',
+    // An update's title depends on its reason (edited or reopened), like the live message.
+    title: (row.type === 'REQUEST_UPDATED_RESIDENT' && UPDATE_TITLES[row.update_reason]) || t?.title || 'Notification',
     // Same text as the live message. A request can only change while Open, which expires these.
-    body: describe({ quantity: row.quantity, categoryName: row.category_name, postalCode: row.postal_code }),
-    url: t ? `${t.path}${row.pickup_request_id}` : '/',
+    // An ended assignment names no request details; the list has no window, so it says less.
+    body: t?.endedAs
+      ? describeEnded(t.endedAs)
+      : describe({ quantity: row.quantity, categoryName: row.category_name, postalCode: row.postal_code }),
+    url: t ? (t.endedAs ? t.path : `${t.path}${row.pickup_request_id}`) : '/',
     isRead: row.is_read,
     // Keep the milliseconds: the client sends this back as `before`, and a page must end exactly here.
     createdAt: row.created_at.toISOString(),

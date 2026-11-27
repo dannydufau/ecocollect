@@ -13,7 +13,12 @@ const SIGNAL = Object.freeze({
   NEW_MATCHING_REQUEST: 'NEW_MATCHING_REQUEST',
 });
 
-// Per notification type: its title, the page its url opens, and whether it also goes by Web Push.
+/*
+ * Per notification type: its title, the page its url opens, and whether it also goes by Web Push.
+ * endedAs: only on a volunteer's notification about an assignment that ended without delivery.
+ * The volunteer can no longer open that request, so the url is the history page with no id,
+ * and the body names only the window: "Your pickup on Nov 22, 14:00–15:00 was <endedAs>".
+ */
 const NOTIFICATION_TYPES = Object.freeze({
   REQUEST_CREATED: {
     title: 'Request posted', path: '/resident/requests/', push: false,
@@ -21,11 +26,26 @@ const NOTIFICATION_TYPES = Object.freeze({
   NEW_MATCHING_REQUEST: {
     title: 'New pickup near you', path: '/volunteer/requests/', push: true,
   },
+  REQUEST_UPDATED_RESIDENT: {
+    title: 'Request updated', path: '/resident/requests/', push: false,
+  },
   REQUEST_ASSIGNED_RESIDENT: {
     title: 'Pickup accepted', path: '/resident/requests/', push: true,
   },
   REQUEST_ASSIGNED_VOLUNTEER: {
     title: 'You accepted a pickup', path: '/volunteer/requests/', push: false,
+  },
+  ASSIGNMENT_CANCELLED_BY_RESIDENT_RESIDENT: {
+    title: 'You cancelled the pickup', path: '/resident/requests/', push: false,
+  },
+  ASSIGNMENT_CANCELLED_BY_RESIDENT_VOLUNTEER: {
+    title: 'Pickup cancelled', path: '/volunteer/history', push: true, endedAs: 'cancelled',
+  },
+  ASSIGNMENT_CANCELLED_BY_VOLUNTEER_RESIDENT: {
+    title: 'Volunteer cancelled the pickup', path: '/resident/requests/', push: true,
+  },
+  ASSIGNMENT_CANCELLED_BY_VOLUNTEER_VOLUNTEER: {
+    title: 'You cancelled a pickup', path: '/volunteer/history', push: false, endedAs: 'cancelled',
   },
   REQUEST_CANCELLED_RESIDENT: {
     title: 'Request cancelled', path: '/resident/requests/', push: false,
@@ -51,12 +71,30 @@ function describe(request) {
   return `${quantity} * ${categoryName} in ${postalCode}`;
 }
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// A one-hour pickup window as text: { date: '2026-11-22', startHour: 14 } -> 'Nov 22, 14:00–15:00'.
+// The date and hour are already local (contract), so no time zone is applied.
+function describeWindow({ date, startHour }) {
+  const [, month, day] = date.split('-').map(Number);
+  const hour = (h) => `${String(h).padStart(2, '0')}:00`;
+  return `${MONTHS[month - 1]} ${day}, ${hour(startHour)}–${hour(startHour + 1)}`;
+}
+
+/*
+ * The body of a type with endedAs. The stored list has no window (pass none) and says
+ * only "Your pickup was cancelled"; either way it names no request details.
+ */
+function describeEnded(endedAs, window) {
+  return window ? `Your pickup on ${describeWindow(window)} was ${endedAs}` : `Your pickup was ${endedAs}`;
+}
+
 /*
  * One notification, in the shape of the SSE notification message.
  * The id comes from the event and recipient, so a redelivered event gives the same id.
  */
 function notification(envelope, uid, type, request) {
-  const { title, path, push } = NOTIFICATION_TYPES[type];
+  const { title, path, push, endedAs } = NOTIFICATION_TYPES[type];
   return {
     notification: {
       notificationId: notificationUuid(envelope.eventId, uid, type),
@@ -64,8 +102,8 @@ function notification(envelope, uid, type, request) {
       requestId: request.requestId,
       awardId: null,
       title,
-      body: describe(request),
-      url: `${path}${request.requestId}`,
+      body: endedAs ? describeEnded(endedAs, envelope.data.assignment.window) : describe(request),
+      url: endedAs ? path : `${path}${request.requestId}`,
       createdAt: envelope.occurredAt,
     },
     push,
@@ -146,6 +184,34 @@ function delivery(envelope, uid, type, request) {
   return { uid, signal: null, ...notification(envelope, uid, type, request) };
 }
 
+// REQUEST_UPDATED_RESIDENT's title, by the update's reason (stored in request_update_event).
+const UPDATE_TITLES = Object.freeze({ edited: 'Request updated', reopened: 'Request reopened' });
+
+/*
+ * RequestUpdated (E2): the resident's own edit, or a reopen after an assignment was cancelled.
+ * The resident gets a record, no push (on a reopen the E6/E7 just before it carries the push).
+ * Each matched volunteer gets a fresh NEW_MATCHING_REQUEST with a push, like on E1.
+ */
+function requestUpdated(envelope) {
+  const request = snapshotOf(envelope, 'RequestUpdated');
+  const { reason } = envelope.data;
+  if (!(reason in UPDATE_TITLES)) {
+    throw new Error(`RequestUpdated with an unknown reason: ${reason}`);
+  }
+
+  const resident = delivery(envelope, request.residentUid, 'REQUEST_UPDATED_RESIDENT', request);
+  resident.notification.title = UPDATE_TITLES[reason];
+  const out = [resident];
+
+  // Same as E1: a missing list means nobody, and each volunteer gets one delivery.
+  const volunteers = new Set(Array.isArray(envelope.data.matchedVolunteerUids) ? envelope.data.matchedVolunteerUids : []);
+  for (const uid of volunteers) {
+    if (!uid) continue;
+    out.push(delivery(envelope, uid, 'NEW_MATCHING_REQUEST', request));
+  }
+  return out;
+}
+
 // RequestAssigned (E3): the resident hears a volunteer accepted (push); the volunteer gets a record.
 function requestAssigned(envelope) {
   const request = snapshotOf(envelope, 'RequestAssigned');
@@ -153,6 +219,41 @@ function requestAssigned(envelope) {
   const volunteerUid = envelope.data.assignment?.volunteerUid;
   if (volunteerUid) out.push(delivery(envelope, volunteerUid, 'REQUEST_ASSIGNED_VOLUNTEER', request));
   return out;
+}
+
+/*
+ * The assignment snapshot an assignment event carries in data.assignment. Throws without the
+ * volunteer or the window, which the volunteer's notification needs, so the subscriber retries.
+ */
+function assignmentOf(envelope, eventName) {
+  const assignment = envelope.data.assignment;
+  if (typeof assignment?.volunteerUid !== 'string' || assignment.volunteerUid === '') {
+    throw new Error(`${eventName} without a volunteerUid`);
+  }
+  if (typeof assignment.window?.date !== 'string' || !Number.isInteger(assignment.window.startHour)) {
+    throw new Error(`${eventName} without a window`);
+  }
+  return assignment;
+}
+
+// RequestAssignmentCancelledResident (E6): the resident cancelled, so the volunteer is pushed.
+function assignmentCancelledByResident(envelope) {
+  const request = snapshotOf(envelope, 'RequestAssignmentCancelledResident');
+  const { volunteerUid } = assignmentOf(envelope, 'RequestAssignmentCancelledResident');
+  return [
+    delivery(envelope, request.residentUid, 'ASSIGNMENT_CANCELLED_BY_RESIDENT_RESIDENT', request),
+    delivery(envelope, volunteerUid, 'ASSIGNMENT_CANCELLED_BY_RESIDENT_VOLUNTEER', request),
+  ];
+}
+
+// RequestAssignmentCancelledVolunteer (E7): the volunteer cancelled, so the resident is pushed.
+function assignmentCancelledByVolunteer(envelope) {
+  const request = snapshotOf(envelope, 'RequestAssignmentCancelledVolunteer');
+  const { volunteerUid } = assignmentOf(envelope, 'RequestAssignmentCancelledVolunteer');
+  return [
+    delivery(envelope, request.residentUid, 'ASSIGNMENT_CANCELLED_BY_VOLUNTEER_RESIDENT', request),
+    delivery(envelope, volunteerUid, 'ASSIGNMENT_CANCELLED_BY_VOLUNTEER_VOLUNTEER', request),
+  ];
 }
 
 // RequestCancelled (E9): the resident cancelled, so they get a record and no push.
@@ -191,4 +292,7 @@ function replacements(request, deliveries, expired) {
   return [...byUid].map(([uid, notification]) => ({ uid, notification }));
 }
 
-module.exports = { requestCreated, requestAssigned, requestCancelled, requestExpired, replacements, describe, SIGNAL, NOTIFICATION_TYPES };
+module.exports = {
+  requestCreated, requestUpdated, requestAssigned, assignmentCancelledByResident, assignmentCancelledByVolunteer,
+  requestCancelled, requestExpired, replacements, describe, describeEnded, SIGNAL, NOTIFICATION_TYPES, UPDATE_TITLES,
+};

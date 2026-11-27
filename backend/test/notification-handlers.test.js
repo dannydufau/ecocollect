@@ -8,7 +8,9 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 
-const { requestCreated, replacements, SIGNAL } = require('../src/notification/handlers');
+const {
+  requestCreated, requestUpdated, assignmentCancelledByResident, assignmentCancelledByVolunteer, replacements, SIGNAL,
+} = require('../src/notification/handlers');
 const { notificationUuid } = require('../src/notification/ids');
 
 const EVENT_ID = '6f1c9c2e-3b0e-4f0f-9d57-2c2f6a1d8e11';
@@ -154,4 +156,60 @@ test('replacements: one silent text per account whose pushed notification went s
       },
     ],
   );
+});
+
+// An E6 or E7 envelope: the request snapshot and the assignment that just ended.
+function assignmentEnvelope(type) {
+  return {
+    eventId: EVENT_ID,
+    type,
+    version: 1,
+    occurredAt: '2026-11-20T10:00:00Z',
+    data: {
+      request: {
+        requestId: REQUEST_ID, requestSeq: 3, transitionId: 'a1b2c3d4-0000-4000-8000-000000000001',
+        residentUid: 'firebaseUid_abc', categoryName: 'Computers/Laptops', quantity: 2, postalCode: 'T2P1J9',
+      },
+      assignment: { assignmentId: 'as_1', volunteerUid: 'firebaseUid_v1', window: { windowId: 'w_1', date: '2026-11-22', startHour: 14 } },
+      cancelledAt: '2026-11-20T10:00:00Z',
+    },
+  };
+}
+
+test('E6 and E7: the other side is pushed; the volunteer sees only the window and the history page', () => {
+  const byResident = assignmentCancelledByResident(assignmentEnvelope('RequestAssignmentCancelledResident'));
+  const byVolunteer = assignmentCancelledByVolunteer(assignmentEnvelope('RequestAssignmentCancelledVolunteer'));
+  const summary = (out) => out.map(({ uid, push, notification: n }) => ({ uid, push, type: n.type, body: n.body, url: n.url }));
+
+  const volunteerText = { body: 'Your pickup on Nov 22, 14:00–15:00 was cancelled', url: '/volunteer/history' };
+  const residentText = { body: '2 * Computers/Laptops in T2P1J9', url: `/resident/requests/${REQUEST_ID}` };
+  assert.deepEqual(summary(byResident), [
+    { uid: 'firebaseUid_abc', push: false, type: 'ASSIGNMENT_CANCELLED_BY_RESIDENT_RESIDENT', ...residentText },
+    { uid: 'firebaseUid_v1', push: true, type: 'ASSIGNMENT_CANCELLED_BY_RESIDENT_VOLUNTEER', ...volunteerText },
+  ]);
+  assert.deepEqual(summary(byVolunteer), [
+    { uid: 'firebaseUid_abc', push: true, type: 'ASSIGNMENT_CANCELLED_BY_VOLUNTEER_RESIDENT', ...residentText },
+    { uid: 'firebaseUid_v1', push: false, type: 'ASSIGNMENT_CANCELLED_BY_VOLUNTEER_VOLUNTEER', ...volunteerText },
+  ]);
+
+  const noVolunteer = assignmentEnvelope('RequestAssignmentCancelledResident');
+  delete noVolunteer.data.assignment.volunteerUid;
+  assert.throws(() => assignmentCancelledByResident(noVolunteer), /without a volunteerUid/);
+});
+
+test('E2: the resident gets a record titled by the reason; matched volunteers get fresh NEW_MATCHING_REQUESTs', () => {
+  const updated = (reason) => {
+    const env = assignmentEnvelope('RequestUpdated');
+    delete env.data.assignment;
+    return { ...env, data: { ...env.data, reason, matchedVolunteerUids: ['firebaseUid_v1', 'firebaseUid_v1', 'firebaseUid_v2'] } };
+  };
+  const summary = (out) => out.map(({ uid, push, notification: n }) => ({ uid, push, type: n.type, title: n.title }));
+
+  assert.deepEqual(summary(requestUpdated(updated('edited'))), [
+    { uid: 'firebaseUid_abc', push: false, type: 'REQUEST_UPDATED_RESIDENT', title: 'Request updated' },
+    { uid: 'firebaseUid_v1', push: true, type: 'NEW_MATCHING_REQUEST', title: 'New pickup near you' },
+    { uid: 'firebaseUid_v2', push: true, type: 'NEW_MATCHING_REQUEST', title: 'New pickup near you' },
+  ]);
+  assert.equal(requestUpdated(updated('reopened'))[0].notification.title, 'Request reopened');
+  assert.throws(() => requestUpdated(updated('moved')), /unknown reason/);
 });

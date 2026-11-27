@@ -12,7 +12,10 @@ const { Pool } = require('pg');
 
 const { createHub } = require('./hub');
 const { createEventsRouter } = require('./events');
-const { requestCreated, requestAssigned, requestCancelled, requestExpired, replacements } = require('./handlers');
+const {
+  requestCreated, requestUpdated, requestAssigned, assignmentCancelledByResident, assignmentCancelledByVolunteer,
+  requestCancelled, requestExpired, replacements,
+} = require('./handlers');
 const { pushPayload, createWebPushSender } = require('./push');
 const { startSubscriber, queues } = require('../messaging');
 const { createPushRouter } = require('./push-router');
@@ -73,7 +76,7 @@ const server = app.listen(port, () => console.log(`Notification service listenin
  * push over any that may still be on a phone. The subscriber
  * acks after this returns, so a failed save is retried; a redelivered event sends nothing.
  */
-function deliverRequestEvent(handler, { leavesOpen }) {
+function deliverRequestEvent(handler, { expiresMatching, availableRequestsChanged }) {
   return async (envelope) => {
     const deliveries = handler(envelope);
     const request = envelope.data.request ?? envelope.data;
@@ -82,6 +85,10 @@ function deliverRequestEvent(handler, { leavesOpen }) {
     // every later event is rejected by its handler without them.
     const requestSeq = request.requestSeq ?? 1;
     const transitionId = request.transitionId ?? envelope.eventId;
+    // E2 only: why the request changed, and which fields an edit changed (none on a reopen).
+    const update = envelope.type === 'RequestUpdated'
+      ? { reason: envelope.data.reason, changed: envelope.data.changed ?? [] }
+      : null;
     const { saved, expired, stale } = await notifications.saveRequestNotifications(
       deliveries.map(({ uid, notification }) => ({
         notificationId: notification.notificationId,
@@ -89,11 +96,17 @@ function deliverRequestEvent(handler, { leavesOpen }) {
         createdAt: notification.createdAt,
         accountId: uid,
       })),
-      { pickupRequestId: requestId, requestSeq, transitionId, leavesOpen },
+      { pickupRequestId: requestId, requestSeq, transitionId, expiresMatching, update },
     );
     if (stale) {
       console.log(`[notification] ${envelope.type} ${requestId} seq ${requestSeq} is late: saved expired, not sent`);
       return;
+    }
+
+    // Tell every volunteer tab to refetch its available list, matched or not (contract 13.3).
+    if (availableRequestsChanged) {
+      const tabs = hub.sendToRole('volunteer', 'available-requests-changed', { requestId });
+      console.log(`[notification] available-requests-changed ${requestId} -> ${tabs} volunteer tab${tabs === 1 ? '' : 's'}`);
     }
 
     for (const { uid, signal, notification, push } of deliveries) {
@@ -130,10 +143,15 @@ const subscriber = startSubscriber({
   queue: queues.notification,
   url: process.env.RABBITMQ_URL,
   handlers: {
-    RequestCreated: deliverRequestEvent(requestCreated, { leavesOpen: false }),
-    RequestAssigned: deliverRequestEvent(requestAssigned, { leavesOpen: true }),
-    RequestCancelled: deliverRequestEvent(requestCancelled, { leavesOpen: true }),
-    RequestExpired: deliverRequestEvent(requestExpired, { leavesOpen: true }),
+    RequestCreated: deliverRequestEvent(requestCreated, { expiresMatching: false, availableRequestsChanged: true }),
+    // Still Open, but the old NEW_MATCHING_REQUESTs describe the old details: matched volunteers get fresh ones.
+    RequestUpdated: deliverRequestEvent(requestUpdated, { expiresMatching: true, availableRequestsChanged: true }),
+    RequestAssigned: deliverRequestEvent(requestAssigned, { expiresMatching: true, availableRequestsChanged: true }),
+    // The request was Assigned, not Open; the E2 (reopened) or E10 that follows updates the available list.
+    RequestAssignmentCancelledResident: deliverRequestEvent(assignmentCancelledByResident, { expiresMatching: false, availableRequestsChanged: false }),
+    RequestAssignmentCancelledVolunteer: deliverRequestEvent(assignmentCancelledByVolunteer, { expiresMatching: false, availableRequestsChanged: false }),
+    RequestCancelled: deliverRequestEvent(requestCancelled, { expiresMatching: true, availableRequestsChanged: true }),
+    RequestExpired: deliverRequestEvent(requestExpired, { expiresMatching: true, availableRequestsChanged: true }),
   },
 });
 

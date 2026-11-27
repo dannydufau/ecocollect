@@ -35,7 +35,7 @@ function createEventsRouter(hub, { heartbeatMs = DEFAULT_HEARTBEAT_MS, log = con
 
   // gatewayUser runs first: no X-User-Id means 401, and we never open a stream.
   router.get('/api/events', gatewayUser, (req, res) => {
-    const { uid } = req.user;
+    const { uid, roles } = req.user;
 
     // 1. Headers that make this a stream, sent now rather than on first write.
     res.status(200).set({
@@ -45,8 +45,9 @@ function createEventsRouter(hub, { heartbeatMs = DEFAULT_HEARTBEAT_MS, log = con
     });
     res.flushHeaders();
 
-    // 2. Make this tab reachable, then tell the browser the stream is live.
-    hub.add(uid, res);
+    // 2. Make this tab reachable (by uid, and by role for available-requests-changed),
+    //    then tell the browser the stream is live.
+    hub.add(uid, res, roles);
     res.write(READY_FRAME);
 
     // 3. Heartbeat for this connection only.
