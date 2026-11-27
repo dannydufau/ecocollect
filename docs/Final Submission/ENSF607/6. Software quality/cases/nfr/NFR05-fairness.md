@@ -20,7 +20,7 @@ Existing tests are cited first. Following ISO/IEC/IEEE 29119 [2], the remaining 
 
 | # | Fairness condition | Evidence | Gap and risk |
 | --- | --- | --- | --- |
-| F1 | Every eligible Volunteer sees the same Open requests; the only filter is the postal codes they choose | `backend/test/request/list-available.test.ts`, "200 in the contract shape, Open requests only; postalCodes filters on the pickup code". By design, the query (`requests.req_list_available`) receives only the chosen postal codes, never the caller's account, and orders by creation time; NFR05-E1 | Covered |
+| F1 | Every eligible Volunteer sees the same Open requests; the only filter is the postal codes they choose | `backend/test/request/list-available.test.ts`, "200 in the contract shape, Open requests only; postalCodes filters on the pickup code". By design, the query (`requests.req_list_available`) receives only the chosen postal codes, never the caller's account, and orders by creation time. This is the contract's discovery rule (Q6): Available means Open and not yet expired, filtered only by the postal codes the Volunteer chooses, and it includes the Volunteer's own requests; NFR05-E1 | Covered |
 | F2 | Acceptance and assignment follow the same rules for everyone: the first valid accept wins, with one active assignment per request | `backend/test/request/accept.test.ts`, "201 with the detail as the assigned volunteer; a second volunteer then gets 409 already_assigned" | Covered, including accepts at the same moment: [NFR06-P2](NFR06-reliability.md). Explored in NFR05-E1 |
 | F3 | Delivery points come only from the request: Volunteer = 3 × quantity + 4 × weight (kg); the Resident gets exactly half | NFR05-P1 | Covered |
 | F4 | Cancellation points follow one rule: a late cancellation gives the Volunteer one award; an early cancellation, or cancelling one's own request, gives none | `backend/test/reward-handlers.test.js`, "late cancellation: one award for the volunteer", "early cancellation: no points", "cancellation of your own request: no points" | Covered |
@@ -78,7 +78,7 @@ Explore request discovery and acceptance as Volunteers with a matching saved reg
 | **Notes** | |
 | **Improvements** | |
 
-Record each finding with the accounts involved, the condition it bears on (F1, F2 or F5), and what happened. A known question to check: pushes go only to Volunteers matched by postal area, and the first valid accept wins, so matched Volunteers may learn about requests first.
+Record each finding with the accounts involved, the condition it bears on (F1, F2 or F5), and what happened. A known question to check: pushes go only to the Volunteers listed in the event's `matchedVolunteerUids` (contract event E1, matched by postal area), and the first valid accept wins, so matched Volunteers may learn about requests first.
 
 ## References
 
