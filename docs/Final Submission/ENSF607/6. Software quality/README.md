@@ -24,7 +24,7 @@ The [functional requirements](../1.%20Functional%20Requirements/README.md) defin
 | FR16 | Report Missed Pickup | [volunteer.md](cases/volunteer.md) | Pass | Pass |
 | FR17 | Record Facility Delivery | [volunteer.md](cases/volunteer.md) | Pass | Pass |
 | FR18 | EcoPoints Calculation and Awarding | [points-expiry-stats.md](cases/points-expiry-stats.md) | Pass | Pass |
-| FR19 | In-App Notifications and Push Notifications | [notifications-demo.md](cases/notifications-demo.md) | Not run | Not run |
+| FR19 | In-App Notifications and Push Notifications | [notifications-demo.md](cases/notifications-demo.md) | Pass | Not run |
 | FR20 | Automatic Request Expiration | [points-expiry-stats.md](cases/points-expiry-stats.md) | Pass | Pass |
 | FR21 | Volunteer Pickup History | [volunteer.md](cases/volunteer.md) | Pass | Pass |
 | FR22 | Terms and Conditions, including Safety Guidelines | [accounts.md](cases/accounts.md) | Pass | Pass |
@@ -40,12 +40,12 @@ The five files in `cases/` share the same columns, ending with **Result**: Pass,
 
 ## Results
 
-All testing is manual. The 23 requirements have a positive and a negative case, 46 in total: **43 pass, 1 fails and 2 are not run**.
+All testing is manual. The 23 requirements have a positive and a negative case, 46 in total: **44 pass, 1 fails and 1 is not run**.
 
 | How the case was run | Passed |
 | --- | --- |
 | Team manual runs | 34 |
-| Browser runs on the local Compose stack (FR02-P, FR03-N, FR08-P, FR13-N, FR14-N, FR16-P, FR16-N, FR17-N and FR22-P) | 9 |
+| Browser runs on the local Compose stack (FR02-P, FR03-N, FR08-P, FR13-N, FR14-N, FR16-P, FR16-N, FR17-N, FR19-P and FR22-P) | 10 |
 
 **Failed:**
 
@@ -55,7 +55,7 @@ All testing is manual. The 23 requirements have a positive and a negative case, 
 
 | Cases | Still needed |
 | --- | --- |
-| FR19-P, FR19-N | Web push in Chrome with a trusted certificate |
+| FR19-N | A deactivated volunteer, web push and a database check |
 
 ### Database and event flows
 
@@ -63,7 +63,8 @@ These cases check behaviour that depends on events between the services and on s
 
 - **FR20-P and FR20-N:** a request expires, or stays Open, with no user action.
 - **FR18-P and FR23-P:** after a delivery, the EcoPoints awarded and the community statistics change.
-- **FR19-P and FR19-N (not run):** a request event creates notifications. FR19-N also checks the notification tables.
+- **FR19-P:** a request event creates an in-app notification and a push.
+- **FR19-N (not run):** checks who gets those notifications, using the notification tables.
 
 ### Team manual runs
 
