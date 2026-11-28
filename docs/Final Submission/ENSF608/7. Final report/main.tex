@@ -24,7 +24,7 @@
 \ifdefined\pdfminorversion\pdfminorversion=7\fi
 \ifdefined\XeTeXversion\AtBeginDocument{\special{pdf:minorversion 7}}\fi
 
-\newcommand{\evidencecommit}{8c17502} % commit on main that the reported results come from
+\newcommand{\evidencecommit}{eaf653a} % commit on main that the reported results come from
 
 % identifiers such as pickup_request may break after an underscore or a dot
 \def\UrlBreaks{\do\_\do\.\do\/}
@@ -717,7 +717,7 @@ Danny Dufau (\texttt{dannydufau}) & PostgreSQL in Docker Compose; the initial ca
 \addlinespace
 Saad Ahmad Malik (\texttt{saada865}) & Reward Service award tables and database operations; Cleanup Service schema for expiry jobs and events. & 364, 367 \\
 \addlinespace
-Satyam Bhanot (\texttt{satyambhanot}) & First version of the shared contracts; further Docker Compose services; Calgary time-zone test corrections; setup documentation; notification database changes and review fixes; small changes within the reward and cleanup work; version 3 terms seed; queries G3 and C2 with regenerated output. & 33, 43, 51, 364, 367, 399, 443, 501, 502, 511, 521 \\
+Satyam Bhanot (\texttt{satyambhanot}) & First version of the shared contracts; further Docker Compose services; Calgary time-zone test corrections; setup documentation; notification database changes and review fixes; small changes within the reward and cleanup work; version 3 terms seed; queries G3 and C2 with regenerated output; corrections to the business-rule examples and a query comment. & 33, 43, 51, 364, 367, 399, 443, 501, 502, 511, 521, 522 \\
 \addlinespace
 Vedant Patel (\texttt{vedantp-14}) & Web application pages and data fetching that use the database-backed service interfaces. & 176, 183, 200, 297--303, 321--328, 363, 371--386, 390--393 \\
 \end{longtable}
@@ -749,7 +749,7 @@ Within these limits, the database carries the design consistently from a 20-enti
 \appendix
 \section{Business Rules}
 \label{app:rules}
-Table~\ref{tab:rules} lists the rules recorded in the conceptual diagram. We corrected one typing error in BR32 and removed examples from BR37 that no longer matched the item categories. Codes beginning with FR or NFR refer to the project's functional and non-functional requirements.
+Table~\ref{tab:rules} lists the rules recorded in the conceptual diagram. Codes beginning with FR or NFR refer to the project's functional and non-functional requirements.
 {\small
 \input{appendix-rules.tex}
 }
