@@ -11,7 +11,7 @@ The FR cases check each requirement on its own: one service's tests, or the fron
 Run the cases in this order: AT-1 and AT-2 with nothing injected, so a failure means a bug; then ST-1, which stops RabbitMQ on purpose.
 
 **Shared preconditions (all cases):**
-- The full stack is running: `docker compose up -d --build` at the repo root, with every service healthy (`docker compose ps`), the databases loaded (`set -a; source .env; set +a`, then `bash backend/scripts/<service>/load-db.sh`), ImageKit and VAPID keys set in `.env`.
+- The full stack is set up and running as in the root README, [Run everything with Docker](../../../../../README.md#run-everything-with-docker): `.env` filled in (including the ImageKit and VAPID keys), the database loaders run as step 3 describes (the User Service loader takes only the two variables it lists), and every service healthy (`docker compose ps`).
 - Two accounts registered in the app: **Resident** (role Resident, with an address) and **Volunteer** (role Volunteer). They use separate browser sessions, because Firebase keeps one sign-in per site: the Resident in one browser profile, the Volunteer in a second profile or another browser. Not a private window: private windows don't support push notifications, which steps 2, 4 and 7 of AT-1 check.
 - On the Volunteer's Profile, under Preferred postal codes, the Resident's postal code is added exactly as it appears on the Resident's address. Matching is an exact 6-character match (contract 10.3).
 - Check both from the repo root with `bash scripts/peek.sh --accounts`: the Resident is listed with a `home_postal`, and the Volunteer's `saved_codes` include that exact code.
@@ -41,7 +41,7 @@ Run the cases in this order: AT-1 and AT-2 with nothing injected, so a failure m
 
 ### AT-2: The Volunteer cancels before collection, and the request is open again for everyone (alternate flow)
 
-**Preconditions:** the shared preconditions. The Resident has a new Open request (AT-1 steps 1–2), and the Volunteer has accepted it (AT-1 step 3).
+**Preconditions:** the shared preconditions. The Resident has a new Open request (AT-1 steps 1–2), and the Volunteer has accepted it (AT-1 step 3). The request's pickup window starts no earlier than tomorrow, so it is still in the future after the cancellation: a cancellation at or after the window's start expires the request instead of reopening it (contract event E10).
 
 | # | Actor | Action | Expected result |
 | --- | --- | --- | --- |
@@ -64,21 +64,23 @@ The acceptance tests show what users see. This case checks what happens inside w
 
 ### ST-1: A request created while RabbitMQ is down is saved, and its event is published when RabbitMQ is back (alternate flow)
 
-**Preconditions:** the shared preconditions. The Volunteer has Available requests open. A terminal at the repo root follows the Request Service's log: `docker compose logs -f request`.
+**Preconditions:** the shared preconditions. Run ST-1 only on an isolated stack that nobody else is using: stopping RabbitMQ interrupts every service's messaging. The Volunteer has Available requests open. A terminal at the repo root follows the Request Service's log: `docker compose logs -f request`.
 
 | # | Actor | Action | Expected result |
 | --- | --- | --- | --- |
 | 1 | Operator | `docker compose stop rabbitmq` | RabbitMQ stops. The Request Service's relay logs one line ending in `(retrying every tick)`: it cannot reach the broker and tries every second (logged once, before any request exists). The other services log that they lost the broker |
-| 2 | Resident | Create a request in the Volunteer's postal code (as in AT-1 step 1) | The request is saved and listed as Open in My requests: creating a request does not depend on RabbitMQ |
-| 3 | Operator | `bash scripts/peek.sh` | Status Open; the Request Service outbox has the `RequestCreated` row with `published_at` empty (`-`), and the backlog line reads `Unsent events in the Request Service outbox: 1`. The event is saved and waiting; nothing changes for as long as RabbitMQ stays down |
+| 2 | Resident | Create a request in the Volunteer's postal code (as in AT-1 step 1), then open it and record its ID: the last part of the address, `/resident/requests/<requestId>` | The request is saved and listed as Open in My requests: creating a request does not depend on RabbitMQ |
+| 3 | Operator | `bash scripts/peek.sh <requestId>` | Status Open; the Request Service outbox has this request's `RequestCreated` row with `published_at` empty (`-`). The backlog line counts at least this event (it counts unsent events of every request). The event is saved and waiting; nothing changes for as long as RabbitMQ stays down |
 | 4 | Volunteer | Wait 30 seconds, then reload Available requests | No notification arrives. After the reload the request is listed: lists are read from the database, so only the live signal waits for RabbitMQ (switching to the window also refetches the list) |
 | 5 | Operator | `docker compose start rabbitmq` | Once RabbitMQ is ready (about 10–20 seconds), the Request Service logs `request publisher: working again` |
-| 6 | Operator | `bash scripts/peek.sh` | The `RequestCreated` row now has a `published_at` time (RabbitMQ confirmed it), the backlog line reads `0`, and the Volunteer's `NEW_MATCHING_REQUEST` notification is listed |
+| 6 | Operator | `bash scripts/peek.sh <requestId>` | The same `RequestCreated` row (same `seq` and `enqueued` time as in step 3) now has a `published_at` time: RabbitMQ confirmed it. The Volunteer's `NEW_MATCHING_REQUEST` notification is listed |
 | 7 | Volunteer | Watch Notifications, without reloading | The new-request notification arrives |
 
 **Expected result:** the request is saved while the broker is down, and anyone who loads the list sees it. Its event waits in the outbox, with no time limit and nothing rolled back, and is published once the broker is back, so the notification is late but not lost.
 
-**Postcondition:** every service is running and connected again (`docker compose ps`). The request is Open: cancel it as the Resident, or use it for another case.
+**Recovery (always, even if the run fails or is interrupted):** `docker compose start rabbitmq`, then `docker compose ps` until RabbitMQ is healthy and every service is running. The Request Service log has no new `(retrying every tick)` line.
+
+**Postcondition:** the stack is back to normal (see Recovery). The request is Open: cancel it as the Resident, or use it for another case.
 
 **Verification:** manual, on the Docker stack. Record screenshots of steps 3, 6 and 7, and the two Request Service log lines.
 
