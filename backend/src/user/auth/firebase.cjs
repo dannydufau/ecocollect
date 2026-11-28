@@ -3,7 +3,7 @@ const path = require('path');
 const { initializeApp, cert, getApps } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
 
-// Same default location as the seed script (the secrets/ folder is git-ignored).
+// The key's default location: secrets/firebase-admin.json at the repo root (the folder is git-ignored).
 const DEFAULT_KEY_PATH = path.join(__dirname, '../../../../secrets/firebase-admin.json');
 
 function readKey() {

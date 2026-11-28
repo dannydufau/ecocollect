@@ -168,7 +168,6 @@ nano .env
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | One key pair for push notifications: `docker run --rm node:22.18-alpine npx --yes web-push generate-vapid-keys`. Keep it: new keys break every browser's push subscription. Compose won't run without them. |
 | `VAPID_SUBJECT` | `mailto:` followed by your email address |
 | `NEXT_PUBLIC_VAPID_KEY` | The **same** value as `VAPID_PUBLIC_KEY` |
-| `DEMO_MODE` | `false` |
 | `SITE_ADDRESS` | `<name>.duckdns.org` |
 | `COMPOSE_FILE` | Uncomment it: `docker-compose.yml:docker-compose.prod.yml` |
 

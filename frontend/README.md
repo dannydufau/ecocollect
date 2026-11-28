@@ -27,7 +27,7 @@ Next.js (App Router), React, TypeScript, Tailwind and TanStack Query. Login goes
    npm run dev
    ```
 
-   Open <http://localhost:3000>. Sign in with a seeded demo account, set up as in [scripts/seed/README.md](../scripts/seed/README.md). Login always uses the real Firebase project, even with the mock API.
+   Open <http://localhost>. Sign in with an account made on the app's sign-up page. Login always uses the real Firebase project, even with the mock API.
 
 ## Environment variables
 
@@ -43,7 +43,6 @@ All of them go in `.env.local` (copied from `.env.example`). The `NEXT_PUBLIC_` 
 | `NEXT_PUBLIC_FIREBASE_APP_ID` | Firebase web config: the web app id |
 | `GATEWAY_URL` | Where the Next.js rewrite sends `/api/*`, server side only (the mock or the Caddy gateway) |
 | `NEXT_PUBLIC_VAPID_KEY` | Public VAPID key for web push. Empty turns the notifications button into a "not set up" message |
-| `NEXT_PUBLIC_DEMO` | `true` builds the demo version (banner and Start demo page instead of login) |
 
 ## Signed-in test mode
 

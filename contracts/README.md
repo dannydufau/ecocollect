@@ -53,7 +53,6 @@ What goes in and out of every component. No SQL schema: tables are named only to
 | Missed is a terminal status; reporting a miss can reschedule as a new, linked request | Avoids reopening with past windows |
 | Every service reads every table; one writer per table | 3NF: no copied data in tables |
 | Item photos visible to volunteers; delivery photos private; GPS data removed in the browser and again by ImageKit before the file is stored | NFR03, FR06 user story |
-| Demo mode runs as a separate copy of the real system | No duplicated business logic; real SSE and push |
 | Volunteers whose assignment was cancelled or missed get 404 on the request page and see no request details; Q7 keeps their own assignment history | NFR03: no access to a request they no longer work on |
 | The Notification Service runs as **one instance**; the per-instance SSE queue is removed | SSE connections live in that instance's memory, and one instance receives every event from the shared queue (13.0). Scaling out is deferred (18) |
 | Queues are **quorum queues**; RabbitMQ dead-letters a message after 5 failed attempts | The broker counts attempts and dead-letters, so no service counts retries itself (9.5) |
@@ -79,10 +78,10 @@ What goes in and out of every component. No SQL schema: tables are named only to
 
 | # | From → To | Mechanism | Input | Output | Notes |
 |---|---|---|---|---|---|
-| 2.1 | Seed script → Postgres | SQL as an admin user | Schemas `users`, `requests`, `rewards`, `notifications`, `cleanup`; one DB user per service: full rights on its own schema, `SELECT` on all others (section 8); categories (name, waste type, standard weight), facilities and what they accept, the current terms document | Seeded rows | Registration replaces seeded profiles. Optional demo accounts are created through `POST /api/accounts` so Firebase and Postgres agree |
+| 2.1 | Seed script → Postgres | SQL as an admin user | Schemas `users`, `requests`, `rewards`, `notifications`, `cleanup`; one DB user per service: full rights on its own schema, `SELECT` on all others (section 8); categories (name, waste type, standard weight), facilities and what they accept, the current terms document | Seeded rows | Registration replaces seeded profiles. |
 | 2.2 | Setup → User Service env | Firebase Admin key file | `secrets/firebase-admin.json` | Admin SDK ready | Only the User Service mounts it |
 | 2.3 | Setup → Notification Service env | VAPID key pair | Private key in the Notification Service env; public key to the frontend as `NEXT_PUBLIC_VAPID_KEY` | Ready to send push | Same as Oct 28 |
-| 2.4 | Setup → Request Service env | ImageKit keys and folder; demo flag | `IMAGEKIT_PRIVATE_KEY`, `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_URL_ENDPOINT`, `IMAGEKIT_ROOT_FOLDER` (`/ecocollect`, or `/ecocollect-demo` in the demo stack), `DEMO_MODE` (`false`, or `true` in the demo stack, 17.5) | Ready to sign uploads and URLs | The frontend needs no ImageKit config. Upload folders (6.2) start with `IMAGEKIT_ROOT_FOLDER` |
+| 2.4 | Setup → Request Service env | ImageKit keys and folder | `IMAGEKIT_PRIVATE_KEY`, `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_URL_ENDPOINT`, `IMAGEKIT_ROOT_FOLDER` (`/ecocollect`) | Ready to sign uploads and URLs | The frontend needs no ImageKit config. Upload folders (6.2) start with `IMAGEKIT_ROOT_FOLDER` |
 | 2.5 | Setup → RabbitMQ | Each service declares what it uses on start | Exchanges, queues with their arguments, dead-letter queues, bindings (section 9) | Topology | Declarations are idempotent only if the arguments match exactly; a mismatch fails with `PRECONDITION_FAILED`. A queue's type can't be changed in place: when moving from the Oct 28 classic queues, delete the old queues once (or remove the RabbitMQ volume with `docker compose down -v`) |
 
 ## 3. Frontend ↔ Firebase Auth (client SDK)
@@ -377,7 +376,7 @@ Assignment snapshot (as `data.assignment` where noted): `assignmentId, volunteer
 | E15 | `ProfileUpdated` | `user.profile.updated` | User: U7, U8 | `accountId, changed: ["publicName","address","preferredPostalCodes","roles"], publicName, roles` (never the address itself) | Notification |
 | E16 | `AccountDeactivated` | `user.account.deactivated` | User: U9 | `accountId, deactivatedAt` | Notification |
 
-`matchedVolunteerUids` (E1, E2): every volunteer whose preferred postal codes include the request's postal code (exact, full 6-character match, on purpose: notifications go only to volunteers who chose that exact code; the available list (Q6) can always be browsed without the filter, 16.9), leaving out deactivated accounts and the request's own resident (in demo mode the resident stays in, 17.5). The volunteer of an assignment that just ended stays in too: E2 `reopened` after a volunteer's Q12, and E1 after Q14 with `reschedule`, can notify that same volunteer, who can accept again like anyone else. The Request Service computes it in the same transaction (section 8).
+`matchedVolunteerUids` (E1, E2): every volunteer whose preferred postal codes include the request's postal code (exact, full 6-character match, on purpose: notifications go only to volunteers who chose that exact code; the available list (Q6) can always be browsed without the filter, 16.9), leaving out deactivated accounts and the request's own resident. The volunteer of an assignment that just ended stays in too: E2 `reopened` after a volunteer's Q12, and E1 after Q14 with `reschedule`, can notify that same volunteer, who can accept again like anyone else. The Request Service computes it in the same transaction (section 8).
 
 Events from one action, in order: Q10 on Assigned → E6, E9. Q12 → E6 or E7, then E2 (reopened) or E10. Q14 → E8, then E1 for the new request if rescheduled (the new request has its own `requestSeq` starting at 1; both events share the `transitionId`).
 
@@ -554,7 +553,7 @@ Photo exclusivity in the Request Service: every photo attachment (Q4, Q9, Q15) i
 
 ### 13.0 One instance
 
-The Notification Service runs as exactly one container: no `deploy.replicas`, no `docker compose --scale` (the demo stack, 17.1, also has one). That instance holds every SSE connection (`/api/events` and `/api/public/events`) in memory and is the only consumer of `notification.events`, so every event reaches the process that holds the recipient's connections. A second instance would take only some of the events from the shared queue, and users connected to it would miss live updates. A restart drops all streams; the frontend reconnects and refetches (16.5). Scaling out is deferred (18).
+The Notification Service runs as exactly one container: no `deploy.replicas`, no `docker compose --scale`. That instance holds every SSE connection (`/api/events` and `/api/public/events`) in memory and is the only consumer of `notification.events`, so every event reaches the process that holds the recipient's connections. A second instance would take only some of the events from the shared queue, and users connected to it would miss live updates. A restart drops all streams; the frontend reconnects and refetches (16.5). Scaling out is deferred (18).
 
 ### 13.1 Notification types
 
@@ -698,22 +697,9 @@ The page refetches U10 + R3 or R2. No other data travels on this stream.
 
 Query keys: `["profile"]`, `["notifications"]`, `["requests","mine"]`, `["requests","available"]`, `["requests","volunteer"]`, `["request", id]`, `["ecopoints"]`, `["public-profile", accountId]`, `["public-stats"]`.
 
-## 17. Demo mode (FR24)
+## 17. Demo mode (removed)
 
-Demo mode is a second, separate copy of the real system with its own data. No business logic is written twice, and SSE and push are the real thing.
-
-| # | Piece | Contract |
-|---|---|---|
-| 17.1 | Demo stack | A Docker Compose profile `demo` starts a second set of the services and a second frontend build. Its own Postgres database, its own RabbitMQ virtual host (`demo`), its own Firebase project (or the Firebase Auth emulator, since we run locally), its own VAPID keys, and a Request Service with `IMAGEKIT_ROOT_FOLDER=/ecocollect-demo` and `DEMO_MODE=true` (2.4). Caddy serves it at `demo.localhost` |
-| 17.2 | Frontend build | Built with `NEXT_PUBLIC_DEMO=true` and the demo Firebase config (baked in at build time). Shows a "Demo" banner and a "Start demo" page instead of login and registration. The active role is kept per tab (`sessionStorage`) |
-| 17.3 | `POST /api/demo/session` | User Service, only when `DEMO_MODE=true`, no auth, rate-limited per IP. Creates a throwaway account `demo-<random>` with **both roles**, an address and a preferred postal code from a demo pool, and the terms accepted. Returns `200 { customToken }` (Admin SDK `createCustomToken`). The frontend calls `signInWithCustomToken`, then the normal U1 and SSE steps. Not routed in the production Caddy site |
-| 17.4 | Seed | Categories, facilities, terms, and a few Open requests from seeded demo residents in the pool postal codes, so the available list isn't empty |
-| 17.5 | Matching in demo | With `DEMO_MODE=true` in the Request Service env (2.4), the matching that builds `matchedVolunteerUids` does not exclude the requesting resident, so the demo account also gets `NEW_MATCHING_REQUEST` for its own request |
-| 17.6 | Two roles, two tabs | The visitor opens the demo in two tabs and picks Resident in one, Volunteer in the other (same account). Creating a request in the resident tab appears live in the volunteer tab (SSE `notification` + `available-requests-changed`); accepting it updates the resident tab. Push works through the one browser subscription; while an EcoCollect tab is focused the service worker shows pushes quietly (16.6), so the visitor hears them after switching away. Two *different* accounts in one browser would sign each other out (Firebase keeps one sign-in per site), so that needs a private window |
-| 17.7 | Reset | Nightly script (and a manual command): drop and re-seed the demo database, delete demo Firebase users, delete the demo ImageKit folder |
-| 17.8 | Isolation | Different database, broker vhost, Firebase project and Caddy site: nothing in demo can read or change production data (FR24). Visitors share the demo data; the banner says so and that it resets nightly |
-
-Work involved: configuration (Compose profile, Caddy site, env files, Firebase project), one endpoint, the matching flag, the seed and reset scripts, the banner and start page.
+Demo mode (FR24) is not part of the final submission. Some code still has the `DEMO_MODE` paths that cite 17.x; the flag defaults to `false`, and that code is to be removed.
 
 ## 18. Deferred
 
