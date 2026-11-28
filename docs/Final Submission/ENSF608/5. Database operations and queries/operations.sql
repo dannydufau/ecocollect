@@ -386,6 +386,20 @@ GROUP BY c.name
 HAVING COUNT(*) >= 2
 ORDER BY requests DESC, category;
 
+-- G3. Requests that expired in each month (Calgary time).
+--    Rationale: shows how often requests go unclaimed (proposal database question 3).
+--               The proposal also asked about renewals, but an Expired request
+--               can't be renewed in the final system.
+--    Citation:  FR20
+--    Concepts:  GROUP BY two expressions, EXTRACT, AT TIME ZONE, COUNT(DISTINCT), WHERE
+SELECT EXTRACT(YEAR FROM changed_at AT TIME ZONE 'America/Edmonton') AS year,
+       EXTRACT(MONTH FROM changed_at AT TIME ZONE 'America/Edmonton') AS month,
+       COUNT(DISTINCT pickup_request_id) AS expired_requests
+FROM status_change
+WHERE status = 'Expired'
+GROUP BY year, month
+ORDER BY year, month;
+
 -- 8. SELECT queries with INNER JOIN
 
 -- J1. Facilities that accept a category (where a volunteer can deliver phones).
@@ -493,6 +507,24 @@ JOIN assignment a ON a.assignment_id = e.assignment_id
 JOIN terms_acceptance ta ON ta.terms_acceptance_id = a.terms_acceptance_id
 GROUP BY ta.account_id
 ORDER BY points DESC, account_id;
+
+-- C2. Delivered requests, items and estimated weight per item category.
+--    Rationale: shows which kinds of e-waste actually reached a recycling facility,
+--               in item counts and weight (proposal database question 5, SDG 12).
+--               Only requests with a delivery record count.
+--    Citation:  FR17, FR23
+--    Concepts:  INNER JOIN across 5 tables, COUNT, SUM, GROUP BY, ORDER BY two keys
+SELECT c.name AS category,
+       COUNT(*) AS delivered_requests,
+       SUM(pr.quantity) AS items_delivered,
+       SUM(pr.estimated_weight_kg) AS estimated_weight_kg
+FROM delivery d
+JOIN assignment a ON a.assignment_id = d.assignment_id
+JOIN pickup_window w ON w.pickup_window_id = a.pickup_window_id
+JOIN pickup_request pr ON pr.pickup_request_id = w.pickup_request_id
+JOIN item_category c ON c.category_id = pr.category_id
+GROUP BY c.name
+ORDER BY items_delivered DESC, category;
 
 -- 11. Stored procedures
 
