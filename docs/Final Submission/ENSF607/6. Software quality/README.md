@@ -16,17 +16,3 @@ All testing is manual. **45 cases pass and 1 fails.** Every case has been run.
 ## Acceptance and system tests
 
 [cases/acceptance.md](cases/acceptance.md) has AT-1, AT-2 and ST-1, which check the whole system. They are not part of the report.
-
-## Update the report
-
-Edit [report/test-report.tex](report/test-report.tex), then rebuild from the `report/` folder with [Tectonic](https://tectonic-typesetting.github.io/):
-
-```bash
-tectonic test-report.tex --outdir ..
-```
-
-The first build may download LaTeX packages. Commit the `.tex` and the rebuilt PDF together.
-
-- Each case is one `\testcase` entry. When a result changes, also update the totals, the coverage table and this page.
-- Add screenshots to `report/screenshots/` with `\shot`. This repository is public, so crop out the browser bars and black out personal details first.
-- The team's records are in `report/team-records/`. If one changes, check its page count and `\record` lines.
