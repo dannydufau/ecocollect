@@ -6,7 +6,10 @@ services:
   rabbitmq:
     volumes:
       - ./infra/rabbitmq/tls.conf:/etc/rabbitmq/conf.d/20-tls.conf:ro   # adds the TLS listener on 5671
-      - ./infra/rabbitmq/certs:/etc/rabbitmq/certs:ro                   # from gen-certs.sh
+      # From gen-certs.sh: only what the broker needs; the CA signing key (ca.key) stays on the host.
+      - ./infra/rabbitmq/certs/ca.pem:/etc/rabbitmq/certs/ca.pem:ro
+      - ./infra/rabbitmq/certs/server.pem:/etc/rabbitmq/certs/server.pem:ro
+      - ./infra/rabbitmq/certs/server.key:/etc/rabbitmq/certs/server.key:ro
     ports:
       - "127.0.0.1:${RABBITMQ_TLS_PORT:-5671}:5671"                     # for testing TLS from the host
 

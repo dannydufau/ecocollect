@@ -62,7 +62,7 @@ High-risk gaps in the event, notification and messaging paths get scripted cases
 | 2 | Open a connection to a plain `amqp://` URL | Nothing extra is passed: the other services connect as before |
 | 3 | Read the override file `docker-compose.tls.yml` and `infra/rabbitmq/tls.conf` | Only `notification` and `rabbitmq` change: the Notification Service uses `amqps://…@rabbitmq:5671` with the CA mounted; RabbitMQ keeps 5672 and adds a TLS listener on 5671 |
 | 4 | Start the stack with `docker compose -f docker-compose.yml -f docker-compose.tls.yml up --build`, then run `docker compose exec rabbitmq rabbitmqctl list_connections peer_host ssl ssl_protocol` (or open the management UI's Connections tab) | Only the Notification Service's connection shows TLS (`true`, `tlsv1.3`); the other services' connections are plain. Its log shows `[subscriber] consuming notification.events` and no connection error |
-| 5 | From the host, run `openssl s_client -connect localhost:5671 -CAfile infra/rabbitmq/certs/ca.pem`, then again with a different CA file | Verify return code 0 (ok), then a verify error: a certificate not signed by our CA is not trusted |
+| 5 | From the host, check the broker's identity with hostname verification on and the handshake failing on any verification error: (a) `openssl s_client -connect localhost:5671 -CAfile infra/rabbitmq/certs/ca.pem -verify_hostname localhost -verify_return_error </dev/null`; (b) the same with an unrelated CA, made with `openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj "/CN=unrelated CA" -keyout /tmp/other-ca.key -out /tmp/other-ca.pem` and passed as `-CAfile /tmp/other-ca.pem` | (a) `Verify return code: 0 (ok)`, exit code 0: the certificate is signed by our CA and is valid for `localhost` (the services use the name `rabbitmq`, also in the certificate). (b) `verify error:num=20:unable to get local issuer certificate`, exit code 1: the handshake fails, so a broker certificate we didn't sign is not trusted |
 
 **Expected result:** with the TLS Compose file, the Notification Service receives events over an encrypted connection, it accepts only the broker certificate signed by our CA, and the other services are unchanged.
 
@@ -101,5 +101,5 @@ Record one row per run. A planned case is not a pass until it has a row here.
 | --- | --- | --- | --- | --- |
 | NFR04-P1, NFR04-N1, NFR04-P2 (steps 1–3) | 2026-11-27 | `69c3679` | `npm test` in `backend/` | Pass (198 passed, 0 failed) |
 | NFR04-P2 (step 4) | 2026-11-27 | `94ccdbe` (the same TLS change before the rebase onto `main`; now `47f65d1`) | Docker stack with `docker-compose.tls.yml`; `rabbitmqctl list_connections` and the management UI | Pass: 1 of 8 connections on TLS 1.3 (the Notification Service, `172.18.0.8`), 7 plain; `consuming notification.events`, no connection error; events received over it |
-| NFR04-P2 (step 5) | | | `openssl s_client` | Not run |
+| NFR04-P2 (step 5) | | | `openssl s_client` with `-verify_hostname localhost -verify_return_error`: (a) our CA, (b) an unrelated CA | Not run |
 | Supporting: gateway | – | – | `./infra/caddy/testing/test.sh` (needs Docker) | Not run |

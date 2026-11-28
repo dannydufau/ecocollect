@@ -39,7 +39,12 @@ test('the TLS override moves only the Notification Service to amqps on 5671, wit
   // RabbitMQ loads tls.conf from conf.d and finds the certificates where tls.conf expects them.
   const mounts = override.rabbitmq.volumes;
   assert.ok(mounts.includes('./infra/rabbitmq/tls.conf:/etc/rabbitmq/conf.d/20-tls.conf:ro'));
-  assert.ok(mounts.includes('./infra/rabbitmq/certs:/etc/rabbitmq/certs:ro'));
+  for (const file of ['ca.pem', 'server.pem', 'server.key']) {
+    assert.ok(mounts.includes(`./infra/rabbitmq/certs/${file}:/etc/rabbitmq/certs/${file}:ro`), `${file} is mounted`);
+  }
+  // The CA signing key never reaches a container.
+  const all = [...mounts, ...override.notification.volumes];
+  assert.ok(!all.some((v) => v.startsWith('./infra/rabbitmq/certs:') || v.includes('ca.key')), 'ca.key is not mounted');
   const conf = read('infra/rabbitmq/tls.conf');
   assert.match(conf, /^listeners\.tcp\.default = 5672$/m, 'the other services keep the plain listener');
   assert.match(conf, /^listeners\.ssl\.default = 5671$/m);
