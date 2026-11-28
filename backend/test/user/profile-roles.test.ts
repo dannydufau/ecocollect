@@ -6,6 +6,7 @@ import { test } from 'node:test';
 import express from 'express';
 import { createPool } from '../../src/user/db/pool.ts';
 import { loadProfile } from '../../src/user/db/profile.ts';
+import { getCurrentTerms } from '../../src/user/db/terms.ts';
 import { errorHandler } from '../../src/user/http/errors.ts';
 import { register } from '../../src/user/routes/profile-roles.ts';
 
@@ -90,18 +91,24 @@ test('role activation persists both directions, serializes duplicates and rolls 
     );
     await pool.query('INSERT INTO users.volunteer (account_id) VALUES ($1)', [volunteerId]);
 
-    const [stale, staleBody] = await post({ ...volunteer, termsDocumentId: randomUUID() }, residentId);
+    const currentTermsId = (await getCurrentTerms(pool)).termsDocumentId;
+    assert.notEqual(currentTermsId, termsId, 'seeded database should have a newer current terms version than v2');
+    const currentVolunteer = { ...volunteer, termsDocumentId: currentTermsId };
+    const currentResident = { ...resident, termsDocumentId: currentTermsId };
+
+    // Deliberate stale v2 submission is rejected with 409 terms_outdated.
+    const [stale, staleBody] = await post({ ...volunteer, termsDocumentId: termsId }, residentId);
     assert.equal(stale, 409);
     assert.equal(staleBody.error.code, 'terms_outdated');
     assert.equal(claims.length, 0);
 
-    const results = await Promise.all([post(volunteer, residentId), post(volunteer, residentId)]);
+    const results = await Promise.all([post(currentVolunteer, residentId), post(currentVolunteer, residentId)]);
     results.sort(([a], [b]) => a - b);
     assert.deepEqual(results[0], [200, { roles: ['resident', 'volunteer'] }]);
     assert.equal(results[1][0], 409);
     assert.equal(results[1][1].error.code, 'role_already_active');
-    assert.deepEqual(await post(resident, volunteerId), [200, { roles: ['volunteer', 'resident'] }]);
-    assert.equal((await post(volunteer, failingId))[0], 500);
+    assert.deepEqual(await post(currentResident, volunteerId), [200, { roles: ['volunteer', 'resident'] }]);
+    assert.equal((await post(currentVolunteer, failingId))[0], 500);
     assert.equal(failure.mock.callCount(), 1);
     assert.deepEqual(claims, [
       [residentId, { roles: ['resident', 'volunteer'] }],
@@ -125,8 +132,8 @@ test('role activation persists both directions, serializes duplicates and rolls 
       'SELECT account_id, type, terms_document_id FROM users.terms_acceptance WHERE account_id = ANY($1::text[])', [accounts],
     );
     assert.deepEqual(new Map(accepted.rows.map(row => [row.account_id, [row.type, row.terms_document_id]])), new Map([
-      [residentId, ['AT_VOLUNTEER_REGISTRATION_OR_ACTIVATION', termsId]],
-      [volunteerId, ['AT_RESIDENT_REGISTRATION_OR_ACTIVATION', termsId]],
+      [residentId, ['AT_VOLUNTEER_REGISTRATION_OR_ACTIVATION', currentTermsId]],
+      [volunteerId, ['AT_RESIDENT_REGISTRATION_OR_ACTIVATION', currentTermsId]],
     ]));
     const { rows: events } = await pool.query(
       'SELECT aggregate_id, routing_key, payload FROM users.outbox WHERE aggregate_id = ANY($1::text[])', [accounts],

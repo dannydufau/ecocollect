@@ -27,7 +27,7 @@ export const SEED_VOLUNTEER_ID = 'volunteer1';
 export const SEED_RESIDENT_ONLY_ID = 'resident1';
 
 /** The `terms_document_id` in `INSERT INTO terms_document` with the latest `published_at` (the current terms). */
-export const SEED_CURRENT_TERMS_ID = '00000001-0000-4000-8000-000000000002';
+export const SEED_CURRENT_TERMS_ID = '00000001-0000-4000-8000-000000000003';
 
 /** A `pickup_request_id` of `SEED_RESIDENT_ONLY_ID` whose last `status_change` is `Open`. */
 export const SEED_OPEN_REQUEST_ID = '00000003-0000-4000-8000-000000000001';
