@@ -184,8 +184,8 @@ ROLLBACK;
 --    Concepts:  DELETE ... WHERE, AND, row lock (FOR UPDATE)
 BEGIN;
 
--- a) Lock the volunteer: preferred-code changes lock the volunteer row
---    (add_preferred_code does the same), so two edits can't race past the 3-code limit.
+-- a) Lock the volunteer row so two transactions that lock it can't change these codes
+--    at the same time. The User Service locks the account row when it replaces the list.
 SELECT account_id FROM volunteer WHERE account_id = 'volunteer1' FOR UPDATE;
 
 -- b) Remove one code.
