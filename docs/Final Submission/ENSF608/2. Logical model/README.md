@@ -446,7 +446,7 @@ ECOPOINTS_AWARDED_ON_ASSIGNMENT_CANCELLATION_VOLUNTEER
 | Rule | Required enforcement |
 |---|---|
 | Total account specialization | Every account has a resident row, a volunteer row or both. Serialize role changes on the account row and check the final state (BR1). |
-| Preferred-code limit | Composite PK prevents duplicates. In a transaction, lock the volunteer row with `SELECT ... FOR UPDATE`, then check that the resulting list has at most three postal codes (BR9). |
+| Preferred-code limit | Composite PK prevents duplicates. In a transaction, lock the account row with `SELECT ... FOR NO KEY UPDATE`, then check that the resulting list has at most three postal codes (BR9). |
 | Request and assignment actors | In the insertion transaction, check that a request uses its resident's request-creation acceptance and an assignment uses its volunteer's acceptance. Check the account role, acceptance type and current terms document. Actor and acceptance links remain unchanged (BR29, BR38, BR43, BR54). |
 | Request history | Each request has its initial Open entry. Later entries append in time order and are retained (BR16–BR18). |
 | Active pickup slots | In a transaction, lock the request row with `SELECT ... FOR UPDATE`, then require one to three active windows and no duplicate `(pickup_request_id, pickup_date, start_hour)` among them. Each new window starts in the future and ends within 30 days of the original creation time (BR32–BR36). |

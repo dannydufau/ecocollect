@@ -537,7 +537,7 @@ Use the lecture SQL features and transactions. Rules involving several rows are 
 |---|---|
 | One unfinished assignment per request | In the Q11 transaction, lock the PICKUP_REQUEST row with `SELECT ... FOR UPDATE`, find assignments through PICKUP_WINDOW, and reject insertion if one has `Ended_At IS NULL` |
 | One to three distinct active windows per request | Lock the request in the window-change transaction, then check the final active count and request/date/hour combinations |
-| At most three preferred postal codes | Lock the volunteer in the update transaction before checking the final count |
+| At most three preferred postal codes | Lock the account row in the update transaction before checking the final count |
 | Item/evidence photo exclusivity | Lock the PHOTO row in the attachment transaction before checking request and delivery references |
 | Exactly one role row per award | Insert ECOPOINTS_AWARD and one resident_award or volunteer_award row in the same transaction |
 | Exactly one source row per notification | Insert NOTIFICATION and one request_notification or award_notification row in the same transaction |
