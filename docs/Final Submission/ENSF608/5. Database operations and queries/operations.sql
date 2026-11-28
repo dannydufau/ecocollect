@@ -8,7 +8,6 @@
 \set ON_ERROR_STOP on
 CREATE SCHEMA ensf608_queries;
 SET search_path TO ensf608_queries, users, requests, rewards, notifications, pg_catalog;
-SET client_min_messages = warning;  -- hide "does not exist, skipping" from DROP PROCEDURE IF EXISTS
 
 
 -- 0. Helper view used by other queries
@@ -305,9 +304,9 @@ FROM item_category
 ORDER BY waste_type, name;
 
 -- O2. Newest non-expired request notifications for an account, first page.
---    Rationale: demonstrates pagination of the request source. Contract N3 also
---               lists EcoPoints award notifications; PR #399 lists only request ones so far.
---    Citation:  FR19; contract N3; notification-store.js listForAccount (PR #399).
+--    Rationale: shows pagination for request notifications only. The service lists
+--               both request and EcoPoints award notifications.
+--    Citation:  FR19; contract N3.
 --    Concepts:  ORDER BY ... DESC, LIMIT, WHERE, AND NOT, join
 -- (ids shown as their last 4 characters, see op 0)
 SELECT n.type, n.created_at, n.is_read,
@@ -347,9 +346,9 @@ JOIN request_current_status rcs ON rcs.pickup_request_id = pr.pickup_request_id
 WHERE rcs.status = 'Open';
 
 -- A3. Unread, non-expired request notifications for an account.
---    Rationale: counts unread notifications from the request source. Contract N3's
---               count also covers award ones; PR #399 counts only request ones so far.
---    Citation:  FR19; contract N3; notification-store.js listForAccount (PR #399).
+--    Rationale: counts unread request notifications only. The service counts unread
+--               notifications from both the request and EcoPoints award sources.
+--    Citation:  FR19; contract N3.
 --    Concepts:  COUNT, WHERE, AND NOT, join
 SELECT COUNT(*) AS unread
 FROM request_notification rn
@@ -498,15 +497,13 @@ ORDER BY points DESC, account_id;
 -- 11. Stored procedures
 
 -- P1. mark_all_read: mark an account's request notifications as read.
---    Rationale: demonstrates the request-notification source of the mark-all action.
---               Contract N5 also covers award ones; PR #399 handles only request ones so far.
---    Citation:  FR19; contract N5; notifications.mark_all_read (PR #399).
+--    Rationale: marks request notifications only. The service procedure marks both
+--               request and EcoPoints award notifications.
+--    Citation:  FR19; contract N5.
 --    Concepts:  stored procedure, IN parameter, UPDATE ... FROM (multi-table update), CALL
 --    Mandate:   Lecture 12 - 3: data changes encapsulated in stored procedures, called with
 --               CALL. Postgres syntax noted inline.
-DROP PROCEDURE IF EXISTS mark_all_read(VARCHAR);    -- Postgres names a procedure by its parameter types
-
-CREATE PROCEDURE mark_all_read(IN p_account_id VARCHAR(50))
+CREATE PROCEDURE ensf608_queries.mark_all_read(IN p_account_id VARCHAR(50))
 LANGUAGE plpgsql    -- the body is Postgres's procedural language (BEGIN ... END)
 AS $$               -- start of the quoted body; replaces Lecture 12's DELIMITER //
 BEGIN
@@ -528,7 +525,7 @@ JOIN notification n ON n.notification_id = rn.notification_id
 WHERE rn.account_id = 'resident1'
 ORDER BY n.created_at DESC;
 
-CALL mark_all_read('resident1');
+CALL ensf608_queries.mark_all_read('resident1');
 
 SELECT n.type, n.is_read
 FROM request_notification rn
@@ -539,16 +536,14 @@ ORDER BY n.created_at DESC;
 ROLLBACK;
 
 -- P2. mark_read: mark one request notification read if it belongs to the account.
---    Rationale: demonstrates ownership and a found/not-found result for the request
---               source. Contract N4 also covers award ones; PR #399 handles only request ones so far.
---    Citation:  FR19; contract N4; notifications.mark_read (PR #399).
+--    Rationale: checks ownership and returns whether a request notification was found.
+--               The service procedure supports both request and EcoPoints award notifications.
+--    Citation:  FR19; contract N4.
 --    Concepts:  stored procedure, IN and OUT parameters, SELECT ... INTO, COUNT,
 --               UPDATE ... FROM, CALL
 --    Mandate:   Lecture 12 - 2.2: typed IN/OUT parameters; OUT set with SELECT ... INTO
 --               (pattern 7, CountStudents). Postgres syntax noted inline (see P1).
-DROP PROCEDURE IF EXISTS mark_read(VARCHAR, UUID, BOOLEAN);
-
-CREATE PROCEDURE mark_read(
+CREATE PROCEDURE ensf608_queries.mark_read(
     IN  p_account_id      VARCHAR(50),
     IN  p_notification_id UUID,
     OUT p_found           BOOLEAN
@@ -577,10 +572,10 @@ BEGIN;
 
 -- a) resident1 reads their own unread notification -> found = t
 --    (NULL fills the OUT slot; Postgres prints the OUT value as a row, no @variable)
-CALL mark_read('resident1', '0000000a-0000-4000-8000-000000000008', NULL);
+CALL ensf608_queries.mark_read('resident1', '0000000a-0000-4000-8000-000000000008', NULL);
 
 -- b) resident1 tries resident2's notification -> found = f, nothing changes
-CALL mark_read('resident1', '0000000a-0000-4000-8000-000000000002', NULL);
+CALL ensf608_queries.mark_read('resident1', '0000000a-0000-4000-8000-000000000002', NULL);
 
 -- c) Show both notifications.
 SELECT rn.account_id, n.type, n.is_read

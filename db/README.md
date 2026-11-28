@@ -10,7 +10,6 @@ SQL files in `db/init/` run automatically, in filename order, the first time the
 
 | File | What it creates |
 |---|---|
-| `001_schema.sql` | The old October 28 tables in `public`. The services don't read them. `scripts/seed` and one outbox test (`backend/test/outbox.test.js`) still use them |
 | `005_user_tables.sql` | User Service tables, schema `users` |
 | `010_request_tables.sql`, `011_request_seed.sql` | Request Service tables, schema `requests`, with the item categories and recycling facilities |
 | `012_reward_tables.sql` | Reward Service award tables, schema `rewards` |
@@ -37,7 +36,7 @@ docker compose exec postgres psql -U ecocollect -d ecocollect
 \q                          -- quit
 ```
 
-Plain `\dt` shows only the old tables in `public`. If you changed `POSTGRES_USER` or `POSTGRES_DB`, use those names.
+If you changed `POSTGRES_USER` or `POSTGRES_DB`, use those names.
 
 ## Change the database
 

@@ -12,12 +12,30 @@ The command works from any folder. It runs these files in one transaction, stopp
 
 1. `db/init/005_user_tables.sql`: the six account, role, postal-code and terms tables. The 005 prefix puts shared User tables before the reserved 010/020 service files when Compose initializes a fresh volume.
 2. `db/init/030_user_ops.sql`: the User outbox and database permissions.
-3. `db/init/031_user_seed.sql`: one terms document, using the current terms ID from the physical-model seed.
+3. `db/init/031_user_seed.sql`: versioned terms documents (`ON CONFLICT DO NOTHING` preserves earlier versions so historical acceptances keep their original wording).
 4. `set-password.sql`: enables the `ecocollect_user` login with `USER_DB_PASSWORD`. The password is read from the environment, not committed in SQL.
 
 Running the loader again keeps existing rows and the configured terms content. Rerun it before starting the updated User Service on an existing database to add the outbox insertion-order column and index. For rows already stored with identical timestamps, the original insertion order was never recorded. When Compose initializes a new PostgreSQL volume, it runs the numbered SQL files too. Run this loader afterwards to set the service password.
 
 Set `DATABASE_URL` for a local User Service to `postgres://ecocollect_user:your_user_service_password@localhost:5432/ecocollect_user`. In Compose, set `USER_DATABASE_URL` instead, using `postgres` as the hostname and the database name from `POSTGRES_DB`. The service does not fall back to the database admin connection. URL-encode special characters in a password used in a connection URL.
+
+## Publish a new terms version
+
+1. Append a new row to `db/init/031_user_seed.sql` with a new UUID and a newer `published_at` timestamp. Leave previous rows unchanged so historical `users.terms_acceptance` records continue pointing to the exact text accepted.
+2. Run the loader against the target database using an **admin database connection** (`DATABASE_URL` must be the admin role, not `ecocollect_user`, and `USER_DB_PASSWORD` must be set in the environment):
+
+```bash
+set -a; . ./.env; set +a
+bash backend/scripts/user/load-db.sh
+```
+
+3. Verify the running service immediately serves the new version (no restart is required because `GET /api/terms` reads the newest row by `published_at`):
+
+```bash
+curl -sS https://<host>/api/terms
+```
+
+Confirm `termsDocumentId` and `publishedAt` match the newly published row.
 
 ## Tables and access
 
@@ -40,6 +58,6 @@ TEST_DATABASE_URL='postgres://admin:your_password@localhost:5432/ecocollect_user
 
 The tests need the setup admin so they can check the restricted service role and clean up their fixtures. They cover a committed account/resident/acceptance/event transaction, rollback, the event envelope, insert-only acceptances and read-only access to a table created later in another schema. Without `TEST_DATABASE_URL`, database cases are skipped.
 
-`npm test` includes these tests. To run the full backend suite with `TEST_DATABASE_URL`, first load `db/init/001_schema.sql` into the scratch database as well; the legacy request tests still use its public tables.
+`npm test` includes these tests.
 
 With `TEST_DATABASE_URL` and `RABBITMQ_URL` pointing to scratch services, run `node --test test/integration/user-outbox.integration.test.js` from `backend` to verify delivery through the actual exchange and the database publication marker.

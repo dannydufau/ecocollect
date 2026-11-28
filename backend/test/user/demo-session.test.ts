@@ -4,6 +4,7 @@ import type { AddressInfo } from 'node:net';
 import { test } from 'node:test';
 import express from 'express';
 import { createPool } from '../../src/user/db/pool.ts';
+import { getCurrentTerms } from '../../src/user/db/terms.ts';
 import { errorHandler, notFound } from '../../src/user/http/errors.ts';
 import { register } from '../../src/user/routes/demo-session.ts';
 
@@ -123,12 +124,13 @@ test('the restricted role can persist a demo account, both roles and both terms 
     assert.equal(profile.street, '100 Demo Example SW');
     assert.match(profile.postal_code, /^T[0-9][A-Z][0-9][A-Z][0-9]$/);
     assert.equal(profile.postal_code, profile.preferred_code);
+    const currentTermsId = (await getCurrentTerms(pool)).termsDocumentId;
     const { rows: acceptances } = await pool.query(
       'SELECT terms_document_id, type FROM users.terms_acceptance WHERE account_id = $1 ORDER BY type', [uid],
     );
     assert.deepEqual(acceptances, [
-      { terms_document_id: termsId, type: 'AT_RESIDENT_REGISTRATION_OR_ACTIVATION' },
-      { terms_document_id: termsId, type: 'AT_VOLUNTEER_REGISTRATION_OR_ACTIVATION' },
+      { terms_document_id: currentTermsId, type: 'AT_RESIDENT_REGISTRATION_OR_ACTIVATION' },
+      { terms_document_id: currentTermsId, type: 'AT_VOLUNTEER_REGISTRATION_OR_ACTIVATION' },
     ]);
   } finally {
     try {

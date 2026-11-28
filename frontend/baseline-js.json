@@ -1,78 +1,82 @@
 {
   "/": {
-    "raw": 672354,
-    "gzip": 203813
+    "raw": 672591,
+    "gzip": 203859
   },
   "/_not-found": {
-    "raw": 671936,
-    "gzip": 203493
+    "raw": 672173,
+    "gzip": 203539
+  },
+  "/about": {
+    "raw": 674924,
+    "gzip": 204405
   },
   "/choose-role": {
-    "raw": 674301,
-    "gzip": 204619
+    "raw": 674538,
+    "gzip": 204665
   },
   "/demo": {
-    "raw": 673797,
-    "gzip": 204583
+    "raw": 674154,
+    "gzip": 204660
   },
   "/ecopoints": {
-    "raw": 676288,
-    "gzip": 205561
+    "raw": 676525,
+    "gzip": 205607
   },
   "/forgot-password": {
-    "raw": 673986,
-    "gzip": 204617
+    "raw": 674223,
+    "gzip": 204663
   },
   "/login": {
-    "raw": 675010,
-    "gzip": 204982
+    "raw": 675430,
+    "gzip": 205073
   },
   "/notifications": {
-    "raw": 679220,
-    "gzip": 206632
+    "raw": 679457,
+    "gzip": 206678
   },
   "/profile": {
-    "raw": 695617,
-    "gzip": 211663
+    "raw": 695854,
+    "gzip": 211709
   },
   "/profiles/[accountId]": {
-    "raw": 675711,
-    "gzip": 205144
+    "raw": 675948,
+    "gzip": 205190
   },
   "/register": {
-    "raw": 684749,
-    "gzip": 208326
+    "raw": 684986,
+    "gzip": 208372
   },
   "/resident": {
-    "raw": 676933,
-    "gzip": 205861
+    "raw": 677170,
+    "gzip": 205907
   },
   "/resident/requests/[id]": {
-    "raw": 714773,
-    "gzip": 216597
+    "raw": 716859,
+    "gzip": 217313
   },
   "/resident/requests/[id]/edit": {
-    "raw": 697488,
-    "gzip": 212705
+    "raw": 699574,
+    "gzip": 213408
   },
   "/resident/requests/new": {
-    "raw": 699875,
-    "gzip": 212923
+    "raw": 701961,
+    "gzip": 213646
   },
   "/stats": {
-    "raw": 675690,
-    "gzip": 205061
+    "raw": 675927,
+    "gzip": 205107
   },
   "/volunteer": {
-    "raw": 680471,
-    "gzip": 207192
+    "raw": 680708,
+    "gzip": 207238
   },
   "/volunteer/history": {
-    "raw": 677029,
-    "gzip": 205942
+    "raw": 677266,
+    "gzip": 205988
   },
   "/volunteer/requests/[id]": {
-    "raw": 698600,
-    "gzip": 212285
+    "raw": 698837,
+    "gzip": 212331
   }
 }

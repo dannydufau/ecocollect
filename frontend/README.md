@@ -27,7 +27,7 @@ Next.js (App Router), React, TypeScript, Tailwind and TanStack Query. Login goes
    npm run dev
    ```
 
-   Open <http://localhost:3000>. Sign in with a seeded demo account, set up as in [scripts/seed/README.md](../scripts/seed/README.md). Login always uses the real Firebase project, even with the mock API.
+   Open <http://localhost>. Sign in with an account made on the app's sign-up page. Login always uses the real Firebase project, even with the mock API.
 
 ## Environment variables
 
@@ -43,7 +43,6 @@ All of them go in `.env.local` (copied from `.env.example`). The `NEXT_PUBLIC_` 
 | `NEXT_PUBLIC_FIREBASE_APP_ID` | Firebase web config: the web app id |
 | `GATEWAY_URL` | Where the Next.js rewrite sends `/api/*`, server side only (the mock or the Caddy gateway) |
 | `NEXT_PUBLIC_VAPID_KEY` | Public VAPID key for web push. Empty turns the notifications button into a "not set up" message |
-| `NEXT_PUBLIC_DEMO` | `true` builds the demo version (banner and Start demo page instead of login) |
 
 ## Signed-in test mode
 
@@ -90,6 +89,18 @@ npm run e2e:shots -- --only request    # only the screens with "request" in thei
 
 It takes a picture of every route, every request status as the resident and as the volunteer, the empty account's pages, the long-data account's profile and lists, and a 404, and saves them as `e2e/shots/<screen name>/<width>.png`. The folder is not tracked by git. The demo capture uses a separate run with demo mode enabled and checks the “Try EcoCollect” heading before capturing. To add a screen, add it to `e2e/shot-targets.ts`.
 
+## About page data
+
+The categories and EcoPoints text on `/about` are typed into `components/about/content.ts`. Keep them in step with the database and the Reward Service:
+
+| When this changes | Update in `content.ts` |
+|---|---|
+| Item categories in `../db/init/011_request_seed.sql` (`requests.item_category`) | `acceptedCategories`. The heading count follows the array. |
+| `VOLUNTEER_FORMULA` or `RESIDENT_FORMULA` in `../backend/src/reward/points.js` (the text stored in `rewards.ecopoints_award.formula`) | `volunteerFormulaText` and `residentFormulaText`, copied exactly |
+| Either formula, or the Monitors weight in the seed | Every string in `workedExample`: the title, both calculations and both point totals |
+
+Then run `npm test`. `components/about/content.test.ts` fails if `acceptedCategories` or the formula text no longer match. Nothing checks `workedExample`, so work it out by hand.
+
 ## Frontend pull requests
 
 Before you open one, run `npm test`, `npm run lint`, `npx tsc --noEmit` and `npm run e2e`. Attach before and after images of the screens you changed (`npm run e2e:shots -- --only <screen>` makes them).
@@ -122,9 +133,18 @@ The API and event contracts live at the repo root: `contracts/openapi.yaml` (eve
 
 Times are shown in Calgary time (`lib/time.ts`). Postal codes are sent as `T2P1J9` and shown as `T2P 1J9`.
 
+## Category catalogue maintenance
+
+`CategoryPicker` (`components/resident/category-picker.tsx`) loads its options from `/api/categories`. `CATEGORY_ALIASES` in that file is a hardcoded map of optional everyday search terms keyed by `categoryId` — it does not define or duplicate the catalogue. Any category without aliases remains searchable by its `name` and `wasteType`.
+
+When adding a new category:
+1. Add the category and its sample facility acceptance mapping in `db/init/011_request_seed.sql`.
+2. Add the category to the mock catalogue in `frontend/mock/fixtures.mjs`.
+3. Optionally add everyday search terms for the new `categoryId` in `CATEGORY_ALIASES` (`frontend/components/resident/category-picker.tsx`).
+
 ## Baseline
 
-`baseline-js.json` records 19 route budgets measured with Node 24.18.0, Next.js 16.4.6 and Turbopack. Gzip sizes change slightly between Node versions, so compare with the same Node. The size check reads the build's route diagnostics and sums each route's distinct first-load chunks in raw and gzip bytes. To compare with the recorded build, build in a clean checkout without local environment files, using the placeholders below and no other `NEXT_PUBLIC_*` settings. Next.js embeds these values in the browser bundle.
+`baseline-js.json` records 20 route budgets measured with Node 24.18.0, Next.js 16.4.6 and Turbopack. Gzip sizes change slightly between Node versions, so compare with the same Node. The size check reads the build's route diagnostics and sums each route's distinct first-load chunks in raw and gzip bytes. To compare with the recorded build, build in a clean checkout without local environment files, using the placeholders below and no other `NEXT_PUBLIC_*` settings. Next.js embeds these values in the browser bundle.
 
 ```sh
 export NEXT_PUBLIC_FIREBASE_API_KEY=demo-local-key

@@ -147,16 +147,22 @@ it("shows indexed window and notes field errors", async () => {
     await screen.findByText("This pickup window has already started. Please choose a later one.");
     expect(screen.getByLabelText("Notes (optional)")).toHaveAccessibleDescription(/Please use 500 characters or fewer\./);
 });
-it("reloads outdated terms and requires acceptance again before retrying", async () => {
+it("reloads outdated terms and requires acceptance again before retrying without losing the draft", async () => {
     vi.mocked(apiModule.apiFetch).mockRejectedValueOnce(failure(409, "terms_outdated"));
-    mount(); await fill(); await accept(); termsId = "t2"; fireEvent.click(button());
+    mount(); await fill();
+    fireEvent.change(screen.getByLabelText("Notes (optional)"), { target: { value: "Front porch" } });
+    await accept(); termsId = "t2"; fireEvent.click(button());
     await screen.findByText("Terms t2");
     expect(screen.getByRole("checkbox", { name: /accept the terms/ })).not.toBeChecked();
     expect(button()).toBeDisabled();
     expect(screen.getByRole("alert")).toHaveTextContent("The terms have changed.");
     await accept(); fireEvent.click(button());
     await waitFor(() => expect(push).toHaveBeenCalled());
-    expect(JSON.parse(vi.mocked(apiModule.apiFetch).mock.calls[1][1]!.body as string).termsDocumentId).toBe("t2");
+    const retried = JSON.parse(vi.mocked(apiModule.apiFetch).mock.calls[1][1]!.body as string);
+    expect(retried.termsDocumentId).toBe("t2");
+    expect(retried.items).toEqual([{ categoryId: "laptops", quantity: 2 }]);
+    expect(retried.windows).toEqual([{ date: "2026-11-21", startHour: 14 }]);
+    expect(retried.notes).toBe("Front porch");
 });
 it("does not open review for invalid item details", async () => {
     mount(); await screen.findByLabelText("Category"); fireEvent.click(screen.getByRole("button", { name: "Review" }));

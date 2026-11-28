@@ -1,6 +1,6 @@
 PostgreSQL 18.6
 Same seeded application database as the Section 6 tests.
-25 operations completed. Checked fixture totals matched before and after; the helper schema was removed.
+25 operations completed. Fixture rows and both Notification Service procedures were unchanged. The helper schema was removed.
 
 -- ENSF 608 Section 5: Database Operations and Queries
 -- Run on the seeded application test database described in README.md.
@@ -8,16 +8,11 @@ Same seeded application database as the Section 6 tests.
 -- Citations: FRxx = ENSF607/1. Functional Requirements; Contract = contracts/README.md.
 -- The write examples demonstrate database operations inside rolled-back transactions.
 -- Use a scratch application database. The helper schema is removed at the end.
-
 \set ON_ERROR_STOP on
 CREATE SCHEMA ensf608_queries;
 CREATE SCHEMA
 SET search_path TO ensf608_queries, users, requests, rewards, notifications, pg_catalog;
 SET
-SET client_min_messages = warning;  -- hide "does not exist, skipping" from DROP PROCEDURE IF EXISTS
-SET
-
-
 -- 0. Helper view used by other queries
 --    View: each request's owner and current status.
 --    Rationale: status is stored as history (status_change); current = latest row.
@@ -42,7 +37,6 @@ WHERE sc.changed_at = (SELECT MAX(s2.changed_at)
                        FROM status_change s2
                        WHERE s2.pickup_request_id = pr.pickup_request_id);
 CREATE VIEW
-
 -- Check: one row per request (11 in the seed), all seven statuses.
 -- RIGHT(id::text, 4): ::text converts the UUID to text (standard: CAST(id AS TEXT)),
 -- RIGHT keeps the last 4 characters so the output stays readable.
@@ -65,10 +59,7 @@ ORDER BY status, resident_id;
  0008    | resident3   | printers         | T2T4M3             | Open
 (11 rows)
 
-
-
 -- 1. INSERT operations
-
 -- I1. Register a resident.
 --    Rationale: sign-up creates the account, its resident role (with address) and the
 --               acceptance of the current terms, together or not at all.
@@ -76,17 +67,14 @@ ORDER BY status, resident_id;
 --    Concepts:  transaction, INSERT ... VALUES, INSERT ... SELECT, 3-table join
 BEGIN;
 BEGIN
-
 -- a) The person.
 INSERT INTO account (account_id, first_name, last_name, public_name, date_of_birth, created_at)
 VALUES ('resident91', 'Jordan', 'Lee', 'Jordan L.', '1990-04-15', now());
 INSERT 0 1
-
 -- b) The resident role, with the Calgary address.
 INSERT INTO resident (account_id, street, postal_code)
 VALUES ('resident91', '200 Example St NW', 'T2N1N4');
 INSERT 0 1
-
 -- c) Acceptance of the current terms (newest document).
 INSERT INTO terms_acceptance (terms_acceptance_id, terms_document_id, account_id, accepted_at, type)
 SELECT '00000091-0000-4000-8000-000000000001', terms_document_id, 'resident91', now(),
@@ -95,7 +83,6 @@ FROM terms_document
 ORDER BY published_at DESC
 LIMIT 1;
 INSERT 0 1
-
 -- d) Show the new resident and the recorded terms acceptance.
 SELECT a.account_id, a.public_name, r.postal_code, t.type,
        RIGHT(t.terms_document_id::text, 4) AS terms
@@ -108,10 +95,8 @@ WHERE a.account_id = 'resident91';
  resident91 | Jordan L.   | T2N1N4      | AT_RESIDENT_REGISTRATION_OR_ACTIVATION | 0002
 (1 row)
 
-
 ROLLBACK;
 ROLLBACK
-
 -- I2. Save a browser's push subscription.
 --    Rationale: when a user turns on push in a browser, its endpoint and keys are stored
 --               so pushes can be sent there; the same browser subscribing again updates
@@ -120,7 +105,6 @@ ROLLBACK
 --    Concepts:  INSERT ... VALUES, ON CONFLICT DO UPDATE (upsert), EXCLUDED
 BEGIN;
 BEGIN
-
 INSERT INTO push_subscription (endpoint, account_id, p256dh, auth, expiration_time, user_agent, updated_at)
 VALUES ('https://push.example.test/resident1-laptop', 'resident1',
         'BExampleP256dhKeyResident1Laptop', 'exampleAuthSecret1', NULL, 'Firefox on Linux', now())
@@ -132,7 +116,6 @@ ON CONFLICT (endpoint) DO UPDATE SET
   user_agent = EXCLUDED.user_agent,
   updated_at = now();
 INSERT 0 1
-
 -- Show resident1's subscriptions.
 SELECT account_id, endpoint, user_agent
 FROM push_subscription
@@ -143,12 +126,9 @@ ORDER BY endpoint;
  resident1  | https://push.example.test/resident1-laptop | Firefox on Linux
 (1 row)
 
-
 ROLLBACK;
 ROLLBACK
-
 -- 2. UPDATE operations
-
 -- U1. Change an account's public name.
 --    Rationale: users manage their profile; the public name is what others see on
 --               requests and public profiles. Deactivated accounts can't be edited.
@@ -156,13 +136,11 @@ ROLLBACK
 --    Concepts:  UPDATE ... SET ... WHERE, AND, IS NULL
 BEGIN;
 BEGIN
-
 UPDATE account
 SET public_name = 'Avery CC'
 WHERE account_id = 'resident1'
   AND deactivated_at IS NULL;
 UPDATE 1
-
 -- Show the change.
 SELECT account_id, first_name, last_name, public_name
 FROM account
@@ -172,10 +150,8 @@ WHERE account_id = 'resident1';
  resident1  | Avery      | Chen      | Avery CC
 (1 row)
 
-
 ROLLBACK;
 ROLLBACK
-
 -- U2. Replace an Open request's pickup windows (resident edit).
 --    Rationale: residents may replace active windows while Open; old windows are kept
 --               as history (is_active = FALSE), not deleted.
@@ -184,7 +160,6 @@ ROLLBACK
 --               SELECT with the Request Service validation function, ROLLBACK
 BEGIN;
 BEGIN
-
 -- a) Lock the request; a resident editing and a volunteer accepting can
 --    collide; accept_request locks the same row, so the second one waits and then
 --    sees the new windows.
@@ -196,14 +171,12 @@ FOR UPDATE;
  00000003-0000-4000-8000-000000000001
 (1 row)
 
-
 -- b) Retire the current active windows (kept as history).
 UPDATE pickup_window
 SET is_active = FALSE
 WHERE pickup_request_id = '00000003-0000-4000-8000-000000000001'
   AND is_active;
 UPDATE 2
-
 -- c) Add the replacement window: 3 days after creation, 15:00 Calgary time
 --    (any start after creation and end within 30 days is valid, FR07).
 INSERT INTO pickup_window (pickup_window_id, pickup_request_id, pickup_date, start_hour, is_active)
@@ -212,21 +185,18 @@ SELECT '00000091-0000-4000-8000-000000000002', pr.pickup_request_id,
 FROM pickup_request pr
 WHERE pr.pickup_request_id = '00000003-0000-4000-8000-000000000001';
 INSERT 0 1
-
 -- d) Bump the published sequence: an edit is a new request event, and consumers
 --    use request_seq to spot late events.
 UPDATE pickup_request
 SET request_seq = request_seq + 1
 WHERE pickup_request_id = '00000003-0000-4000-8000-000000000001';
 UPDATE 1
-
 -- e) Run the Request Service's rule checks on the edited request.
 SELECT requests.check_request('00000003-0000-4000-8000-000000000001');
  check_request
 ---------------
 
 (1 row)
-
 
 -- f) Show the result.
 -- (ids shown as their last 4 characters, see op 0)
@@ -244,12 +214,9 @@ ORDER BY w.is_active DESC, w.pickup_date, w.start_hour;
  0065   | 2026-11-30  |         14 | f         |           3
 (4 rows)
 
-
 ROLLBACK;
 ROLLBACK
-
 -- 3. DELETE operations
-
 -- D1. Volunteer drops a preferred postal code.
 --    Rationale: volunteers choose up to 3 postal codes to be notified about; removing
 --               one stops new-request notifications for that area.
@@ -257,7 +224,6 @@ ROLLBACK
 --    Concepts:  DELETE ... WHERE, AND, row lock (FOR UPDATE)
 BEGIN;
 BEGIN
-
 -- a) Lock the volunteer: preferred-code changes lock the volunteer row
 --    (add_preferred_code does the same), so two edits can't race past the 3-code limit.
 SELECT account_id FROM volunteer WHERE account_id = 'volunteer1' FOR UPDATE;
@@ -266,13 +232,11 @@ SELECT account_id FROM volunteer WHERE account_id = 'volunteer1' FOR UPDATE;
  volunteer1
 (1 row)
 
-
 -- b) Remove one code.
 DELETE FROM volunteer_preferred_postal_code
 WHERE account_id = 'volunteer1'
   AND postal_code = 'T2T4M3';
 DELETE 1
-
 -- c) Show the remaining codes.
 SELECT account_id, postal_code
 FROM volunteer_preferred_postal_code
@@ -284,10 +248,8 @@ ORDER BY postal_code;
  volunteer1 | T2P1J9
 (2 rows)
 
-
 ROLLBACK;
 ROLLBACK
-
 -- D2. Daily cleanup: delete expired notifications (children first, then the parent).
 --    Rationale: expired notifications no longer describe the request's state; the daily
 --               cleanup removes them. Each notification has a source row in
@@ -298,7 +260,6 @@ ROLLBACK
 --    Concepts:  DELETE ... WHERE ... IN (subquery), foreign-key order, transaction
 BEGIN;
 BEGIN
-
 -- a) Before: notifications by state.
 SELECT is_expired, COUNT(*) AS notifications
 FROM notification
@@ -310,21 +271,17 @@ ORDER BY is_expired;
  t          |             1
 (2 rows)
 
-
 -- b) Children first: source rows of expired notifications.
 DELETE FROM request_notification
 WHERE notification_id IN (SELECT notification_id FROM notification WHERE is_expired);
 DELETE 1
-
 DELETE FROM award_notification     -- award notifications never expire (13.2): deletes 0 rows
 WHERE notification_id IN (SELECT notification_id FROM notification WHERE is_expired);
 DELETE 0
-
 -- c) Then the parents.
 DELETE FROM notification
 WHERE is_expired;
 DELETE 1
-
 -- d) After.
 SELECT is_expired, COUNT(*) AS notifications
 FROM notification
@@ -335,12 +292,9 @@ ORDER BY is_expired;
  f          |            12
 (1 row)
 
-
 ROLLBACK;
 ROLLBACK
-
 -- 4. Basic SELECT queries with filtering
-
 -- F1. A volunteer's preferred postal codes.
 --    Rationale: shown on the volunteer's profile; these codes decide which new requests
 --               they're notified about and their default discovery filter.
@@ -356,7 +310,6 @@ ORDER BY postal_code;
  T2P1J9
  T2T4M3
 (3 rows)
-
 
 -- F2. A resident's requests with Open or Assigned status.
 --    Rationale: groups the resident's ongoing requests by status. This status filter
@@ -375,7 +328,6 @@ ORDER BY request;
 ---------+-------------+----------
  0002    | desktops    | Assigned
 (1 row)
-
 
 -- F3. Open-status requests matching a volunteer's saved postal codes.
 --    Rationale: demonstrates exact postal-code matching used in volunteer discovery.
@@ -400,7 +352,6 @@ ORDER BY pickup_postal_code, request;
  0008    | printers         | T2T4M3
 (4 rows)
 
-
 -- F4. Active window records dated today through seven days from today in Calgary.
 --    Rationale: shows the recorded schedule over an inclusive calendar-date range.
 --               is_active records whether the window remains offered on the request.
@@ -424,9 +375,7 @@ ORDER BY pickup_date, start_hour, request;
  0001    | 2026-11-30  |         14
 (6 rows)
 
-
 -- 5. SELECT queries with ORDER BY, DISTINCT or LIMIT
-
 -- O1. Item categories for the request form, by waste type then name.
 --    Rationale: residents pick a category when creating a request; its standard weight
 --               drives the system's weight estimate.
@@ -448,11 +397,10 @@ ORDER BY waste_type, name;
  Small Appliances    | Small Appliances |               3.00
 (9 rows)
 
-
 -- O2. Newest non-expired request notifications for an account, first page.
---    Rationale: demonstrates pagination of the request source. Contract N3 also
---               lists EcoPoints award notifications; PR #399 lists only request ones so far.
---    Citation:  FR19; contract N3; notification-store.js listForAccount (PR #399).
+--    Rationale: shows pagination for request notifications only. The service lists
+--               both request and EcoPoints award notifications.
+--    Citation:  FR19; contract N3.
 --    Concepts:  ORDER BY ... DESC, LIMIT, WHERE, AND NOT, join
 -- (ids shown as their last 4 characters, see op 0)
 SELECT n.type, n.created_at, n.is_read,
@@ -465,13 +413,11 @@ ORDER BY n.created_at DESC
 LIMIT 2;
            type           |          created_at           | is_read | request
 --------------------------+-------------------------------+---------+---------
- REQUEST_UPDATED_RESIDENT | 2026-11-27 04:47:41.199628+00 | t       | 0001
- REQUEST_EXPIRED_RESIDENT | 2026-11-26 16:47:41.199628+00 | f       | 0006
+ REQUEST_UPDATED_RESIDENT | 2026-11-27 10:18:08.131011+00 | t       | 0001
+ REQUEST_EXPIRED_RESIDENT | 2026-11-26 22:18:08.131011+00 | f       | 0006
 (2 rows)
 
-
 -- 6. SELECT queries with aggregate functions
-
 -- A1. Community impact totals: delivered requests and estimated weight diverted.
 --    Rationale: the public statistics page shows how much e-waste has reached
 --               recycling facilities (FR23).
@@ -486,7 +432,6 @@ WHERE sc.status = 'Delivered';
 --------------------+-----------------
                   2 |            5.60
 (1 row)
-
 
 -- A2. Weight of requests waiting for a volunteer: average, lightest, heaviest.
 --    Rationale: volunteers see each request's weight (FR12); the spread tells whether
@@ -506,11 +451,10 @@ WHERE rcs.status = 'Open';
              4 |   3.88 |   1.50 |   6.00
 (1 row)
 
-
 -- A3. Unread, non-expired request notifications for an account.
---    Rationale: counts unread notifications from the request source. Contract N3's
---               count also covers award ones; PR #399 counts only request ones so far.
---    Citation:  FR19; contract N3; notification-store.js listForAccount (PR #399).
+--    Rationale: counts unread request notifications only. The service counts unread
+--               notifications from both the request and EcoPoints award sources.
+--    Citation:  FR19; contract N3.
 --    Concepts:  COUNT, WHERE, AND NOT, join
 SELECT COUNT(*) AS unread
 FROM request_notification rn
@@ -523,9 +467,7 @@ WHERE rn.account_id = 'resident1'
       1
 (1 row)
 
-
 -- 7. SELECT queries with GROUP BY
-
 -- G1. Requests and estimated weight per waste type (all requests).
 --    Rationale: shows what kinds of e-waste residents ask to have collected and how
 --               much, e.g. which facility types the platform needs most.
@@ -548,7 +490,6 @@ ORDER BY total_weight_kg DESC;
  Mobile Devices   |        2 |            1.40
 (6 rows)
 
-
 -- G2. Categories residents request repeatedly (2 or more requests).
 --    Rationale: recurring categories show steady demand; facilities accepting them
 --               matter most for the platform.
@@ -569,9 +510,7 @@ ORDER BY requests DESC, category;
  Printers          |        2 |     2
 (3 rows)
 
-
 -- 8. SELECT queries with INNER JOIN
-
 -- J1. Facilities that accept a category (where a volunteer can deliver phones).
 --    Rationale: a volunteer must deliver to an eligible facility, one that accepts
 --               the request's category (FR17).
@@ -589,7 +528,6 @@ ORDER BY f.name;
  Phones   | Sample community depot   | 30 Example Way SW  | T2T4M3      |
  Phones   | Sample electronics depot | 10 Example Road SE | T2P1J9      | Use the electronics drop-off area.
 (2 rows)
-
 
 -- J2. A resident's pickup requests with category, weight and current status.
 --    Rationale: the resident's "My requests" list (FR09), newest first.
@@ -612,7 +550,6 @@ ORDER BY pr.created_at DESC;
  0004    | Computers/Laptops   |        2 |                5.00 | Delivered
  0006    | Televisions         |        1 |               12.00 | Expired
 (5 rows)
-
 
 -- J3. Active assignments: which volunteer has which request, when, and whether
 --     the items are already collected.
@@ -640,9 +577,7 @@ ORDER BY volunteer, w.pickup_date, w.start_hour;
  volunteer2 | 0003    | Phones             | T2T4M3             | 2026-11-26  |         12 | t
 (2 rows)
 
-
 -- 9. SELECT queries with LEFT JOIN or RIGHT JOIN
-
 -- L1. A volunteer's pickup history, with the facility for delivered ones.
 --    Rationale: volunteers view their assigned, collected and delivered pickups (FR21);
 --               only delivered assignments have a delivery record, but every
@@ -669,7 +604,6 @@ ORDER BY a.accepted_at DESC;
  0004    | 2026-11-18 | Delivered | Sample electronics depot
 (2 rows)
 
-
 -- L2. Every volunteer with their preferred postal codes, including volunteers with none.
 --    Rationale: a volunteer without preferred codes gets no default discovery filter
 --               and no area notifications (FR12, FR19); this shows who is in that case.
@@ -690,9 +624,7 @@ ORDER BY v.account_id, p.postal_code;
  volunteer3 | Zara W.     |
 (6 rows)
 
-
 -- 10. SELECT queries combining JOINs, aggregates, filtering or grouping
-
 -- C1. EcoPoints earned per account and role, highest first.
 --    Rationale: residents and volunteers earn EcoPoints on delivery (and volunteers on
 --               late resident cancellations); this totals them per person and role (FR18).
@@ -723,20 +655,15 @@ ORDER BY points DESC, account_id;
  both1      | resident  |      1 |   5.70
 (5 rows)
 
-
 -- 11. Stored procedures
-
 -- P1. mark_all_read: mark an account's request notifications as read.
---    Rationale: demonstrates the request-notification source of the mark-all action.
---               Contract N5 also covers award ones; PR #399 handles only request ones so far.
---    Citation:  FR19; contract N5; notifications.mark_all_read (PR #399).
+--    Rationale: marks request notifications only. The service procedure marks both
+--               request and EcoPoints award notifications.
+--    Citation:  FR19; contract N5.
 --    Concepts:  stored procedure, IN parameter, UPDATE ... FROM (multi-table update), CALL
 --    Mandate:   Lecture 12 - 3: data changes encapsulated in stored procedures, called with
 --               CALL. Postgres syntax noted inline.
-DROP PROCEDURE IF EXISTS mark_all_read(VARCHAR);    -- Postgres names a procedure by its parameter types
-DROP PROCEDURE
-
-CREATE PROCEDURE mark_all_read(IN p_account_id VARCHAR(50))
+CREATE PROCEDURE ensf608_queries.mark_all_read(IN p_account_id VARCHAR(50))
 LANGUAGE plpgsql    -- the body is Postgres's procedural language (BEGIN ... END)
 AS $$               -- start of the quoted body; replaces Lecture 12's DELIMITER //
 BEGIN
@@ -749,11 +676,9 @@ BEGIN
 END;
 $$;                 -- end of the body
 CREATE PROCEDURE
-
 -- Demo: before, CALL, after (rolled back).
 BEGIN;
 BEGIN
-
 SELECT n.type, n.is_read
 FROM request_notification rn
 JOIN notification n ON n.notification_id = rn.notification_id
@@ -766,10 +691,8 @@ ORDER BY n.created_at DESC;
  REQUEST_DELIVERED_RESIDENT | t
 (3 rows)
 
-
-CALL mark_all_read('resident1');
+CALL ensf608_queries.mark_all_read('resident1');
 CALL
-
 SELECT n.type, n.is_read
 FROM request_notification rn
 JOIN notification n ON n.notification_id = rn.notification_id
@@ -782,22 +705,17 @@ ORDER BY n.created_at DESC;
  REQUEST_DELIVERED_RESIDENT | t
 (3 rows)
 
-
 ROLLBACK;
 ROLLBACK
-
 -- P2. mark_read: mark one request notification read if it belongs to the account.
---    Rationale: demonstrates ownership and a found/not-found result for the request
---               source. Contract N4 also covers award ones; PR #399 handles only request ones so far.
---    Citation:  FR19; contract N4; notifications.mark_read (PR #399).
+--    Rationale: checks ownership and returns whether a request notification was found.
+--               The service procedure supports both request and EcoPoints award notifications.
+--    Citation:  FR19; contract N4.
 --    Concepts:  stored procedure, IN and OUT parameters, SELECT ... INTO, COUNT,
 --               UPDATE ... FROM, CALL
 --    Mandate:   Lecture 12 - 2.2: typed IN/OUT parameters; OUT set with SELECT ... INTO
 --               (pattern 7, CountStudents). Postgres syntax noted inline (see P1).
-DROP PROCEDURE IF EXISTS mark_read(VARCHAR, UUID, BOOLEAN);
-DROP PROCEDURE
-
-CREATE PROCEDURE mark_read(
+CREATE PROCEDURE ensf608_queries.mark_read(
     IN  p_account_id      VARCHAR(50),
     IN  p_notification_id UUID,
     OUT p_found           BOOLEAN
@@ -821,27 +739,23 @@ BEGIN
 END;
 $$;
 CREATE PROCEDURE
-
 -- Demo (rolled back):
 BEGIN;
 BEGIN
-
 -- a) resident1 reads their own unread notification -> found = t
 --    (NULL fills the OUT slot; Postgres prints the OUT value as a row, no @variable)
-CALL mark_read('resident1', '0000000a-0000-4000-8000-000000000008', NULL);
+CALL ensf608_queries.mark_read('resident1', '0000000a-0000-4000-8000-000000000008', NULL);
  p_found
 ---------
  t
 (1 row)
 
-
 -- b) resident1 tries resident2's notification -> found = f, nothing changes
-CALL mark_read('resident1', '0000000a-0000-4000-8000-000000000002', NULL);
+CALL ensf608_queries.mark_read('resident1', '0000000a-0000-4000-8000-000000000002', NULL);
  p_found
 ---------
  f
 (1 row)
-
 
 -- c) Show both notifications.
 SELECT rn.account_id, n.type, n.is_read
@@ -856,10 +770,8 @@ ORDER BY rn.account_id;
  resident2  | REQUEST_ASSIGNED_RESIDENT | f
 (2 rows)
 
-
 ROLLBACK;
 ROLLBACK
-
 DROP PROCEDURE ensf608_queries.mark_read(VARCHAR, UUID, BOOLEAN);
 DROP PROCEDURE
 DROP PROCEDURE ensf608_queries.mark_all_read(VARCHAR);

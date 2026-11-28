@@ -16,19 +16,13 @@ The [User database setup](scripts/user/README.md) creates the account and terms 
 
 `db/terms.ts` exports `getCurrentTerms(client)` for registration and role activation. It selects the document with the latest `published_at` that is not in the future, using its ID to break ties, and returns only `termsDocumentId`, `content` and UTC `publishedAt`. The public route uses the same lookup and reads no identity headers. An empty terms table returns a JSON 500 error. Run `node --test test/user-terms.test.js` from `backend/`; set `TEST_DATABASE_URL` to a loaded scratch database to include the newest-document database test.
 
-### Demo sessions
-
-Set `DEMO_MODE=true` only on a dedicated demo User Service with a separate database, RabbitMQ vhost, and Firebase project or Auth emulator. The production Caddy site does not expose `POST /api/demo/session`. The endpoint allows five attempts per client IP per minute, per User Service process. For the demo gateway, set `DEMO_PROXY_IP` to the address of its single directly connected proxy, which must replace or append the actual peer in `X-Forwarded-For`. Without this setting the service uses the socket address.
-
-In the demo Compose profile, put Caddy and the demo User Service on the same dedicated network. Set that network's `ipam.config` subnet to an unused range, then set the Caddy service's `networks.<demo-network>.ipv4_address` to an unused address in that subnet. Pass the same address as `DEMO_PROXY_IP` to the demo User Service. This keeps the trusted peer stable across container recreation and gives each visitor their own rate-limit bucket.
-
 ### Shared-schema profile tests
 
 Load `db/init/*.sql` in filename order into a fresh scratch PostgreSQL database. Set `PROFILE_EDIT_TEST_DATABASE_URL` to the database's admin connection string so the tests can create fixtures and switch to `ecocollect_user` for endpoint calls. From `backend/`, run the relevant test with `node --test test/user-profile-update.test.js` for profile edits or `node --test test/user-profile-delete.test.js` for deactivation. The database-backed cases are skipped without that URL.
 
 ## Auth module (`src/user/auth/`)
 
-This checks Firebase users for the gateway. The CommonJS implementation stays in `.cjs` files to preserve its existing behavior inside the TypeScript User Service. It is mounted before the shared JSON parser so malformed session bodies keep their original response. A one-line compatibility export at `src/api/auth/firebase.js` keeps the initializer import used by the open profile PR working; it contains no separate Firebase setup.
+This checks Firebase users for the gateway. The CommonJS implementation stays in `.cjs` files to preserve its existing behavior inside the TypeScript User Service. It is mounted before the shared JSON parser so malformed session bodies keep their original response. `src/api/auth/firebase.js` is a one-line re-export of this Firebase setup; it contains no separate setup of its own.
 
 | Route | What it does |
 |---|---|
@@ -79,8 +73,7 @@ DATABASE_URL=postgres://ecocollect_request:<REQUEST_DB_PASSWORD>@localhost:5432/
 | `REQUEST_DB_PASSWORD` | Read by `load-db.sh` (from `.env`) to set the login's password. Use the same password in `REQUEST_DATABASE_URL`. |
 | `RABBITMQ_URL` | The broker. |
 | `IMAGEKIT_PRIVATE_KEY`, `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_URL_ENDPOINT` | From the ImageKit dashboard. It won't start without them. |
-| `IMAGEKIT_ROOT_FOLDER` | Upload folders start with this: `/ecocollect`, or `/ecocollect-demo` in the demo stack. |
-| `DEMO_MODE` | `true` only in the demo stack: the resident also gets the new-request notification for their own request (contract 17.5). |
+| `IMAGEKIT_ROOT_FOLDER` | Upload folders start with this: `/ecocollect`. |
 
 Tests: `npm run typecheck` and `npm run test:request`. The database tests need `REQUEST_TEST_DATABASE_URL` pointing at a database built by `load-db.sh --test` (`ecocollect_request_test`: every `db/init` file, `db/request/`, then the test accounts and requests in `test/request/seed.sql`); without it they are skipped. Use the service login (`ecocollect_request`) in that URL, so the tests run with the service's real grants, and set `REQUEST_TEST_ADMIN_DATABASE_URL` to the same database with the admin login: the tests move requests into the past by changing rows the service itself may not change. Without the admin URL, the tests use `REQUEST_TEST_DATABASE_URL` for that too, which then has to be the admin login.
 
@@ -188,13 +181,13 @@ This deletes only the RabbitMQ volume, so the Postgres demo data survives.
 npm test
 ```
 
-Firebase is faked in the tests, so they need no credentials or network. The shared outbox tests are skipped unless `TEST_DATABASE_URL` points at a Postgres with `db/init/001_schema.sql` loaded:
+Firebase is faked in the tests, so they need no credentials or network. The database tests are skipped unless `TEST_DATABASE_URL` points at a scratch Postgres, such as the one `backend/scripts/reward/load-db.sh --test` builds:
 
 ```bash
-TEST_DATABASE_URL=postgres://ecocollect:change_me@localhost:5432/ecocollect npm test
+TEST_DATABASE_URL=postgres://ecocollect:change_me@localhost:5432/ecocollect_reward_test npm test
 ```
 
-Use a scratch database for that, not the demo one: the outbox tests mark every unsent event as sent. They remove the events they add.
+Use a scratch database for that, not the demo one. The tests remove the rows they add.
 
 ## Public profiles
 
@@ -212,4 +205,4 @@ The registration handler owns deletion after a failed database write. The role h
 
 `GET /api/profile` reads only the caller ID from Caddy's `X-User-Id` header. `db/profile.ts` exports `loadProfile(client, auth, accountId)` for this route and the later profile-edit handler. It reads names, role membership, address and preferred codes from `users`, and the email from Firebase. Birth dates stay `YYYY-MM-DD`; creation times are UTC with a `Z`.
 
-A volunteer-only profile has no address. Missing or deactivated database accounts return `404 profile_not_found`; Firebase lookup failures return the shared 500 error. The route reuses the existing Firebase initializer in `src/api/auth/firebase.js` until #229 moves authentication into the User Service. Run `node --test test/user-profile.test.js`; set `TEST_DATABASE_URL` to a loaded scratch database for the role, isolation and date tests.
+A volunteer-only profile has no address. Missing or deactivated database accounts return `404 profile_not_found`; Firebase lookup failures return the shared 500 error. The route gets the Firebase setup through `src/api/auth/firebase.js`, which re-exports `src/user/auth/firebase.cjs`. Run `node --test test/user-profile.test.js`; set `TEST_DATABASE_URL` to a loaded scratch database for the role, isolation and date tests.
