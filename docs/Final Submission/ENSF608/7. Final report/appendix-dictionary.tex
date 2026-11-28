@@ -1,0 +1,182 @@
+% Generated from the PostgreSQL catalog of a freshly built database.
+\begin{longtable}{@{}p{0.34\linewidth}p{0.18\linewidth}p{0.05\linewidth}>{\raggedright\arraybackslash}p{0.325\linewidth}@{}}
+\caption{Data dictionary for the 25 course tables}\label{tab:dictionary}\\
+\toprule
+Column & Type & Null & Key or reference \\
+\midrule
+\endfirsthead
+\toprule
+Column & Type & Null & Key or reference \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\multicolumn{4}{@{}l}{\textbf{\texttt{users.account}}} \\*
+\path{account_id} & VARCHAR(50) &  & PK \\*
+\path{first_name} & VARCHAR(80) &  &  \\*
+\path{last_name} & VARCHAR(80) &  &  \\*
+\path{public_name} & VARCHAR(80) &  &  \\*
+\path{date_of_birth} & DATE &  &  \\*
+\path{created_at} & TIMESTAMPTZ &  &  \\*
+\path{deactivated_at} & TIMESTAMPTZ & yes &  \\*
+\multicolumn{4}{@{}>{\raggedright\arraybackslash}p{0.95\linewidth}@{}}{\textit{Checks:} account\_id has 3 to 50 characters from a--z, 0--9, underscore and hyphen; names are not blank; the holder is at least 18 on the Calgary date of created\_at; deactivated\_at is not before created\_at.} \\
+\addlinespace[6pt]
+\multicolumn{4}{@{}l}{\textbf{\texttt{users.resident}}} \\*
+\path{account_id} & VARCHAR(50) &  & PK, FK to \path{account} \\*
+\path{street} & VARCHAR(255) &  &  \\*
+\path{postal_code} & CHAR(6) &  &  \\*
+\multicolumn{4}{@{}>{\raggedright\arraybackslash}p{0.95\linewidth}@{}}{\textit{Checks:} street is not blank; postal\_code uses the Calgary format.} \\
+\addlinespace[6pt]
+\multicolumn{4}{@{}l}{\textbf{\texttt{users.volunteer}}} \\*
+\path{account_id} & VARCHAR(50) &  & PK, FK to \path{account} \\*
+\addlinespace[6pt]
+\multicolumn{4}{@{}l}{\textbf{\texttt{users.volunteer\_preferred\_postal\_code}}} \\*
+\path{account_id} & VARCHAR(50) &  & PK, FK to \path{volunteer} \\*
+\path{postal_code} & CHAR(6) &  & PK \\*
+\multicolumn{4}{@{}>{\raggedright\arraybackslash}p{0.95\linewidth}@{}}{\textit{Checks:} postal\_code uses the Calgary format.} \\
+\addlinespace[6pt]
+\multicolumn{4}{@{}l}{\textbf{\texttt{users.terms\_document}}} \\*
+\path{terms_document_id} & UUID &  & PK \\*
+\path{content} & TEXT &  &  \\*
+\path{published_at} & TIMESTAMPTZ &  &  \\*
+\multicolumn{4}{@{}>{\raggedright\arraybackslash}p{0.95\linewidth}@{}}{\textit{Checks:} content is not blank.} \\
+\addlinespace[6pt]
+\multicolumn{4}{@{}l}{\textbf{\texttt{users.terms\_acceptance}}} \\*
+\path{terms_acceptance_id} & UUID &  & PK \\*
+\path{terms_document_id} & UUID &  & FK to \path{terms_document} \\*
+\path{account_id} & VARCHAR(50) &  & FK to \path{account} \\*
+\path{accepted_at} & TIMESTAMPTZ &  &  \\*
+\path{type} & VARCHAR(40) &  &  \\*
+\multicolumn{4}{@{}>{\raggedright\arraybackslash}p{0.95\linewidth}@{}}{\textit{Checks:} type is one of four acceptance types.} \\
+\addlinespace[6pt]
+\multicolumn{4}{@{}l}{\textbf{\texttt{requests.item\_category}}} \\*
+\path{category_id} & TEXT &  & PK \\*
+\path{name} & VARCHAR(120) &  &  \\*
+\path{waste_type} & VARCHAR(120) &  &  \\*
+\path{standard_weight_kg} & NUMERIC(10,2) &  &  \\*
+\multicolumn{4}{@{}>{\raggedright\arraybackslash}p{0.95\linewidth}@{}}{\textit{Checks:} identifier, name and waste type are not blank; standard\_weight\_kg is positive.} \\
+\addlinespace[6pt]
+\multicolumn{4}{@{}l}{\textbf{\texttt{requests.photo}}} \\*
+\path{file_id} & TEXT &  & PK \\*
+\path{file_path} & TEXT &  &  \\*
+\multicolumn{4}{@{}>{\raggedright\arraybackslash}p{0.95\linewidth}@{}}{\textit{Checks:} file\_id and file\_path are not blank.} \\
+\addlinespace[6pt]
+\multicolumn{4}{@{}l}{\textbf{\texttt{requests.pickup\_request}}} \\*
+\path{pickup_request_id} & UUID &  & PK \\*
+\path{category_id} & TEXT &  & FK to \path{item_category} \\*
+\path{terms_acceptance_id} & UUID &  & FK to \path{terms_acceptance} \\*
+\path{quantity} & INTEGER &  &  \\*
+\path{estimated_weight_kg} & NUMERIC(22,2) &  &  \\*
+\path{created_at} & TIMESTAMPTZ &  &  \\*
+\path{request_seq} & BIGINT &  &  \\*
+\path{pickup_street} & VARCHAR(255) &  &  \\*
+\path{pickup_postal_code} & CHAR(6) &  &  \\*
+\path{notes} & TEXT & yes &  \\*
+\path{file_id} & TEXT & yes & FK to \path{photo} \\*
+\path{rescheduled_from_request_id} & UUID & yes & UQ, FK to \path{pickup_request} \\*
+\multicolumn{4}{@{}>{\raggedright\arraybackslash}p{0.95\linewidth}@{}}{\textit{Checks:} quantity, estimated weight and request\_seq are positive; street is not blank; postal code uses the Calgary format; a request cannot replace itself.} \\
+\addlinespace[6pt]
+\multicolumn{4}{@{}l}{\textbf{\texttt{requests.pickup\_window}}} \\*
+\path{pickup_window_id} & UUID &  & PK \\*
+\path{pickup_request_id} & UUID &  & FK to \path{pickup_request} \\*
+\path{pickup_date} & DATE &  &  \\*
+\path{start_hour} & SMALLINT &  &  \\*
+\path{is_active} & BOOLEAN &  &  \\*
+\multicolumn{4}{@{}>{\raggedright\arraybackslash}p{0.95\linewidth}@{}}{\textit{Checks:} start\_hour is from 0 to 23.} \\
+\addlinespace[6pt]
+\multicolumn{4}{@{}l}{\textbf{\texttt{requests.status\_change}}} \\*
+\path{pickup_request_id} & UUID &  & PK, FK to \path{pickup_request} \\*
+\path{changed_at} & TIMESTAMPTZ &  & PK \\*
+\path{status} & VARCHAR(30) &  &  \\*
+\path{reason} & TEXT & yes &  \\*
+\multicolumn{4}{@{}>{\raggedright\arraybackslash}p{0.95\linewidth}@{}}{\textit{Checks:} status is one of the seven request statuses.} \\
+\addlinespace[6pt]
+\multicolumn{4}{@{}l}{\textbf{\texttt{requests.assignment}}} \\*
+\path{assignment_id} & UUID &  & PK \\*
+\path{pickup_window_id} & UUID &  & FK to \path{pickup_window} \\*
+\path{terms_acceptance_id} & UUID &  & FK to \path{terms_acceptance} \\*
+\path{accepted_at} & TIMESTAMPTZ &  &  \\*
+\path{collected_at} & TIMESTAMPTZ & yes &  \\*
+\path{ended_at} & TIMESTAMPTZ & yes &  \\*
+\path{end_reason} & VARCHAR(30) & yes &  \\*
+\multicolumn{4}{@{}>{\raggedright\arraybackslash}p{0.95\linewidth}@{}}{\textit{Checks:} collection and ending do not precede acceptance; ending does not precede collection; ended\_at and end\_reason are set together; end\_reason is one of four values; a Delivered ending requires collected\_at.} \\
+\addlinespace[6pt]
+\multicolumn{4}{@{}l}{\textbf{\texttt{requests.recycling\_facility}}} \\*
+\path{facility_id} & UUID &  & PK \\*
+\path{name} & VARCHAR(120) &  &  \\*
+\path{street} & VARCHAR(255) &  &  \\*
+\path{postal_code} & CHAR(6) &  &  \\*
+\path{special_instructions} & TEXT & yes &  \\*
+\multicolumn{4}{@{}>{\raggedright\arraybackslash}p{0.95\linewidth}@{}}{\textit{Checks:} name and street are not blank; postal code uses the Calgary format.} \\
+\addlinespace[6pt]
+\multicolumn{4}{@{}l}{\textbf{\texttt{requests.facility\_accepts}}} \\*
+\path{facility_id} & UUID &  & PK, FK to \path{recycling_facility} \\*
+\path{category_id} & TEXT &  & PK, FK to \path{item_category} \\*
+\addlinespace[6pt]
+\multicolumn{4}{@{}l}{\textbf{\texttt{requests.delivery}}} \\*
+\path{delivery_id} & UUID &  & PK \\*
+\path{assignment_id} & UUID &  & UQ, FK to \path{assignment} \\*
+\path{facility_id} & UUID &  & FK to \path{recycling_facility} \\*
+\path{file_id} & TEXT &  & UQ, FK to \path{photo} \\*
+\addlinespace[6pt]
+\multicolumn{4}{@{}l}{\textbf{\texttt{rewards.ecopoints\_award}}} \\*
+\path{ecopoints_award_id} & UUID &  & PK \\*
+\path{assignment_id} & UUID &  & FK to \path{assignment} \\*
+\path{points} & NUMERIC(23,2) &  &  \\*
+\path{formula} & TEXT &  &  \\*
+\multicolumn{4}{@{}>{\raggedright\arraybackslash}p{0.95\linewidth}@{}}{\textit{Checks:} points are positive; formula is not blank.} \\
+\addlinespace[6pt]
+\multicolumn{4}{@{}l}{\textbf{\texttt{rewards.resident\_award}}} \\*
+\path{ecopoints_award_id} & UUID &  & PK, FK to \path{ecopoints_award} \\*
+\addlinespace[6pt]
+\multicolumn{4}{@{}l}{\textbf{\texttt{rewards.volunteer\_award}}} \\*
+\path{ecopoints_award_id} & UUID &  & PK, FK to \path{ecopoints_award} \\*
+\addlinespace[6pt]
+\multicolumn{4}{@{}l}{\textbf{\texttt{notifications.push\_subscription}}} \\*
+\path{endpoint} & TEXT &  & PK \\*
+\path{account_id} & VARCHAR(50) &  & FK to \path{account} \\*
+\path{p256dh} & TEXT &  &  \\*
+\path{auth} & TEXT &  &  \\*
+\path{expiration_time} & TIMESTAMPTZ & yes &  \\*
+\path{user_agent} & TEXT & yes &  \\*
+\path{updated_at} & TIMESTAMPTZ &  &  \\*
+\multicolumn{4}{@{}>{\raggedright\arraybackslash}p{0.95\linewidth}@{}}{\textit{Checks:} endpoint, p256dh and auth are not blank.} \\
+\addlinespace[6pt]
+\multicolumn{4}{@{}l}{\textbf{\texttt{notifications.notification}}} \\*
+\path{notification_id} & UUID &  & PK \\*
+\path{type} & VARCHAR(80) &  &  \\*
+\path{created_at} & TIMESTAMPTZ &  &  \\*
+\path{pushed_at} & TIMESTAMPTZ & yes &  \\*
+\path{is_read} & BOOLEAN &  &  \\*
+\path{is_expired} & BOOLEAN &  &  \\*
+\multicolumn{4}{@{}>{\raggedright\arraybackslash}p{0.95\linewidth}@{}}{\textit{Checks:} type is one of 20 notification types; pushed\_at is not before created\_at.} \\
+\addlinespace[6pt]
+\multicolumn{4}{@{}l}{\textbf{\texttt{notifications.request\_event}}} \\*
+\path{pickup_request_id} & UUID &  & PK, FK to \path{pickup_request} \\*
+\path{request_seq} & BIGINT &  & PK \\*
+\path{transition_id} & UUID &  &  \\*
+\multicolumn{4}{@{}>{\raggedright\arraybackslash}p{0.95\linewidth}@{}}{\textit{Checks:} request\_seq is positive.} \\
+\addlinespace[6pt]
+\multicolumn{4}{@{}l}{\textbf{\texttt{notifications.request\_update\_event}}} \\*
+\path{pickup_request_id} & UUID &  & PK, FK to \path{request_event} \\*
+\path{request_seq} & BIGINT &  & PK, FK to \path{request_event} \\*
+\path{reason} & VARCHAR(10) &  &  \\*
+\multicolumn{4}{@{}>{\raggedright\arraybackslash}p{0.95\linewidth}@{}}{\textit{Checks:} reason is edited or reopened.} \\
+\addlinespace[6pt]
+\multicolumn{4}{@{}l}{\textbf{\texttt{notifications.request\_changed\_field}}} \\*
+\path{pickup_request_id} & UUID &  & PK, FK to \path{request_update_event} \\*
+\path{request_seq} & BIGINT &  & PK, FK to \path{request_update_event} \\*
+\path{field_name} & VARCHAR(20) &  & PK \\*
+\multicolumn{4}{@{}>{\raggedright\arraybackslash}p{0.95\linewidth}@{}}{\textit{Checks:} field\_name is one of five editable fields.} \\
+\addlinespace[6pt]
+\multicolumn{4}{@{}l}{\textbf{\texttt{notifications.request\_notification}}} \\*
+\path{notification_id} & UUID &  & PK, FK to \path{notification} \\*
+\path{account_id} & VARCHAR(50) &  & FK to \path{account} \\*
+\path{pickup_request_id} & UUID &  & FK to \path{request_event} \\*
+\path{request_seq} & BIGINT &  & FK to \path{request_event} \\*
+\addlinespace[6pt]
+\multicolumn{4}{@{}l}{\textbf{\texttt{notifications.award\_notification}}} \\*
+\path{notification_id} & UUID &  & PK, FK to \path{notification} \\*
+\path{ecopoints_award_id} & UUID &  & UQ, FK to \path{ecopoints_award} \\*
+\addlinespace[6pt]
+\end{longtable}

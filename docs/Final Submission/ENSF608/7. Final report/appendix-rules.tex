@@ -1,0 +1,146 @@
+% Generated from the business-rule note in ER-Diagram.drawio.
+\begin{longtable}{@{}p{0.07\linewidth}>{\raggedright\arraybackslash}p{0.89\linewidth}@{}}
+\caption{Business rules}\label{tab:rules}\\
+\toprule
+Rule & Statement \\
+\midrule
+\endfirsthead
+\toprule
+Rule & Statement \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+BR1 & Every ACCOUNT has at least one role (RESIDENT, VOLUNTEER or both). A second role is activated on the same account, never a duplicate account. \\
+\addlinespace[2pt]
+BR2 & Registration and role activation record a TERMS\_ACCEPTANCE, so every account has at least one. Related type values are AT\_RESIDENT\_REGISTRATION\_OR\_ACTIVATION and AT\_VOLUNTEER\_REGISTRATION\_OR\_ACTIVATION. \\
+\addlinespace[2pt]
+BR3 & Account\_ID is unique across all accounts. \\
+\addlinespace[2pt]
+BR4 & Account\_ID, First\_Name, Last\_Name, Public\_Name, and Date\_Of\_Birth are required for all accounts. \\
+\addlinespace[2pt]
+BR5 & Address is required for a RESIDENT account. \\
+\addlinespace[2pt]
+BR6 & The account holder must be 18 or older, and Date\_Of\_Birth cannot be in the future. Age is derived from Date\_Of\_Birth. \\
+\addlinespace[2pt]
+BR7 & Postal\_Code matches \texttt{\textasciicircum T[0-9][A-Z][0-9][A-Z][0-9]\$} (for example T2P1J9). The application validates that the address is in Calgary. \\
+\addlinespace[2pt]
+BR8 & A RESIDENT cannot change their profile address while they have a pickup request that is Open or Assigned. \\
+\addlinespace[2pt]
+BR9 & A VOLUNTEER saves 0 to 3 distinct Preferred\_Postal\_Code values. Saved codes trigger matching notifications unless the account is deactivated; with none saved, no new-request match notifications are generated for that Volunteer. \\
+\addlinespace[2pt]
+BR10 & A NOTIFICATION belongs to exactly one account and is used to deliver in-app and push notifications. \\
+\addlinespace[2pt]
+BR11 & Each ECOPOINTS\_AWARD is earned through exactly one role: by a VOLUNTEER or by a RESIDENT. A delivery creates a volunteer award and a resident award. When a volunteer delivers their own request, their account receives both. A resident's cancellation outside the cancellation window creates a volunteer award only. The cancellation window is the period at least 24 hours before the start of the assignment's pickup window. No cancellation award is created when the volunteer is also the request's resident. \\
+\addlinespace[2pt]
+BR12 & Combined\_Ecopoints (ACCOUNT) is derived: the sum of Points over all ECOPOINTS\_AWARDs the account has earned in either role, as a RESIDENT and as a VOLUNTEER, including delivery and cancellation awards. \\
+\addlinespace[2pt]
+BR13 & A RESIDENT owns the requests they create, and the owner never changes. Only the owning resident can confirm a collection while the request is Assigned. \\
+\addlinespace[2pt]
+BR14 & Every ASSIGNMENT belongs to exactly one VOLUNTEER, and a volunteer can accept a request created by their own account. \\
+\addlinespace[2pt]
+BR15 & Public profiles show only Public\_Name, Account\_ID, roles, ecopoints and member since (Created\_At). Legal name, email, birth date, address and PICKUP\_REQUEST details (quantity, item category, etc.) stay private. \\
+\addlinespace[2pt]
+BR16 & Every PICKUP\_REQUEST has at least one STATUS\_CHANGE; the first one records Open when the request is created. \\
+\addlinespace[2pt]
+BR17 & A STATUS\_CHANGE is added each time the request status changes, including expiry and reopening, and is never edited. Reason is optional and explains the change, for example, expired or missed pickup. \\
+\addlinespace[2pt]
+BR18 & STATUS\_CHANGE is weak: it is identified by its PICKUP\_REQUEST plus Changed\_At. Status is one of Open, Assigned, Collected, Delivered, Cancelled, Expired, Missed. \\
+\addlinespace[2pt]
+BR19 & An ASSIGNMENT links one VOLUNTEER, one PICKUP\_REQUEST and one PICKUP\_WINDOW, which must be one of the windows that request offers. \\
+\addlinespace[2pt]
+BR20 & A PICKUP\_REQUEST has at most one ASSIGNMENT that hasn't ended (Ended\_At empty) at a time. Ended assignments are kept for history. \\
+\addlinespace[2pt]
+BR21 & ASSIGNMENT: Collected\_At is set when the owning resident confirms collection. \\
+\addlinespace[2pt]
+BR22 & An ASSIGNMENT can be cancelled or reported missed only before Collected\_At is set. A missed pickup can be reported only after the selected window ends. A resident can cancel the request or its assignment only until the selected window ends; after that they confirm collection or report a missed pickup. A volunteer can cancel any time before Collected\_At is set. If an assignment is cancelled by the resident or the volunteer, the request returns to Open if valid future windows remain, otherwise it becomes Expired; the resident may offer new windows. If a missed pickup is reported, the request becomes Missed, a final status, and the resident may reschedule, which creates a new PICKUP\_REQUEST linked to the missed one. \\
+\addlinespace[2pt]
+BR23 & ASSIGNMENT: Ended\_At and End\_Reason are set together. End\_Reason is one of Delivered, Volunteer\_Cancelled, Resident\_Cancelled, Missed\_Pickup. \\
+\addlinespace[2pt]
+BR24 & ASSIGNMENT: Status is derived: "Active" if Collected\_At and Ended\_At are empty, "Collected" if only Collected\_At is set, otherwise the End\_Reason. \\
+\addlinespace[2pt]
+BR25 & A DELIVERY is recorded only for a collected ASSIGNMENT, by its volunteer. An ASSIGNMENT has at most one DELIVERY. \\
+\addlinespace[2pt]
+BR26 & DELIVERY: Delivered\_At cannot be earlier than Collected\_At. \\
+\addlinespace[2pt]
+BR27 & A DELIVERY is recorded only when the facility accepts the items; items a facility refuses are handled outside the app. \\
+\addlinespace[2pt]
+BR28 & A DELIVERY can only go to a facility that accepts the request's ITEM\_CATEGORY. \\
+\addlinespace[2pt]
+BR29 & Each assignment requires exactly one acknowledgment of the terms, a TERMS\_ACCEPTANCE of Type AT\_VOLUNTEER\_ACCEPTANCE, made by the assignment's Volunteer. \\
+\addlinespace[2pt]
+BR30 & PICKUP\_REQUEST: Quantity is a positive integer. \\
+\addlinespace[2pt]
+BR31 & PICKUP\_REQUEST: Estimated\_Weight\_Kg = Quantity * Standard\_Weight\_Kg (2 decimals). It's computed by the system and recalculated on edit (FR06, FR10). Changing Standard\_Weight\_Kg does not update existing requests. \\
+\addlinespace[2pt]
+BR32 & PICKUP\_REQUEST: A request offers 1--3 windows that don't overlap and start in the future, each with one hourly slot (0-23) based on the starting hour of the day, ending no later than Created\_At + 30 days (FR07). A request can only offer up to 3 active windows (Is\_Active = true) at once. \\
+\addlinespace[2pt]
+BR33 & PICKUP\_REQUEST: Expires\_At = the start of its last active PICKUP\_WINDOW, recalculated when the active windows change (FR10). Every window ends by Created\_At + 30 days (BR32), so a request never stays Open past 30 days, and reopening doesn't move that limit. Only Open requests expire (FR20). \\
+\addlinespace[2pt]
+BR34 & PICKUP\_REQUEST: Pickup\_Address is copied from the resident's profile at creation and never changes (FR07, FR10). \\
+\addlinespace[2pt]
+BR35 & PICKUP\_REQUEST: Only Open requests can be edited (FR10, BR45). \\
+\addlinespace[2pt]
+BR36 & PICKUP\_WINDOW: Replaced windows are kept with Is\_Active = false, for assignment history. \\
+\addlinespace[2pt]
+BR37 & ITEM\_CATEGORY: each category has one Name and exactly one Waste\_Type that classifies it. Categories are predefined. \\
+\addlinespace[2pt]
+BR38 & PICKUP\_REQUEST: A Resident must acknowledge the safety requirements before creating a Pickup Request. The acknowledgment is mandatory and recorded with the request through its TERMS\_ACCEPTANCE. \\
+\addlinespace[2pt]
+BR39 & RECYCLING\_FACILITY: Facilities are predefined; residents and volunteers can't create them (FR17). \\
+\addlinespace[2pt]
+BR40 & PUSH\_SUBSCRIPTION: Delete the subscription on device logout or a push response of 404 or 410. On E16 (AccountDeactivated), the Notification Service deletes all subscriptions for that account. \\
+\addlinespace[2pt]
+BR41 & Volunteer Points = 3 * Quantity + 4 * Estimated\_Weight\_Kg. Resident Points = Volunteer Points / 2, with no rounding. A cancellation award uses the Volunteer formula. Points are stored with 2 decimals. Each ECOPOINTS\_AWARD stores the formula used, as text, when it is created; changing a formula affects only new awards. \\
+\addlinespace[2pt]
+BR42 & Accounts are deactivated, not deleted. Their history is kept. \\
+\addlinespace[2pt]
+BR43 & Creating a PICKUP\_REQUEST records a TERMS\_ACCEPTANCE of Type AT\_RESIDENT\_REQUEST\_CREATION for the creating Resident. \\
+\addlinespace[2pt]
+BR44 & Recording a DELIVERY also sets Ended\_At and End\_Reason = Delivered. Delivered\_At is derived from Ended\_At. \\
+\addlinespace[2pt]
+BR45 & A request's current Status comes from its latest STATUS\_CHANGE. \\
+\addlinespace[2pt]
+BR46 & When a request's status changes, the related accounts are notified, except accounts that are deactivated (BR47). \\
+\addlinespace[2pt]
+BR47 & On E16 (AccountDeactivated), the Notification Service deletes the linked account's notifications and their source rows. \\
+\addlinespace[2pt]
+BR48 & Each ECOPOINTS\_AWARD creates one NOTIFICATION for the account that earns it, unless that account is deactivated (BR47). Each NOTIFICATION comes from exactly one source: a PICKUP\_REQUEST or an ECOPOINTS\_AWARD. \\
+\addlinespace[2pt]
+BR49 & A NOTIFICATION about a request is expired when that request moves past the state it describes. Expired notifications are hidden and deleted daily. EcoPoints notifications never expire. They are deleted only with their account (BR47). \\
+\addlinespace[2pt]
+BR50 & A Missed PICKUP\_REQUEST can be rescheduled once, while reporting the miss, by creating a new PICKUP\_REQUEST that references it. The new request copies the category, quantity, notes and photo; takes the address from the profile; records a new terms acceptance; and has its own Created\_At and Expires\_At. \\
+\addlinespace[2pt]
+BR51 & An item photo is visible to the request owner and to Volunteers while the request is Open, then to the owner and the assigned Volunteer. A delivery photo is visible only to the owner and the delivering Volunteer. Location metadata is removed before upload. A photo file is deleted only when no request references it. A PICKUP\_REQUEST photo is optional; a DELIVERY photo is required (FR17). \\
+\addlinespace[2pt]
+BR52 & Is\_Read is set by the user (one notification or all). \\
+\addlinespace[2pt]
+BR53 & An account can't be deactivated while it owns an Open, Assigned or Collected request or is the volunteer of an assignment that hasn't ended (Ended\_At empty). \\
+\addlinespace[2pt]
+BR54 & A TERMS\_ACCEPTANCE must reference the current TERMS\_DOCUMENT at the time of acceptance. \\
+\addlinespace[2pt]
+BR55 & An ASSIGNMENT has at most one ECOPOINTS\_AWARD per role. \\
+\addlinespace[2pt]
+BR56 & Email is stored only in Firebase, under the account's Account\_ID (the Firebase uid), and Firebase enforces that it's unique. Role membership (RESIDENT, VOLUNTEER) is also copied to Firebase as custom claims. \\
+\addlinespace[2pt]
+BR57 & Awarded\_At and Type on ECOPOINTS\_AWARD are derived from the assignment. \\
+\addlinespace[2pt]
+BR58 & NOTIFICATION: Title and Body are derived, never stored. When the notification is sent (SSE and push), Title and Body are built from the event that created it. When the notification list is read, Title and Body are built from the related request, assignment or award. The assignment is the request's latest one for resident notifications, the recipient's latest one on that request for volunteer notifications, and the award's assignment for EcoPoints notifications; this is unambiguous because older notifications expire (BR49). For request notifications, Metadata is derived from REQUEST\_EVENT, its optional REQUEST\_UPDATE\_EVENT and changed-field values. Title and Body never include a street address or photo link (NFR03). \\
+\addlinespace[2pt]
+BR59 & PICKUP\_REQUEST: Deliverable\_Facilities is derived: the RECYCLING\_FACILITIES that accept the request's ITEM\_CATEGORY. \\
+\addlinespace[2pt]
+BR60 & Each PHOTO is linked either to one or more requests or to exactly one delivery, never both. \\
+\addlinespace[2pt]
+BR61 & PICKUP\_REQUEST: Request\_Seq starts at 1 and increases by 1 for every event published about the request (two events from one action get consecutive numbers). A rescheduled request starts at 1. \\
+\addlinespace[2pt]
+BR62 & Every notification has exactly one source subtype (total and disjoint). Both inherit the notification attributes and recipient relationship. \\
+\addlinespace[2pt]
+BR63 & REQUEST\_EVENT is identified by its request and Request\_Seq. Transition\_ID identifies an action and may be shared by several events. \\
+\addlinespace[2pt]
+BR64 & REQUEST\_UPDATE\_EVENT is optional and inherits the event key. Reason is edited or reopened. Changed\_Field lists the fields changed by an edit; reopened events have none. \\
+\addlinespace[2pt]
+BR65 & Request notification metadata is derived from the event sequence, transition ID, optional update reason and changed fields. Award recipients follow EARNS\_AS\_RESIDENT or EARNS\_AS\_VOLUNTEER (BR11). \\
+\addlinespace[2pt]
+BR66 & Every RECYCLING\_FACILITY accepts at least one ITEM\_CATEGORY, and every ITEM\_CATEGORY is accepted by at least one RECYCLING\_FACILITY. \\
+\addlinespace[2pt]
+\end{longtable}
