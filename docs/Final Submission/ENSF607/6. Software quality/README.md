@@ -18,7 +18,7 @@ The [functional requirements](../1.%20Functional%20Requirements/README.md) defin
 | FR10 | Edit Open Pickup Requests | [resident-requests.md](cases/resident-requests.md) | Pass | Pass |
 | FR11 | Cancel Pickup Requests | [resident-requests.md](cases/resident-requests.md) | Pass | Fail |
 | FR12 | Volunteer Request Discovery | [volunteer.md](cases/volunteer.md) | Pass | Pass |
-| FR13 | Accept Pickup Requests | [volunteer.md](cases/volunteer.md) | Pass | Not run |
+| FR13 | Accept Pickup Requests | [volunteer.md](cases/volunteer.md) | Pass | Pass |
 | FR14 | Cancel Volunteer Assignment | [volunteer.md](cases/volunteer.md) | Pass | Pass |
 | FR15 | Confirm Item Collection | [volunteer.md](cases/volunteer.md) | Pass | Pass |
 | FR16 | Report Missed Pickup | [volunteer.md](cases/volunteer.md) | Pass | Pass |
@@ -40,12 +40,12 @@ The five files in `cases/` share the same columns, ending with **Result**: Pass,
 
 ## Results
 
-All testing is manual. The 23 requirements have a positive and a negative case, 46 in total: **42 pass, 1 fails and 3 are not run**.
+All testing is manual. The 23 requirements have a positive and a negative case, 46 in total: **43 pass, 1 fails and 2 are not run**.
 
 | How the case was run | Passed |
 | --- | --- |
 | Team manual runs | 34 |
-| Browser runs on the local Compose stack (FR02-P, FR03-N, FR08-P, FR14-N, FR16-P, FR16-N, FR17-N and FR22-P) | 8 |
+| Browser runs on the local Compose stack (FR02-P, FR03-N, FR08-P, FR13-N, FR14-N, FR16-P, FR16-N, FR17-N and FR22-P) | 9 |
 
 **Failed:**
 
@@ -55,7 +55,6 @@ All testing is manual. The 23 requirements have a positive and a negative case, 
 
 | Cases | Still needed |
 | --- | --- |
-| FR13-N | Two volunteer accounts |
 | FR19-P, FR19-N | Web push in Chrome with a trusted certificate |
 
 ### Database and event flows
