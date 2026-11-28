@@ -13,7 +13,7 @@ The schema uses primary keys, foreign keys, unique constraints, and check constr
 
 ## Set up the test database
 
-Use a fresh database on a separate PostgreSQL server instance. Set `PGHOST`, `PGPORT`, and `PGUSER` for that instance. The setup account needs permission to create databases, schemas, and the roles used by the init scripts. The application targets PostgreSQL 16. The saved query and test runs used PostgreSQL 18.6.
+Use a fresh database on a separate PostgreSQL server instance. Set `PGHOST`, `PGPORT`, and `PGUSER` for that instance. The setup account needs permission to create databases, schemas, and the roles used by the init scripts. The application targets PostgreSQL 16. The saved query run used PostgreSQL 16.16 and the saved test run used PostgreSQL 18.6.
 
 From the repository root in Bash:
 

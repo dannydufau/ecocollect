@@ -1,6 +1,8 @@
 # Database operations and queries
 
-The [25 SQL operations](operations.sql) use the application schemas and the sample data loaded in [Section 4](<../4. Physical model/README.md>). Use the same test database as the [Section 6 suite](../../../../backend/test/ensf608/README.md).
+The [27 SQL operations](operations.sql) use the application schemas and the sample data loaded in [Section 4](<../4. Physical model/README.md>). Use the same test database as the [Section 6 suite](../../../../backend/test/ensf608/README.md).
+
+The course requires at least 25. G3 (expired requests per month) and C2 (delivered quantities per item category) were added for questions 3 and 5 in our project proposal.
 
 From the repository root in Bash:
 
