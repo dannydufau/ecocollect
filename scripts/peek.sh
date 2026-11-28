@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Read-only snapshot of one pickup request across the services' tables.
 # Usage: bash scripts/peek.sh [requestId]    (no id: the newest request)
+#        bash scripts/peek.sh --accounts     (accounts, roles and postal codes)
 # Runs psql in the Compose postgres container; set PEEK_DB_URL to use a local psql instead.
 set -euo pipefail
 
@@ -10,6 +11,24 @@ if [ -n "${PEEK_DB_URL:-}" ]; then
   run_psql() { psql "$PEEK_DB_URL" "$@"; }
 else
   run_psql() { docker compose exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" "$@"' psql "$@"; }
+fi
+
+if [ "$id" = "--accounts" ]; then
+  run_psql -X -q -v ON_ERROR_STOP=1 -P pager=off -P null='-' <<'SQL'
+\echo '== Accounts (a Volunteer is notified only for requests in a saved code)'
+SELECT a.public_name, a.account_id,
+       r.account_id IS NOT NULL AS resident,
+       v.account_id IS NOT NULL AS volunteer,
+       r.postal_code AS home_postal,
+       (SELECT string_agg(p.postal_code, ', ' ORDER BY p.postal_code)
+        FROM users.volunteer_preferred_postal_code p
+        WHERE p.account_id = a.account_id) AS saved_codes
+FROM users.account a
+LEFT JOIN users.resident r ON r.account_id = a.account_id
+LEFT JOIN users.volunteer v ON v.account_id = a.account_id
+ORDER BY a.created_at;
+SQL
+  exit
 fi
 
 run_psql -X -q -v ON_ERROR_STOP=1 -v id="$id" -P pager=off -P null='-' <<'SQL'

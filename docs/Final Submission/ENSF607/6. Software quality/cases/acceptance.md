@@ -14,6 +14,7 @@ Run the cases in this order: AT-1 and AT-2 with nothing injected, so a failure m
 - The full stack is running: `docker compose up -d --build` at the repo root, with every service healthy (`docker compose ps`), the databases loaded (`bash backend/scripts/<service>/load-db.sh`), ImageKit and VAPID keys set in `.env`.
 - Two accounts registered in the app: **Resident** (role Resident, with an address) and **Volunteer** (role Volunteer). They use separate browser sessions, because Firebase keeps one sign-in per site: the Resident in a normal window, the Volunteer in a private window (or another browser).
 - On the Volunteer's Profile, under Preferred postal codes, the Resident's postal code is added exactly as it appears on the Resident's address. Matching is an exact 6-character match (contract 10.3).
+- Check both from the repo root with `bash scripts/peek.sh --accounts`: the Resident is listed with a `home_postal`, and the Volunteer's `saved_codes` include that exact code.
 - Both users are signed in, with device notifications turned on.
 - The two windows sit side by side. In a "without reloading" step, check the watching window without clicking into it first: switching to a window refetches its lists from the database, which would hide whether the live update worked.
 
@@ -59,7 +60,7 @@ Run the cases in this order: AT-1 and AT-2 with nothing injected, so a failure m
 
 The acceptance tests show what users see. This case checks what happens inside when a dependency fails: the Request Service writes each event to its outbox table in the same transaction as the change, and a publisher sends it to RabbitMQ afterwards. No automated test stops the broker under the Request Service's publisher, so this case does it on the stack.
 
-`bash scripts/peek.sh [requestId]` prints one request's rows across the services' tables (the newest request if no id is given). It only reads; it never stops or changes anything.
+`bash scripts/peek.sh [requestId]` prints one request's rows across the services' tables (the newest request if no id is given); `--accounts` lists the accounts, their roles and postal codes. It only reads; it never stops or changes anything.
 
 ### ST-1: A request created while RabbitMQ is down is saved, and its event is published when RabbitMQ is back (alternate flow)
 
