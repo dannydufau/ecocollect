@@ -10,6 +10,8 @@ This submission uses EcoCollect's application database. Use a fresh test instanc
 | 4. Physical database implementation | [Setup, schema files, and seed load order](<4. Physical model/README.md>) |
 | 5. Database operations and queries | [Run instructions](<5. Database operations and queries/README.md>), [27 SQL operations](<5. Database operations and queries/operations.sql>), and [saved output](<5. Database operations and queries/results/operations.txt>) |
 | 6. Database testing | [Test cases and commands](../../../backend/test/ensf608/README.md), [SQL tests](../../../backend/test/ensf608/application.sql), and [saved results](../../../backend/test/ensf608/results/application.txt) |
+| 7. Final report | [Report (PDF)](<7. Final report/EcoCollect_ENSF608_Final_Report_Group9.pdf>) and [LaTeX source and build notes](<7. Final report/README.md>) |
+| 7. Final report | [Report (PDF)](<7. Final report/EcoCollect_ENSF608_Final_Report_Group9.pdf>) and [LaTeX source](<7. Final report/README.md>) |
 
 Follow Section 4 once, then run Sections 5 and 6 on the same database. The diagrams and normalization write-up cover the 25 course relations. Outbox and processed-event tables support the application and are outside the course model.
 
