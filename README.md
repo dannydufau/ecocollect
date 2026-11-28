@@ -58,6 +58,17 @@ If your copy of the repo is in iCloud Drive (the Desktop or Documents folder wit
 
 Create accounts on the app's sign-up page. The older seed script in [scripts/seed](./scripts/seed/README.md) still fills the October 28 tables, which the services no longer read, so the accounts it creates have no profile.
 
+### Optional: encrypt the Notification Service's broker connection
+
+The Notification Service can reach RabbitMQ over TLS (`amqps` on 5671); the other services stay on plain AMQP on 5672. Make a local certificate authority and server certificate once (they go in `infra/rabbitmq/certs/`, which git ignores), then start with both Compose files:
+
+```bash
+infra/rabbitmq/gen-certs.sh
+docker compose -f docker-compose.yml -f docker-compose.tls.yml up --build
+```
+
+The Notification Service trusts only certificates signed by that authority (`RABBITMQ_CA_FILE`). The certificates are for development only.
+
 ## Run one part on your machine
 
 See [backend/README.md](./backend/README.md) and [frontend/README.md](./frontend/README.md). The frontend can run against a mock API with `npm run mock`. The API contracts are in [contracts/](./contracts/).

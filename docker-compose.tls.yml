@@ -1,0 +1,21 @@
+# Optional: encrypts the Notification Service's connection to RabbitMQ (NFR04).
+# Run infra/rabbitmq/gen-certs.sh once, then start the stack with both files:
+#   docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d
+# The other services keep the plain listener on 5672; only these settings change.
+services:
+  rabbitmq:
+    volumes:
+      - ./infra/rabbitmq/tls.conf:/etc/rabbitmq/conf.d/20-tls.conf:ro   # adds the TLS listener on 5671
+      # From gen-certs.sh: only what the broker needs; the CA signing key (ca.key) stays on the host.
+      - ./infra/rabbitmq/certs/ca.pem:/etc/rabbitmq/certs/ca.pem:ro
+      - ./infra/rabbitmq/certs/server.pem:/etc/rabbitmq/certs/server.pem:ro
+      - ./infra/rabbitmq/certs/server.key:/etc/rabbitmq/certs/server.key:ro
+    ports:
+      - "127.0.0.1:${RABBITMQ_TLS_PORT:-5671}:5671"                     # for testing TLS from the host
+
+  notification:
+    environment:
+      RABBITMQ_URL: amqps://${RABBITMQ_USER:-ecocollect}:${RABBITMQ_PASSWORD:?copy .env.example to .env first}@rabbitmq:5671
+      RABBITMQ_CA_FILE: /certs/ca.pem    # trust only certificates signed by our CA
+    volumes:
+      - ./infra/rabbitmq/certs/ca.pem:/certs/ca.pem:ro

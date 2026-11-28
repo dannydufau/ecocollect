@@ -8,6 +8,8 @@ secrets/*
 !secrets/README.md
 *-firebase-adminsdk-*.json
 serviceAccountKey.json
+# RabbitMQ dev TLS certificates (private keys), from gen-certs.sh
+infra/rabbitmq/certs/
 
 # Dependencies
 node_modules/
