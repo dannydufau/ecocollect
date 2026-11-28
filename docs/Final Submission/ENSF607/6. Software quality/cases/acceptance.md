@@ -1,18 +1,18 @@
 # Acceptance tests: the whole system, as a user sees it
 
-The FR cases check each requirement on its own: one service's tests, or the frontend against the mock API. These two cases check the services working together on the real stack: the Request Service publishes events through RabbitMQ, and the Notification and Reward Services consume them and update both users' browsers live. Each case is one user story from start to finish, in two browsers at once.
+The FR cases check each requirement on its own: one service's tests, or the frontend against the mock API. These cases check the services working together on the real stack: the Request Service publishes events through RabbitMQ, and the Notification and Reward Services consume them and update both users' browsers live. Each case is one user story from start to finish, in two browsers at once.
 
 | Case | Flow | Requirements it passes through |
 | --- | --- | --- |
 | AT-1 | Basic flow: a request is created, accepted, collected and delivered, and EcoPoints are awarded | FR06–FR08, FR12, FR13, FR15, FR17, FR18, FR19 |
-| AT-2 | Alternate flow: the Volunteer cancels the assignment before collection | FR12, FR13, FR14 |
-| ST-1 | System test under failure: a request is created while RabbitMQ is down | FR06, FR12; NFR06 (reliability) |
+| AT-2 | Alternate flow: the Volunteer cancels the assignment before collection | FR12, FR13, FR14, FR19 |
+| ST-1 | System test under failure: a request is created while RabbitMQ is down | FR06, FR12, FR19; NFR06 (reliability) |
 
 Run the cases in this order: AT-1 and AT-2 with nothing injected, so a failure means a bug; then ST-1, which stops RabbitMQ on purpose.
 
 **Shared preconditions (all cases):**
-- The full stack is running: `docker compose up -d --build` at the repo root, with every service healthy (`docker compose ps`), the databases loaded (`bash backend/scripts/<service>/load-db.sh`), ImageKit and VAPID keys set in `.env`.
-- Two accounts registered in the app: **Resident** (role Resident, with an address) and **Volunteer** (role Volunteer). They use separate browser sessions, because Firebase keeps one sign-in per site: the Resident in a normal window, the Volunteer in a private window (or another browser).
+- The full stack is running: `docker compose up -d --build` at the repo root, with every service healthy (`docker compose ps`), the databases loaded (`set -a; source .env; set +a`, then `bash backend/scripts/<service>/load-db.sh`), ImageKit and VAPID keys set in `.env`.
+- Two accounts registered in the app: **Resident** (role Resident, with an address) and **Volunteer** (role Volunteer). They use separate browser sessions, because Firebase keeps one sign-in per site: the Resident in one browser profile, the Volunteer in a second profile or another browser. Not a private window: private windows don't support push notifications, which steps 2, 4 and 7 of AT-1 check.
 - On the Volunteer's Profile, under Preferred postal codes, the Resident's postal code is added exactly as it appears on the Resident's address. Matching is an exact 6-character match (contract 10.3).
 - Check both from the repo root with `bash scripts/peek.sh --accounts`: the Resident is listed with a `home_postal`, and the Volunteer's `saved_codes` include that exact code.
 - Both users are signed in, with device notifications turned on.
@@ -45,10 +45,10 @@ Run the cases in this order: AT-1 and AT-2 with nothing injected, so a failure m
 
 | # | Actor | Action | Expected result |
 | --- | --- | --- | --- |
-| 1 | Volunteer | On the Assigned request, choose Cancel assignment, give a reason and confirm | The request leaves the Volunteer's active assignments and appears again in Available requests |
+| 1 | Volunteer | On the Assigned request, choose Cancel assignment, give a reason and confirm | The request leaves the Volunteer's active assignments |
 | 2 | Resident | Watch the request, without reloading | It is Open again, and the Resident gets a notification that the Volunteer cancelled |
-| 3 | Volunteer | Open Available requests, without reloading | The request is listed and can be accepted again |
-| 4 | Both | Open EcoPoints | No new award for this request: only a cancellation by the Resident outside the cancellation window earns points (contract 12.4, events E6 and E12) |
+| 3 | Volunteer | Go to Available requests | The request is listed again and can be accepted |
+| 4 | Both | Open EcoPoints | No new award for this request: only a late cancellation by the Resident (within 24 hours of the selected window) earns points, for the Volunteer (contract 12.4, events E6 and E12) |
 
 **Expected result:** a Volunteer's cancellation puts the request back on the market at once. The Resident is told, and no points are awarded.
 
@@ -60,7 +60,7 @@ Run the cases in this order: AT-1 and AT-2 with nothing injected, so a failure m
 
 The acceptance tests show what users see. This case checks what happens inside when a dependency fails: the Request Service writes each event to its outbox table in the same transaction as the change, and a publisher sends it to RabbitMQ afterwards. No automated test stops the broker under the Request Service's publisher, so this case does it on the stack.
 
-`bash scripts/peek.sh [requestId]` prints one request's rows across the services' tables (the newest request if no id is given); `--accounts` lists the accounts, their roles and postal codes. It only reads; it never stops or changes anything.
+`bash scripts/peek.sh [requestId]` prints one request's rows across the services' tables (the newest request if no id is given); `--accounts` lists the accounts, their roles and postal codes. It only reads; it never stops or changes anything. Its times are the database container's clock (usually UTC).
 
 ### ST-1: A request created while RabbitMQ is down is saved, and its event is published when RabbitMQ is back (alternate flow)
 
