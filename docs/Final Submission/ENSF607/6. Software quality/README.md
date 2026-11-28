@@ -16,12 +16,12 @@ The [functional requirements](../1.%20Functional%20Requirements/README.md) defin
 | FR08 | Review and Confirm Pickup Requests | [resident-requests.md](cases/resident-requests.md) | Pass | Pass |
 | FR09 | View Resident Pickup Requests | [resident-requests.md](cases/resident-requests.md) | Pass | Pass |
 | FR10 | Edit Open Pickup Requests | [resident-requests.md](cases/resident-requests.md) | Pass | Pass |
-| FR11 | Cancel Pickup Requests | [resident-requests.md](cases/resident-requests.md) | Pass | Not run |
+| FR11 | Cancel Pickup Requests | [resident-requests.md](cases/resident-requests.md) | Pass | Fail |
 | FR12 | Volunteer Request Discovery | [volunteer.md](cases/volunteer.md) | Pass | Pass |
 | FR13 | Accept Pickup Requests | [volunteer.md](cases/volunteer.md) | Pass | Not run |
 | FR14 | Cancel Volunteer Assignment | [volunteer.md](cases/volunteer.md) | Pass | Pass |
 | FR15 | Confirm Item Collection | [volunteer.md](cases/volunteer.md) | Pass | Pass |
-| FR16 | Report Missed Pickup | [volunteer.md](cases/volunteer.md) | Not run | Pass |
+| FR16 | Report Missed Pickup | [volunteer.md](cases/volunteer.md) | Pass | Pass |
 | FR17 | Record Facility Delivery | [volunteer.md](cases/volunteer.md) | Pass | Pass |
 | FR18 | EcoPoints Calculation and Awarding | [points-expiry-stats.md](cases/points-expiry-stats.md) | Pass | Pass |
 | FR19 | In-App Notifications and Push Notifications | [notifications-demo.md](cases/notifications-demo.md) | Not run | Not run |
@@ -40,18 +40,21 @@ The five files in `cases/` share the same columns, ending with **Result**: Pass,
 
 ## Results
 
-All testing is manual. The 23 requirements have a positive and a negative case, 46 in total: **41 pass and 5 are not run**. No case failed.
+All testing is manual. The 23 requirements have a positive and a negative case, 46 in total: **42 pass, 1 fails and 3 are not run**.
 
 | How the case was run | Passed |
 | --- | --- |
 | Team manual runs | 34 |
-| Browser runs on the local Compose stack (FR02-P, FR03-N, FR08-P, FR14-N, FR16-N, FR17-N and FR22-P) | 7 |
+| Browser runs on the local Compose stack (FR02-P, FR03-N, FR08-P, FR14-N, FR16-P, FR16-N, FR17-N and FR22-P) | 8 |
+
+**Failed:**
+
+- **FR11-N:** after the pickup window ended, the resident page still showed Cancel assignment. The app refused the cancellation and the request did not change. This run used one account as both resident and volunteer.
 
 **Not run:**
 
 | Cases | Still needed |
 | --- | --- |
-| FR11-N, FR16-P | An accepted, uncollected request whose window has ended |
 | FR13-N | Two volunteer accounts |
 | FR19-P, FR19-N | Web push in Chrome with a trusted certificate |
 
@@ -73,7 +76,7 @@ The team ran 38 manual cases and marked all of them as passed. Their documents a
 | [FR06–10](results/manual/fr06-10.pdf) | 10 | Yes |
 | [FR20–23](results/manual/fr20-23.pdf) | 8 | No |
 
-The tested commit was not recorded for these runs or for FR02-P and FR08-P. The other five local Compose runs, on 2026-11-27 in Chrome, used app code from `main` at `73700f2`; FR22-P also relies on two team cases. None of the local runs has saved screenshots. The case tables use some of the team cases; the rest are extra checks. A password visible in the TC001 screenshot of the first document is blacked out in the saved copy.
+The tested commit was not recorded for these runs or for FR02-P and FR08-P. The other local Compose runs, on 2026-11-27 in Chrome (including the failed one), used app code from `main` at `73700f2`; FR22-P also relies on two team cases. None of the local runs has saved screenshots. The case tables use some of the team cases; the rest are extra checks. A password visible in the TC001 screenshot of the first document is blacked out in the saved copy.
 
 ## Run the cases
 
