@@ -1,0 +1,5 @@
+     category      | requests | items
+ Computers/Laptops |        2 |     4
+ Phones            |        2 |     7
+ Printers          |        2 |     2
+(3 rows)
