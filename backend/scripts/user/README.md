@@ -58,6 +58,6 @@ TEST_DATABASE_URL='postgres://admin:your_password@localhost:5432/ecocollect_user
 
 The tests need the setup admin so they can check the restricted service role and clean up their fixtures. They cover a committed account/resident/acceptance/event transaction, rollback, the event envelope, insert-only acceptances and read-only access to a table created later in another schema. Without `TEST_DATABASE_URL`, database cases are skipped.
 
-`npm test` includes these tests. To run the full backend suite with `TEST_DATABASE_URL`, first load `db/init/001_schema.sql` into the scratch database as well; the legacy request tests still use its public tables.
+`npm test` includes these tests.
 
 With `TEST_DATABASE_URL` and `RABBITMQ_URL` pointing to scratch services, run `node --test test/integration/user-outbox.integration.test.js` from `backend` to verify delivery through the actual exchange and the database publication marker.

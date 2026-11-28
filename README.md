@@ -56,7 +56,7 @@
 
 If your copy of the repo is in iCloud Drive (the Desktop or Documents folder with "Optimize Mac Storage" on), macOS can swap files for cloud placeholders, and the containers then fail to read them with `resource deadlock avoided`. The User Service can't read the Firebase key and Caddy can't read the Caddyfile. Keep the repo outside those folders, or open the files on your Mac first so they download: `cat secrets/firebase-admin.json infra/caddy/Caddyfile db/init/*.sql > /dev/null`.
 
-Create accounts on the app's sign-up page. The older seed script in [scripts/seed](./scripts/seed/README.md) still fills the October 28 tables, which the services no longer read, so the accounts it creates have no profile.
+Create accounts on the app's sign-up page.
 
 ## Run one part on your machine
 
