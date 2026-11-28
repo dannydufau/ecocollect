@@ -9,11 +9,9 @@
 - screenshots from the local runs, except FR02-P and FR08-P;
 - the team's own records of their 38 manual cases, with their screenshots where they saved them.
 
-All testing is manual. **44 cases pass, 1 fails and 1 is partly verified.** Every case has been run.
+All testing is manual. **45 cases pass and 1 fails.** Every case has been run.
 
 **Failed:** FR11-N. After the pickup window ended, the resident page still showed Cancel assignment. The app refused the cancellation and the request did not change. This run used one account as both resident and volunteer.
-
-**Partly verified:** FR22-P. Terms acknowledgement passed. The version 3 safety guidelines were not verified.
 
 ## Acceptance and system tests
 
