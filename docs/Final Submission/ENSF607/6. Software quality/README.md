@@ -24,7 +24,7 @@ The [functional requirements](../1.%20Functional%20Requirements/README.md) defin
 | FR16 | Report Missed Pickup | [volunteer.md](cases/volunteer.md) | Pass | Pass |
 | FR17 | Record Facility Delivery | [volunteer.md](cases/volunteer.md) | Pass | Pass |
 | FR18 | EcoPoints Calculation and Awarding | [points-expiry-stats.md](cases/points-expiry-stats.md) | Pass | Pass |
-| FR19 | In-App Notifications and Push Notifications | [notifications-demo.md](cases/notifications-demo.md) | Pass | Not run |
+| FR19 | In-App Notifications and Push Notifications | [notifications-demo.md](cases/notifications-demo.md) | Pass | Pass |
 | FR20 | Automatic Request Expiration | [points-expiry-stats.md](cases/points-expiry-stats.md) | Pass | Pass |
 | FR21 | Volunteer Pickup History | [volunteer.md](cases/volunteer.md) | Pass | Pass |
 | FR22 | Terms and Conditions, including Safety Guidelines | [accounts.md](cases/accounts.md) | Pass | Pass |
@@ -40,22 +40,16 @@ The five files in `cases/` share the same columns, ending with **Result**: Pass,
 
 ## Results
 
-All testing is manual. The 23 requirements have a positive and a negative case, 46 in total: **44 pass, 1 fails and 1 is not run**.
+All testing is manual. The 23 requirements have a positive and a negative case, 46 in total: **45 pass and 1 fails**. Every case has been run.
 
 | How the case was run | Passed |
 | --- | --- |
 | Team manual runs | 34 |
-| Browser runs on the local Compose stack (FR02-P, FR03-N, FR08-P, FR13-N, FR14-N, FR16-P, FR16-N, FR17-N, FR19-P and FR22-P) | 10 |
+| Browser runs on the local Compose stack (FR02-P, FR03-N, FR08-P, FR13-N, FR14-N, FR16-P, FR16-N, FR17-N, FR19-P, FR19-N and FR22-P) | 11 |
 
 **Failed:**
 
 - **FR11-N:** after the pickup window ended, the resident page still showed Cancel assignment. The app refused the cancellation and the request did not change. This run used one account as both resident and volunteer.
-
-**Not run:**
-
-| Cases | Still needed |
-| --- | --- |
-| FR19-N | Cancelling the request, then checking the active volunteer’s list and device. The deactivated-volunteer part has been checked |
 
 ### Database and event flows
 
@@ -64,7 +58,7 @@ These cases check behaviour that depends on events between the services and on s
 - **FR20-P and FR20-N:** a request expires, or stays Open, with no user action.
 - **FR18-P and FR23-P:** after a delivery, the EcoPoints awarded and the community statistics change.
 - **FR19-P:** a request event creates an in-app notification and a push.
-- **FR19-N (not run):** checks who gets those notifications, using the notification tables.
+- **FR19-N:** checks, with the notification tables, that a deactivated volunteer gets nothing and that cancelling a request expires the old notification.
 
 ### Team manual runs
 
