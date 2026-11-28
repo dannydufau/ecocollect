@@ -144,9 +144,6 @@ As a Resident or Volunteer, I want to review and accept the applicable terms and
 
 As a public visitor, I want to view community impact statistics based on delivered requests for which EcoPoints were awarded, so that I can understand EcoCollect's recorded contribution to e-waste disposal.
 
-#### FR24 - Interactive Demo Mode
-
-As a public visitor, I want to try the main Resident and Volunteer workflows with sample data without registering or logging in, so that I can understand EcoCollect without changing real application data.
 
 ## Non-functional requirements
 
