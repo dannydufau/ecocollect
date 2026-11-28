@@ -55,7 +55,7 @@ All testing is manual. The 23 requirements have a positive and a negative case, 
 
 | Cases | Still needed |
 | --- | --- |
-| FR19-N | A deactivated volunteer, web push and a database check |
+| FR19-N | Cancelling the request, then checking the active volunteer’s list and device. The deactivated-volunteer part has been checked |
 
 ### Database and event flows
 
