@@ -1,72 +1,18 @@
 # Software quality
 
-## Functional requirement coverage
+## Functional test report
 
-The [functional requirements](../1.%20Functional%20Requirements/README.md) define the behavior under test. Each row below points to the file where the positive and negative cases belong. This table is an index. Test results belong with the cases and run evidence.
+**[test-report.pdf](test-report.pdf)** has all the functional testing in one place:
 
-| ID | Functional requirement | Case file |
-| --- | --- | --- |
-| FR01 | Account Registration | [accounts.md](cases/accounts.md) |
-| FR02 | User Login, Logout, and Role Selection | [accounts.md](cases/accounts.md) |
-| FR03 | Additional Role Activation | [accounts.md](cases/accounts.md) |
-| FR04 | Profile Management | [accounts.md](cases/accounts.md) |
-| FR05 | Public User Profiles | [accounts.md](cases/accounts.md) |
-| FR06 | Create Pickup Requests | [resident-requests.md](cases/resident-requests.md) |
-| FR07 | Pickup Scheduling | [resident-requests.md](cases/resident-requests.md) |
-| FR08 | Review and Confirm Pickup Requests | [resident-requests.md](cases/resident-requests.md) |
-| FR09 | View Resident Pickup Requests | [resident-requests.md](cases/resident-requests.md) |
-| FR10 | Edit Open Pickup Requests | [resident-requests.md](cases/resident-requests.md) |
-| FR11 | Cancel Pickup Requests | [resident-requests.md](cases/resident-requests.md) |
-| FR12 | Volunteer Request Discovery | [volunteer.md](cases/volunteer.md) |
-| FR13 | Accept Pickup Requests | [volunteer.md](cases/volunteer.md) |
-| FR14 | Cancel Volunteer Assignment | [volunteer.md](cases/volunteer.md) |
-| FR15 | Confirm Item Collection | [volunteer.md](cases/volunteer.md) |
-| FR16 | Report Missed Pickup | [volunteer.md](cases/volunteer.md) |
-| FR17 | Record Facility Delivery | [volunteer.md](cases/volunteer.md) |
-| FR18 | EcoPoints Calculation and Awarding | [points-expiry-stats.md](cases/points-expiry-stats.md) |
-| FR19 | In-App Notifications and Push Notifications | [notifications-demo.md](cases/notifications-demo.md) |
-| FR20 | Automatic Request Expiration | [points-expiry-stats.md](cases/points-expiry-stats.md) |
-| FR21 | Volunteer Pickup History | [volunteer.md](cases/volunteer.md) |
-| FR22 | Terms and Conditions, including Safety Guidelines | [accounts.md](cases/accounts.md) |
-| FR23 | Public Community Impact Statistics | [points-expiry-stats.md](cases/points-expiry-stats.md) |
-| FR24 | Interactive Demo Mode | [notifications-demo.md](cases/notifications-demo.md) |
+- the results, the coverage of FR01 to FR23, the test setup, and how to run the cases;
+- 46 test cases, each with its steps, expected result and what happened;
+- screenshots from the local runs, except FR02-P and FR08-P;
+- the team's own records of their 38 manual cases, with their screenshots where they saved them.
 
-## Case format
+All testing is manual. **45 cases pass and 1 fails.** Every case has been run.
 
-Use two IDs per requirement. For example, `FR01-P` is a positive case that checks the expected result of valid use, and `FR01-N` is a negative case that checks the expected rejection or constraint. Add more cases with a numeric suffix such as `FR01-N2` if needed.
+**Failed:** FR11-N. After the pickup window ended, the resident page still showed Cancel assignment. The app refused the cancellation and the request did not change. This run used one account as both resident and volunteer.
 
-Record the setup, input, and steps for each case. State the expected result, including the status code, displayed message, or persistent state when relevant. In the **Verification** column, give the automated test file and test name, or label the case **Manual** and include reproducible steps. Keep observed results with the run evidence so a planned case is never counted as a pass.
+## Acceptance and system tests
 
-The five files in `cases/` share the same columns. Add case rows to the file listed in the coverage index.
-
-## Run the suites
-
-Run the following commands from the repository root in Bash. Use the Node version required by the packages and run `npm ci` in each package before its first run.
-
-### Backend
-
-```bash
-(cd backend && npm ci && npm test)
-```
-
-The backend suite checks service routes, validation, contracts at the service boundaries, and other application logic. Database-backed cases are skipped unless their database URL is set.
-
-### Frontend
-
-The frontend on `main` currently has no `npm test` script. When the automated suite reaches the branch under test, run `cd frontend && npm test` from the repository root. For the current frontend, `npm run lint` is available after `npm ci`. It checks source code style and common errors. Use documented browser steps to verify functional cases that have no automated test.
-
-### Database and integration
-
-Use an empty scratch PostgreSQL database. Load `db/init/001_schema.sql` and the User schema using the [User database setup](../../../../backend/scripts/user/README.md) before enabling the backend database tests. Set `TEST_DATABASE_URL` to the scratch connection URL with the setup permissions required by the suite. Use separate scratch services for tests that write data.
-
-```bash
-(cd backend && TEST_DATABASE_URL="$SCRATCH_DATABASE_URL" npm test)
-```
-
-For broker integration tests, configure the local Compose environment as described in the [project README](../../../../README.md) and run the script below. It starts the Compose RabbitMQ service and runs the integration suite. Set `RABBITMQ_URL` and `RABBITMQ_MGMT_URL` if the local broker differs from the script defaults. Provide `TEST_DATABASE_URL` for integration tests that also need PostgreSQL.
-
-```bash
-bash backend/scripts/test-integration.sh
-```
-
-Record the command, commit, environment, and observed pass, fail, and skip counts for each run. For manual cases, record the observed result and the build or commit tested.
+[cases/acceptance.md](cases/acceptance.md) has AT-1, AT-2 and ST-1, which check the whole system. They are not part of the report.
